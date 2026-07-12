@@ -1,0 +1,1 @@
+"""Fake deterministic tool adapter."""

@@ -21,6 +21,7 @@ wandb/
 
 # Runtime state
 *.sqlite
+*.sqlite3
 *.sqlite-*
 *.db
 
@@ -28,5 +29,16 @@ wandb/
 data/
 !data/.gitkeep
 
+# Probe raw outputs (committed summaries live under probes/results/)
+probes/results/raw/
+
+# Client build
+client/dist/
+client/node_modules/
+
+# Private / working docs (public material lives in docs-public/)
+docs/
+
 # OS
 .DS_Store
+
