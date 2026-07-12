@@ -8,6 +8,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictStr,
+    StringConstraints,
     TypeAdapter,
     field_validator,
     model_validator,
@@ -21,7 +22,7 @@ _CONFIG = RuntimeConfig()
 
 
 class _StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 def _valid_utf8(value: str) -> str:
@@ -36,7 +37,7 @@ class Span(_StrictModel):
     event_id: EventId
     start_utf16: Annotated[int, Field(strict=True, ge=0)]
     end_utf16: PositiveInt
-    text: StrictStr
+    text: Annotated[str, StringConstraints(strict=True, min_length=1)]
 
     @model_validator(mode="after")
     def validate_offsets_and_text(self) -> "Span":
@@ -64,6 +65,29 @@ class SkipReason(StrEnum):
 
 
 class IdleAction(_StrictModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "reason": {
+                                "enum": [
+                                    "awaiting_tool",
+                                    "awaiting_opening",
+                                    "already_handled",
+                                ]
+                            }
+                        },
+                        "required": ["reason"],
+                    },
+                    "then": {"properties": {"related_event_id": {"type": "string"}}},
+                    "else": {"properties": {"related_event_id": {"type": "null"}}},
+                }
+            ]
+        }
+    )
+
     type: Literal["idle"]
     reason: IdleReason
     related_event_id: EventId | None
@@ -87,11 +111,20 @@ class MarkAction(_StrictModel):
 
 
 class LookupArgs(_StrictModel):
-    query: StrictStr
+    query: Annotated[
+        str,
+        StringConstraints(
+            strict=True,
+            max_length=_CONFIG.max_json_string_bytes,
+            pattern=r"\S",
+        ),
+    ]
 
-    @field_validator("query")
+    @field_validator("query", mode="before")
     @classmethod
-    def normalize_query(cls, value: str) -> str:
+    def normalize_query(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("lookup query must be a string")
         normalized = _valid_utf8(value).strip()
         if not normalized:
             raise ValueError("lookup query must not be empty")
@@ -133,11 +166,20 @@ class ScheduleAction(_StrictModel):
     type: Literal["schedule"]
     instruction: Span
     interval_ms: PositiveInt
-    message: StrictStr
+    message: Annotated[
+        str,
+        StringConstraints(
+            strict=True,
+            max_length=_CONFIG.max_timer_message_bytes,
+            pattern=r"\S",
+        ),
+    ]
 
-    @field_validator("message")
+    @field_validator("message", mode="before")
     @classmethod
-    def normalize_message(cls, value: str) -> str:
+    def normalize_message(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("timer message must be a string")
         normalized = _valid_utf8(value).strip()
         if not normalized:
             raise ValueError("timer message must not be empty")
@@ -153,7 +195,10 @@ class CancelTimerTarget(_StrictModel):
 
 class CancelTimersTarget(_StrictModel):
     kind: Literal["timers"]
-    timer_ids: Annotated[list[TimerId], Field(min_length=1)]
+    timer_ids: Annotated[
+        list[TimerId],
+        Field(min_length=1, json_schema_extra={"uniqueItems": True}),
+    ]
 
     @field_validator("timer_ids")
     @classmethod

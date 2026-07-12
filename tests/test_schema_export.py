@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
+from im.schema.actions import ACTION_ADAPTER
 from im.schema.export import (
     ACTION_SCHEMA_FILENAME,
     EVENT_SCHEMA_FILENAME,
@@ -70,6 +72,57 @@ def test_exported_event_schema_validates_positive_corpus(payload: dict[str, obje
 def test_exported_action_schema_rejects_structural_invalids(payload: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         Draft202012Validator(load_export(ACTION_SCHEMA_FILENAME)).validate(payload)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"type": "idle", "reason": "awaiting_tool", "related_event_id": None},
+        {"type": "idle", "reason": "no_trigger", "related_event_id": "e_000001"},
+        {
+            "type": "schedule",
+            "instruction": VALID_ACTIONS[1]["instruction"],
+            "interval_ms": 1,
+            "message": "   ",
+        },
+        {
+            "type": "cancel",
+            "instruction": VALID_ACTIONS[1]["instruction"],
+            "target": {"kind": "timers", "timer_ids": ["t_001", "t_001"]},
+        },
+    ],
+)
+def test_exported_action_schema_rejects_expressible_pydantic_invalids(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        Draft202012Validator(load_export(ACTION_SCHEMA_FILENAME)).validate(payload)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "type": "mark",
+            "instruction": VALID_ACTIONS[1]["instruction"],
+            "target": {
+                **VALID_ACTIONS[1]["target"],
+                "text": "wrong-width",
+            },
+        },
+        {
+            "type": "cancel",
+            "instruction": VALID_ACTIONS[1]["instruction"],
+            "target": {"kind": "timers", "timer_ids": ["t_002", "t_001"]},
+        },
+    ],
+)
+def test_post_decode_pydantic_rejects_unportable_schema_invariants(
+    payload: dict[str, object],
+) -> None:
+    Draft202012Validator(load_export(ACTION_SCHEMA_FILENAME)).validate(payload)
+    with pytest.raises(PydanticValidationError):
+        ACTION_ADAPTER.validate_python(payload)
 
 
 @pytest.mark.parametrize(

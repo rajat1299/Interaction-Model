@@ -63,7 +63,7 @@ JsonValue = Annotated[TimJsonValue, BeforeValidator(_validate_json_value)]
 
 
 class _StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 def _validate_utf8(value: str) -> str:

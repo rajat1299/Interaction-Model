@@ -210,7 +210,10 @@ def _event_object(event: Event) -> dict[str, object]:
 
 def render_event(event: Event | object) -> bytes:
     """Validate and render one event as frozen compact UTF-8 bytes."""
-    validated = EVENT_ADAPTER.validate_python(event)
+    candidate = (
+        event.model_dump(mode="python", round_trip=True) if isinstance(event, BaseModel) else event
+    )
+    validated = EVENT_ADAPTER.validate_python(candidate)
     try:
         rendered = json.dumps(
             _event_object(validated),

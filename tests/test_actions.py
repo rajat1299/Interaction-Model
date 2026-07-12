@@ -131,6 +131,28 @@ def test_lookup_query_and_timer_message_trim_outer_whitespace() -> None:
     assert schedule.message == "breathe"
 
 
+def test_outer_whitespace_is_trimmed_before_length_limits() -> None:
+    delegate = ACTION_ADAPTER.validate_python(
+        {
+            "type": "delegate",
+            "fact": SPAN,
+            "tool": "lookup",
+            "args": {"query": " " * 5_000 + "x"},
+        }
+    )
+    schedule = ACTION_ADAPTER.validate_python(
+        {
+            "type": "schedule",
+            "instruction": SPAN,
+            "interval_ms": 1,
+            "message": " " * 600 + "x",
+        }
+    )
+
+    assert delegate.args.query == "x"
+    assert schedule.message == "x"
+
+
 @pytest.mark.parametrize(
     "payload",
     [

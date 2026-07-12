@@ -1,7 +1,7 @@
 # Phase 0 Freeze — DRAFT
 
-- event_schema_sha256: `sha256:41ba77e4424fedec09e154bafdca067ad1c07e083fb6657594a5735d3fcb5e07`
-- action_schema_sha256: `sha256:4a2703e08d7532692c3224e7475b0614d1e52d7eb1409db251a2c34c3bb524f4`
-- combined_schema_hash: `sha256:9da3f7b74f623b15261f03a235dd9164ad75ea09ef4564c3e1c8cff02728b04d`
+- event_schema_sha256: `sha256:c6da96ba0e9e8f30ad18e32f73132ef3f503d696d03091567feb6cb18b99ca59`
+- action_schema_sha256: `sha256:86018f2dabd4d0232422356d05ac5c91233e55cead22f90cd91929d122a874b5`
+- combined_schema_hash: `sha256:85b729579f90f47ed1ce846cfe3061636bb97c749f25acac1e58d6dfd0eef1a2`
 
 These WP1 hashes are generated from compact, sorted-key schema export bytes. WP17 adds the behavior-spec, prompt-template, and renderer records before freeze.
