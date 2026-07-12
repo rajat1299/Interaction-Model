@@ -1,0 +1,8 @@
+System artifacts:
+{{behavior_spec}}
+
+Closed action schema:
+{{action_schema}}
+
+Emit exactly one action object for this policy stream:
+{{policy_stream}}
