@@ -19,6 +19,11 @@ class ScriptedPolicy:
         self.call_count = 0
         self.observed_policy_bytes: list[bytes] = []
 
+    @property
+    def remaining_count(self) -> int:
+        """Return the unconsumed tail of the finite deterministic script."""
+        return len(self._actions)
+
     async def decide(self, policy_bytes: bytes) -> object:
         if not isinstance(policy_bytes, bytes):
             raise TypeError("policy_bytes must be bytes")
