@@ -9,7 +9,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from im.canonical_json import TimJsonValue, canonicalize_tim_json, parse_tim_json
-from im.schema.common import Activity, Disposition
+from im.schema.common import Activity, Disposition, TimerStatus, ToolResultStatus
 from im.serialize import join_rendered_events, render_event
 
 
@@ -19,6 +19,14 @@ class StoreError(RuntimeError):
 
 class DispositionTransitionError(StoreError):
     """Raised when a disposition attempts a non-one-way transition."""
+
+
+class DuplicatePendingToolRequestError(StoreError):
+    """Raised when a canonical tool request is already pending."""
+
+
+class ToolRequestDeliveryError(StoreError):
+    """Raised when a scripted tool result cannot be delivered atomically."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +54,55 @@ class DispositionRecord:
     by_action_event_id: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class TimerLedgerRecord:
+    """The durable timer state needed by the scheduler and checkpoint projection.
+
+    These fields deliberately include the originating span verbatim.  They are
+    operational ledger data, not a model-facing event payload; retaining them is
+    what lets later checkpoint projection preserve causal instruction text.
+    """
+
+    timer_id: str
+    instruction_id: str
+    instruction_event_id: str
+    instruction_start_utf16: int
+    instruction_end_utf16: int
+    instruction_text: str
+    interval_ms: int
+    message: str
+    anchor_mono_ns: int
+    anchor_utc: str
+    next_due_mono_ns: int | None
+    fire_count: int
+    status: TimerStatus
+    idempotency_key: str
+
+
+class ToolRequestStatus(StrEnum):
+    """Lifecycle of a fake-tool request, distinct from the result outcome."""
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+
+
+@dataclass(frozen=True, slots=True)
+class ToolRequestRecord:
+    """Durable scripted request state owned by the deterministic tool adapter."""
+
+    request_id: str
+    fact_event_id: str
+    tool: str
+    args: TimJsonValue
+    canonical_key: str
+    status: ToolRequestStatus
+    requested_mono_ns: int
+    due_mono_ns: int
+    result_status: ToolResultStatus
+    result_data: TimJsonValue
+    result_event_id: str | None
+
+
 class IdKind(StrEnum):
     EVENT = "event"
     TIMER = "timer"
@@ -61,6 +118,23 @@ _ID_FORMAT: dict[IdKind, tuple[str, int]] = {
 }
 
 _CURRENT_SEGMENT_KEY = "current_segment_index"
+
+_TIMER_SELECT = """
+    timer_id,
+    instruction_id,
+    instruction_event_id,
+    instruction_start_utf16,
+    instruction_end_utf16,
+    instruction_text,
+    interval_ms,
+    message,
+    anchor_mono_ns,
+    anchor_utc,
+    next_due_mono_ns,
+    fire_count,
+    status,
+    idempotency_key
+"""
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS ingress (
@@ -100,6 +174,10 @@ CREATE TABLE IF NOT EXISTS timers (
     timer_id TEXT PRIMARY KEY,
     instruction_id TEXT NOT NULL,
     instruction_event_id TEXT NOT NULL,
+    instruction_start_utf16 INTEGER NOT NULL CHECK (instruction_start_utf16 >= 0),
+    instruction_end_utf16 INTEGER NOT NULL
+        CHECK (instruction_end_utf16 > instruction_start_utf16),
+    instruction_text TEXT NOT NULL,
     interval_ms INTEGER NOT NULL CHECK (interval_ms > 0),
     message TEXT NOT NULL,
     anchor_mono_ns INTEGER NOT NULL CHECK (anchor_mono_ns >= 0),
@@ -116,17 +194,56 @@ CREATE TABLE IF NOT EXISTS tool_requests (
     fact_event_id TEXT NOT NULL,
     tool TEXT NOT NULL,
     args BLOB NOT NULL,
-    canonical_key TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL,
+    canonical_key TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'completed')),
     requested_mono_ns INTEGER NOT NULL CHECK (requested_mono_ns >= 0),
+    due_mono_ns INTEGER NOT NULL CHECK (due_mono_ns >= 0),
+    result_status TEXT NOT NULL CHECK (result_status IN ('succeeded', 'failed')),
+    result_data BLOB NOT NULL,
     result_event_id TEXT
 ) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS tool_requests_pending_canonical_key
+ON tool_requests(canonical_key)
+WHERE status = 'pending';
 
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value BLOB NOT NULL
 ) STRICT;
 """
+
+_EVOLVED_TABLE_COLUMNS = {
+    "timers": (
+        "timer_id",
+        "instruction_id",
+        "instruction_event_id",
+        "instruction_start_utf16",
+        "instruction_end_utf16",
+        "instruction_text",
+        "interval_ms",
+        "message",
+        "anchor_mono_ns",
+        "anchor_utc",
+        "next_due_mono_ns",
+        "fire_count",
+        "status",
+        "idempotency_key",
+    ),
+    "tool_requests": (
+        "request_id",
+        "fact_event_id",
+        "tool",
+        "args",
+        "canonical_key",
+        "status",
+        "requested_mono_ns",
+        "due_mono_ns",
+        "result_status",
+        "result_data",
+        "result_event_id",
+    ),
+}
 
 
 class Store:
@@ -136,6 +253,11 @@ class Store:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(self.path, isolation_level=None)
+        try:
+            self._reject_incompatible_existing_schema()
+        except BaseException:
+            self._connection.close()
+            raise
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._connection.execute("PRAGMA busy_timeout = 5000")
         self._connection.execute("PRAGMA synchronous = NORMAL")
@@ -146,6 +268,36 @@ class Store:
         self._connection.executescript(_SCHEMA)
         self._transaction_depth = 0
         self._savepoint_counter = 0
+
+    def _reject_incompatible_existing_schema(self) -> None:
+        """Fail clearly rather than half-opening a pre-contract session database.
+
+        Phase 0 has no persisted-session migration contract. Timer provenance and scripted tool
+        delivery both changed atomically before the runtime shipped, so silently patching old
+        tables would manufacture incomplete state. Fresh sessions are the only safe upgrade path.
+        """
+        for table, expected in _EVOLVED_TABLE_COLUMNS.items():
+            rows = self._connection.execute(f"PRAGMA table_info({table})").fetchall()
+            if rows and tuple(str(row[1]) for row in rows) != expected:
+                raise StoreError(
+                    f"incompatible {table} schema; create a new Phase 0 session database"
+                )
+
+        tool_columns = self._connection.execute("PRAGMA table_info(tool_requests)").fetchall()
+        if not tool_columns:
+            return
+        for index in self._connection.execute("PRAGMA index_list(tool_requests)").fetchall():
+            index_name = str(index[1])
+            unique = bool(index[2])
+            partial = bool(index[4])
+            columns = tuple(
+                str(row[2])
+                for row in self._connection.execute(f"PRAGMA index_info({index_name})").fetchall()
+            )
+            if unique and not partial and columns == ("canonical_key",):
+                raise StoreError(
+                    "incompatible tool_requests uniqueness; create a new Phase 0 session database"
+                )
 
     def close(self) -> None:
         self._connection.close()
@@ -266,6 +418,284 @@ class Store:
                 (event_id, received_utc, received_mono_ns, source, kind, payload),
             )
 
+    @staticmethod
+    def _timer_record(row: tuple[object, ...] | None) -> TimerLedgerRecord | None:
+        if row is None:
+            return None
+        return TimerLedgerRecord(
+            timer_id=str(row[0]),
+            instruction_id=str(row[1]),
+            instruction_event_id=str(row[2]),
+            instruction_start_utf16=int(row[3]),
+            instruction_end_utf16=int(row[4]),
+            instruction_text=str(row[5]),
+            interval_ms=int(row[6]),
+            message=str(row[7]),
+            anchor_mono_ns=int(row[8]),
+            anchor_utc=str(row[9]),
+            next_due_mono_ns=None if row[10] is None else int(row[10]),
+            fire_count=int(row[11]),
+            status=TimerStatus(str(row[12])),
+            idempotency_key=str(row[13]),
+        )
+
+    @staticmethod
+    def _require_timer_text(value: object, name: str) -> str:
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{name} must be a non-empty string")
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError as error:
+            raise ValueError(f"{name} must be valid Unicode text") from error
+        return value
+
+    @staticmethod
+    def _require_nonnegative_int(value: object, name: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{name} must be an integer")
+        if value < 0:
+            raise ValueError(f"{name} must be non-negative")
+        return value
+
+    @classmethod
+    def _require_positive_int(cls, value: object, name: str) -> int:
+        value = cls._require_nonnegative_int(value, name)
+        if value == 0:
+            raise ValueError(f"{name} must be positive")
+        return value
+
+    def get_timer(self, timer_id: str) -> TimerLedgerRecord | None:
+        """Return one timer ledger record without exposing the SQLite connection."""
+        self._require_timer_text(timer_id, "timer_id")
+        row = self._connection.execute(
+            f"SELECT {_TIMER_SELECT} FROM timers WHERE timer_id = ?", (timer_id,)
+        ).fetchone()
+        return self._timer_record(row)
+
+    def get_timer_by_idempotency_key(self, idempotency_key: str) -> TimerLedgerRecord | None:
+        """Return the retry target for a canonical scheduling operation, if any."""
+        self._require_timer_text(idempotency_key, "idempotency_key")
+        row = self._connection.execute(
+            f"SELECT {_TIMER_SELECT} FROM timers WHERE idempotency_key = ?",
+            (idempotency_key,),
+        ).fetchone()
+        return self._timer_record(row)
+
+    def insert_scheduled_timer(
+        self,
+        *,
+        timer_id: str,
+        instruction_id: str,
+        instruction_event_id: str,
+        instruction_start_utf16: int,
+        instruction_end_utf16: int,
+        instruction_text: str,
+        interval_ms: int,
+        message: str,
+        anchor_mono_ns: int,
+        anchor_utc: str,
+        next_due_mono_ns: int,
+        idempotency_key: str,
+    ) -> TimerLedgerRecord:
+        """Insert a timer at the first ``scheduled`` state of its lifecycle.
+
+        Callers normally activate it in the same enclosing transaction.  Keeping
+        the two ledger transitions explicit gives the execution layer a durable
+        all-or-nothing boundary with its scheduled acknowledgement event.
+        """
+        timer_id = self._require_timer_text(timer_id, "timer_id")
+        instruction_id = self._require_timer_text(instruction_id, "instruction_id")
+        instruction_event_id = self._require_timer_text(
+            instruction_event_id, "instruction_event_id"
+        )
+        start = self._require_nonnegative_int(instruction_start_utf16, "instruction_start_utf16")
+        end = self._require_positive_int(instruction_end_utf16, "instruction_end_utf16")
+        if end <= start:
+            raise ValueError("instruction span end must follow start")
+        instruction_text = self._require_timer_text(instruction_text, "instruction_text")
+        interval_ms = self._require_positive_int(interval_ms, "interval_ms")
+        message = self._require_timer_text(message, "message")
+        anchor_mono_ns = self._require_nonnegative_int(anchor_mono_ns, "anchor_mono_ns")
+        anchor_utc = self._require_timer_text(anchor_utc, "anchor_utc")
+        next_due_mono_ns = self._require_nonnegative_int(next_due_mono_ns, "next_due_mono_ns")
+        if next_due_mono_ns <= anchor_mono_ns:
+            raise ValueError("next_due_mono_ns must follow the anchor")
+        idempotency_key = self._require_timer_text(idempotency_key, "idempotency_key")
+
+        with self.transaction():
+            self._connection.execute(
+                """
+                INSERT INTO timers(
+                    timer_id, instruction_id, instruction_event_id,
+                    instruction_start_utf16, instruction_end_utf16, instruction_text,
+                    interval_ms, message, anchor_mono_ns, anchor_utc, next_due_mono_ns,
+                    fire_count, status, idempotency_key
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                """,
+                (
+                    timer_id,
+                    instruction_id,
+                    instruction_event_id,
+                    start,
+                    end,
+                    instruction_text,
+                    interval_ms,
+                    message,
+                    anchor_mono_ns,
+                    anchor_utc,
+                    next_due_mono_ns,
+                    TimerStatus.SCHEDULED.value,
+                    idempotency_key,
+                ),
+            )
+            record = self.get_timer(timer_id)
+            if record is None:
+                raise StoreError("inserted timer is not readable")
+            return record
+
+    def activate_timer(self, timer_id: str) -> TimerLedgerRecord:
+        """Transition one just-created timer from ``scheduled`` to ``active``."""
+        timer_id = self._require_timer_text(timer_id, "timer_id")
+        with self.transaction():
+            cursor = self._connection.execute(
+                """
+                UPDATE timers SET status = ?
+                WHERE timer_id = ? AND status = ?
+                """,
+                (TimerStatus.ACTIVE.value, timer_id, TimerStatus.SCHEDULED.value),
+            )
+            if cursor.rowcount != 1:
+                raise StoreError("timer is not scheduled")
+            record = self.get_timer(timer_id)
+            if record is None:
+                raise StoreError("activated timer is not readable")
+            return record
+
+    def active_timer_count(self) -> int:
+        """Return the number of currently firing timer sources."""
+        row = self._connection.execute(
+            "SELECT COUNT(*) FROM timers WHERE status = ?", (TimerStatus.ACTIVE.value,)
+        ).fetchone()
+        return int(row[0])
+
+    def active_timers(self) -> tuple[TimerLedgerRecord, ...]:
+        """Return active timers in deterministic timer-id order."""
+        rows = self._connection.execute(
+            f"SELECT {_TIMER_SELECT} FROM timers WHERE status = ? ORDER BY timer_id",
+            (TimerStatus.ACTIVE.value,),
+        ).fetchall()
+        return tuple(self._timer_record(row) for row in rows if row is not None)
+
+    def due_active_timers(self, now_mono_ns: int) -> tuple[TimerLedgerRecord, ...]:
+        """Return active timers due at ``now_mono_ns`` in deterministic due order."""
+        now_mono_ns = self._require_nonnegative_int(now_mono_ns, "now_mono_ns")
+        rows = self._connection.execute(
+            f"""
+            SELECT {_TIMER_SELECT}
+            FROM timers
+            WHERE status = ? AND next_due_mono_ns <= ?
+            ORDER BY next_due_mono_ns, timer_id
+            """,
+            (TimerStatus.ACTIVE.value, now_mono_ns),
+        ).fetchall()
+        return tuple(self._timer_record(row) for row in rows if row is not None)
+
+    def next_active_due_mono_ns(self) -> int | None:
+        """Return the next active due timestamp, if any."""
+        row = self._connection.execute(
+            """
+            SELECT next_due_mono_ns FROM timers
+            WHERE status = ?
+            ORDER BY next_due_mono_ns, timer_id LIMIT 1
+            """,
+            (TimerStatus.ACTIVE.value,),
+        ).fetchone()
+        return None if row is None else int(row[0])
+
+    def advance_due_timer(
+        self,
+        *,
+        timer_id: str,
+        expected_next_due_mono_ns: int,
+        fire_count: int,
+        next_due_mono_ns: int,
+    ) -> TimerLedgerRecord:
+        """Atomically claim one due active timer for a coalesced fire."""
+        timer_id = self._require_timer_text(timer_id, "timer_id")
+        expected_next_due_mono_ns = self._require_nonnegative_int(
+            expected_next_due_mono_ns, "expected_next_due_mono_ns"
+        )
+        fire_count = self._require_positive_int(fire_count, "fire_count")
+        next_due_mono_ns = self._require_nonnegative_int(next_due_mono_ns, "next_due_mono_ns")
+        if next_due_mono_ns <= expected_next_due_mono_ns:
+            raise ValueError("next due time must advance")
+        with self.transaction():
+            cursor = self._connection.execute(
+                """
+                UPDATE timers
+                SET fire_count = ?, next_due_mono_ns = ?
+                WHERE timer_id = ? AND status = ? AND next_due_mono_ns = ?
+                """,
+                (
+                    fire_count,
+                    next_due_mono_ns,
+                    timer_id,
+                    TimerStatus.ACTIVE.value,
+                    expected_next_due_mono_ns,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise StoreError("due timer claim lost its active state")
+            record = self.get_timer(timer_id)
+            if record is None:
+                raise StoreError("claimed timer is not readable")
+            return record
+
+    def cancel_active_timers(self, timer_ids: tuple[str, ...]) -> tuple[TimerLedgerRecord, ...]:
+        """Cancel the exact active target set, or make no ledger change at all."""
+        if not timer_ids:
+            raise ValueError("timer_ids must not be empty")
+        if len(timer_ids) != len(set(timer_ids)) or timer_ids != tuple(sorted(timer_ids)):
+            raise ValueError("timer_ids must be unique and lexicographically sorted")
+        for timer_id in timer_ids:
+            self._require_timer_text(timer_id, "timer_id")
+
+        placeholders = ", ".join("?" for _ in timer_ids)
+        with self.transaction():
+            rows = self._connection.execute(
+                f"""
+                SELECT {_TIMER_SELECT} FROM timers
+                WHERE timer_id IN ({placeholders})
+                ORDER BY timer_id
+                """,
+                timer_ids,
+            ).fetchall()
+            records = tuple(self._timer_record(row) for row in rows if row is not None)
+            if len(records) != len(timer_ids) or any(
+                record.status is not TimerStatus.ACTIVE for record in records
+            ):
+                raise StoreError("all cancellation targets must be active timers")
+            self._connection.execute(
+                f"""
+                UPDATE timers
+                SET status = ?, next_due_mono_ns = NULL
+                WHERE timer_id IN ({placeholders}) AND status = ?
+                """,
+                (TimerStatus.CANCELED.value, *timer_ids, TimerStatus.ACTIVE.value),
+            )
+            canceled = tuple(self.get_timer(timer_id) for timer_id in timer_ids)
+            if any(record is None for record in canceled):
+                raise StoreError("canceled timer is not readable")
+            return tuple(record for record in canceled if record is not None)
+
+    def cancel_all_active_timers(self) -> tuple[TimerLedgerRecord, ...]:
+        """Cancel every currently active timer as one transaction."""
+        with self.transaction():
+            active_ids = tuple(record.timer_id for record in self.active_timers())
+            if not active_ids:
+                return ()
+            return self.cancel_active_timers(active_ids)
+
     def commit_policy(self, draft: PolicyEventDraft) -> tuple[int, bytes]:
         """Assign global sequence and segment-relative time, then freeze one event."""
         if not isinstance(draft, PolicyEventDraft):
@@ -377,6 +807,223 @@ class Store:
             )
             row_id = int(cursor.lastrowid)
         return row_id
+
+    def create_tool_request(
+        self,
+        *,
+        request_id: str,
+        fact_event_id: str,
+        tool: str,
+        args: object,
+        canonical_key: str,
+        requested_mono_ns: int,
+        due_mono_ns: int,
+        result_status: ToolResultStatus | str,
+        result_data: object,
+    ) -> ToolRequestRecord:
+        """Persist one scripted tool request with a pending-only dedup key.
+
+        Tool registry validation intentionally belongs to ``im.tools``.  This
+        ledger method only enforces durable representation and lifecycle
+        mechanics, which lets the later license projection read the same rows.
+        """
+        if not all((request_id, tool, canonical_key)):
+            raise ValueError("tool request identifiers and key must not be empty")
+        if not isinstance(fact_event_id, str):
+            raise TypeError("fact_event_id must be a string")
+        for name, value in (
+            ("requested_mono_ns", requested_mono_ns),
+            ("due_mono_ns", due_mono_ns),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative")
+        if due_mono_ns < requested_mono_ns:
+            raise ValueError("tool result due time precedes request time")
+        try:
+            normalized_status = ToolResultStatus(result_status)
+        except ValueError as error:
+            raise ValueError(f"unknown tool result status: {result_status}") from error
+        encoded_args = canonicalize_tim_json(args)
+        encoded_result_data = canonicalize_tim_json(result_data)
+        with self.transaction():
+            try:
+                self._connection.execute(
+                    """
+                    INSERT INTO tool_requests(
+                        request_id, fact_event_id, tool, args, canonical_key, status,
+                        requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    """,
+                    (
+                        request_id,
+                        fact_event_id,
+                        tool,
+                        encoded_args,
+                        canonical_key,
+                        ToolRequestStatus.PENDING.value,
+                        requested_mono_ns,
+                        due_mono_ns,
+                        normalized_status.value,
+                        encoded_result_data,
+                    ),
+                )
+            except sqlite3.IntegrityError as error:
+                if self.find_pending_tool_request(canonical_key) is not None:
+                    raise DuplicatePendingToolRequestError(
+                        "an equivalent tool request is already pending"
+                    ) from error
+                raise
+        record = self.get_tool_request(request_id)
+        if record is None:  # pragma: no cover - guarded by the successful insert above.
+            raise StoreError("inserted tool request is unavailable")
+        return record
+
+    def get_tool_request(self, request_id: str) -> ToolRequestRecord | None:
+        """Return one durable tool request, if it exists."""
+        row = self._connection.execute(
+            """
+            SELECT request_id, fact_event_id, tool, args, canonical_key, status,
+                   requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+            FROM tool_requests WHERE request_id = ?
+            """,
+            (request_id,),
+        ).fetchone()
+        return None if row is None else self._tool_request_record(row)
+
+    def find_pending_tool_request(self, canonical_key: str) -> ToolRequestRecord | None:
+        """Find the one equivalent request protected by the partial unique index."""
+        if not canonical_key:
+            raise ValueError("canonical_key must not be empty")
+        row = self._connection.execute(
+            """
+            SELECT request_id, fact_event_id, tool, args, canonical_key, status,
+                   requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+            FROM tool_requests
+            WHERE canonical_key = ? AND status = ?
+            """,
+            (canonical_key, ToolRequestStatus.PENDING.value),
+        ).fetchone()
+        return None if row is None else self._tool_request_record(row)
+
+    def pending_tool_requests(self) -> tuple[ToolRequestRecord, ...]:
+        """Return all pending requests in stable request-id order."""
+        rows = self._connection.execute(
+            """
+            SELECT request_id, fact_event_id, tool, args, canonical_key, status,
+                   requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+            FROM tool_requests
+            WHERE status = ?
+            ORDER BY request_id
+            """,
+            (ToolRequestStatus.PENDING.value,),
+        ).fetchall()
+        return tuple(self._tool_request_record(row) for row in rows)
+
+    def due_tool_requests(self, now_mono_ns: int) -> tuple[ToolRequestRecord, ...]:
+        """Return pending scripted requests whose result time has arrived."""
+        if isinstance(now_mono_ns, bool) or not isinstance(now_mono_ns, int):
+            raise TypeError("now_mono_ns must be an integer")
+        if now_mono_ns < 0:
+            raise ValueError("now_mono_ns must be non-negative")
+        rows = self._connection.execute(
+            """
+            SELECT request_id, fact_event_id, tool, args, canonical_key, status,
+                   requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+            FROM tool_requests
+            WHERE status = ? AND due_mono_ns <= ?
+            ORDER BY due_mono_ns, request_id
+            """,
+            (ToolRequestStatus.PENDING.value, now_mono_ns),
+        ).fetchall()
+        return tuple(self._tool_request_record(row) for row in rows)
+
+    def deliver_due_tool_request(
+        self,
+        *,
+        request_id: str,
+        event_id: str,
+        received_utc: str,
+        received_mono_ns: int,
+        ingress_payload: bytes,
+    ) -> ToolRequestRecord:
+        """Atomically append a due result ingress row and complete its ledger row.
+
+        The caller supplies the already allocated event id and exact ingress
+        bytes.  Both are included in this transaction with ``result_event_id``;
+        a failed ingress insert therefore leaves the request pending.
+        """
+        if not event_id:
+            raise ValueError("event_id must not be empty")
+        if not received_utc:
+            raise ValueError("received_utc must not be empty")
+        if isinstance(received_mono_ns, bool) or not isinstance(received_mono_ns, int):
+            raise TypeError("received_mono_ns must be an integer")
+        if received_mono_ns < 0:
+            raise ValueError("received_mono_ns must be non-negative")
+        if not isinstance(ingress_payload, bytes):
+            raise TypeError("ingress_payload must be bytes")
+        with self.transaction():
+            record = self.get_tool_request(request_id)
+            if record is None:
+                raise ToolRequestDeliveryError("tool request does not exist")
+            if record.status is not ToolRequestStatus.PENDING:
+                raise ToolRequestDeliveryError("tool request is no longer pending")
+            if received_mono_ns < record.due_mono_ns:
+                raise ToolRequestDeliveryError("tool result is not due")
+            expected_payload = canonicalize_tim_json(
+                {
+                    "request_id": record.request_id,
+                    "status": record.result_status.value,
+                    "data": record.result_data,
+                }
+            )
+            if ingress_payload != expected_payload:
+                raise ToolRequestDeliveryError(
+                    "tool result ingress payload does not match the scripted request"
+                )
+            self.append_ingress(
+                event_id=event_id,
+                received_utc=received_utc,
+                received_mono_ns=received_mono_ns,
+                source="tool",
+                kind="result",
+                payload=ingress_payload,
+            )
+            self._connection.execute(
+                """
+                UPDATE tool_requests
+                SET status = ?, result_event_id = ?
+                WHERE request_id = ? AND status = ?
+                """,
+                (
+                    ToolRequestStatus.COMPLETED.value,
+                    event_id,
+                    request_id,
+                    ToolRequestStatus.PENDING.value,
+                ),
+            )
+        completed = self.get_tool_request(request_id)
+        if completed is None:  # pragma: no cover - guarded by the pre-update read.
+            raise StoreError("completed tool request is unavailable")
+        return completed
+
+    @staticmethod
+    def _tool_request_record(row: tuple[object, ...]) -> ToolRequestRecord:
+        return ToolRequestRecord(
+            request_id=str(row[0]),
+            fact_event_id=str(row[1]),
+            tool=str(row[2]),
+            args=parse_tim_json(bytes(row[3])),
+            canonical_key=str(row[4]),
+            status=ToolRequestStatus(str(row[5])),
+            requested_mono_ns=int(row[6]),
+            due_mono_ns=int(row[7]),
+            result_status=ToolResultStatus(str(row[8])),
+            result_data=parse_tim_json(bytes(row[9])),
+            result_event_id=None if row[10] is None else str(row[10]),
+        )
 
     def get_disposition(self, event_id: str) -> DispositionRecord | None:
         row = self._connection.execute(

@@ -35,6 +35,11 @@ def test_config_rejects_unsafe_integer() -> None:
         RuntimeConfig(context_budget_tokens=MAX_SAFE_INTEGER + 1)
 
 
+def test_config_rejects_limits_above_frozen_v1_schema_caps() -> None:
+    with pytest.raises(ValueError, match="frozen v1 schema cap"):
+        RuntimeConfig(max_timer_message_bytes=513)
+
+
 def test_length_estimator_rounds_up_bytes_divided_by_four() -> None:
     assert estimate_tokens(b"") == 0
     assert estimate_tokens(b"1234") == 1
@@ -51,9 +56,7 @@ def test_arrays_preserve_order_and_strings_are_not_normalized() -> None:
     composed = "é"
     decomposed = "e\N{COMBINING ACUTE ACCENT}"
 
-    assert canonicalize_tim_json([composed, decomposed]) == (
-        '["é","é"]'.encode()
-    )
+    assert canonicalize_tim_json([composed, decomposed]) == ('["é","é"]'.encode())
 
 
 def test_control_characters_use_json_escaping() -> None:

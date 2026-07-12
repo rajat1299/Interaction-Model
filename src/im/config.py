@@ -5,6 +5,14 @@ from typing import Literal
 
 LengthEstimatorId = Literal["bytes-div-4-v1"]
 MAX_SAFE_INTEGER = (1 << 53) - 1
+SQLITE_MAX_INTEGER = (1 << 63) - 1
+
+V1_MAX_TIMER_MESSAGE_BYTES = 512
+V1_MAX_JSON_BYTES = 16_384
+V1_MAX_JSON_DEPTH = 8
+V1_MAX_JSON_MEMBERS = 64
+V1_MAX_JSON_ARRAY_ELEMENTS = 64
+V1_MAX_JSON_STRING_BYTES = 4_096
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,18 +29,16 @@ class RuntimeConfig:
     min_timer_interval_ms: int = 1_000
     max_timer_interval_ms: int = 86_400_000
     max_active_timers: int = 16
-    max_timer_message_bytes: int = 512
-    max_json_bytes: int = 16_384
-    max_json_depth: int = 8
-    max_json_members: int = 64
-    max_json_array_elements: int = 64
-    max_json_string_bytes: int = 4_096
+    max_timer_message_bytes: int = V1_MAX_TIMER_MESSAGE_BYTES
+    max_json_bytes: int = V1_MAX_JSON_BYTES
+    max_json_depth: int = V1_MAX_JSON_DEPTH
+    max_json_members: int = V1_MAX_JSON_MEMBERS
+    max_json_array_elements: int = V1_MAX_JSON_ARRAY_ELEMENTS
+    max_json_string_bytes: int = V1_MAX_JSON_STRING_BYTES
 
     def __post_init__(self) -> None:
         integer_fields = {
-            name: value
-            for name, value in asdict(self).items()
-            if name != "len_estimator_id"
+            name: value for name, value in asdict(self).items() if name != "len_estimator_id"
         }
         has_non_integer = any(
             isinstance(value, bool) or not isinstance(value, int)
@@ -50,6 +56,19 @@ class RuntimeConfig:
             raise ValueError("rollover_permille must be between 1 and 1000")
         if self.min_timer_interval_ms > self.max_timer_interval_ms:
             raise ValueError("minimum timer interval exceeds maximum timer interval")
+        if self.max_timer_interval_ms > SQLITE_MAX_INTEGER // 1_000_000:
+            raise ValueError("maximum timer interval exceeds SQLite nanosecond range")
+        v1_caps = {
+            "max_timer_message_bytes": V1_MAX_TIMER_MESSAGE_BYTES,
+            "max_json_bytes": V1_MAX_JSON_BYTES,
+            "max_json_depth": V1_MAX_JSON_DEPTH,
+            "max_json_members": V1_MAX_JSON_MEMBERS,
+            "max_json_array_elements": V1_MAX_JSON_ARRAY_ELEMENTS,
+            "max_json_string_bytes": V1_MAX_JSON_STRING_BYTES,
+        }
+        for name, hard_cap in v1_caps.items():
+            if integer_fields[name] > hard_cap:
+                raise ValueError(f"{name} exceeds the frozen v1 schema cap")
 
     def as_json_object(self) -> dict[str, int | str]:
         """Return the exact `tim-json-v1` config-hash preimage object."""

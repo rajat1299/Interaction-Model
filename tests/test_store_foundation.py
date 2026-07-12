@@ -144,6 +144,35 @@ def test_store_creates_parent_directory(tmp_path: Path) -> None:
         assert path.exists()
 
 
+def test_store_rejects_pre_contract_tool_schema_instead_of_half_opening(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.sqlite3"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """
+        CREATE TABLE tool_requests (
+            request_id TEXT PRIMARY KEY,
+            fact_event_id TEXT NOT NULL,
+            tool TEXT NOT NULL,
+            args BLOB NOT NULL,
+            canonical_key TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL,
+            requested_mono_ns INTEGER NOT NULL,
+            result_event_id TEXT
+        )
+        """
+    )
+    connection.commit()
+    assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+    connection.close()
+
+    with pytest.raises(StoreError, match="incompatible tool_requests schema"):
+        Store(path)
+
+    connection = sqlite3.connect(path)
+    assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+    connection.close()
+
+
 def test_commit_failure_rolls_back_and_does_not_poison_connection(tmp_path: Path) -> None:
     store = Store(tmp_path / "session.sqlite3")
     original = store._connection
