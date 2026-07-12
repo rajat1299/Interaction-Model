@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets / env
+.env
+.env.*
+
+# ML artifacts (large, regenerable — keep out of git)
+checkpoints/
+*.safetensors
+*.gguf
+*.bin
+wandb/
+
+# Runtime state
+*.sqlite
+*.sqlite-*
+*.db
+
+# Data (synthetic corpus, eval sets — track via hashes, not blobs)
+data/
+!data/.gitkeep
+
+# OS
+.DS_Store
