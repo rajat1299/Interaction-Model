@@ -1,0 +1,85 @@
+{
+  "config": {
+    "checkpoint_reserved_tokens": 2000,
+    "context_budget_tokens": 12000,
+    "len_estimator_id": "bytes-div-4-v1",
+    "max_active_timers": 16,
+    "max_json_array_elements": 64,
+    "max_json_bytes": 16384,
+    "max_json_depth": 8,
+    "max_json_members": 64,
+    "max_json_string_bytes": 4096,
+    "max_timer_interval_ms": 86400000,
+    "max_timer_message_bytes": 512,
+    "min_timer_interval_ms": 1000,
+    "pause_ms": 1500,
+    "recent_events_budget_tokens": 1000,
+    "rollover_permille": 720,
+    "sampler_throttle_ms": 100
+  },
+  "format": "im-golden-replay-v1",
+  "name": "timer_cancel_race",
+  "policy_attempts": [
+    {
+      "instruction": {
+        "end_utf16": 20,
+        "event_id": "e_000002",
+        "start_utf16": 0,
+        "text": "remind me to breathe"
+      },
+      "interval_ms": 1000,
+      "message": "breathe",
+      "type": "schedule"
+    },
+    {
+      "instruction": {
+        "end_utf16": 4,
+        "event_id": "e_000006",
+        "start_utf16": 0,
+        "text": "stop"
+      },
+      "target": {
+        "kind": "timer",
+        "timer_id": "t_001"
+      },
+      "type": "cancel"
+    },
+    {
+      "reason": "canceled_timer",
+      "target_event_id": "e_000005",
+      "type": "skip"
+    }
+  ],
+  "steps": [
+    {
+      "op": "bootstrap"
+    },
+    {
+      "expect_ingress_id": "e_000002",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0IjoicmVtaW5kIG1lIHRvIGJyZWF0aGUiLCJzZWxlY3Rpb25fc3RhcnQiOjIwLCJzZWxlY3Rpb25fZW5kIjoyMCwiaXNfY29tcG9zaW5nIjpmYWxzZSwiaW5wdXRfdHlwZSI6Imluc2VydFRleHQiLCJhY3Rpdml0eSI6InBhdXNlZCIsImNsaWVudF90cyI6MX0="
+    },
+    {
+      "op": "drain"
+    },
+    {
+      "ms": 1000,
+      "op": "advance_ms"
+    },
+    {
+      "expect_ingress_ids": [
+        "e_000005"
+      ],
+      "op": "claim_due"
+    },
+    {
+      "expect_ingress_id": "e_000006",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0Ijoic3RvcCIsInNlbGVjdGlvbl9zdGFydCI6NCwic2VsZWN0aW9uX2VuZCI6NCwiaXNfY29tcG9zaW5nIjpmYWxzZSwiaW5wdXRfdHlwZSI6Imluc2VydFRleHQiLCJhY3Rpdml0eSI6InBhdXNlZCIsImNsaWVudF90cyI6Mn0="
+    },
+    {
+      "op": "drain"
+    }
+  ],
+  "tool_scripts": []
+}

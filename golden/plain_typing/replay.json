@@ -1,0 +1,77 @@
+{
+  "config": {
+    "checkpoint_reserved_tokens": 2000,
+    "context_budget_tokens": 12000,
+    "len_estimator_id": "bytes-div-4-v1",
+    "max_active_timers": 16,
+    "max_json_array_elements": 64,
+    "max_json_bytes": 16384,
+    "max_json_depth": 8,
+    "max_json_members": 64,
+    "max_json_string_bytes": 4096,
+    "max_timer_interval_ms": 86400000,
+    "max_timer_message_bytes": 512,
+    "min_timer_interval_ms": 1000,
+    "pause_ms": 1500,
+    "recent_events_budget_tokens": 1000,
+    "rollover_permille": 720,
+    "sampler_throttle_ms": 100
+  },
+  "format": "im-golden-replay-v1",
+  "name": "plain_typing",
+  "policy_attempts": [
+    {
+      "reason": "awaiting_opening",
+      "related_event_id": null,
+      "type": "idle"
+    },
+    {
+      "reason": "awaiting_opening",
+      "related_event_id": null,
+      "type": "idle"
+    },
+    {
+      "reason": "awaiting_opening",
+      "related_event_id": null,
+      "type": "idle"
+    }
+  ],
+  "steps": [
+    {
+      "op": "bootstrap"
+    },
+    {
+      "expect_ingress_id": "e_000002",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0IjoiaGVsbyIsInNlbGVjdGlvbl9zdGFydCI6NCwic2VsZWN0aW9uX2VuZCI6NCwiaXNfY29tcG9zaW5nIjpmYWxzZSwiaW5wdXRfdHlwZSI6Imluc2VydFRleHQiLCJhY3Rpdml0eSI6ImFjdGl2ZSIsImNsaWVudF90cyI6MX0="
+    },
+    {
+      "op": "drain"
+    },
+    {
+      "ms": 100,
+      "op": "advance_ms"
+    },
+    {
+      "expect_ingress_id": "e_000003",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0IjoiaGVsbG8iLCJzZWxlY3Rpb25fc3RhcnQiOjUsInNlbGVjdGlvbl9lbmQiOjUsImlzX2NvbXBvc2luZyI6ZmFsc2UsImlucHV0X3R5cGUiOiJpbnNlcnRUZXh0IiwiYWN0aXZpdHkiOiJhY3RpdmUiLCJjbGllbnRfdHMiOjJ9"
+    },
+    {
+      "op": "drain"
+    },
+    {
+      "ms": 1500,
+      "op": "advance_ms"
+    },
+    {
+      "expect_ingress_id": "e_000004",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0IjoiaGVsbG8iLCJzZWxlY3Rpb25fc3RhcnQiOjUsInNlbGVjdGlvbl9lbmQiOjUsImlzX2NvbXBvc2luZyI6ZmFsc2UsImlucHV0X3R5cGUiOm51bGwsImFjdGl2aXR5IjoicGF1c2VkIiwiY2xpZW50X3RzIjozfQ=="
+    },
+    {
+      "op": "drain"
+    }
+  ],
+  "tool_scripts": []
+}

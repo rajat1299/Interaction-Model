@@ -1,0 +1,55 @@
+{
+  "config": {
+    "checkpoint_reserved_tokens": 4000,
+    "context_budget_tokens": 12000,
+    "len_estimator_id": "bytes-div-4-v1",
+    "max_active_timers": 16,
+    "max_json_array_elements": 64,
+    "max_json_bytes": 16384,
+    "max_json_depth": 8,
+    "max_json_members": 64,
+    "max_json_string_bytes": 4096,
+    "max_timer_interval_ms": 86400000,
+    "max_timer_message_bytes": 512,
+    "min_timer_interval_ms": 1000,
+    "pause_ms": 1500,
+    "recent_events_budget_tokens": 120,
+    "rollover_permille": 720,
+    "sampler_throttle_ms": 100
+  },
+  "format": "im-golden-replay-v1",
+  "name": "double_rollover",
+  "policy_attempts": [
+    {
+      "reason": "awaiting_opening",
+      "related_event_id": null,
+      "type": "idle"
+    }
+  ],
+  "steps": [
+    {
+      "op": "bootstrap"
+    },
+    {
+      "expect_ingress_id": "e_000002",
+      "op": "snapshot",
+      "payload_b64": "eyJ0ZXh0Ijoicm9sbCBvdmVyIiwic2VsZWN0aW9uX3N0YXJ0Ijo5LCJzZWxlY3Rpb25fZW5kIjo5LCJpc19jb21wb3NpbmciOmZhbHNlLCJpbnB1dF90eXBlIjoiaW5zZXJ0VGV4dCIsImFjdGl2aXR5IjoicGF1c2VkIiwiY2xpZW50X3RzIjoxfQ=="
+    },
+    {
+      "op": "drain"
+    },
+    {
+      "expect_event_id": "e_000003",
+      "op": "force_rollover"
+    },
+    {
+      "ms": 1,
+      "op": "advance_ms"
+    },
+    {
+      "expect_event_id": "e_000004",
+      "op": "force_rollover"
+    }
+  ],
+  "tool_scripts": []
+}
