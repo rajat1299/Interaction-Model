@@ -2,13 +2,31 @@
 
 import json
 from dataclasses import dataclass
-from typing import Any, Never
+from typing import Annotated, Any, Never
+
+from pydantic import Field, StringConstraints
 
 from im.config import MAX_SAFE_INTEGER, RuntimeConfig
 
 CANONICALIZER_ID = "tim-json-v1"
 
-type TimJsonValue = None | bool | int | str | list["TimJsonValue"] | dict[str, "TimJsonValue"]
+SafeInteger = Annotated[
+    int,
+    Field(strict=True, ge=-MAX_SAFE_INTEGER, le=MAX_SAFE_INTEGER),
+]
+TimJsonString = Annotated[
+    str,
+    StringConstraints(strict=True, max_length=RuntimeConfig().max_json_string_bytes),
+]
+TimJsonArray = Annotated[
+    list["TimJsonValue"],
+    Field(max_length=RuntimeConfig().max_json_array_elements),
+]
+TimJsonObject = Annotated[
+    dict[str, "TimJsonValue"],
+    Field(max_length=RuntimeConfig().max_json_members),
+]
+type TimJsonValue = None | bool | SafeInteger | TimJsonString | TimJsonArray | TimJsonObject
 
 
 class TimJsonError(ValueError):
