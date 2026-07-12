@@ -8,6 +8,7 @@ dependencies = [
     "pydantic>=2",
     "fastapi",
     "uvicorn",
+    "websockets",
     "httpx",
 ]
 
