@@ -1009,6 +1009,18 @@ class Store:
         ).fetchall()
         return tuple(self._tool_request_record(row) for row in rows)
 
+    def next_pending_tool_due_mono_ns(self) -> int | None:
+        """Return the earliest pending scripted-result deadline, if any."""
+        row = self._connection.execute(
+            """
+            SELECT due_mono_ns FROM tool_requests
+            WHERE status = ?
+            ORDER BY due_mono_ns, request_id LIMIT 1
+            """,
+            (ToolRequestStatus.PENDING.value,),
+        ).fetchone()
+        return None if row is None else int(row[0])
+
     def deliver_due_tool_request(
         self,
         *,

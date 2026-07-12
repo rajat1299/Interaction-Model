@@ -1,5 +1,6 @@
 """Deterministic fake-tool adapter and request-ledger tests."""
 
+import asyncio
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -185,3 +186,33 @@ def test_due_delivery_rolls_back_event_id_ingress_and_ledger_on_insert_failure(
         # Allocation happened in the aborted transaction, so its durable counter
         # rolls back along with the ledger and ingress mutation.
         assert store.allocate_id("event") == "e_000001"
+
+
+@pytest.mark.asyncio
+async def test_delivery_worker_wakes_for_a_new_request_and_stops_cleanly(tmp_path: Path) -> None:
+    from im.scheduler import ManualClock
+
+    clock = ManualClock()
+    with Store(tmp_path / "session.sqlite3") as store:
+        adapter = ToolAdapter(store, clock)
+        delivered = asyncio.Event()
+        observed: list[str] = []
+
+        async def enqueue(delivery) -> None:
+            observed.append(delivery.request_id)
+            delivered.set()
+
+        task = asyncio.create_task(adapter.run(enqueue))
+        await asyncio.sleep(0)
+        adapter.request(
+            "lookup",
+            {"query": "wake me"},
+            scripted_result=ScriptedToolResult(latency_ms=25, data={"ok": True}),
+        )
+        await asyncio.sleep(0)
+        clock.advance_ms(25)
+        await asyncio.wait_for(delivered.wait(), timeout=1)
+        adapter.close()
+        await asyncio.wait_for(task, timeout=1)
+
+        assert observed == ["r_001"]

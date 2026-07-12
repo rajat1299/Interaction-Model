@@ -1,6 +1,8 @@
 """Deterministic scripted tool adapter backed by the durable request ledger."""
 
-from collections.abc import Awaitable
+import asyncio
+import inspect
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -131,6 +133,8 @@ class ToolAdapter:
     def __init__(self, store: Store, clock: Clock) -> None:
         self._store = store
         self._clock = clock
+        self._changed = asyncio.Event()
+        self._closed = False
 
     @property
     def pending(self) -> frozenset[str]:
@@ -183,6 +187,7 @@ class ToolAdapter:
             if duplicate is None:  # pragma: no cover - only possible on external ledger corruption.
                 raise
             return duplicate.request_id
+        self._changed.set()
         return request_id
 
     def deliver_due(self) -> tuple[ToolResultDelivery, ...]:
@@ -213,6 +218,47 @@ class ToolAdapter:
                 )
             )
         return tuple(deliveries)
+
+    async def wait_for_due(self) -> tuple[ToolResultDelivery, ...]:
+        """Wait for due scripted results, waking for newly requested work."""
+        while not self._closed:
+            deliveries = self.deliver_due()
+            if deliveries:
+                return deliveries
+            next_due_mono_ns = self._store.next_pending_tool_due_mono_ns()
+            self._changed.clear()
+            if self._closed:
+                break
+            if next_due_mono_ns is None:
+                await self._changed.wait()
+                continue
+            sleeper = asyncio.create_task(self._clock.sleep_until(next_due_mono_ns))
+            changed = asyncio.create_task(self._changed.wait())
+            _done, pending = await asyncio.wait(
+                (sleeper, changed), return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+        return ()
+
+    async def run(
+        self,
+        enqueue: Callable[[ToolResultDelivery], Awaitable[None] | None],
+    ) -> None:
+        """Deliver results and enqueue them only after durable completion."""
+        while not self._closed:
+            deliveries = await self.wait_for_due()
+            for delivery in deliveries:
+                result = enqueue(delivery)
+                if inspect.isawaitable(result):
+                    await result
+
+    def close(self) -> None:
+        """Stop the adapter's optional delivery worker."""
+        self._closed = True
+        self._changed.set()
 
     @staticmethod
     def _result_ingress_payload(request: ToolRequestRecord) -> bytes:
