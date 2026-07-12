@@ -17,6 +17,7 @@ checkpoints/
 *.safetensors
 *.gguf
 *.bin
+!golden/**/*.bin
 wandb/
 
 # Runtime state
@@ -41,4 +42,3 @@ docs/
 
 # OS
 .DS_Store
-
