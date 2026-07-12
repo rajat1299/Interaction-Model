@@ -21,17 +21,17 @@
   "name": "plain_typing",
   "policy_attempts": [
     {
-      "reason": "awaiting_opening",
+      "reason": "no_trigger",
       "related_event_id": null,
       "type": "idle"
     },
     {
-      "reason": "awaiting_opening",
+      "reason": "no_trigger",
       "related_event_id": null,
       "type": "idle"
     },
     {
-      "reason": "awaiting_opening",
+      "reason": "no_trigger",
       "related_event_id": null,
       "type": "idle"
     }

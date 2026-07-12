@@ -85,7 +85,7 @@ def _snapshot_step(event_id: str, raw: bytes) -> dict[str, object]:
 
 
 def _idle() -> dict[str, object]:
-    return {"type": "idle", "reason": "awaiting_opening", "related_event_id": None}
+    return {"type": "idle", "reason": "no_trigger", "related_event_id": None}
 
 
 def manifest_for(name: str) -> dict[str, object]:

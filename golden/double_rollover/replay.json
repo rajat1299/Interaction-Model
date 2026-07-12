@@ -21,7 +21,7 @@
   "name": "double_rollover",
   "policy_attempts": [
     {
-      "reason": "awaiting_opening",
+      "reason": "no_trigger",
       "related_event_id": null,
       "type": "idle"
     }

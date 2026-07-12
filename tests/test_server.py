@@ -297,7 +297,7 @@ def test_paused_activity_and_edit_kind_are_server_committed_facts(tmp_path: Path
     policy = ScriptedPolicy(
         [
             {"type": "idle", "reason": "typing_active", "related_event_id": None},
-            {"type": "idle", "reason": "awaiting_opening", "related_event_id": None},
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
         ]
     )
     app = create_app(
@@ -333,7 +333,7 @@ def test_paused_activity_and_edit_kind_are_server_committed_facts(tmp_path: Path
 def test_server_rollover_emits_notice_only_after_checkpoint_commit(tmp_path: Path) -> None:
     config = RuntimeConfig(context_budget_tokens=100)
     policy = ScriptedPolicy(
-        [{"type": "idle", "reason": "awaiting_opening", "related_event_id": None}]
+        [{"type": "idle", "reason": "no_trigger", "related_event_id": None}]
     )
     app = create_app(
         session_root=tmp_path,
