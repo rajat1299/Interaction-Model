@@ -15,6 +15,7 @@ from enum import StrEnum
 
 from pydantic import ValidationError
 
+from im.canonical_json import TimJsonError, parse_tim_json
 from im.config import RuntimeConfig
 from im.schema.actions import (
     ACTION_ADAPTER,
@@ -107,12 +108,8 @@ class TimerView:
     message: str | None = None
 
     def matches_schedule(self, action: ScheduleAction) -> bool:
-        """Whether this timer has the action's frozen scheduler idempotency key."""
-        return (
-            self.instruction == action.instruction
-            and self.interval_ms == action.interval_ms
-            and self.message == action.message
-        )
+        """Whether this timer already consumed the action's originating instruction."""
+        return self.instruction == action.instruction
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,10 +262,12 @@ def _parse_action(raw: object) -> Action | Blocked:
     try:
         if isinstance(raw, memoryview | bytearray):
             raw = bytes(raw)
-        if isinstance(raw, bytes | str):
-            return ACTION_ADAPTER.validate_json(raw)
+        if isinstance(raw, str):
+            raw = raw.encode("utf-8")
+        if isinstance(raw, bytes):
+            return ACTION_ADAPTER.validate_python(parse_tim_json(raw))
         return ACTION_ADAPTER.validate_python(raw)
-    except (TypeError, ValueError, ValidationError):
+    except (TimJsonError, TypeError, ValueError, ValidationError, UnicodeEncodeError):
         return Blocked(LicenseBlockCode.MALFORMED_ACTION)
 
 

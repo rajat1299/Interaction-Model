@@ -10,7 +10,8 @@ from pathlib import Path
 
 from im.canonical_json import TimJsonValue, canonicalize_tim_json, parse_tim_json
 from im.schema.common import Activity, Disposition, TimerStatus, ToolResultStatus
-from im.serialize import join_rendered_events, render_event
+from im.schema.events import Event
+from im.serialize import join_rendered_events, parse_event, render_event
 
 
 class StoreError(RuntimeError):
@@ -52,6 +53,19 @@ class DispositionRecord:
     event_id: str
     state: Disposition
     by_action_event_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyRecord:
+    """One immutable policy row with its validated event projection."""
+
+    seq: int
+    segment_index: int
+    event_id: str
+    dt_ms: int
+    occurred_mono_ns: int
+    rendered: bytes
+    event: Event
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,6 +365,10 @@ class Store:
             raise StoreError("current_segment_index must be a non-negative integer")
         return value
 
+    def current_segment_index(self) -> int:
+        """Return the active immutable-context segment index."""
+        return self._current_segment_index()
+
     def set_meta(self, key: str, value: object) -> None:
         if not key:
             raise ValueError("meta key must not be empty")
@@ -586,6 +604,13 @@ class Store:
         ).fetchall()
         return tuple(self._timer_record(row) for row in rows if row is not None)
 
+    def timers(self) -> tuple[TimerLedgerRecord, ...]:
+        """Return the complete timer ledger in deterministic ID order."""
+        rows = self._connection.execute(
+            f"SELECT {_TIMER_SELECT} FROM timers ORDER BY timer_id"
+        ).fetchall()
+        return tuple(self._timer_record(row) for row in rows if row is not None)
+
     def due_active_timers(self, now_mono_ns: int) -> tuple[TimerLedgerRecord, ...]:
         """Return active timers due at ``now_mono_ns`` in deterministic due order."""
         now_mono_ns = self._require_nonnegative_int(now_mono_ns, "now_mono_ns")
@@ -792,6 +817,40 @@ class Store:
         ).fetchall()
         return join_rendered_events(bytes(row[0]) for row in rows)
 
+    def policy_records(self, segment_index: int | None = None) -> tuple[PolicyRecord, ...]:
+        """Return validated immutable policy rows, optionally restricted to one segment."""
+        if segment_index is not None:
+            if isinstance(segment_index, bool) or not isinstance(segment_index, int):
+                raise TypeError("segment_index must be an integer")
+            if segment_index < 0:
+                raise ValueError("segment_index must be non-negative")
+            rows = self._connection.execute(
+                """
+                SELECT seq, segment_index, event_id, dt_ms, occurred_mono_ns, rendered
+                FROM policy WHERE segment_index = ? ORDER BY seq
+                """,
+                (segment_index,),
+            ).fetchall()
+        else:
+            rows = self._connection.execute(
+                """
+                SELECT seq, segment_index, event_id, dt_ms, occurred_mono_ns, rendered
+                FROM policy ORDER BY seq
+                """
+            ).fetchall()
+        return tuple(
+            PolicyRecord(
+                seq=int(row[0]),
+                segment_index=int(row[1]),
+                event_id=str(row[2]),
+                dt_ms=int(row[3]),
+                occurred_mono_ns=int(row[4]),
+                rendered=bytes(row[5]),
+                event=parse_event(bytes(row[5])),
+            )
+            for row in rows
+        )
+
     def audit(self, kind: str, payload: object, *, ts_utc: str | None = None) -> int:
         """Append one canonical audit record and return its row id."""
         if not kind:
@@ -921,6 +980,17 @@ class Store:
         ).fetchall()
         return tuple(self._tool_request_record(row) for row in rows)
 
+    def tool_requests(self) -> tuple[ToolRequestRecord, ...]:
+        """Return the complete tool ledger in deterministic request-ID order."""
+        rows = self._connection.execute(
+            """
+            SELECT request_id, fact_event_id, tool, args, canonical_key, status,
+                   requested_mono_ns, due_mono_ns, result_status, result_data, result_event_id
+            FROM tool_requests ORDER BY request_id
+            """
+        ).fetchall()
+        return tuple(self._tool_request_record(row) for row in rows)
+
     def due_tool_requests(self, now_mono_ns: int) -> tuple[ToolRequestRecord, ...]:
         """Return pending scripted requests whose result time has arrived."""
         if isinstance(now_mono_ns, bool) or not isinstance(now_mono_ns, int):
@@ -1035,6 +1105,20 @@ class Store:
             event_id=event_id,
             state=Disposition(row[0]),
             by_action_event_id=row[1],
+        )
+
+    def dispositions(self) -> tuple[DispositionRecord, ...]:
+        """Return every external-event disposition in deterministic event-ID order."""
+        rows = self._connection.execute(
+            "SELECT event_id, state, by_action_event_id FROM dispositions ORDER BY event_id"
+        ).fetchall()
+        return tuple(
+            DispositionRecord(
+                event_id=str(row[0]),
+                state=Disposition(str(row[1])),
+                by_action_event_id=None if row[2] is None else str(row[2]),
+            )
+            for row in rows
         )
 
     def set_disposition(

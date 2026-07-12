@@ -277,6 +277,33 @@ def test_multiple_actions_in_one_raw_policy_output_are_malformed() -> None:
     )
 
 
+def test_schedule_consumes_instruction_even_if_payload_changes() -> None:
+    raw = {**action_payload("schedule"), "interval_ms": 10_000, "message": "stretch"}
+    timer = TimerView(
+        TIMER_ID,
+        TimerStatus.ACTIVE,
+        instruction=_parse_span(INSTRUCTION),
+        interval_ms=5_000,
+        message="breathe",
+    )
+
+    assert_blocked(
+        raw,
+        view(timers=(timer,)),
+        LicenseBlockCode.DUPLICATE_SCHEDULE,
+    )
+
+
+def test_raw_action_json_rejects_duplicate_keys_before_collapse() -> None:
+    raw = (
+        b'{"type":"delegate","fact":{"event_id":"e_000001","start_utf16":0,'
+        b'"end_utf16":4,"text":"fact"},"tool":"lookup","args":'
+        b'{"query":"first","query":"second"}}'
+    )
+
+    assert_blocked(raw, view(), LicenseBlockCode.MALFORMED_ACTION)
+
+
 FUZZED_RAW_ACTIONS = st.one_of(
     st.sampled_from(
         [
