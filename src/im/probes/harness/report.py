@@ -37,9 +37,12 @@ def render_report(
         f"- Human review: `{run.review_sha256}`",
         f"- Model: `{run.model}`",
         f"- Reasoning effort: `{run.reasoning_effort}`",
-        "- Protocol calls represented: "
+        "- Base protocol calls represented: "
         f"{len(run.generation) + len(run.pairwise) + len(run.listwise)}",
-        "- Open-text semantic grading calls are included in generation usage.",
+        f"- Open-text rubric records: {len(run.semantic_text)} "
+        f"({sum(result.executed for result in run.semantic_text)} provider calls executed)",
+        "- Semantic authority: same model and reasoning configuration as generation; this is "
+        "self-grading, not independent human adjudication.",
         "",
         "## Promotion gates",
         "",
@@ -84,6 +87,11 @@ def render_report(
             f"- Raw license allowance: {_rate(generation['raw_license_allowance'])}",
             f"- Structural match: {_rate(generation['structural_match'])}",
             f"- Open-text semantic grade: {_rate(generation['semantic_text'])}",
+            "- Open-text rubric outcomes: "
+            + ", ".join(
+                f"{outcome}={sum(item.provider_outcome == outcome for item in run.semantic_text)}"
+                for outcome in sorted({item.provider_outcome for item in run.semantic_text})
+            ),
             f"- Overall generation: {_rate(generation['overall'])}",
             f"- Intrusive action rate on idle-expected probes: "
             f"{_rate(generation['intrusive_action_rate_on_idle_expected'])}",

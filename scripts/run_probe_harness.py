@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 from dataclasses import asdict, is_dataclass
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
 from typing import cast
@@ -39,6 +40,16 @@ def _positive(value: str) -> int:
     return parsed
 
 
+def _nonnegative_decimal(value: str) -> Decimal:
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation as error:
+        raise argparse.ArgumentTypeError("value must be a decimal amount") from error
+    if not parsed.is_finite() or parsed < 0:
+        raise argparse.ArgumentTypeError("value must be a nonnegative finite amount")
+    return parsed
+
+
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("estimate", "mock", "live"), default="estimate")
@@ -47,6 +58,8 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--raw-summary", type=Path)
     parser.add_argument("--concurrency", type=_positive)
+    parser.add_argument("--approve-live-estimate-usd", type=_nonnegative_decimal)
+    parser.add_argument("--retry-indeterminate", action="store_true")
     return parser.parse_args()
 
 
@@ -84,6 +97,19 @@ async def _run(args: argparse.Namespace) -> None:
     )
     if args.mode == "estimate":
         return
+    if args.mode == "live":
+        required_approval = max(
+            estimate.synchronous_no_cache_usd,
+            estimate.all_calls_one_retry_warm_cache_usd,
+        )
+        if (
+            args.approve_live_estimate_usd is None
+            or args.approve_live_estimate_usd < required_approval
+        ):
+            raise RuntimeError(
+                "live run requires --approve-live-estimate-usd at least "
+                f"{required_approval:.6f}; this is an estimate acknowledgement, not a provider cap"
+            )
 
     cache_path = _resolve(
         repository,
@@ -132,7 +158,10 @@ async def _run(args: argparse.Namespace) -> None:
         )
         run_kind = "live-openai"
     try:
-        with HarnessCache(cache_path) as cache:
+        with HarnessCache(
+            cache_path,
+            retry_indeterminate=args.retry_indeterminate,
+        ) as cache:
             run = await ProbeHarnessRunner(
                 catalog,
                 generation_builder=generation_builder,

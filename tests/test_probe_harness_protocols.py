@@ -79,7 +79,10 @@ def test_listwise_prompt_requires_complete_ranking_without_label_leakage() -> No
     body = json.loads(request.request_bytes)
     user = json.loads(body["input"][1]["content"][0]["text"])
 
-    assert user["response_contract"] == {"ranking": ["c01", "c02"]}
+    assert user["response_contract"] == {
+        "ranking": "array containing every candidate id exactly once, best to worst"
+    }
+    assert user["response_contract"]["ranking"] != ["c01", "c02"]
     assert {candidate["id"] for candidate in user["candidates"]} == {"c01", "c02"}
     assert "expected" not in json.dumps(user)
 

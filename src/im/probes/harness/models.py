@@ -190,6 +190,22 @@ class GenerationResult:
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticTextResult:
+    probe_id: str
+    family_id: int
+    variant_id: Literal["v1"]
+    rule: str
+    executed: bool
+    provider_outcome: str
+    response_valid: bool
+    passed: bool
+    rationale: str | None
+    from_cache: bool
+    usage: ProviderUsage
+    fresh_usage: ProviderUsage
+
+
+@dataclass(frozen=True, slots=True)
 class PairwiseResult:
     probe_id: str
     family_id: int
@@ -232,19 +248,30 @@ class HarnessRun:
     model: str
     reasoning_effort: str
     generation: tuple[GenerationResult, ...]
+    semantic_text: tuple[SemanticTextResult, ...]
     pairwise: tuple[PairwiseResult, ...]
     listwise: tuple[ListwiseResult, ...]
 
     @property
     def usage(self) -> ProviderUsage:
         total = ProviderUsage()
-        for result in (*self.generation, *self.pairwise, *self.listwise):
+        for result in (
+            *self.generation,
+            *self.semantic_text,
+            *self.pairwise,
+            *self.listwise,
+        ):
             total += result.usage
         return total
 
     @property
     def fresh_usage(self) -> ProviderUsage:
         total = ProviderUsage()
-        for result in (*self.generation, *self.pairwise, *self.listwise):
+        for result in (
+            *self.generation,
+            *self.semantic_text,
+            *self.pairwise,
+            *self.listwise,
+        ):
             total += result.fresh_usage
         return total

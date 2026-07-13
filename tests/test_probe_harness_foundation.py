@@ -12,7 +12,7 @@ from im.probes.harness.artifacts import (
     load_approved_catalog,
     load_approved_manifest,
 )
-from im.probes.harness.cache import HarnessCache
+from im.probes.harness.cache import HarnessCache, IndeterminateCacheEntry
 from im.probes.harness.models import (
     CacheIdentity,
     HarnessCompletion,
@@ -122,10 +122,15 @@ def test_cache_identity_separates_candidate_orderings(tmp_path: Path) -> None:
         assert cache.get(_identity(presentation="expected-b")) is None
 
 
-def test_cache_refuses_automatic_persistence_of_cancelled_calls(tmp_path: Path) -> None:
-    with HarnessCache(tmp_path / "cache.sqlite") as cache:
-        with pytest.raises(ValueError, match="explicit retry"):
-            cache.put(
-                _identity(),
-                HarnessCompletion(value={}, outcome="cancelled"),
-            )
+def test_cache_persists_indeterminate_trace_and_requires_explicit_retry(tmp_path: Path) -> None:
+    path = tmp_path / "cache.sqlite"
+    with HarnessCache(path) as cache:
+        cache.put(
+            _identity(),
+            HarnessCompletion(value={"provider_indeterminate": True}, outcome="cancelled"),
+        )
+        with pytest.raises(IndeterminateCacheEntry, match="explicit retry"):
+            cache.get(_identity())
+
+    with HarnessCache(path, retry_indeterminate=True) as cache:
+        assert cache.get(_identity()) is None

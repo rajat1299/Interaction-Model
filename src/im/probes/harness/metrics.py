@@ -30,13 +30,7 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
     reference = _rate([result.reference_valid for result in generation])
     licensed = _rate([result.license_allowed for result in generation])
     structural = _rate([result.structural_match for result in generation])
-    semantic = _rate(
-        [
-            result.semantic_passed is True
-            for result in generation
-            if result.semantic_rule is not None
-        ]
-    )
+    semantic = _rate([result.passed for result in run.semantic_text])
     generation_passed = _rate([result.generation_passed for result in generation])
     intrusive = _rate(
         [result.intrusive_action for result in generation if result.expected_type == "idle"]
@@ -90,8 +84,21 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             )
             for variant_id in ("v1", "v2", "v3")
         }
-        numeric_rates = [float(rate["rate"] or 0) for rate in variant_rates.values()]
-        spread = max(numeric_rates) - min(numeric_rates)
+        probe_spreads: dict[str, float] = {}
+        for probe_id in sorted({result.probe_id for result in family_pairwise}):
+            per_variant = [
+                _rate(
+                    [
+                        result.correct
+                        for result in family_pairwise
+                        if result.probe_id == probe_id and result.variant_id == variant_id
+                    ]
+                )
+                for variant_id in ("v1", "v2", "v3")
+            ]
+            rates = [float(rate["rate"] or 0) for rate in per_variant]
+            probe_spreads[probe_id] = max(rates) - min(rates)
+        spread = max(probe_spreads.values())
         family_spreads[family_id] = spread
         by_family[str(family_id)] = {
             "generation_schema": _rate(
@@ -107,6 +114,7 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
                 [result.correct for result in family_pairwise]
             ),
             "pairwise_variant_accuracy": variant_rates,
+            "per_probe_paraphrase_spread": probe_spreads,
             "paraphrase_spread": spread,
             "listwise_top1": _rate(
                 [result.top1_correct for result in family_listwise]

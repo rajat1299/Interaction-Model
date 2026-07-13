@@ -14,13 +14,20 @@ from im.probes.harness.models import (
     traces_to_json,
 )
 
+_INDETERMINATE_OUTCOMES = frozenset({"cancelled", "transport_error", "http_error"})
+
+
+class IndeterminateCacheEntry(RuntimeError):
+    """A prior call may have been billed but lacks a definitive provider completion."""
+
 
 class HarnessCache:
     """Small synchronous cache used only at async task boundaries on the event-loop thread."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, retry_indeterminate: bool = False) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
+        self.retry_indeterminate = retry_indeterminate
         self._connection = sqlite3.connect(path)
         self._connection.execute("PRAGMA journal_mode=WAL")
         self._connection.execute("PRAGMA synchronous=FULL")
@@ -58,6 +65,17 @@ class HarnessCache:
         if row is None:
             return None
         outcome, value_json, traces_json, usage_json = row
+        if str(outcome) in _INDETERMINATE_OUTCOMES:
+            if not self.retry_indeterminate:
+                raise IndeterminateCacheEntry(
+                    "cached call is indeterminate; rerun with explicit retry_indeterminate"
+                )
+            self._connection.execute(
+                "DELETE FROM completions WHERE cache_key = ?",
+                (identity.digest,),
+            )
+            self._connection.commit()
+            return None
         usage = json.loads(usage_json)
         return HarnessCompletion(
             value=json.loads(value_json),
@@ -68,8 +86,6 @@ class HarnessCache:
         )
 
     def put(self, identity: CacheIdentity, completion: HarnessCompletion) -> None:
-        if completion.outcome == "cancelled":
-            raise ValueError("indeterminate cancelled calls require an explicit retry decision")
         self._connection.execute(
             """
             INSERT INTO completions (

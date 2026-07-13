@@ -1,9 +1,11 @@
 """Full-corpus mocked WP15 execution and listwise construction tests."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from im.policy.base import PolicyCallCancelled, PolicyCallTrace
 from im.policy.prompted import (
     PromptArtifacts,
     PromptedPolicyConfig,
@@ -12,10 +14,15 @@ from im.policy.prompted import (
 )
 from im.probes.harness.artifacts import load_approved_catalog
 from im.probes.harness.backend import OracleHarnessBackend
-from im.probes.harness.cache import HarnessCache
+from im.probes.harness.cache import HarnessCache, IndeterminateCacheEntry
 from im.probes.harness.candidates import build_listwise_presentation
 from im.probes.harness.cost import estimate_harness_cost
 from im.probes.harness.metrics import compute_metrics
+from im.probes.harness.models import (
+    CacheIdentity,
+    HarnessCompletion,
+    HarnessProtocol,
+)
 from im.probes.harness.protocols import ProtocolPromptBuilder
 from im.probes.harness.report import render_report
 from im.probes.harness.runner import HarnessRunnerConfig, ProbeHarnessRunner
@@ -49,6 +56,16 @@ def _oracle(approved) -> OracleHarnessBackend:
             for variant in probe.variants
         }
     )
+
+
+class _InvalidSemanticOracle(OracleHarnessBackend):
+    async def complete(self, request, validator):
+        if b"open-text-rubric-v1" in request.request_bytes:
+            return HarnessCompletion(
+                value={"provider_invalid": True},
+                outcome="invalid",
+            )
+        return await super().complete(request, validator)
 
 
 def test_listwise_candidates_preserve_approved_contrast_and_reference_integrity(
@@ -99,9 +116,11 @@ async def test_full_mocked_harness_runs_all_protocols_and_resumes(
         second = await second_runner.run()
 
     assert len(first.generation) == 144
+    assert len(first.semantic_text) == 22
     assert len(first.pairwise) == 864
     assert len(first.listwise) == 144
     assert all(result.generation_passed for result in first.generation)
+    assert all(result.executed and result.passed for result in first.semantic_text)
     assert all(result.correct for result in first.pairwise)
     assert all(result.top1_correct for result in first.listwise)
     assert all(result.expected_above_tempting for result in first.listwise)
@@ -109,6 +128,7 @@ async def test_full_mocked_harness_runs_all_protocols_and_resumes(
     assert not any(result.from_cache for result in first.pairwise)
     assert not any(result.from_cache for result in first.listwise)
     assert all(result.from_cache for result in second.generation)
+    assert all(result.from_cache for result in second.semantic_text)
     assert all(result.from_cache for result in second.pairwise)
     assert all(result.from_cache for result in second.listwise)
     assert second.fresh_usage.input_tokens == 0
@@ -130,7 +150,20 @@ async def test_full_mocked_harness_runs_all_protocols_and_resumes(
     assert estimate.semantic_requests == 22
     assert estimate.total_requests == 1_174
     assert "PASS. This verdict applies only" in report
-    assert "Protocol calls represented: 1152" in report
+    assert "Base protocol calls represented: 1152" in report
+    assert "Open-text rubric records: 22 (22 provider calls executed)" in report
+    assert "self-grading, not independent human adjudication" in report
+
+    mutated_pairs = tuple(
+        replace(result, correct=False)
+        if (result.probe_id, result.variant_id)
+        in {("f01-t01-a", "v1"), ("f01-t02-a", "v2")}
+        else result
+        for result in first.pairwise
+    )
+    collapse_metrics = compute_metrics(replace(first, pairwise=mutated_pairs))
+    assert collapse_metrics["pairwise"]["max_family_paraphrase_spread"] == 1.0
+    assert not collapse_metrics["gates"]["paraphrase_collapse"]["passed"]
 
 
 def test_generation_and_pairwise_population_is_frozen(approved) -> None:
@@ -153,3 +186,82 @@ def test_generation_and_pairwise_population_is_frozen(approved) -> None:
         for variant in probe.variants
         for _position in ("A", "B")
     ) == 864
+
+
+@pytest.mark.asyncio
+async def test_terminal_invalid_rubric_is_recorded_and_resumable(
+    tmp_path: Path,
+    repository: Path,
+    approved,
+) -> None:
+    generation_builder, prompts = _builders(repository)
+    expected = {
+        variant.policy_stream_sha256: variant.expected_action
+        for probe in approved.manifest.probes
+        for variant in probe.variants
+    }
+    probe = next(probe for probe in approved.manifest.probes if probe.probe_id == "f03-t01-a")
+    with HarnessCache(tmp_path / "invalid-rubric.sqlite") as cache:
+        runner = ProbeHarnessRunner(
+            approved,
+            generation_builder=generation_builder,
+            prompts=prompts,
+            backend=_InvalidSemanticOracle(expected),
+            cache=cache,
+        )
+        first_generation, first_semantic = await runner._run_generation(probe)
+        second_generation, second_semantic = await runner._run_generation(probe)
+
+    assert not first_generation.generation_passed
+    assert first_semantic is not None
+    assert first_semantic.executed
+    assert not first_semantic.response_valid
+    assert first_semantic.provider_outcome == "invalid"
+    assert second_semantic is not None and second_semantic.from_cache
+    assert not second_generation.generation_passed
+
+
+@pytest.mark.asyncio
+async def test_interrupted_call_trace_is_persisted_before_propagation(
+    tmp_path: Path,
+    repository: Path,
+    approved,
+) -> None:
+    generation_builder, prompts = _builders(repository)
+    identity = CacheIdentity(
+        manifest_sha256=approved.manifest_sha256,
+        probe_id="f01-t01-a",
+        protocol=HarnessProtocol.GENERATION,
+        variant_id="v1",
+        presentation="interrupted-test",
+        model=generation_builder.config.model,
+        reasoning_effort=generation_builder.config.reasoning_effort,
+        prompt_hash=generation_builder.renderer.artifacts.prompt_hash,
+        request_hash="sha256:" + "9" * 64,
+    )
+    trace = PolicyCallTrace(
+        attempt_index=1,
+        model=generation_builder.config.model,
+        prompt_hash=identity.prompt_hash,
+        request=b"request",
+        response=b"",
+        latency_ms=1,
+        http_status=None,
+        outcome="cancelled",
+    )
+
+    async def interrupted() -> HarnessCompletion:
+        raise PolicyCallCancelled((trace,))
+
+    with HarnessCache(tmp_path / "interrupted.sqlite") as cache:
+        runner = ProbeHarnessRunner(
+            approved,
+            generation_builder=generation_builder,
+            prompts=prompts,
+            backend=_oracle(approved),
+            cache=cache,
+        )
+        with pytest.raises(PolicyCallCancelled):
+            await runner._cached(identity, interrupted)
+        with pytest.raises(IndeterminateCacheEntry):
+            cache.get(identity)

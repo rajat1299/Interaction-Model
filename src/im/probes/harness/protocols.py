@@ -126,7 +126,9 @@ class ProtocolPromptBuilder:
             "policy_stream": policy_stream,
             "protocol": "listwise-v1",
             "task": "Rank every candidate from most to least behaviorally appropriate.",
-            "response_contract": {"ranking": list(candidate_ids)},
+            "response_contract": {
+                "ranking": "array containing every candidate id exactly once, best to worst"
+            },
         }
         return self._request(
             system=self._recognition_system,

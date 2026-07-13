@@ -11,6 +11,7 @@ from hashlib import sha256
 from pydantic import ValidationError
 
 from im.license import Allowed, Blocked, check
+from im.policy.base import PolicyCallCancelled, PolicyCallError
 from im.policy.prompted import ResponsesRequestBuilder
 from im.probes.grading import (
     SemanticTextAssessment,
@@ -31,6 +32,7 @@ from im.probes.harness.models import (
     PairwiseChoice,
     PairwiseResult,
     ProviderUsage,
+    SemanticTextResult,
     SemanticTextVerdict,
 )
 from im.probes.harness.protocols import ProtocolPromptBuilder
@@ -72,9 +74,11 @@ class ProbeHarnessRunner:
         self._semaphore = asyncio.Semaphore(self.config.concurrency)
 
     async def run(self) -> HarnessRun:
-        generation = await asyncio.gather(
+        generated = await asyncio.gather(
             *(self._run_generation(probe) for probe in self.catalog.manifest.probes)
         )
+        generation = tuple(item[0] for item in generated)
+        semantic_text = tuple(item[1] for item in generated if item[1] is not None)
         pairwise = await asyncio.gather(
             *(
                 self._run_pairwise(probe, variant.variant_id, position)
@@ -91,12 +95,16 @@ class ProbeHarnessRunner:
             review_sha256=self.catalog.review_sha256,
             model=self.generation_builder.config.model,
             reasoning_effort=self.generation_builder.config.reasoning_effort,
-            generation=tuple(generation),
+            generation=generation,
+            semantic_text=semantic_text,
             pairwise=tuple(pairwise),
             listwise=tuple(listwise),
         )
 
-    async def _run_generation(self, probe) -> GenerationResult:
+    async def _run_generation(
+        self,
+        probe,
+    ) -> tuple[GenerationResult, SemanticTextResult | None]:
         variant = probe.variants[0]
         view = self.catalog.views[(probe.probe_id, "v1")]
         policy_bytes = variant.policy_stream.encode()
@@ -117,7 +125,14 @@ class ProbeHarnessRunner:
         semantic_rule: str | None = None
         semantic_passed: bool | None = None
         semantic_rationale: str | None = None
-        semantic_completion: HarnessCompletion | None = None
+        semantic_result: SemanticTextResult | None = None
+        expected_structure = grade_generation_structure(
+            variant.expected_action,
+            variant.expected_action,
+        )
+        expected_rule = expected_structure.text_rule
+        if expected_rule is not None:
+            semantic_rule = expected_rule.value
         try:
             actual = ACTION_ADAPTER.validate_python(completion.value)
         except (ValidationError, ValueError):
@@ -136,27 +151,44 @@ class ProbeHarnessRunner:
                     block_code = license_result.code.value
                 structure = grade_generation_structure(variant.expected_action, actual)
                 structural_match = structure.structural_match
-                if structural_match and structure.text_rule is not None:
-                    semantic_rule = structure.text_rule.value
-                    semantic, semantic_completion = await self._grade_semantic(
+                if structural_match and expected_rule is not None:
+                    semantic_result = await self._grade_semantic(
                         probe_id=probe.probe_id,
+                        family_id=probe.family_id,
                         policy_stream=variant.policy_stream,
                         actual=actual,
-                        rule=structure.text_rule,
+                        rule=expected_rule,
                     )
-                    semantic_passed = semantic.passed
-                    semantic_rationale = semantic.rationale
+                    semantic_passed = semantic_result.passed
+                    semantic_rationale = semantic_result.rationale
                     SemanticTextAssessment(
-                        rule=structure.text_rule,
-                        passed=semantic.passed,
-                        rationale=semantic.rationale,
+                        rule=expected_rule,
+                        passed=semantic_result.passed,
+                        rationale=semantic_result.rationale or "rubric response was invalid",
                     )
+        if expected_rule is not None and semantic_result is None:
+            semantic_passed = False
+            semantic_rationale = "not run because the generated action was structurally incorrect"
+            semantic_result = SemanticTextResult(
+                probe_id=probe.probe_id,
+                family_id=probe.family_id,
+                variant_id="v1",
+                rule=expected_rule.value,
+                executed=False,
+                provider_outcome="not_run_structural_mismatch",
+                response_valid=False,
+                passed=False,
+                rationale=semantic_rationale,
+                from_cache=False,
+                usage=ProviderUsage(),
+                fresh_usage=ProviderUsage(),
+            )
         actual_json = None if actual is None else actual.model_dump(mode="json")
         actual_type = None if actual is None else actual.type
         open_text_ok = semantic_passed is not False and (
             semantic_rule is None or semantic_passed is True
         )
-        return GenerationResult(
+        generation_result = GenerationResult(
             probe_id=probe.probe_id,
             family_id=probe.family_id,
             variant_id="v1",
@@ -188,33 +220,21 @@ class ProbeHarnessRunner:
                 and actual is not None
                 and not isinstance(actual, IdleAction)
             ),
-            from_cache=(
-                completion.from_cache
-                and (semantic_completion is None or semantic_completion.from_cache)
-            ),
-            usage=(
-                completion.usage
-                if semantic_completion is None
-                else completion.usage + semantic_completion.usage
-            ),
-            fresh_usage=(
-                (completion.usage if not completion.from_cache else ProviderUsage())
-                + (
-                    ProviderUsage()
-                    if semantic_completion is None or semantic_completion.from_cache
-                    else semantic_completion.usage
-                )
-            ),
+            from_cache=completion.from_cache,
+            usage=completion.usage,
+            fresh_usage=(completion.usage if not completion.from_cache else ProviderUsage()),
         )
+        return generation_result, semantic_result
 
     async def _grade_semantic(
         self,
         *,
         probe_id: str,
+        family_id: int,
         policy_stream: str,
         actual: Action,
         rule,
-    ) -> tuple[SemanticTextVerdict, HarnessCompletion]:
+    ) -> SemanticTextResult:
         request = self.prompts.semantic_text(
             policy_stream=policy_stream,
             action=actual,
@@ -232,7 +252,39 @@ class ProbeHarnessRunner:
             identity,
             lambda: self.backend.complete(request, SemanticTextVerdict.model_validate),
         )
-        return SemanticTextVerdict.model_validate(completion.value), completion
+        try:
+            verdict = SemanticTextVerdict.model_validate(completion.value)
+        except ValidationError:
+            return SemanticTextResult(
+                probe_id=probe_id,
+                family_id=family_id,
+                variant_id="v1",
+                rule=rule.value,
+                executed=True,
+                provider_outcome=completion.outcome,
+                response_valid=False,
+                passed=False,
+                rationale=None,
+                from_cache=completion.from_cache,
+                usage=completion.usage,
+                fresh_usage=(
+                    completion.usage if not completion.from_cache else ProviderUsage()
+                ),
+            )
+        return SemanticTextResult(
+            probe_id=probe_id,
+            family_id=family_id,
+            variant_id="v1",
+            rule=rule.value,
+            executed=True,
+            provider_outcome=completion.outcome,
+            response_valid=True,
+            passed=verdict.passed,
+            rationale=verdict.rationale,
+            from_cache=completion.from_cache,
+            usage=completion.usage,
+            fresh_usage=(completion.usage if not completion.from_cache else ProviderUsage()),
+        )
 
     async def _run_pairwise(
         self,
@@ -367,7 +419,29 @@ class ProbeHarnessRunner:
             cached = self.cache.get(identity)
             if cached is not None:
                 return cached
-            completion = await call()
+            try:
+                completion = await call()
+            except PolicyCallCancelled as error:
+                self.cache.put(
+                    identity,
+                    HarnessCompletion(
+                        value={"provider_indeterminate": True},
+                        outcome="cancelled",
+                        traces=error.calls,
+                    ),
+                )
+                raise
+            except PolicyCallError as error:
+                outcome = error.calls[-1].outcome if error.calls else "transport_error"
+                self.cache.put(
+                    identity,
+                    HarnessCompletion(
+                        value={"provider_indeterminate": True},
+                        outcome=outcome,
+                        traces=error.calls,
+                    ),
+                )
+                raise
             self.cache.put(identity, completion)
             return completion
 
