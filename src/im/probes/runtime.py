@@ -93,6 +93,7 @@ class RuntimeProbeBuilder:
         self.clock = ManualClock()
         self.policy = _ConstructionPolicy()
         self._tool_results: deque[ScriptedToolResult] = deque()
+        self._terminal_capture_reached = False
         self.session = RuntimeSession(
             session_id=f"s_probe_{probe_id}",
             directory=directory,
@@ -112,10 +113,18 @@ class RuntimeProbeBuilder:
             raise ProbeConstructionError("delegate setup lacks an explicit scripted tool result")
         return self._tool_results.popleft()
 
+    def _ensure_building(self) -> None:
+        if self._terminal_capture_reached:
+            raise ProbeConstructionError(
+                "a captured pre-action boundary is terminal and cannot be mutated"
+            )
+
     def script_tool_result(self, result: ScriptedToolResult) -> None:
+        self._ensure_building()
         self._tool_results.append(result)
 
     def advance_ms(self, duration_ms: int) -> None:
+        self._ensure_building()
         self.clock.advance_ms(duration_ms)
 
     async def snapshot(
@@ -128,6 +137,7 @@ class RuntimeProbeBuilder:
         decision: object | Callable[[str], object] | None = None,
     ) -> str:
         """Commit one real sampler frame and optionally execute one explicit setup action."""
+        self._ensure_building()
         event_id = self.session.accept_snapshot(
             self._snapshot_bytes(
                 text,
@@ -155,6 +165,7 @@ class RuntimeProbeBuilder:
         input_type: str | None = "insertText",
     ) -> tuple[str, RuntimeProbeState]:
         """Commit a terminal sampler frame and stop at its pre-action policy boundary."""
+        self._ensure_building()
         event_id = self.session.accept_snapshot(
             self._snapshot_bytes(
                 text,
@@ -196,11 +207,13 @@ class RuntimeProbeBuilder:
 
     async def capture_enqueued(self) -> RuntimeProbeState:
         """Stop before acting on already-enqueued timer/tool ingress."""
+        self._ensure_building()
         self.policy.queue_capture()
         return await self._capture_pending()
 
     async def execute_enqueued(self, action: object) -> None:
         """Execute one explicit setup action against already-enqueued production ingress."""
+        self._ensure_building()
         parsed: Action = ACTION_ADAPTER.validate_python(action)
         self._queue_setup_action(parsed)
         await self.session.tick.run_until_idle()
@@ -220,24 +233,28 @@ class RuntimeProbeBuilder:
             raise ProbeConstructionError("capture did not retain policy bytes")
         if policy_bytes != self.store.policy_bytes():
             raise ProbeConstructionError("captured bytes differ from committed policy bytes")
+        self._terminal_capture_reached = True
         return RuntimeProbeState(
             policy_bytes=policy_bytes,
             license_view=build_license_view(self.store, self.config),
         )
 
     def deliver_tools(self) -> tuple[ToolResultDelivery, ...]:
+        self._ensure_building()
         deliveries = self.session.tools.deliver_due()
         for delivery in deliveries:
             self.session.tick.enqueue_committed_ingress(delivery.as_policy_draft())
         return deliveries
 
     def claim_fires(self) -> tuple[DueTimerFire, ...]:
+        self._ensure_building()
         fires = self.session.scheduler.claim_due()
         for fire in fires:
             self.session.tick.enqueue_committed_ingress(fire.draft)
         return fires
 
     def rollover(self) -> RolloverResult:
+        self._ensure_building()
         if not self.session.tick.mark_quiescent:
             raise ProbeConstructionError("rollover requires a mark-quiescent setup state")
         return rollover(

@@ -164,6 +164,14 @@ def test_human_semantic_gate_regressions_are_fixed(catalog: BuiltProbeCatalog) -
     assert "a eagle" not in rendered_text.lower()
     assert "library hours is" not in rendered_text.lower()
 
+    required_topic_markers = (
+        ("Chicago, Illinois",),
+        ("North League", "Red FC", "Blue FC"),
+        ("Lakeside Branch", "Brookhaven Public Library"),
+        ("Northstar Rail", "Brookhaven", "Cedar Point"),
+        ("European Central Bank", "USD-to-EUR"),
+        ("Acme", "Project Cedar 2.0"),
+    )
     for case in range(1, 7):
         absent = probes[f"f04-t{case:02d}-a"]
         for variant in absent.variants:
@@ -171,10 +179,30 @@ def test_human_semantic_gate_regressions_are_fixed(catalog: BuiltProbeCatalog) -
             assert isinstance(action, DelegateAction)
             assert action.fact.text == action.args.query
             assert action.fact.text in variant.user_text
-            assert any(character.isdigit() for character in action.fact.text) or any(
-                token in action.fact.text
-                for token in ("Lakeside Branch Library", "train A17", "USD-to-EUR")
+            assert all(token in action.fact.text for token in required_topic_markers[case - 1])
+
+    rollover_topic_markers = {
+        1: ("Harbor City, Oregon",),
+        2: ("Northgate Museum", "Brookhaven, Oregon"),
+        5: ("CoastLink", "ferry B12", "Beacon Island"),
+        6: ("Acme", "Project Aspen 3.0"),
+    }
+    for case, markers in rollover_topic_markers.items():
+        probe = probes[f"f11-t{case:02d}-a"]
+        for variant in probe.variants:
+            delegate = next(
+                (
+                    event.payload.action
+                    for event in (
+                        parse_event(line) for line in variant.policy_stream.encode().splitlines()
+                    )
+                    if getattr(event, "kind", None) == "action_executed"
+                    and isinstance(event.payload.action, DelegateAction)
+                ),
+                None,
             )
+            assert delegate is not None
+            assert all(token in delegate.fact.text for token in markers)
 
     for family in (3, 5, 11):
         for probe in catalog.manifest.probes:
@@ -213,6 +241,10 @@ def test_human_semantic_gate_regressions_are_fixed(catalog: BuiltProbeCatalog) -
     assert {probe.flip_variable for probe in family_two} == {
         "target_is_standalone_lexical_unit"
     }
+
+    review = render_review(catalog.manifest, catalog.validation)
+    assert '"result_disposition":"handled"' in review
+    assert '"relation":"event","state":"handled"' in review
 
 
 def test_teacher_projection_contains_no_manifest_only_labels(catalog: BuiltProbeCatalog) -> None:

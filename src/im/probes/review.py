@@ -6,7 +6,7 @@ import json
 
 from im.probes.model import ProbeManifest
 from im.probes.validate import ProbeValidationReport
-from im.schema.actions import IntegrateAction, NudgeAction, SkipAction
+from im.schema.actions import IntegrateAction, NudgeAction, RespondAction, SkipAction
 from im.schema.events import (
     ActionExecutedEvent,
     CancelAckEvent,
@@ -52,6 +52,30 @@ def _state_facts(policy_stream: str) -> str:
             "pending_tools": {
                 request.request_id: request.fact_event_id for request in payload.pending_tools
             },
+            "prior_uses": {
+                prior.action_event_id: (
+                    {
+                        "kind": "schedule",
+                        "instruction_event_id": prior.instruction.event_id,
+                        "timer_id": prior.timer_id,
+                        "timer_status": prior.timer_status.value,
+                    }
+                    if prior.kind == "schedule"
+                    else {
+                        "kind": "delegate",
+                        "fact_event_id": prior.fact.event_id,
+                        "request_id": prior.request_id,
+                        "result_disposition": prior.result_disposition.value,
+                        "result_event_id": prior.result_event_id,
+                        "result_status": prior.result_status.value,
+                    }
+                )
+                for prior in payload.prior_uses
+            },
+            "dispositions": {
+                item.event_id: {"relation": item.relation, "state": item.state.value}
+                for item in payload.dispositions
+            },
             "timers": {timer.timer_id: timer.status.value for timer in payload.timers},
         }
         return _action_json(facts)
@@ -61,6 +85,7 @@ def _state_facts(policy_stream: str) -> str:
     fires: dict[str, str] = {}
     pending: set[str] = set()
     results: dict[str, object] = {}
+    dispositions: dict[str, dict[str, str]] = {}
     for event in events:
         if isinstance(event, SnapshotEvent):
             activity = event.activity.value
@@ -84,11 +109,36 @@ def _state_facts(policy_stream: str) -> str:
             action = event.payload.action
             if isinstance(action, IntegrateAction):
                 results.pop(action.result_event_id, None)
+                dispositions[action.result_event_id] = {
+                    "relation": "event",
+                    "state": "handled",
+                }
             elif isinstance(action, SkipAction):
                 results.pop(action.target_event_id, None)
                 fires.pop(action.target_event_id, None)
+                dispositions[action.target_event_id] = {
+                    "relation": "event",
+                    "state": "skipped",
+                }
             elif isinstance(action, NudgeAction):
                 fires.pop(action.fire_event_id, None)
+                dispositions[action.fire_event_id] = {
+                    "relation": "event",
+                    "state": "handled",
+                }
+            elif isinstance(action, RespondAction):
+                target = results.get(action.reply_to_event_id)
+                if isinstance(target, dict) and target.get("status") == "failed":
+                    results.pop(action.reply_to_event_id, None)
+                    dispositions[action.reply_to_event_id] = {
+                        "relation": "event",
+                        "state": "handled",
+                    }
+                else:
+                    dispositions[action.reply_to_event_id] = {
+                        "relation": "responded_to",
+                        "state": "handled",
+                    }
     return _action_json(
         {
             "activity": activity,
@@ -96,6 +146,8 @@ def _state_facts(policy_stream: str) -> str:
             "open_fires": fires,
             "open_results": results,
             "pending_tools": sorted(pending),
+            "prior_uses": {},
+            "dispositions": dispositions,
             "timers": timers,
         }
     )

@@ -13,7 +13,7 @@ from im.probes.model import (
     NegativeClass,
     RenderedVariant,
 )
-from im.probes.runtime import RuntimeProbeBuilder
+from im.probes.runtime import ProbeConstructionError, RuntimeProbeBuilder
 from im.probes.validate import ProbeValidationError, assert_reference_integrity
 from im.schema.actions import IdleAction, ScheduleAction, Span
 from im.server import ArtifactPaths, load_session_artifacts
@@ -82,6 +82,60 @@ async def test_builder_executes_schedule_through_tick_and_ledger(tmp_path: Path)
             "action_executed",
             "scheduled",
         ]
+    finally:
+        await builder.close()
+
+
+@pytest.mark.asyncio
+async def test_captured_boundary_is_terminal_and_cannot_roll_over(tmp_path: Path) -> None:
+    builder = RuntimeProbeBuilder(
+        probe_id="terminal-capture",
+        directory=tmp_path / "terminal-capture",
+        artifacts=artifacts(),
+    )
+    try:
+        await builder.capture_snapshot("A terminal decision boundary.")
+
+        with pytest.raises(ProbeConstructionError, match="terminal"):
+            builder.rollover()
+    finally:
+        await builder.close()
+
+
+@pytest.mark.asyncio
+async def test_open_fire_rollover_follows_a_completed_idle_tick(tmp_path: Path) -> None:
+    builder = RuntimeProbeBuilder(
+        probe_id="open-fire-rollover",
+        directory=tmp_path / "open-fire-rollover",
+        artifacts=artifacts(),
+    )
+    text = "Remind me every two seconds to check the gauge."
+    try:
+
+        def schedule(event_id: str) -> ScheduleAction:
+            return ScheduleAction(
+                type="schedule",
+                instruction=Span(
+                    event_id=event_id,
+                    start_utf16=0,
+                    end_utf16=len(text),
+                    text=text,
+                ),
+                interval_ms=2_000,
+                message="check the gauge",
+            )
+
+        await builder.snapshot(text, decision=schedule)
+        builder.advance_ms(2_000)
+        (fire,) = builder.claim_fires()
+
+        await builder.execute_enqueued(
+            IdleAction(type="idle", reason="no_trigger", related_event_id=None)
+        )
+
+        assert builder.session.tick.mark_quiescent
+        result = builder.rollover()
+        assert [item.event_id for item in result.payload.open_timer_fires] == [fire.event_id]
     finally:
         await builder.close()
 

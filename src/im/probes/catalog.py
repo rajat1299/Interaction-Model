@@ -99,57 +99,91 @@ class _LookupTopic:
 
 _LOOKUP_TOPICS = (
     _LookupTopic(
-        fact="the Chicago forecast for August 14, 2026",
+        fact="the weather forecast for Chicago, Illinois, on August 14, 2026",
         answer="18°C and clear",
-        integration_text="The Chicago forecast for August 14, 2026 is 18°C and clear.",
+        integration_text=(
+            "The weather forecast for Chicago, Illinois, on August 14, 2026 is 18°C and clear."
+        ),
     ),
     _LookupTopic(
-        fact="the final score of the Red–Blue match on July 12, 2026",
+        fact=(
+            "the final score of the 2026 North League championship match between Red FC and "
+            "Blue FC on July 12, 2026"
+        ),
         answer="3–1",
-        integration_text="The final score of the Red–Blue match on July 12, 2026 was 3–1.",
+        integration_text=(
+            "Red FC defeated Blue FC 3–1 in the 2026 North League championship match on "
+            "July 12, 2026."
+        ),
     ),
     _LookupTopic(
-        fact="the Saturday hours for Lakeside Branch Library",
+        fact=(
+            "the Saturday hours for the Lakeside Branch of Brookhaven Public Library on "
+            "August 15, 2026"
+        ),
         answer="09:00–17:00",
-        integration_text="Lakeside Branch Library is open from 09:00 to 17:00 on Saturday.",
+        integration_text=(
+            "The Lakeside Branch of Brookhaven Public Library is open from 09:00 to 17:00 on "
+            "August 15, 2026."
+        ),
     ),
     _LookupTopic(
-        fact="the current status of train A17",
+        fact=(
+            "the current status of Northstar Rail train A17 from Brookhaven to Cedar Point on "
+            "July 13, 2026"
+        ),
         answer="on time",
-        integration_text="Train A17 is currently on time.",
+        integration_text=(
+            "Northstar Rail train A17 from Brookhaven to Cedar Point is on time on "
+            "July 13, 2026."
+        ),
     ),
     _LookupTopic(
-        fact="the current USD-to-EUR exchange rate",
+        fact="the European Central Bank USD-to-EUR reference exchange rate for July 13, 2026",
         answer="1 USD = 0.92 EUR",
-        integration_text="The current USD-to-EUR exchange rate is 1 USD = 0.92 EUR.",
+        integration_text=(
+            "The European Central Bank reference exchange rate for July 13, 2026 is "
+            "1 USD = 0.92 EUR."
+        ),
     ),
     _LookupTopic(
-        fact="the release date for Project Cedar 2.0",
+        fact="the release date for Acme's Project Cedar 2.0",
         answer="2026-08-14",
-        integration_text="The release date for Project Cedar 2.0 is August 14, 2026.",
+        integration_text="The release date for Acme's Project Cedar 2.0 is August 14, 2026.",
     ),
 )
 
 _ROLLOVER_LOOKUP_TOPICS = {
     1: _LookupTopic(
-        fact="the rainfall total for Harbor City on July 12, 2026",
+        fact="the rainfall total recorded at Harbor City, Oregon, on July 12, 2026",
         answer="12 mm",
-        integration_text="Harbor City received 12 mm of rain on July 12, 2026.",
+        integration_text="Harbor City, Oregon, recorded 12 mm of rain on July 12, 2026.",
     ),
     2: _LookupTopic(
-        fact="the Sunday hours for Northgate Museum on July 19, 2026",
+        fact=(
+            "the Sunday hours for Northgate Museum in Brookhaven, Oregon, on July 19, 2026"
+        ),
         answer="10:00–16:00",
-        integration_text="Northgate Museum is open from 10:00 to 16:00 on July 19, 2026.",
+        integration_text=(
+            "Northgate Museum in Brookhaven, Oregon, is open from 10:00 to 16:00 on "
+            "July 19, 2026."
+        ),
     ),
     5: _LookupTopic(
-        fact="the current status of ferry B12",
+        fact=(
+            "the current status of CoastLink ferry B12 from Harbor City to Beacon Island on "
+            "July 13, 2026"
+        ),
         answer="delayed by 20 minutes",
-        integration_text="Ferry B12 is currently delayed by 20 minutes.",
+        integration_text=(
+            "CoastLink ferry B12 from Harbor City to Beacon Island is delayed by 20 minutes on "
+            "July 13, 2026."
+        ),
     ),
     6: _LookupTopic(
-        fact="the release date for Project Aspen 3.0",
+        fact="the release date for Acme's Project Aspen 3.0",
         answer="2026-09-01",
-        integration_text="The release date for Project Aspen 3.0 is September 1, 2026.",
+        integration_text="The release date for Acme's Project Aspen 3.0 is September 1, 2026.",
     ),
 }
 
@@ -969,6 +1003,12 @@ class ProbeCatalogBuilder:
             expected: Action
             tempting: Action = _idle()
 
+            async def settle_or_capture_open_ingress() -> RuntimeProbeState:
+                if do_rollover:
+                    await builder.execute_enqueued(_idle())
+                    return builder.current_state()
+                return await builder.capture_enqueued()
+
             if case == 1:
                 topic = _ROLLOVER_LOOKUP_TOPICS[case]
                 user_text = _lookup_request(topic, variant)
@@ -978,7 +1018,7 @@ class ProbeCatalogBuilder:
                     topic=topic,
                     latency_ms=700,
                 )
-                state = await builder.capture_enqueued()
+                state = await settle_or_capture_open_ingress()
                 expected = IntegrateAction(
                     type="integrate",
                     result_event_id=result_id,
@@ -1018,7 +1058,7 @@ class ProbeCatalogBuilder:
                 )
                 builder.advance_ms(2_000)
                 (fire,) = builder.claim_fires()
-                state = await builder.capture_enqueued()
+                state = await settle_or_capture_open_ingress()
                 expected = NudgeAction(type="nudge", fire_event_id=fire.event_id)
             elif case == 4:
                 task = "record the sample temperature"
@@ -1061,7 +1101,7 @@ class ProbeCatalogBuilder:
                     latency_ms=700,
                     status=ToolResultStatus.FAILED,
                 )
-                state = await builder.capture_enqueued()
+                state = await settle_or_capture_open_ingress()
                 expected = RespondAction(
                     type="respond",
                     reply_to_event_id=result_id,
