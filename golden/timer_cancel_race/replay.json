@@ -32,6 +32,11 @@
       "type": "schedule"
     },
     {
+      "reason": "no_trigger",
+      "related_event_id": null,
+      "type": "idle"
+    },
+    {
       "instruction": {
         "end_utf16": 4,
         "event_id": "e_000006",
@@ -48,6 +53,11 @@
       "reason": "canceled_timer",
       "target_event_id": "e_000005",
       "type": "skip"
+    },
+    {
+      "reason": "no_trigger",
+      "related_event_id": null,
+      "type": "idle"
     }
   ],
   "steps": [

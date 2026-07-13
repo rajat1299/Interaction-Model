@@ -121,6 +121,7 @@ def manifest_for(name: str) -> dict[str, object]:
                 "interval_ms": 1_000,
                 "message": "breathe",
             },
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
             {
                 "type": "cancel",
                 "instruction": {
@@ -132,6 +133,7 @@ def manifest_for(name: str) -> dict[str, object]:
                 "target": {"kind": "timer", "timer_id": "t_001"},
             },
             {"type": "skip", "target_event_id": "e_000005", "reason": "canceled_timer"},
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
         ]
         steps = [
             {"op": "bootstrap"},
