@@ -145,3 +145,53 @@
 ### Open questions
 
 - Live execution remains gated on focused independent verification of the migration regression.
+
+## 2026-07-13 — Aborted synchronous pilot and Batch pivot
+
+### Observed pilot outcome
+
+- After final Sol clearance, the explicitly authorized synchronous Terra/high run started against
+  the fresh live cache. It completed 46 calls, then the provider returned an HTTP 429 token-rate
+  response: organization TPM limit 500,000, used 500,000, requested 12,639, retry after 1.516
+  seconds. The runner canceled and drained eight in-flight siblings before teardown. The cache
+  contains exactly 46 `completed`, one `http_error`, and eight `cancelled` current rows and 55
+  append-only attempt records.
+- Completed provider usage was 564,179 input tokens, including 518,320 cached input tokens, plus
+  7,219 output tokens and 5,202 reasoning tokens. The pinned synchronous pricing approximation is
+  about $0.35 for completed calls; provider billing remains authoritative and canceled-call billing
+  is not assumed.
+
+### Design decision
+
+- The pilot cache remains an ignored, frozen operational artifact. It is not resumed into the
+  approved report because the user selected OpenAI Batch for the offline bakeoff. Mixing its 46
+  synchronous completions with Batch completions would make execution provenance and actual-price
+  accounting heterogeneous while the current result model represents one homogeneous run.
+- WP15 will execute from a new Batch-only cache. OpenAI's official Batch contract is a direct match
+  for this workload: evaluations are an intended use, `/v1/responses` is supported, token pricing
+  is discounted 50%, and Batch has a separate higher-limit pool. Batch output order is explicitly
+  non-authoritative, so every result is joined through a unique deterministic `custom_id`.
+- Batch execution has four dependent logical stages: initial generation/pairwise/listwise requests;
+  one correction stage for locally invalid or incomplete base responses; semantic grading requests
+  derived only from final structurally correct open-text generations; and one semantic correction
+  stage. Provider failures never consume the one local model-validation retry.
+- A Batch run never reads the partial synchronous completion cache. Cache identities remain based on
+  logical request content and prompt/model configuration; execution mode is recorded separately as
+  provenance rather than changing the policy task identity.
+
+### Tradeoffs
+
+- Batch can take up to 24 hours and requires upload/create/poll/download lifecycle persistence. This
+  is acceptable for an offline teacher bakeoff and avoids a locally paced synchronous run whose
+  observed quota implies roughly a 30-minute theoretical minimum.
+- The cold no-cache Batch forecast is $21.266316 versus $42.532632 synchronous. The live pilot also
+  confirmed strong prompt-cache reuse, so the final charge may be lower if Batch preserves cache
+  locality; the report will price actual provider token classes with the Batch multiplier and will
+  not promise a cache hit rate in advance.
+
+### Open questions
+
+- The account's model-specific maximum enqueued Batch prompt tokens is not present in repository
+  state. Batch planning therefore requires an explicit shard token ceiling rather than inventing a
+  hidden default; a small submitted shard will validate model availability and result decoding
+  before scaling the same deterministic plan.
