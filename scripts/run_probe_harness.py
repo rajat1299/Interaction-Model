@@ -59,7 +59,13 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--raw-summary", type=Path)
     parser.add_argument("--concurrency", type=_positive)
     parser.add_argument("--approve-live-estimate-usd", type=_nonnegative_decimal)
-    parser.add_argument("--retry-indeterminate", action="store_true")
+    parser.add_argument(
+        "--retry-indeterminate-cache-key",
+        action="append",
+        default=[],
+        metavar="HEX_DIGEST",
+        help="authorize one retry for this exact indeterminate cache identity",
+    )
     return parser.parse_args()
 
 
@@ -160,7 +166,7 @@ async def _run(args: argparse.Namespace) -> None:
     try:
         with HarnessCache(
             cache_path,
-            retry_indeterminate=args.retry_indeterminate,
+            retry_indeterminate_keys=frozenset(args.retry_indeterminate_cache_key),
         ) as cache:
             run = await ProbeHarnessRunner(
                 catalog,

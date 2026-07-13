@@ -1,11 +1,13 @@
 """Full-corpus mocked WP15 execution and listwise construction tests."""
 
+import asyncio
+import sqlite3
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from im.policy.base import PolicyCallCancelled, PolicyCallTrace
+from im.policy.base import PolicyCallCancelled, PolicyCallError, PolicyCallTrace
 from im.policy.prompted import (
     PromptArtifacts,
     PromptedPolicyConfig,
@@ -66,6 +68,58 @@ class _InvalidSemanticOracle(OracleHarnessBackend):
                 outcome="invalid",
             )
         return await super().complete(request, validator)
+
+
+class _FailingPhaseBackend:
+    """Start one bounded wave, fail one call, and audit cancellation of its siblings."""
+
+    def __init__(self, *, model: str, prompt_hash: str, wave_size: int) -> None:
+        self.model = model
+        self.prompt_hash = prompt_hash
+        self.wave_size = wave_size
+        self.started = 0
+        self.active = 0
+        self._never = asyncio.Event()
+
+    def _trace(self, *, index: int, outcome: str) -> PolicyCallTrace:
+        return PolicyCallTrace(
+            attempt_index=1,
+            model=self.model,
+            prompt_hash=self.prompt_hash,
+            request=f"request-{index}".encode(),
+            response=b"",
+            latency_ms=1,
+            http_status=None,
+            outcome=outcome,
+        )
+
+    async def generate(self, _policy_bytes: bytes) -> HarnessCompletion:
+        self.started += 1
+        index = self.started
+        self.active += 1
+        try:
+            if index == 1:
+                while self.started < self.wave_size:
+                    await asyncio.sleep(0)
+                raise PolicyCallError(
+                    "controlled provider failure",
+                    (self._trace(index=index, outcome="transport_error"),),
+                )
+            try:
+                await self._never.wait()
+            except asyncio.CancelledError as error:
+                raise PolicyCallCancelled(
+                    (self._trace(index=index, outcome="cancelled"),)
+                ) from error
+            raise AssertionError("unreachable")
+        finally:
+            self.active -= 1
+
+    async def complete(self, _request, _validator):
+        raise AssertionError("recognition phase must not begin after generation failure")
+
+    async def aclose(self) -> None:
+        return None
 
 
 def test_listwise_candidates_preserve_approved_contrast_and_reference_integrity(
@@ -265,3 +319,42 @@ async def test_interrupted_call_trace_is_persisted_before_propagation(
             await runner._cached(identity, interrupted)
         with pytest.raises(IndeterminateCacheEntry):
             cache.get(identity)
+
+
+@pytest.mark.asyncio
+async def test_phase_failure_cancels_and_drains_started_siblings_before_cache_closes(
+    tmp_path: Path,
+    repository: Path,
+    approved,
+) -> None:
+    generation_builder, prompts = _builders(repository)
+    backend = _FailingPhaseBackend(
+        model=generation_builder.config.model,
+        prompt_hash=generation_builder.renderer.artifacts.prompt_hash,
+        wave_size=4,
+    )
+    cache_path = tmp_path / "phase-failure.sqlite"
+    with HarnessCache(cache_path) as cache:
+        runner = ProbeHarnessRunner(
+            approved,
+            generation_builder=generation_builder,
+            prompts=prompts,
+            backend=backend,
+            cache=cache,
+            config=HarnessRunnerConfig(concurrency=4),
+        )
+        with pytest.raises(PolicyCallError, match="controlled provider failure"):
+            await runner.run()
+        assert backend.active == 0
+
+    with sqlite3.connect(cache_path) as connection:
+        outcomes = [
+            row[0]
+            for row in connection.execute(
+                "SELECT outcome FROM attempt_history ORDER BY attempt_id"
+            ).fetchall()
+        ]
+    assert backend.started >= 4
+    assert outcomes.count("transport_error") == 1
+    assert outcomes.count("cancelled") == backend.started - 1
+    assert len(outcomes) == backend.started

@@ -74,12 +74,12 @@ class ProbeHarnessRunner:
         self._semaphore = asyncio.Semaphore(self.config.concurrency)
 
     async def run(self) -> HarnessRun:
-        generated = await asyncio.gather(
+        generated = await _gather_phase(
             *(self._run_generation(probe) for probe in self.catalog.manifest.probes)
         )
         generation = tuple(item[0] for item in generated)
         semantic_text = tuple(item[1] for item in generated if item[1] is not None)
-        pairwise = await asyncio.gather(
+        pairwise = await _gather_phase(
             *(
                 self._run_pairwise(probe, variant.variant_id, position)
                 for probe in self.catalog.manifest.probes
@@ -87,7 +87,7 @@ class ProbeHarnessRunner:
                 for position in (ExpectedPosition.A, ExpectedPosition.B)
             )
         )
-        listwise = await asyncio.gather(
+        listwise = await _gather_phase(
             *(self._run_listwise(probe) for probe in self.catalog.manifest.probes)
         )
         return HarnessRun(
@@ -412,9 +412,6 @@ class ProbeHarnessRunner:
         identity: CacheIdentity,
         call: Callable[[], Awaitable[HarnessCompletion]],
     ) -> HarnessCompletion:
-        cached = self.cache.get(identity)
-        if cached is not None:
-            return cached
         async with self._semaphore:
             cached = self.cache.get(identity)
             if cached is not None:
@@ -480,3 +477,16 @@ def _json_bytes(value: object) -> bytes:
 
 def _digest(value: bytes) -> str:
     return f"sha256:{sha256(value).hexdigest()}"
+
+
+async def _gather_phase[T](*awaitables: Awaitable[T]) -> tuple[T, ...]:
+    """Cancel and drain an entire phase before propagating its first failure."""
+    tasks = tuple(asyncio.ensure_future(awaitable) for awaitable in awaitables)
+    try:
+        return tuple(await asyncio.gather(*tasks))
+    except BaseException:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise

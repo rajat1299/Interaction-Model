@@ -80,8 +80,9 @@
   rationale, cache state, and usage. Reports explicitly disclose that Terra grades Terra's open
   text and that this is not independent adjudication.
 - Canceled, transport-error, and HTTP-error calls persist their exact traces as indeterminate cache
-  entries before propagating. Resume stops on those rows unless the operator supplies the explicit
-  `--retry-indeterminate` authorization.
+  entries before propagating. Resume stops on those rows unless the operator supplies the exact
+  cache digest through `--retry-indeterminate-cache-key`; that authorization is scoped to one
+  identity and is consumed at most once per invocation.
 - Paraphrase collapse is now computed per logical probe: each probe's accuracy range across
   `v1`–`v3` pools only its two candidate orders, and a family's reported spread is the maximum of
   its probe spreads. The prior family-pooled definition could mask offsetting probe failures and is
@@ -97,3 +98,29 @@
 ### Open questions
 
 - Live execution remains gated on a second independent review of the corrections.
+
+## 2026-07-13 — Second pre-live review corrections
+
+### Review outcome
+
+- The second clean-context Sol review cleared the measurement and reporting fixes but found two P1
+  interruption-safety defects. The broad retry switch could authorize unrelated indeterminate rows
+  and replacement erased the only durable evidence of the first attempt. Separately, bare
+  `asyncio.gather` propagated the first provider failure without canceling and draining sibling
+  calls before the cache closed. The live run remained paused.
+
+### Design corrections
+
+- Provider attempt history is append-only. The cache retains every canceled, transport-error,
+  HTTP-error, and completed attempt while maintaining a separate current-result projection for
+  ordinary resume lookups.
+- Indeterminate retry authority is an exact cache-identity digest, never a run-wide flag. It is
+  one-shot within a harness invocation; retrying a possibly billed attempt therefore requires a
+  deliberate operator action tied to the stopped presentation.
+- Each generation, pairwise, and listwise phase now owns its task set. On the first failure it
+  cancels all unfinished siblings and awaits every task to completion, allowing in-flight provider
+  cancellations to persist their audit traces before cache and network resources close.
+
+### Open questions
+
+- Live execution remains gated on a fresh independent review of these two P1 corrections.

@@ -24,10 +24,16 @@ class IndeterminateCacheEntry(RuntimeError):
 class HarnessCache:
     """Small synchronous cache used only at async task boundaries on the event-loop thread."""
 
-    def __init__(self, path: Path, *, retry_indeterminate: bool = False) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        retry_indeterminate_keys: frozenset[str] = frozenset(),
+    ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
-        self.retry_indeterminate = retry_indeterminate
+        self.retry_indeterminate_keys = frozenset(retry_indeterminate_keys)
+        self._retry_consumed: set[str] = set()
         self._connection = sqlite3.connect(path)
         self._connection.execute("PRAGMA journal_mode=WAL")
         self._connection.execute("PRAGMA synchronous=FULL")
@@ -35,6 +41,19 @@ class HarnessCache:
             """
             CREATE TABLE IF NOT EXISTS completions (
                 cache_key TEXT PRIMARY KEY,
+                identity_json TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                value_json TEXT NOT NULL,
+                traces_json TEXT NOT NULL,
+                usage_json TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attempt_history (
+                attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cache_key TEXT NOT NULL,
                 identity_json TEXT NOT NULL,
                 outcome TEXT NOT NULL,
                 value_json TEXT NOT NULL,
@@ -64,56 +83,98 @@ class HarnessCache:
         ).fetchone()
         if row is None:
             return None
-        outcome, value_json, traces_json, usage_json = row
+        outcome = row[0]
         if str(outcome) in _INDETERMINATE_OUTCOMES:
-            if not self.retry_indeterminate:
+            if identity.digest not in self.retry_indeterminate_keys:
                 raise IndeterminateCacheEntry(
-                    "cached call is indeterminate; rerun with explicit retry_indeterminate"
+                    "cached call is indeterminate; explicitly authorize only this identity with "
+                    f"--retry-indeterminate-cache-key {identity.digest}"
                 )
-            self._connection.execute(
-                "DELETE FROM completions WHERE cache_key = ?",
-                (identity.digest,),
-            )
-            self._connection.commit()
+            if identity.digest in self._retry_consumed:
+                raise IndeterminateCacheEntry(
+                    "indeterminate retry authorization was already consumed for cache key "
+                    f"{identity.digest}"
+                )
+            self._retry_consumed.add(identity.digest)
             return None
-        usage = json.loads(usage_json)
+        return self._completion_from_row(row, from_cache=True)
+
+    def put(self, identity: CacheIdentity, completion: HarnessCompletion) -> None:
+        values = self._row_values(identity, completion)
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO attempt_history (
+                    cache_key, identity_json, outcome, value_json, traces_json, usage_json
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
+            self._connection.execute(
+                """
+                INSERT INTO completions (
+                    cache_key, identity_json, outcome, value_json, traces_json, usage_json
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(cache_key) DO UPDATE SET
+                    identity_json = excluded.identity_json,
+                    outcome = excluded.outcome,
+                    value_json = excluded.value_json,
+                    traces_json = excluded.traces_json,
+                    usage_json = excluded.usage_json
+                """,
+                values,
+            )
+
+    def history(self, identity: CacheIdentity) -> tuple[HarnessCompletion, ...]:
+        """Return append-only evidence for every attempt at this exact presentation."""
+        rows = self._connection.execute(
+            """
+            SELECT outcome, value_json, traces_json, usage_json
+            FROM attempt_history
+            WHERE cache_key = ? AND identity_json = ?
+            ORDER BY attempt_id
+            """,
+            (identity.digest, self._identity_json(identity)),
+        ).fetchall()
+        return tuple(self._completion_from_row(row, from_cache=True) for row in rows)
+
+    @classmethod
+    def _completion_from_row(
+        cls,
+        row: tuple[object, object, object, object],
+        *,
+        from_cache: bool,
+    ) -> HarnessCompletion:
+        outcome, value_json, traces_json, usage_json = row
+        usage = json.loads(str(usage_json))
         return HarnessCompletion(
-            value=json.loads(value_json),
+            value=json.loads(str(value_json)),
             outcome=str(outcome),
             traces=traces_from_json(str(traces_json)),
             usage=ProviderUsage(**usage),
-            from_cache=True,
+            from_cache=from_cache,
         )
 
-    def put(self, identity: CacheIdentity, completion: HarnessCompletion) -> None:
-        self._connection.execute(
-            """
-            INSERT INTO completions (
-                cache_key, identity_json, outcome, value_json, traces_json, usage_json
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(cache_key) DO UPDATE SET
-                identity_json = excluded.identity_json,
-                outcome = excluded.outcome,
-                value_json = excluded.value_json,
-                traces_json = excluded.traces_json,
-                usage_json = excluded.usage_json
-            """,
-            (
-                identity.digest,
-                self._identity_json(identity),
-                completion.outcome,
-                json.dumps(
-                    completion.value,
-                    ensure_ascii=False,
-                    allow_nan=False,
-                    separators=(",", ":"),
-                    sort_keys=True,
-                ),
-                traces_to_json(completion.traces),
-                json.dumps(completion.usage.as_json(), separators=(",", ":"), sort_keys=True),
+    @classmethod
+    def _row_values(
+        cls,
+        identity: CacheIdentity,
+        completion: HarnessCompletion,
+    ) -> tuple[str, str, str, str, str, str]:
+        return (
+            identity.digest,
+            cls._identity_json(identity),
+            completion.outcome,
+            json.dumps(
+                completion.value,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+                sort_keys=True,
             ),
+            traces_to_json(completion.traces),
+            json.dumps(completion.usage.as_json(), separators=(",", ":"), sort_keys=True),
         )
-        self._connection.commit()
 
     @staticmethod
     def _identity_json(identity: CacheIdentity) -> str:

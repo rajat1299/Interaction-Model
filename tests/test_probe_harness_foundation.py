@@ -124,13 +124,80 @@ def test_cache_identity_separates_candidate_orderings(tmp_path: Path) -> None:
 
 def test_cache_persists_indeterminate_trace_and_requires_explicit_retry(tmp_path: Path) -> None:
     path = tmp_path / "cache.sqlite"
+    identity = _identity()
+    trace = PolicyCallTrace(
+        attempt_index=1,
+        model="gpt-5.6-terra",
+        prompt_hash=identity.prompt_hash,
+        request=b"request-one",
+        response=b"",
+        latency_ms=8,
+        http_status=None,
+        outcome="cancelled",
+    )
     with HarnessCache(path) as cache:
         cache.put(
-            _identity(),
-            HarnessCompletion(value={"provider_indeterminate": True}, outcome="cancelled"),
+            identity,
+            HarnessCompletion(
+                value={"provider_indeterminate": True},
+                outcome="cancelled",
+                traces=(trace,),
+            ),
         )
-        with pytest.raises(IndeterminateCacheEntry, match="explicit retry"):
-            cache.get(_identity())
+        with pytest.raises(IndeterminateCacheEntry, match="--retry-indeterminate-cache-key"):
+            cache.get(identity)
 
-    with HarnessCache(path, retry_indeterminate=True) as cache:
-        assert cache.get(_identity()) is None
+    with HarnessCache(
+        path,
+        retry_indeterminate_keys=frozenset({identity.digest}),
+    ) as cache:
+        assert cache.get(identity) is None
+        with pytest.raises(IndeterminateCacheEntry, match="already consumed"):
+            cache.get(identity)
+        cache.put(
+            identity,
+            HarnessCompletion(
+                value={"choice": "A"},
+                outcome="completed",
+                traces=(
+                    PolicyCallTrace(
+                        attempt_index=1,
+                        model="gpt-5.6-terra",
+                        prompt_hash=identity.prompt_hash,
+                        request=b"request-two",
+                        response=b'{"choice":"A"}',
+                        latency_ms=7,
+                        http_status=200,
+                        outcome="completed",
+                    ),
+                ),
+            ),
+        )
+        assert [item.outcome for item in cache.history(identity)] == [
+            "cancelled",
+            "completed",
+        ]
+        assert cache.history(identity)[0].traces == (trace,)
+
+
+def test_retry_authorization_is_scoped_to_one_exact_cache_identity(tmp_path: Path) -> None:
+    path = tmp_path / "cache.sqlite"
+    authorized = _identity(presentation="expected-a")
+    unrelated = _identity(presentation="expected-b")
+    with HarnessCache(path) as cache:
+        for identity in (authorized, unrelated):
+            cache.put(
+                identity,
+                HarnessCompletion(
+                    value={"provider_indeterminate": True},
+                    outcome="transport_error",
+                ),
+            )
+
+    with HarnessCache(
+        path,
+        retry_indeterminate_keys=frozenset({authorized.digest}),
+    ) as cache:
+        assert cache.get(authorized) is None
+        with pytest.raises(IndeterminateCacheEntry, match=unrelated.digest):
+            cache.get(unrelated)
