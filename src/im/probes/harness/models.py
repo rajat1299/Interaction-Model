@@ -12,6 +12,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from im.policy.base import PolicyCallTrace
+from im.probes.model import NegativeClass
 
 Digest = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
 
@@ -162,3 +163,78 @@ def traces_from_json(value: str) -> tuple[PolicyCallTrace, ...]:
         )
         for item in parsed
     )
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationResult:
+    probe_id: str
+    family_id: int
+    variant_id: str
+    expected_type: str
+    actual_action: dict[str, object] | None
+    provider_outcome: str
+    schema_valid: bool
+    reference_valid: bool
+    license_allowed: bool
+    license_block_code: str | None
+    structural_match: bool
+    semantic_rule: str | None
+    semantic_passed: bool | None
+    semantic_rationale: str | None
+    generation_passed: bool
+    invented_arguments: bool
+    intrusive_action: bool
+    from_cache: bool
+    usage: ProviderUsage
+
+
+@dataclass(frozen=True, slots=True)
+class PairwiseResult:
+    probe_id: str
+    family_id: int
+    variant_id: str
+    expected_position: Literal["A", "B"]
+    negative_class: NegativeClass
+    restraint_pair: bool
+    provider_outcome: str
+    response_valid: bool
+    choice: Literal["A", "B"] | None
+    correct: bool
+    from_cache: bool
+    usage: ProviderUsage
+
+
+@dataclass(frozen=True, slots=True)
+class ListwiseResult:
+    probe_id: str
+    family_id: int
+    variant_id: Literal["v1"]
+    candidate_count: int
+    candidate_action_types: tuple[str, ...]
+    provider_outcome: str
+    response_valid: bool
+    ranking: tuple[str, ...]
+    expected_candidate_id: str
+    tempting_candidate_id: str
+    top1_correct: bool
+    expected_above_tempting: bool
+    from_cache: bool
+    usage: ProviderUsage
+
+
+@dataclass(frozen=True, slots=True)
+class HarnessRun:
+    manifest_sha256: Digest
+    review_sha256: Digest
+    model: str
+    reasoning_effort: str
+    generation: tuple[GenerationResult, ...]
+    pairwise: tuple[PairwiseResult, ...]
+    listwise: tuple[ListwiseResult, ...]
+
+    @property
+    def usage(self) -> ProviderUsage:
+        total = ProviderUsage()
+        for result in (*self.generation, *self.pairwise, *self.listwise):
+            total += result.usage
+        return total
