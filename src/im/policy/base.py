@@ -1,7 +1,38 @@
 """Policy boundary and deterministic scripted test policy."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Protocol
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyCallTrace:
+    """Exact provider exchange metadata for the operational audit lane."""
+
+    attempt_index: int
+    model: str
+    prompt_hash: str
+    request: bytes
+    response: bytes
+    latency_ms: int
+    http_status: int | None
+    outcome: str
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyDecision:
+    """One raw action attempt plus optional provider exchanges."""
+
+    attempt: object
+    calls: tuple[PolicyCallTrace, ...] = ()
+
+
+class PolicyCallError(RuntimeError):
+    """A provider failure carrying every exchange available for audit."""
+
+    def __init__(self, message: str, calls: tuple[PolicyCallTrace, ...]) -> None:
+        super().__init__(message)
+        self.calls = calls
 
 
 class Policy(Protocol):

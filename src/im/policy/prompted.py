@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 from typing import Literal
 
+import httpx
+from pydantic import ValidationError
+
+from im.canonical_json import TimJsonError, parse_tim_json
 from im.config import estimate_tokens
+from im.policy.base import PolicyCallError, PolicyCallTrace, PolicyDecision
+from im.schema.actions import ACTION_ADAPTER
 
 ReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
 
@@ -356,3 +363,205 @@ def estimate_run_cost(
         synchronous_warm_cache=warm,
         batch_no_cache=batch,
     )
+
+
+class OpenAITransportError(PolicyCallError):
+    """An HTTP or transport failure outside model action semantics."""
+
+
+@dataclass(frozen=True, slots=True)
+class _DecodedResponse:
+    attempt: object
+    outcome: str
+    valid: bool
+    validation_error: str | None = None
+
+
+def _response_content(payload: dict[str, object]) -> tuple[str | None, str | None]:
+    output = payload.get("output")
+    if not isinstance(output, list):
+        return None, None
+    text_parts: list[str] = []
+    for item in output:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        content = item.get("content")
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "refusal" and isinstance(part.get("refusal"), str):
+                return None, str(part["refusal"])
+            if part.get("type") == "output_text" and isinstance(part.get("text"), str):
+                text_parts.append(str(part["text"]))
+    return ("".join(text_parts) if text_parts else None), None
+
+
+def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
+    text, refusal = _response_content(payload)
+    if refusal is not None:
+        return _DecodedResponse(
+            attempt={"provider_refusal": True},
+            outcome="refusal",
+            valid=False,
+        )
+    if payload.get("status") != "completed":
+        details = payload.get("incomplete_details")
+        reason = details.get("reason") if isinstance(details, dict) else "unknown"
+        return _DecodedResponse(
+            attempt={"provider_incomplete": str(reason)},
+            outcome="incomplete",
+            valid=False,
+            validation_error=f"provider response incomplete: {reason}",
+        )
+    if text is None:
+        return _DecodedResponse(
+            attempt={"provider_missing_output": True},
+            outcome="invalid",
+            valid=False,
+            validation_error="completed response has no output_text",
+        )
+    try:
+        parsed = parse_tim_json(text.encode("utf-8"))
+        action = ACTION_ADAPTER.validate_python(parsed)
+    except (TimJsonError, UnicodeEncodeError, ValidationError, ValueError) as error:
+        return _DecodedResponse(
+            attempt=text,
+            outcome="invalid",
+            valid=False,
+            validation_error=f"{type(error).__name__}: {error}",
+        )
+    return _DecodedResponse(attempt=action, outcome="completed", valid=True)
+
+
+def _retry_body(body: dict[str, object], validation_error: str) -> dict[str, object]:
+    copied = json.loads(_json_bytes(body))
+    if not isinstance(copied, dict):  # pragma: no cover - builder always returns an object.
+        raise TypeError("request body copy lost its object root")
+    request_input = copied.get("input")
+    if not isinstance(request_input, list):  # pragma: no cover - guarded by builder tests.
+        raise TypeError("request body input must be an array")
+    concise_error = validation_error.replace("\n", " ")[:2_000]
+    request_input.append(
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": (
+                        "The previous attempt failed local action validation: "
+                        f"{concise_error}. Re-evaluate the unchanged policy stream and emit one "
+                        "corrected bare JSON action object."
+                    ),
+                }
+            ],
+        }
+    )
+    return copied
+
+
+class PromptedPolicy:
+    """Call OpenAI only from ``decide``; construction and costing are offline."""
+
+    def __init__(
+        self,
+        builder: ResponsesRequestBuilder,
+        *,
+        api_key: str,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        if not api_key:
+            raise ValueError("api_key must not be empty")
+        self.builder = builder
+        self._owns_client = client is None
+        self._client = client or httpx.AsyncClient(
+            base_url=builder.config.base_url,
+            timeout=builder.config.timeout_seconds,
+        )
+        self._authorization = f"Bearer {api_key}"
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self._client.aclose()
+
+    async def decide(self, policy_bytes: bytes) -> object:
+        body = self.builder.build(policy_bytes)
+        calls: list[PolicyCallTrace] = []
+        last = _DecodedResponse(
+            attempt={"provider_missing_output": True},
+            outcome="invalid",
+            valid=False,
+            validation_error="no provider attempt was made",
+        )
+        for attempt_index in range(1, self.builder.config.max_attempts + 1):
+            request = _json_bytes(body)
+            started_ns = time.perf_counter_ns()
+            try:
+                response = await self._client.post(
+                    "/responses",
+                    content=request,
+                    headers={
+                        "Authorization": self._authorization,
+                        "Content-Type": "application/json",
+                    },
+                )
+            except httpx.HTTPError as error:
+                latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)
+                calls.append(
+                    PolicyCallTrace(
+                        attempt_index=attempt_index,
+                        model=self.builder.config.model,
+                        prompt_hash=self.builder.renderer.artifacts.prompt_hash,
+                        request=request,
+                        response=str(error).encode("utf-8"),
+                        latency_ms=latency_ms,
+                        http_status=None,
+                        outcome="transport_error",
+                    )
+                )
+                raise OpenAITransportError("OpenAI transport failed", tuple(calls)) from error
+
+            latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)
+            raw_response = response.content
+            if not response.is_success:
+                calls.append(
+                    PolicyCallTrace(
+                        attempt_index=attempt_index,
+                        model=self.builder.config.model,
+                        prompt_hash=self.builder.renderer.artifacts.prompt_hash,
+                        request=request,
+                        response=raw_response,
+                        latency_ms=latency_ms,
+                        http_status=response.status_code,
+                        outcome="http_error",
+                    )
+                )
+                raise OpenAITransportError(
+                    f"OpenAI Responses API returned HTTP {response.status_code}",
+                    tuple(calls),
+                )
+            try:
+                payload = response.json()
+            except json.JSONDecodeError:
+                payload = {"status": "completed", "output": []}
+            if not isinstance(payload, dict):
+                payload = {"status": "completed", "output": []}
+            last = _decode_response(payload)
+            calls.append(
+                PolicyCallTrace(
+                    attempt_index=attempt_index,
+                    model=self.builder.config.model,
+                    prompt_hash=self.builder.renderer.artifacts.prompt_hash,
+                    request=request,
+                    response=raw_response,
+                    latency_ms=latency_ms,
+                    http_status=response.status_code,
+                    outcome=last.outcome,
+                )
+            )
+            if last.valid or last.outcome == "refusal":
+                break
+            if attempt_index < self.builder.config.max_attempts:
+                body = _retry_body(body, last.validation_error or "invalid action")
+        return PolicyDecision(attempt=last.attempt, calls=tuple(calls))

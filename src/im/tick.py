@@ -30,7 +30,7 @@ from im.license import (
     check,
 )
 from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
-from im.policy.base import Policy
+from im.policy.base import Policy, PolicyCallError, PolicyCallTrace, PolicyDecision
 from im.scheduler import Clock, TimerScheduler
 from im.schema.actions import (
     CancelAction,
@@ -479,7 +479,16 @@ class TickRuntime:
         records = self.store.policy_records()
         observed_seq = records[-1].seq if records else None
         try:
-            raw_attempt = await self.policy.decide(self.store.policy_bytes())
+            try:
+                policy_result = await self.policy.decide(self.store.policy_bytes())
+            except PolicyCallError as error:
+                self._record_policy_call_traces(decision_id, error.calls)
+                raise
+            if isinstance(policy_result, PolicyDecision):
+                self._record_policy_call_traces(decision_id, policy_result.calls)
+                raw_attempt = policy_result.attempt
+            else:
+                raw_attempt = policy_result
             self._audit_attempt(raw_attempt, decision_id, observed_seq)
             decision = self._check_attempt(raw_attempt)
             if isinstance(decision, Blocked):
@@ -855,6 +864,22 @@ class TickRuntime:
                 "raw": self._audit_value(raw),
             },
         )
+
+    def _record_policy_call_traces(
+        self, decision_id: str, calls: tuple[PolicyCallTrace, ...]
+    ) -> None:
+        for call in calls:
+            self.store.record_policy_call(
+                decision_id=decision_id,
+                attempt_index=call.attempt_index,
+                model=call.model,
+                prompt_hash=call.prompt_hash,
+                request=call.request,
+                response=call.response,
+                latency_ms=call.latency_ms,
+                http_status=call.http_status,
+                outcome=call.outcome,
+            )
 
     def _audit_block(
         self,

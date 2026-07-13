@@ -1,5 +1,6 @@
 """Durable SQLite lanes, runtime state, and per-session identifiers."""
 
+import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -78,6 +79,22 @@ class PolicyRecord:
     occurred_mono_ns: int
     rendered: bytes
     event: Event
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyCallRecord:
+    """One exact provider request/response pair in the operational audit lane."""
+
+    decision_id: str
+    attempt_index: int
+    ts_utc: str
+    model: str
+    prompt_hash: str
+    request: bytes
+    response: bytes
+    latency_ms: int
+    http_status: int | None
+    outcome: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +205,20 @@ CREATE TABLE IF NOT EXISTS audit (
     ts_utc TEXT NOT NULL,
     kind TEXT NOT NULL,
     payload BLOB NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS policy_calls (
+    decision_id TEXT NOT NULL,
+    attempt_index INTEGER NOT NULL CHECK (attempt_index > 0),
+    ts_utc TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_hash TEXT NOT NULL,
+    request BLOB NOT NULL,
+    response BLOB NOT NULL,
+    latency_ms INTEGER NOT NULL CHECK (latency_ms >= 0),
+    http_status INTEGER,
+    outcome TEXT NOT NULL,
+    PRIMARY KEY(decision_id, attempt_index)
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS dispositions (
@@ -883,6 +914,97 @@ class Store:
             )
             row_id = int(cursor.lastrowid)
         return row_id
+
+    def record_policy_call(
+        self,
+        *,
+        decision_id: str,
+        attempt_index: int,
+        model: str,
+        prompt_hash: str,
+        request: bytes,
+        response: bytes,
+        latency_ms: int,
+        http_status: int | None,
+        outcome: str,
+        ts_utc: str | None = None,
+    ) -> None:
+        """Store exact provider bytes without applying model-facing JSON limits."""
+        if not all((decision_id, model, prompt_hash, outcome)):
+            raise ValueError("policy call identifiers must not be empty")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", prompt_hash):
+            raise ValueError("policy call prompt_hash must be a sha256 digest")
+        for name, value in (("attempt_index", attempt_index), ("latency_ms", latency_ms)):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+        if attempt_index <= 0 or latency_ms < 0:
+            raise ValueError("policy call counters are outside their valid range")
+        if not isinstance(request, bytes) or not request:
+            raise ValueError("policy call request must be non-empty bytes")
+        if not isinstance(response, bytes):
+            raise TypeError("policy call response must be bytes")
+        if http_status is not None:
+            if isinstance(http_status, bool) or not isinstance(http_status, int):
+                raise TypeError("http_status must be an integer or null")
+            if not 100 <= http_status <= 599:
+                raise ValueError("http_status is outside the HTTP range")
+        timestamp = ts_utc or datetime.now(UTC).isoformat(timespec="microseconds")
+        with self.transaction():
+            self._connection.execute(
+                """
+                INSERT INTO policy_calls(
+                    decision_id, attempt_index, ts_utc, model, prompt_hash,
+                    request, response, latency_ms, http_status, outcome
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    decision_id,
+                    attempt_index,
+                    timestamp,
+                    model,
+                    prompt_hash,
+                    request,
+                    response,
+                    latency_ms,
+                    http_status,
+                    outcome,
+                ),
+            )
+
+    def policy_call_records(self, decision_id: str | None = None) -> tuple[PolicyCallRecord, ...]:
+        """Read exact provider exchanges in deterministic decision/attempt order."""
+        if decision_id is None:
+            rows = self._connection.execute(
+                """
+                SELECT decision_id, attempt_index, ts_utc, model, prompt_hash,
+                       request, response, latency_ms, http_status, outcome
+                FROM policy_calls ORDER BY decision_id, attempt_index
+                """
+            ).fetchall()
+        else:
+            rows = self._connection.execute(
+                """
+                SELECT decision_id, attempt_index, ts_utc, model, prompt_hash,
+                       request, response, latency_ms, http_status, outcome
+                FROM policy_calls WHERE decision_id = ? ORDER BY attempt_index
+                """,
+                (decision_id,),
+            ).fetchall()
+        return tuple(
+            PolicyCallRecord(
+                decision_id=str(row[0]),
+                attempt_index=int(row[1]),
+                ts_utc=str(row[2]),
+                model=str(row[3]),
+                prompt_hash=str(row[4]),
+                request=bytes(row[5]),
+                response=bytes(row[6]),
+                latency_ms=int(row[7]),
+                http_status=None if row[8] is None else int(row[8]),
+                outcome=str(row[9]),
+            )
+            for row in rows
+        )
 
     def create_tool_request(
         self,
