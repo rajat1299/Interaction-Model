@@ -37,32 +37,14 @@ class HarnessCache:
         self._connection = sqlite3.connect(path)
         self._connection.execute("PRAGMA journal_mode=WAL")
         self._connection.execute("PRAGMA synchronous=FULL")
-        self._connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS completions (
-                cache_key TEXT PRIMARY KEY,
-                identity_json TEXT NOT NULL,
-                outcome TEXT NOT NULL,
-                value_json TEXT NOT NULL,
-                traces_json TEXT NOT NULL,
-                usage_json TEXT NOT NULL
-            )
-            """
-        )
-        self._connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS attempt_history (
-                attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                cache_key TEXT NOT NULL,
-                identity_json TEXT NOT NULL,
-                outcome TEXT NOT NULL,
-                value_json TEXT NOT NULL,
-                traces_json TEXT NOT NULL,
-                usage_json TEXT NOT NULL
-            )
-            """
-        )
-        self._connection.commit()
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self._initialize_schema()
+            self._connection.commit()
+        except BaseException:
+            self._connection.rollback()
+            self._connection.close()
+            raise
 
     def close(self) -> None:
         self._connection.close()
@@ -137,6 +119,64 @@ class HarnessCache:
             (identity.digest, self._identity_json(identity)),
         ).fetchall()
         return tuple(self._completion_from_row(row, from_cache=True) for row in rows)
+
+    def _initialize_schema(self) -> None:
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS completions (
+                cache_key TEXT PRIMARY KEY,
+                identity_json TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                value_json TEXT NOT NULL,
+                traces_json TEXT NOT NULL,
+                usage_json TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attempt_history (
+                attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cache_key TEXT NOT NULL,
+                identity_json TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                value_json TEXT NOT NULL,
+                traces_json TEXT NOT NULL,
+                usage_json TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS attempt_history_identity_idx
+            ON attempt_history(cache_key, identity_json, attempt_id)
+            """
+        )
+        self._connection.execute(
+            """
+            INSERT INTO attempt_history (
+                cache_key, identity_json, outcome, value_json, traces_json, usage_json
+            )
+            SELECT
+                current.cache_key,
+                current.identity_json,
+                current.outcome,
+                current.value_json,
+                current.traces_json,
+                current.usage_json
+            FROM completions AS current
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM attempt_history AS history
+                WHERE history.cache_key = current.cache_key
+                  AND history.identity_json = current.identity_json
+                  AND history.outcome = current.outcome
+                  AND history.value_json = current.value_json
+                  AND history.traces_json = current.traces_json
+                  AND history.usage_json = current.usage_json
+            )
+            """
+        )
 
     @classmethod
     def _completion_from_row(

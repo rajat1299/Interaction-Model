@@ -1,5 +1,6 @@
 """WP15 signed-artifact and resumable-cache foundations."""
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -201,3 +202,52 @@ def test_retry_authorization_is_scoped_to_one_exact_cache_identity(tmp_path: Pat
         assert cache.get(authorized) is None
         with pytest.raises(IndeterminateCacheEntry, match=unrelated.digest):
             cache.get(unrelated)
+
+
+def test_legacy_projection_is_migrated_before_retry_can_replace_it(tmp_path: Path) -> None:
+    path = tmp_path / "legacy-cache.sqlite"
+    identity = _identity()
+    original_trace = PolicyCallTrace(
+        attempt_index=1,
+        model="gpt-5.6-terra",
+        prompt_hash=identity.prompt_hash,
+        request=b"legacy-request",
+        response=b"legacy-transport-error",
+        latency_ms=13,
+        http_status=None,
+        outcome="transport_error",
+    )
+    with HarnessCache(path) as cache:
+        cache.put(
+            identity,
+            HarnessCompletion(
+                value={"provider_indeterminate": True},
+                outcome="transport_error",
+                traces=(original_trace,),
+            ),
+        )
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE attempt_history")
+
+    with HarnessCache(
+        path,
+        retry_indeterminate_keys=frozenset({identity.digest}),
+    ) as cache:
+        assert [item.outcome for item in cache.history(identity)] == ["transport_error"]
+        assert cache.history(identity)[0].traces == (original_trace,)
+        assert cache.get(identity) is None
+        cache.put(
+            identity,
+            HarnessCompletion(value={"choice": "A"}, outcome="completed"),
+        )
+        assert [item.outcome for item in cache.history(identity)] == [
+            "transport_error",
+            "completed",
+        ]
+
+    with HarnessCache(path) as cache:
+        assert [item.outcome for item in cache.history(identity)] == [
+            "transport_error",
+            "completed",
+        ]
+        assert cache.history(identity)[0].traces == (original_trace,)

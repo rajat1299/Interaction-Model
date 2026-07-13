@@ -124,3 +124,24 @@
 ### Open questions
 
 - Live execution remains gated on a fresh independent review of these two P1 corrections.
+
+## 2026-07-13 — Legacy cache migration correction
+
+### Review outcome
+
+- The third clean-context Sol review cleared per-identity authorization, one-shot retry consumption,
+  phase draining, external cancellation, and all measurement/report contracts. It found one P1
+  migration hole: a cache created by the preceding schema had an authoritative `completions` row
+  but no `attempt_history` table, so the first successful retry could still erase the only copy of
+  that legacy indeterminate trace. The live run remained paused.
+
+### Design correction
+
+- Cache construction now runs schema creation and legacy backfill under `BEGIN IMMEDIATE` before
+  the cache becomes available to the runner. Every current projection missing an exact matching
+  history record is copied into append-only history. The migration is idempotent across reopen and
+  also preserves a projection written by an older binary after a newer history table exists.
+
+### Open questions
+
+- Live execution remains gated on focused independent verification of the migration regression.
