@@ -178,11 +178,15 @@ def _mechanically_released_view(
 
 
 def _normalized_floor_stream(policy_stream: str) -> tuple[dict[str, object], ...]:
+    events = tuple(parse_event(line) for line in policy_stream.encode("utf-8").splitlines())
+    latest_snapshot_index = max(
+        (index for index, event in enumerate(events) if isinstance(event, SnapshotEvent)),
+        default=-1,
+    )
     normalized = []
-    for line in policy_stream.encode("utf-8").splitlines():
-        event = parse_event(line)
+    for index, event in enumerate(events):
         rendered = event.model_dump(mode="json")
-        if isinstance(event, SnapshotEvent):
+        if index == latest_snapshot_index:
             rendered["activity"] = "<declared-floor-flip>"
         normalized.append(rendered)
     return tuple(normalized)
