@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import fcntl
 import json
 import os
 import subprocess
+from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal, InvalidOperation
 from enum import Enum
@@ -126,12 +128,13 @@ async def _run(args: argparse.Namespace) -> None:
     if args.mode == "adopt":
         if not args.input_sha256 or not args.batch_id:
             raise RuntimeError("adopt requires --input-sha256 and --batch-id")
-        with HarnessCache(cache_path) as cache:
-            record = adopt_uncertain_batch(
-                cache,
-                input_sha256=args.input_sha256,
-                batch_id=args.batch_id,
-            )
+        with _exclusive_cache_lock(cache_path):
+            with HarnessCache(cache_path) as cache:
+                record = adopt_uncertain_batch(
+                    cache,
+                    input_sha256=args.input_sha256,
+                    batch_id=args.batch_id,
+                )
         print(json.dumps(_job_summary(record), indent=2, sort_keys=True))
         return
 
@@ -212,51 +215,52 @@ async def _run(args: argparse.Namespace) -> None:
         poll_seconds=args.batch_poll_seconds,
     )
     try:
-        with HarnessCache(cache_path) as cache:
-            if args.mode == "pilot":
-                pilot = await materialize_batch_stage(
-                    "p0",
-                    primary[:pilot_count],
-                    cache=cache,
-                    gateway=gateway,
-                    config=batch_config,
-                )
-                outcomes = {
-                    outcome: sum(
-                        cache.get(item.identity).outcome == outcome
-                        for item in primary[:pilot_count]
+        with _exclusive_cache_lock(cache_path):
+            with HarnessCache(cache_path) as cache:
+                if args.mode == "pilot":
+                    pilot = await materialize_batch_stage(
+                        "p0",
+                        primary[:pilot_count],
+                        cache=cache,
+                        gateway=gateway,
+                        config=batch_config,
                     )
-                    for outcome in sorted(
-                        {
-                            cache.get(item.identity).outcome
+                    outcomes = {
+                        outcome: sum(
+                            cache.get(item.identity).outcome == outcome
                             for item in primary[:pilot_count]
-                        }
+                        )
+                        for outcome in sorted(
+                            {
+                                cache.get(item.identity).outcome
+                                for item in primary[:pilot_count]
+                            }
+                        )
+                    }
+                    print(
+                        json.dumps(
+                            {
+                                "api_call_performed": True,
+                                "jobs": [_job_summary(job) for job in pilot.jobs],
+                                "outcomes": outcomes,
+                                "requests": pilot_count,
+                                "submitted_usage": (
+                                    pilot.submitted_this_invocation_usage.as_json()
+                                ),
+                            },
+                            indent=2,
+                            sort_keys=True,
+                        )
                     )
-                }
-                print(
-                    json.dumps(
-                        {
-                            "api_call_performed": True,
-                            "jobs": [_job_summary(job) for job in pilot.jobs],
-                            "outcomes": outcomes,
-                            "requests": pilot_count,
-                            "submitted_usage": (
-                                pilot.submitted_this_invocation_usage.as_json()
-                            ),
-                        },
-                        indent=2,
-                        sort_keys=True,
-                    )
-                )
-                return
-            result = await BatchProbeHarnessRunner(
-                catalog,
-                generation_builder=builder,
-                prompts=prompts,
-                gateway=gateway,
-                cache=cache,
-                config=batch_config,
-            ).run()
+                    return
+                result = await BatchProbeHarnessRunner(
+                    catalog,
+                    generation_builder=builder,
+                    prompts=prompts,
+                    gateway=gateway,
+                    cache=cache,
+                    config=batch_config,
+                ).run()
     finally:
         await gateway.aclose()
 
@@ -354,6 +358,24 @@ def _job_summary(job: BatchJobRecord) -> dict[str, object]:
 def _resolve(repository: Path, provided: Path | None, default: Path) -> Path:
     value = default if provided is None else provided
     return value if value.is_absolute() else repository / value
+
+
+@contextmanager
+def _exclusive_cache_lock(cache_path: Path):
+    """Prevent concurrent processes from submitting the same deterministic shard twice."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = cache_path.with_name(cache_path.name + ".lock")
+    with lock_path.open("a+b") as lock_file:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(
+                f"another Batch process owns the cache lock {lock_path}"
+            ) from error
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _repository_commit(repository: Path) -> str:
