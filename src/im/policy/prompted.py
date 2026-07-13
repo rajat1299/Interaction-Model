@@ -448,6 +448,11 @@ def _response_content(payload: dict[str, object]) -> tuple[str | None, str | Non
     return ("".join(text_parts) if text_parts else None), None
 
 
+def response_content(payload: dict[str, object]) -> tuple[str | None, str | None]:
+    """Extract provider output text or refusal without imposing an action schema."""
+    return _response_content(payload)
+
+
 def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
     text, refusal = _response_content(payload)
     if refusal is not None:
