@@ -257,3 +257,35 @@
   pilot; it must not be submitted until the user returns and explicitly continues.
 - The account-specific enqueued-token quota is still external state. The pilot is intentionally
   small; the full-run cap should be selected after its provider response is inspected.
+
+## 2026-07-13 — Live Batch pilot passed
+
+### Provider result
+
+- The isolated six-request pilot submitted Batch
+  `batch_6a554d6aeca0819098eb19d1ea108a21` from repository commit
+  `b5ada8bfaf3dc077e0e1cbd9ce8aa220b0366734`.
+- The exact input artifact was 334,930 bytes, estimated at 83,610 input tokens, with digest
+  `sha256:a4edb31a8ca98bbaefc479280f4d125194f193ace46831b6e1ae11304ffd09ec`.
+- The Batch completed all six requests and produced no error file. The retained output artifact was
+  26,270 bytes with digest
+  `sha256:e66538782db49bb52433fe0268d604f456fc7a87df2e014ad8ae215fb51ec5e6`.
+- Provider-reported usage was 73,693 input tokens, 47,186 cached input tokens, 23,626 cache-write
+  tokens, 1,399 output tokens, and 1,164 reasoning tokens.
+
+### Behavioral audit
+
+- The pilot deliberately covered all independent P0 request shapes: one pairwise request, one
+  listwise request, and four generation requests spanning both sides of two directness twins.
+- Every generation action parsed against the closed action union, passed reference integrity and
+  the production license, and exactly matched the frozen structural grading contract.
+- Pairwise selected the expected candidate. Listwise ranked the expected candidate first and above
+  the approved tempting alternative. All six local provider outcomes were `completed`.
+
+### Decision
+
+- The provider accepts `gpt-5.6-terra` with high reasoning through `/v1/responses` Batch, preserves
+  the expected response envelope, returns usable per-item usage, and supports the exact JSONL
+  reconciliation path. The live API mechanics gate is green.
+- The pilot cache remains isolated and is not eligible for the full report. The next run starts from
+  the distinct full Batch cache so every reported teacher result has homogeneous provenance.
