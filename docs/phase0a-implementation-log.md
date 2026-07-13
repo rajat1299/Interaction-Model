@@ -465,3 +465,29 @@ Running record for the continuous WP3–WP11 implementation pass begun after WP2
   action schema `sha256:09b64516ba1612d269f33397ffe291cb3cc26ca0ae3e621b319e539fd2f725f3`;
   combined schema
   `sha256:321dc69f81573f9711fb8c77d962253677eaf4c4a022e6df10f67653df75680d`.
+
+## 2026-07-12 — Terra teacher reasoning calibration pilot
+
+### Method
+
+- Ran two clean-context GPT-5.6 Terra subagents on one identical six-case teacher-labeling prompt.
+  Both read the frozen behavior spec and action schema, received no conversation history, worked
+  read-only, and were not told they were being compared. The sole configuration difference was
+  reasoning effort: `medium` versus `high`.
+
+### Result
+
+- The runs agreed on five of six action labels. Both correctly handled pending-vs-ready lookup
+  precedence, post-yield ambiguous cancellation, attributed instructions, failed lookup notice,
+  and prospective leftmost mark selection.
+- `medium` failed the rejection-closure case. Given a canceled schedule prior-use tombstone, it
+  emitted `idle(already_handled)` referencing the old schedule action event. That event is not a
+  visible handled disposition subject, so the action is not license-valid.
+- `high` emitted the correct `idle(no_trigger)` and therefore scored 6/6 on this pilot; `medium`
+  scored 5/6. Metadata wording differences on the other five cases were non-material.
+
+### Decision signal
+
+- Prefer Terra `high` for the first direct-API teacher run. This six-case pilot is intentionally
+  small, so retain the reasoning effort as an experiment field and confirm the choice on the first
+  stratified API calibration batch before treating it as permanent.
