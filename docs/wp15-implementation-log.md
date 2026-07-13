@@ -195,3 +195,65 @@
   state. Batch planning therefore requires an explicit shard token ceiling rather than inventing a
   hidden default; a small submitted shard will validate model availability and result decoding
   before scaling the same deterministic plan.
+
+## 2026-07-13 — Resumable OpenAI Batch implementation and pre-live clearance
+
+### Implemented contract
+
+- Batch and synchronous execution now share the exact request planner, cache identity, action
+  decoder, protocol decoders, and single corrective prompts. There is no second interpretation of
+  the signed probe task.
+- The deterministic primary stage contains exactly 1,152 calls: 144 generation, 864 pairwise, and
+  144 listwise. Semantic requests are derived only after final structurally correct generation and
+  therefore remain a dependent stage. The execution order is P0, optional P1 corrections, S0, and
+  optional S1 corrections.
+- Every JSONL line has a deterministic safe `custom_id`. Downloaded output and error files are
+  joined only by that ID; missing, unknown, duplicate, or cross-file duplicate IDs fail closed.
+  Provider output ordering is never treated as meaningful.
+- The SQLite ledger retains exact input, output, and error artifacts, upload/file/batch IDs, raw
+  lifecycle observations, per-item traces, and append-only logical attempt history. A possibly
+  accepted create is `create_uncertain` and is never automatically submitted again.
+- Explicitly adopted Batch IDs are unverified until retrieval proves the exact input file,
+  `/v1/responses` endpoint, and metadata binding for the input digest, stage, and shard. A wrong
+  binding rolls back to an adoptable state; a typo or 404 remains explicitly replaceable.
+- Locally invalid or incomplete model output receives one correction. Refusals do not. Per-item
+  provider failures use a separate, exact-cache-key authorization and a distinct `.rN` custom ID;
+  they do not consume the model-validation correction and retain all earlier traces and usage.
+- Existing stage jobs are reconstructed and byte-verified before any new sharding. Only custom IDs
+  with no durable Batch attempt are eligible for submission, so changing the operator token cap or
+  resuming after partial decode cannot duplicate completed work.
+- Final reports reject synchronous provenance, apply the pinned `0.50` Batch billing multiplier to
+  provider-reported usage, bind the repository commit snapshotted before planning, and list every
+  Batch input digest. Live modes require a clean tracked tree and an exclusive per-cache process
+  lock.
+
+### Offline plan and cost boundary
+
+- The exact P0 request bodies total 65,516,542 JSONL bytes and 16,355,244 deterministic
+  bytes-div-4 input-token estimates. An explicit 10,000,000-token ceiling produces two consecutive
+  shards (706 and 446 requests); no ceiling is silently chosen by the harness.
+- The frozen estimate remains $21.266316 for a cold no-cache Batch run. Live approval is checked
+  against a conservative all-calls-one-validation-retry ceiling of $42.532632. Actual provider
+  billing remains authoritative.
+- The isolated pilot cache is distinct from both the aborted synchronous cache and the full Batch
+  cache. A pilot must include at least three requests and deterministically covers generation,
+  pairwise, and listwise request shapes.
+
+### Review outcome
+
+- The first Batch-focused Sol pass found cap-change resubmission, unrecoverable per-item provider
+  errors, insufficient adoption binding, unsafe create-status classification, and late commit
+  snapshotting. Those were treated as launch blockers rather than operator caveats.
+- After the recovery redesign and adversarial regressions, the clean-context Sol reviewer cleared
+  HEAD `70529a0` with no remaining P1–P3 findings. It independently exercised cap changes, partial
+  P1/S1 decoding, explicit provider retries, mixed-provenance refusal, adoption replacement,
+  duplicate-submission prevention, and cost/provenance accounting.
+- Root's final offline gate passed: Ruff clean and the full test suite green. No live API call was
+  made during implementation or review.
+
+### Open questions / operator boundary
+
+- The user asked to pause before the live call. The next authorized step is the small isolated Batch
+  pilot; it must not be submitted until the user returns and explicitly continues.
+- The account-specific enqueued-token quota is still external state. The pilot is intentionally
+  small; the full-run cap should be selected after its provider response is inspected.
