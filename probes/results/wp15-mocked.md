@@ -7,7 +7,7 @@ PASS. This verdict applies only to the frozen WP15 promotion gates.
 ## Run identity
 
 - Run kind: `mocked-oracle`
-- Repository commit: `9fe725a97bf3a9e610eee2eaa2e137ca6fcb969b`
+- Repository commit: `3e5ba2c794aed914440bd1d78cd71db962f431de`
 - Manifest: `sha256:9430f7385f804d93f4b9f7c3f0750ce3735731fbea5dbc4a8bf444f80866900a`
 - Human review: `sha256:290d06d6ff895da4489a3ad1277c3e53cf6a1206dd658c50817f39de4e9ca67e`
 - Model: `gpt-5.6-terra`
