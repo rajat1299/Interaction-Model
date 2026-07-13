@@ -12,12 +12,14 @@ from im.probes.harness.batch import BatchShard
 from im.probes.harness.batch_api import (
     BatchApiObservation,
     BatchCreateUncertain,
+    BatchLifecycleError,
     OpenAIBatchGateway,
     adopt_uncertain_batch,
     execute_batch_shard,
 )
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.identity import digest
+from im.probes.harness.models import BatchJobRecord
 
 
 def _observation(payload: dict[str, object]) -> BatchApiObservation:
@@ -60,17 +62,44 @@ class _Gateway:
         assert input_file_id == "file_input"
         assert metadata["im_stage"] == "p0"
         self.create_calls += 1
-        return _observation({"id": "batch_123", "status": "validating"})
+        return _observation(
+            {
+                "endpoint": "/v1/responses",
+                "id": "batch_123",
+                "input_file_id": input_file_id,
+                "metadata": metadata,
+                "status": "validating",
+            }
+        )
 
     async def retrieve(self, batch_id: str) -> BatchApiObservation:
         assert batch_id == "batch_123"
         self.retrieve_calls += 1
         if self.retrieve_calls == 1:
-            return _observation({"id": batch_id, "status": "in_progress"})
+            return _observation(
+                {
+                    "endpoint": "/v1/responses",
+                    "id": batch_id,
+                    "input_file_id": "file_input",
+                    "metadata": {
+                        "im_input_sha256": _shard().input_sha256.removeprefix("sha256:"),
+                        "im_shard": "0",
+                        "im_stage": "p0",
+                    },
+                    "status": "in_progress",
+                }
+            )
         return _observation(
             {
+                "endpoint": "/v1/responses",
                 "error_file_id": None,
                 "id": batch_id,
+                "input_file_id": "file_input",
+                "metadata": {
+                    "im_input_sha256": _shard().input_sha256.removeprefix("sha256:"),
+                    "im_shard": "0",
+                    "im_stage": "p0",
+                },
                 "output_file_id": "file_output",
                 "status": "completed",
             }
@@ -167,6 +196,17 @@ async def test_uncertain_create_never_auto_resubmits_and_requires_explicit_adopt
             batch_id="batch_123",
         )
         assert adopted.batch_id == "batch_123"
+        replaced = adopt_uncertain_batch(
+            cache,
+            input_sha256=_shard().input_sha256,
+            batch_id="batch_corrected",
+        )
+        assert replaced.batch_id == "batch_corrected"
+        adopt_uncertain_batch(
+            cache,
+            input_sha256=_shard().input_sha256,
+            batch_id="batch_123",
+        )
 
     resumed_gateway = _Gateway()
     resumed_gateway.upload_calls = 99
@@ -186,6 +226,109 @@ async def test_uncertain_create_never_auto_resubmits_and_requires_explicit_adopt
 
 async def _done() -> None:
     return None
+
+
+class _WrongAdoptGateway(_Gateway):
+    async def retrieve(self, batch_id: str) -> BatchApiObservation:
+        return _observation(
+            {
+                "endpoint": "/v1/responses",
+                "id": batch_id,
+                "input_file_id": "file_unrelated",
+                "metadata": {
+                    "im_input_sha256": "wrong",
+                    "im_shard": "0",
+                    "im_stage": "p0",
+                },
+                "output_file_id": "file_output",
+                "status": "completed",
+            }
+        )
+
+
+class _MissingAdoptGateway(_Gateway):
+    async def retrieve(self, batch_id: str) -> BatchApiObservation:
+        raise BatchLifecycleError(f"Batch retrieve returned HTTP 404 for {batch_id}")
+
+
+@pytest.mark.asyncio
+async def test_adopted_batch_must_bind_exact_input_endpoint_and_metadata(
+    tmp_path: Path,
+) -> None:
+    shard = _shard()
+    uncertain = BatchJobRecord(
+        input_sha256=shard.input_sha256,
+        stage=shard.stage,
+        shard_index=shard.shard_index,
+        input_jsonl=shard.input_jsonl,
+        request_count=len(shard.items),
+        estimated_input_tokens=shard.estimated_input_tokens,
+        status="create_uncertain",
+        input_file_id="file_input",
+    )
+    with HarnessCache(tmp_path / "batch.sqlite") as cache:
+        cache.put_batch_job(uncertain)
+        adopt_uncertain_batch(
+            cache,
+            input_sha256=shard.input_sha256,
+            batch_id="batch_unrelated",
+        )
+        with pytest.raises(BatchLifecycleError, match="input_file_id"):
+            await execute_batch_shard(
+                shard,
+                cache=cache,
+                gateway=_WrongAdoptGateway(),
+                poll_seconds=1,
+            )
+
+        rejected = cache.get_batch_job(shard.input_sha256)
+        assert rejected.status == "create_uncertain"
+        assert rejected.batch_id is None
+        corrected = adopt_uncertain_batch(
+            cache,
+            input_sha256=shard.input_sha256,
+            batch_id="batch_corrected",
+        )
+        assert corrected.status == "adopted_unverified"
+
+
+@pytest.mark.asyncio
+async def test_unverified_adoption_can_be_replaced_after_typo_or_404(
+    tmp_path: Path,
+) -> None:
+    shard = _shard()
+    uncertain = BatchJobRecord(
+        input_sha256=shard.input_sha256,
+        stage=shard.stage,
+        shard_index=shard.shard_index,
+        input_jsonl=shard.input_jsonl,
+        request_count=len(shard.items),
+        estimated_input_tokens=shard.estimated_input_tokens,
+        status="create_uncertain",
+        input_file_id="file_input",
+    )
+    with HarnessCache(tmp_path / "batch.sqlite") as cache:
+        cache.put_batch_job(uncertain)
+        adopt_uncertain_batch(
+            cache,
+            input_sha256=shard.input_sha256,
+            batch_id="batch_typo",
+        )
+        with pytest.raises(BatchLifecycleError, match="404"):
+            await execute_batch_shard(
+                shard,
+                cache=cache,
+                gateway=_MissingAdoptGateway(),
+                poll_seconds=1,
+            )
+        replaced = adopt_uncertain_batch(
+            cache,
+            input_sha256=shard.input_sha256,
+            batch_id="batch_corrected",
+        )
+
+    assert replaced.status == "adopted_unverified"
+    assert replaced.batch_id == "batch_corrected"
 
 
 @pytest.mark.asyncio

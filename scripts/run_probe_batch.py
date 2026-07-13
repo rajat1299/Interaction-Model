@@ -78,6 +78,13 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--batch-pilot-requests", type=_positive_int)
     parser.add_argument("--batch-poll-seconds", type=_positive_float, default=15)
     parser.add_argument("--approve-live-estimate-usd", type=_nonnegative_decimal)
+    parser.add_argument(
+        "--retry-indeterminate-cache-key",
+        action="append",
+        default=[],
+        metavar="HEX_DIGEST",
+        help="authorize one Batch provider retry for this exact cache identity",
+    )
     parser.add_argument("--input-sha256")
     parser.add_argument("--batch-id")
     return parser.parse_args()
@@ -85,6 +92,7 @@ def _arguments() -> argparse.Namespace:
 
 async def _run(args: argparse.Namespace) -> None:
     repository = args.repository.resolve()
+    run_commit = _repository_commit(repository)
     load_dotenv(repository / ".env", override=False)
     config = PromptedPolicyConfig(
         model=os.getenv("IM_TEACHER_MODEL", "gpt-5.6-terra").strip(),
@@ -118,6 +126,7 @@ async def _run(args: argparse.Namespace) -> None:
                 "mode": args.mode,
                 "model": config.model,
                 "reasoning_effort": config.reasoning_effort,
+                "repository_commit": run_commit,
             },
             indent=2,
             sort_keys=True,
@@ -129,7 +138,10 @@ async def _run(args: argparse.Namespace) -> None:
         if not args.input_sha256 or not args.batch_id:
             raise RuntimeError("adopt requires --input-sha256 and --batch-id")
         with _exclusive_cache_lock(cache_path):
-            with HarnessCache(cache_path) as cache:
+            with HarnessCache(
+                cache_path,
+                retry_indeterminate_keys=frozenset(args.retry_indeterminate_cache_key),
+            ) as cache:
                 record = adopt_uncertain_batch(
                     cache,
                     input_sha256=args.input_sha256,
@@ -202,6 +214,8 @@ async def _run(args: argparse.Namespace) -> None:
             f"{approval_ceiling:.6f}; this acknowledges an estimate, not a provider cap"
         )
 
+    _require_clean_tracked_tree(repository)
+
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for Batch execution")
@@ -219,7 +233,10 @@ async def _run(args: argparse.Namespace) -> None:
     pilot_work = _pilot_work(primary, pilot_count) if args.mode == "pilot" else ()
     try:
         with _exclusive_cache_lock(cache_path):
-            with HarnessCache(cache_path) as cache:
+            with HarnessCache(
+                cache_path,
+                retry_indeterminate_keys=frozenset(args.retry_indeterminate_cache_key),
+            ) as cache:
                 if args.mode == "pilot":
                     pilot = await materialize_batch_stage(
                         "p0",
@@ -289,7 +306,7 @@ async def _run(args: argparse.Namespace) -> None:
         metrics,
         estimate,
         run_kind="live-openai-batch",
-        repository_commit=_repository_commit(repository),
+        repository_commit=run_commit,
         billing_multiplier=ModelPricing(model=config.model).batch_multiplier,
         fresh_usage_override=result.submitted_this_invocation_usage,
         execution_details=(
@@ -309,6 +326,7 @@ async def _run(args: argparse.Namespace) -> None:
                 "cost_estimate": estimate.as_json(),
                 "jobs": [_job_summary(job) for job in result.jobs],
                 "metrics": metrics,
+                "repository_commit": run_commit,
                 "run": _jsonable(result.run),
                 "submitted_this_invocation_usage": (
                     result.submitted_this_invocation_usage.as_json()
@@ -407,6 +425,21 @@ def _repository_commit(repository: Path) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def _require_clean_tracked_tree(repository: Path) -> None:
+    result = subprocess.run(
+        ["git", "status", "--short", "--untracked-files=no"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if result.stdout.strip():
+        raise RuntimeError(
+            "Batch execution requires a clean tracked worktree so report provenance binds "
+            "the exact running code"
+        )
 
 
 def _jsonable(value: object) -> object:

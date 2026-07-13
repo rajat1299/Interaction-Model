@@ -99,7 +99,13 @@ class OpenAIBatchGateway:
             },
         )
         if not 200 <= response.status_code < 300:
-            raise BatchCreateRejected(
+            error_type = (
+                BatchCreateRejected
+                if 400 <= response.status_code < 500
+                and response.status_code not in {408, 409, 429}
+                else BatchCreateUncertain
+            )
+            raise error_type(
                 f"Batch create returned HTTP {response.status_code}: "
                 f"{response.content[:2_048]!r}"
             )
@@ -194,13 +200,10 @@ async def execute_batch_shard(
         try:
             created = await gateway.create(
                 record.input_file_id,
-                {
-                    "im_input_sha256": record.input_sha256.removeprefix("sha256:"),
-                    "im_shard": str(record.shard_index),
-                    "im_stage": record.stage,
-                },
+                _expected_metadata(record),
             )
             batch_id = _required_string(created.payload, "id", "created batch")
+            _verify_batch_binding(created.payload, record)
         except BatchCreateRejected as error:
             failed = replace(record, status="create_failed")
             cache.put_batch_job(
@@ -234,6 +237,22 @@ async def execute_batch_shard(
         observed_id = _required_string(observed.payload, "id", "retrieved batch")
         if observed_id != record.batch_id:
             raise BatchLifecycleError("retrieved Batch id does not match the ledger")
+        try:
+            _verify_batch_binding(observed.payload, record)
+        except BatchLifecycleError:
+            if record.status == "adopted_unverified":
+                rejected = replace(
+                    record,
+                    status="create_uncertain",
+                    batch_id=None,
+                    latest_batch_json=observed.raw,
+                )
+                cache.put_batch_job(
+                    rejected,
+                    event_kind="adoption_rejected",
+                    event_payload=observed.raw,
+                )
+            raise
         record = replace(
             record,
             status=status,
@@ -276,12 +295,13 @@ def adopt_uncertain_batch(
     record = cache.get_batch_job(input_sha256)
     if record is None:
         raise KeyError(f"unknown Batch input digest: {input_sha256}")
-    if record.status != "create_uncertain" or record.batch_id is not None:
-        raise ValueError("only an unresolved create_uncertain job can be adopted")
-    adopted = replace(record, status="submitted", batch_id=batch_id)
+    if record.status not in {"adopted_unverified", "create_uncertain"}:
+        raise ValueError("only an unresolved or unverified Batch adoption can be replaced")
+    replacing = record.status == "adopted_unverified"
+    adopted = replace(record, status="adopted_unverified", batch_id=batch_id)
     cache.put_batch_job(
         adopted,
-        event_kind="batch_adopted",
+        event_kind="batch_adoption_replaced" if replacing else "batch_adopted",
         event_payload=batch_id.encode(),
     )
     return adopted
@@ -330,3 +350,27 @@ def _job_summary(record: BatchJobRecord) -> bytes:
         separators=(",", ":"),
         sort_keys=True,
     ).encode()
+
+
+def _expected_metadata(record: BatchJobRecord) -> dict[str, str]:
+    return {
+        "im_input_sha256": record.input_sha256.removeprefix("sha256:"),
+        "im_shard": str(record.shard_index),
+        "im_stage": record.stage,
+    }
+
+
+def _verify_batch_binding(
+    payload: dict[str, object],
+    record: BatchJobRecord,
+) -> None:
+    if payload.get("input_file_id") != record.input_file_id:
+        raise BatchLifecycleError("Batch input_file_id does not match the ledger")
+    if payload.get("endpoint") != "/v1/responses":
+        raise BatchLifecycleError("Batch endpoint does not match /v1/responses")
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        raise BatchLifecycleError("Batch metadata is absent or malformed")
+    expected = _expected_metadata(record)
+    if any(metadata.get(key) != value for key, value in expected.items()):
+        raise BatchLifecycleError("Batch metadata does not bind the signed input shard")

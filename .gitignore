@@ -25,6 +25,7 @@ wandb/
 *.sqlite
 *.sqlite3
 *.sqlite-*
+*.sqlite.lock
 *.db
 
 # Data (synthetic corpus, eval sets — track via hashes, not blobs)

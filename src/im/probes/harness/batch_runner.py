@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, replace
 
 from pydantic import ValidationError
 
@@ -34,6 +35,9 @@ from im.probes.harness.protocols import ProtocolPromptBuilder, ProtocolRequest
 from im.probes.harness.runner import ProbeHarnessRunner
 from im.probes.validate import ProbeValidationError, assert_reference_integrity
 from im.schema.actions import ACTION_ADAPTER, Action
+
+_INDETERMINATE_OUTCOMES = frozenset({"batch_error", "cancelled", "http_error", "transport_error"})
+_PROVIDER_RETRY_SUFFIX = re.compile(r"\.r([1-9][0-9]*)$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,16 +151,24 @@ class BatchProbeHarnessRunner:
     ) -> tuple[BatchWorkItem, ...]:
         corrected: list[BatchWorkItem] = []
         for item in items:
-            completion = self.cache.get(item.identity)
-            if completion is None:
+            current = self.cache.get(item.identity)
+            if current is None:
                 raise BatchLifecycleError(
                     f"Batch stage did not materialize cache identity {item.identity.digest}"
                 )
-            if completion.outcome not in {"incomplete", "invalid"}:
+            initial_invalid = next(
+                (
+                    completion
+                    for completion in self.cache.history(item.identity)
+                    if completion.outcome in {"incomplete", "invalid"}
+                    and completion.traces
+                    and completion.traces[-1].attempt_index == 1
+                ),
+                None,
+            )
+            if initial_invalid is None:
                 continue
-            if completion.traces and completion.traces[-1].attempt_index >= 2:
-                continue
-            validation_error = validation_error_from_completion(item, completion)
+            validation_error = validation_error_from_completion(item, initial_invalid)
             if validation_error is None:
                 raise BatchLifecycleError(
                     "invalid Batch completion lacks deterministic correction evidence"
@@ -233,6 +245,25 @@ async def materialize_batch_stage(
     if len(items_by_id) != len(items):
         raise BatchLifecycleError("Batch stage contains duplicate custom_id values")
 
+    provider_retries: list[BatchWorkItem] = []
+    for item in items:
+        history = cache.history(item.identity)
+        if not history or history[-1].outcome not in _INDETERMINATE_OUTCOMES:
+            continue
+        if cache.get(item.identity) is not None:  # pragma: no cover - guarded by outcome.
+            raise AssertionError("indeterminate cache authorization did not return a retry miss")
+        retry_numbers = [
+            int(match.group(1))
+            for completion in history
+            for trace in completion.traces
+            if (match := _PROVIDER_RETRY_SUFFIX.search(trace.batch_custom_id or ""))
+            is not None
+        ]
+        retry_number = max(retry_numbers, default=0) + 1
+        provider_retries.append(
+            replace(item, custom_id=f"{item.custom_id}.r{retry_number}")
+        )
+
     existing = cache.batch_jobs(stage=stage)
     for record in existing:
         shard = _recover_shard(record, items_by_id)
@@ -245,7 +276,11 @@ async def materialize_batch_stage(
         jobs.append(recovered)
         submitted_usage += usage
 
-    pending = tuple(item for item in items if not _is_materialized(cache, item))
+    pending = tuple(
+        item
+        for item in (*items, *provider_retries)
+        if not _is_materialized(cache, item)
+    )
     shards = shard_work(
         stage,
         pending,
@@ -292,7 +327,15 @@ async def _materialize_shard(
         if _is_materialized(cache, item):
             continue
         history = cache.history(item.identity)
-        prior_traces = history[-1].traces if item.attempt_index == 2 and history else ()
+        prior_traces = (
+            history[-1].traces
+            if history
+            and (
+                item.attempt_index == 2
+                or _PROVIDER_RETRY_SUFFIX.search(item.custom_id) is not None
+            )
+            else ()
+        )
         decoded = decode_batch_completion(
             item,
             artifacts[item.custom_id],
@@ -345,11 +388,17 @@ def _recover_shard(
         except (json.JSONDecodeError, UnicodeDecodeError) as error:
             raise BatchArtifactError("retained Batch input contains invalid JSONL") from error
         custom_id = parsed.get("custom_id") if isinstance(parsed, dict) else None
-        if not isinstance(custom_id, str) or custom_id not in items_by_id:
+        item = items_by_id.get(custom_id) if isinstance(custom_id, str) else None
+        if item is None and isinstance(custom_id, str):
+            base_id = _PROVIDER_RETRY_SUFFIX.sub("", custom_id)
+            base_item = items_by_id.get(base_id)
+            if base_item is not None:
+                item = replace(base_item, custom_id=custom_id)
+        if item is None:
             raise BatchLifecycleError(
                 "retained Batch job is not a subset of the current signed stage plan"
             )
-        ordered.append(items_by_id[custom_id])
+        ordered.append(item)
     if len(ordered) != record.request_count or len({item.custom_id for item in ordered}) != len(
         ordered
     ):

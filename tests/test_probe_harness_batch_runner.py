@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from im.policy.base import PolicyCallTrace
 from im.policy.prompted import (
     PromptArtifacts,
     PromptedPolicyConfig,
@@ -14,7 +15,13 @@ from im.policy.prompted import (
     ResponsesRequestBuilder,
 )
 from im.probes.harness.artifacts import load_approved_catalog
-from im.probes.harness.batch import plan_primary_work, shard_work
+from im.probes.harness.batch import (
+    BatchArtifactItem,
+    decode_batch_completion,
+    plan_correction,
+    plan_primary_work,
+    shard_work,
+)
 from im.probes.harness.batch_api import BatchApiObservation, execute_batch_shard
 from im.probes.harness.batch_runner import (
     BatchHarnessConfig,
@@ -23,6 +30,7 @@ from im.probes.harness.batch_runner import (
 )
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.metrics import compute_metrics
+from im.probes.harness.models import HarnessCompletion
 from im.probes.harness.protocols import ProtocolPromptBuilder
 
 
@@ -52,7 +60,7 @@ class _OracleBatchGateway:
     async def create(
         self,
         input_file_id: str,
-        _metadata: dict[str, str],
+        metadata: dict[str, str],
     ) -> BatchApiObservation:
         self.create_count += 1
         batch_id = f"batch_{self.create_count}"
@@ -60,8 +68,11 @@ class _OracleBatchGateway:
         self.files[output_file_id] = self._answer(self.files[input_file_id])
         return _observation(
             {
+                "endpoint": "/v1/responses",
                 "error_file_id": None,
                 "id": batch_id,
+                "input_file_id": input_file_id,
+                "metadata": metadata,
                 "output_file_id": output_file_id,
                 "status": "completed",
             }
@@ -243,4 +254,155 @@ async def test_downloaded_job_is_recovered_before_changed_cap_can_reshard(
         assert all(cache.history(item.identity) for item in work)
     assert recovered.jobs == (downloaded,)
     assert recovered.submitted_this_invocation_usage.input_tokens == 0
+    assert gateway.create_count == 1
+
+
+@pytest.mark.asyncio
+async def test_correction_plan_remains_stable_after_attempt_two_is_materialized(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    catalog = await load_approved_catalog(repository)
+    artifacts = PromptArtifacts.from_repository(repository)
+    config = PromptedPolicyConfig()
+    builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
+    prompts = ProtocolPromptBuilder(artifacts, config)
+    initial = plan_primary_work(catalog, builder, prompts)[144]
+    invalid_payload = _response_body('{"choice":"left"}')
+    first = decode_batch_completion(
+        initial,
+        BatchArtifactItem(
+            custom_id=initial.custom_id,
+            status_code=200,
+            request_id="req_first",
+            body=invalid_payload,
+            error=None,
+        ),
+        batch_id="batch_p0",
+        stage="p0",
+        shard_index=0,
+    )
+    correction = plan_correction(initial, first.validation_error or "invalid")
+    second = decode_batch_completion(
+        correction,
+        BatchArtifactItem(
+            custom_id=correction.custom_id,
+            status_code=200,
+            request_id="req_second",
+            body=_response_body('{"choice":"A"}'),
+            error=None,
+        ),
+        batch_id="batch_p1",
+        stage="p1",
+        shard_index=0,
+        prior_traces=first.completion.traces,
+    )
+    gateway = _OracleBatchGateway(
+        {
+            (probe.probe_id, variant.variant_id): variant.expected_action.model_dump(
+                mode="json"
+            )
+            for probe in catalog.manifest.probes
+            for variant in probe.variants
+        }
+    )
+    with HarnessCache(tmp_path / "batch.sqlite") as cache:
+        cache.put(initial.identity, first.completion)
+        cache.put(initial.identity, second.completion)
+        runner = BatchProbeHarnessRunner(
+            catalog,
+            generation_builder=builder,
+            prompts=prompts,
+            gateway=gateway,
+            cache=cache,
+            config=BatchHarnessConfig(max_enqueued_tokens=1_000_000),
+        )
+        assert runner._plan_corrections((initial,)) == (correction,)
+
+
+def _response_body(text: str) -> dict[str, object]:
+    return {
+        "output": [
+            {
+                "content": [{"text": text, "type": "output_text"}],
+                "role": "assistant",
+                "type": "message",
+            }
+        ],
+        "status": "completed",
+    }
+
+
+@pytest.mark.asyncio
+async def test_explicit_provider_retry_uses_distinct_custom_id_without_consuming_correction(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    catalog = await load_approved_catalog(repository)
+    artifacts = PromptArtifacts.from_repository(repository)
+    config = PromptedPolicyConfig()
+    builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
+    prompts = ProtocolPromptBuilder(artifacts, config)
+    item = plan_primary_work(catalog, builder, prompts)[0]
+    path = tmp_path / "batch.sqlite"
+    failed_trace = PolicyCallTrace(
+        attempt_index=1,
+        model=item.identity.model,
+        prompt_hash=item.prompt_hash,
+        request=item.request_bytes,
+        response=b"{}",
+        latency_ms=0,
+        http_status=None,
+        outcome="batch_error",
+        execution_mode="batch",
+        batch_custom_id=item.custom_id,
+        batch_id="batch_failed",
+        batch_stage="p0",
+        batch_shard=0,
+        batch_request_line=item.request_line,
+        batch_error_line=b'{"custom_id":"failed"}\n',
+    )
+    with HarnessCache(path) as cache:
+        cache.put(
+            item.identity,
+            HarnessCompletion(
+                value={"provider_indeterminate": True},
+                outcome="batch_error",
+                traces=(failed_trace,),
+            ),
+        )
+    gateway = _OracleBatchGateway(
+        {
+            (probe.probe_id, variant.variant_id): variant.expected_action.model_dump(
+                mode="json"
+            )
+            for probe in catalog.manifest.probes
+            for variant in probe.variants
+        }
+    )
+    with HarnessCache(
+        path,
+        retry_indeterminate_keys=frozenset({item.identity.digest}),
+    ) as cache:
+        result = await materialize_batch_stage(
+            "p0",
+            (item,),
+            cache=cache,
+            gateway=gateway,
+            config=BatchHarnessConfig(max_enqueued_tokens=1_000_000),
+        )
+        current = cache.get(item.identity)
+        history = cache.history(item.identity)
+
+    assert current is not None and current.outcome == "completed"
+    assert [completion.outcome for completion in history] == [
+        "batch_error",
+        "completed",
+    ]
+    assert [trace.batch_custom_id for trace in current.traces] == [
+        item.custom_id,
+        f"{item.custom_id}.r1",
+    ]
+    assert [trace.attempt_index for trace in current.traces] == [1, 1]
+    assert result.submitted_this_invocation_usage.input_tokens == 10
     assert gateway.create_count == 1
