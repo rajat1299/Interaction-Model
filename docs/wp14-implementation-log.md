@@ -126,3 +126,48 @@
 ### Open questions
 
 - Human sign-off remains pending on the regenerated artifacts.
+
+## 2026-07-13 — Regenerated corpus approval candidate
+
+### Review loop closure
+
+- The first independent Sol review of the regenerated corpus found three remaining defects: three
+  rollover twins captured open ingress without completing a production tick, several lookup
+  subjects still lacked a global namespace, and the human review sheet hid the disposition and
+  prior-use evidence supporting `idle(already_handled)`.
+- Captured probe boundaries are now terminal builder states. Post-rollover open-result and open-fire
+  twins reach quiescence through a completed, license-allowed production idle tick before the
+  checkpoint is committed; no stale quiescence flag or probe-only rollover bypass remains.
+- Every lookup subject is globally qualified by the relevant place, organization, route,
+  competition, project, and date fields. All 102 executed delegate spans were independently checked
+  to be wrapper-free, equal to their canonical lookup query, and sufficiently specified.
+- The human review projection now exposes checkpoint dispositions and compact prior-use evidence.
+  Family 11 pair 6 therefore shows the exact retained evidence that licenses
+  `idle(already_handled)` on both sides of rollover.
+- A fresh clean-context `gpt-5.6-sol` reviewer used the task-domain `applied-ml-research` skill and
+  reported no P1, P2, or P3 findings. It cleared this artifact pair only for the required WP14 human
+  sign-off gate; it did not treat independent review as a substitute for that gate.
+
+### Approval artifact identity
+
+- `manifest.json` SHA-256:
+  `9430f7385f804d93f4b9f7c3f0750ce3735731fbea5dbc4a8bf444f80866900a`
+- `REVIEW.md` SHA-256:
+  `290d06d6ff895da4489a3ad1277c3e53cf6a1206dd658c50817f39de4e9ca67e`
+- `SHA256SUMS` is generated alongside the pair and verifies both files. An independent temporary
+  regeneration produced the same bytes and hashes.
+
+### Final verification
+
+- 144 logical probes, 72 twins, 432 rendered variants, and 432 unique policy streams.
+- `uv run ruff check .`: passed.
+- `uv run pytest -m gate`: 15 passed, 381 deselected.
+- `uv run pytest`: 396 passed.
+- Stream histories, UTF-16 spans, embedded stream hashes, expected licenses, semantic alternatives,
+  exact mechanical block codes, and all six rollover projections passed validation.
+- The only warning is the pre-existing Starlette/httpx deprecation warning.
+
+### Open questions
+
+- Explicit human sign-off remains the only WP14 exit condition. WP15 must not begin until it is
+  received.
