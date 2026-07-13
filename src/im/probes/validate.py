@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 
 from im.canonical_json import canonicalize_tim_json, parse_tim_json
-from im.license import Allowed, Blocked, LicenseView, SnapshotView, check
-from im.probes.model import NegativeClass, ProbeManifest
+from im.license import (
+    Allowed,
+    Blocked,
+    LicenseView,
+    SnapshotView,
+    TimerFireView,
+    ToolResultView,
+    blocking_codes,
+    check,
+)
+from im.probes.model import NegativeClass, ProbeManifest, RenderedVariant
 from im.schema.actions import (
     ACTION_ADAPTER,
     Action,
@@ -24,6 +33,8 @@ from im.schema.actions import (
     SkipAction,
     Span,
 )
+from im.schema.common import Activity, Disposition, TimerStatus
+from im.schema.events import SnapshotEvent, StateCheckpointEvent
 from im.schema.textspan import utf16_slice
 from im.serialize import parse_event, render_event
 
@@ -122,6 +133,155 @@ def assert_reference_integrity(action: Action, view: LicenseView) -> None:
             )
 
 
+def _mechanically_released_view(
+    action: Action,
+    view: LicenseView,
+    blocking_variable: str,
+) -> LicenseView:
+    if blocking_variable == "canonical_request_pending" and isinstance(action, DelegateAction):
+        return replace(
+            view,
+            pending_tool_requests=tuple(
+                request for request in view.pending_tool_requests if not request.matches(action)
+            ),
+        )
+    if blocking_variable == "floor_owned" and isinstance(action, RespondAction):
+        return replace(view, floor_owned=False)
+    if blocking_variable == "timer_active" and isinstance(action, NudgeAction | SkipAction):
+        event_id = (
+            action.fire_event_id if isinstance(action, NudgeAction) else action.target_event_id
+        )
+        fire = view.event(event_id)
+        if not isinstance(fire, TimerFireView):
+            raise ProbeValidationError("timer-state release target is not a visible fire")
+        released_status = (
+            TimerStatus.ACTIVE if isinstance(action, NudgeAction) else TimerStatus.CANCELED
+        )
+        found = False
+        timers = []
+        for timer in view.timers:
+            if timer.timer_id == fire.timer_id:
+                found = True
+                timer = replace(timer, status=released_status)
+            timers.append(timer)
+        if not found:
+            raise ProbeValidationError("timer-state release target has no timer ledger entry")
+        return replace(view, timers=tuple(timers))
+    raise ProbeValidationError(
+        f"unsupported mechanical release {blocking_variable!r} for {type(action).__name__}"
+    )
+
+
+def _normalized_floor_stream(policy_stream: str) -> tuple[dict[str, object], ...]:
+    normalized = []
+    for line in policy_stream.encode("utf-8").splitlines():
+        event = parse_event(line)
+        rendered = event.model_dump(mode="json")
+        if isinstance(event, SnapshotEvent):
+            rendered["activity"] = "<declared-floor-flip>"
+        normalized.append(rendered)
+    return tuple(normalized)
+
+
+def _actionable_projection(view: LicenseView) -> tuple[object, ...]:
+    snapshot = view.latest_snapshot
+    normalized_snapshot = (
+        None if snapshot is None else (snapshot.event_id, snapshot.text, snapshot.responded_to)
+    )
+    external = tuple(
+        sorted(
+            (
+                event
+                for event in view.events
+                if isinstance(event, TimerFireView | ToolResultView)
+                and event.disposition is Disposition.OPEN
+            ),
+            key=lambda event: event.event_id,
+        )
+    )
+    return (
+        normalized_snapshot,
+        external,
+        view.timers,
+        view.pending_tool_requests,
+        view.applied_marks,
+        view.ambiguous_marks,
+        view.floor_owned,
+        view.visible_timer_ids,
+        view.visible_handled_event_ids,
+    )
+
+
+def _validate_twin_state(
+    probe_id: str,
+    family_id: int,
+    left_variant: RenderedVariant,
+    right_variant: RenderedVariant,
+    left_view: LicenseView,
+    right_view: LicenseView,
+) -> None:
+    if family_id in {7, 10}:
+        if not left_view.floor_owned or right_view.floor_owned:
+            raise ProbeValidationError(f"floor twin has wrong active/paused polarity: {probe_id}")
+        if replace(left_view, floor_owned=False) != right_view:
+            raise ProbeValidationError(
+                f"floor twin changes objective state beyond floor ownership: {probe_id}"
+            )
+        if _normalized_floor_stream(left_variant.policy_stream) != _normalized_floor_stream(
+            right_variant.policy_stream
+        ):
+            raise ProbeValidationError(
+                f"floor twin policy streams differ beyond snapshot activity: {probe_id}"
+            )
+        left_activity = next(
+            event.activity
+            for event in reversed(
+                [
+                    parse_event(line)
+                    for line in left_variant.policy_stream.encode("utf-8").splitlines()
+                ]
+            )
+            if isinstance(event, SnapshotEvent)
+        )
+        right_activity = next(
+            event.activity
+            for event in reversed(
+                [
+                    parse_event(line)
+                    for line in right_variant.policy_stream.encode("utf-8").splitlines()
+                ]
+            )
+            if isinstance(event, SnapshotEvent)
+        )
+        if (left_activity, right_activity) != (Activity.ACTIVE, Activity.PAUSED):
+            raise ProbeValidationError(f"floor twin activity values are not exact: {probe_id}")
+    if family_id == 11:
+        if _actionable_projection(left_view) != _actionable_projection(right_view):
+            raise ProbeValidationError(f"rollover changed actionable state: {probe_id}")
+        left_events = tuple(
+            parse_event(line) for line in left_variant.policy_stream.encode("utf-8").splitlines()
+        )
+        right_events = tuple(
+            parse_event(line) for line in right_variant.policy_stream.encode("utf-8").splitlines()
+        )
+        if any(isinstance(event, StateCheckpointEvent) for event in left_events):
+            raise ProbeValidationError(f"pre-rollover twin contains a checkpoint: {probe_id}")
+        checkpoints = tuple(
+            event for event in right_events if isinstance(event, StateCheckpointEvent)
+        )
+        if len(checkpoints) != 1:
+            raise ProbeValidationError(f"post-rollover twin lacks one checkpoint: {probe_id}")
+        checkpoint = checkpoints[0]
+        if checkpoint.payload.snapshot.activity is not Activity.PAUSED:
+            raise ProbeValidationError(f"rollover checkpoint lost open floor: {probe_id}")
+        expected = left_variant.expected_action
+        if not isinstance(expected, IntegrateAction):
+            raise ProbeValidationError(f"rollover expected action is not integrate: {probe_id}")
+        carried = tuple(item.event_id for item in checkpoint.payload.open_tool_results)
+        if carried != (expected.result_event_id,):
+            raise ProbeValidationError(f"rollover lost the open result identity: {probe_id}")
+
+
 def validate_manifest(
     manifest: ProbeManifest,
     views: dict[tuple[str, str], LicenseView],
@@ -175,6 +335,24 @@ def validate_manifest(
                     raise ProbeValidationError(
                         f"mechanical block mismatch in {key}: {tempting.code.value}"
                     )
+                codes = blocking_codes(variant.tempting_alternative, view)
+                if codes != (variant.tempting_license.code,):
+                    rendered_codes = ", ".join(code.value for code in codes)
+                    raise ProbeValidationError(
+                        f"mechanical alternative is not single-block in {key}: {rendered_codes}"
+                    )
+                blocking_variable = probe.blocking_variable
+                if blocking_variable is None:  # pragma: no cover - enforced by the model.
+                    raise ProbeValidationError(f"missing blocking variable for {key}")
+                mutated_view = _mechanically_released_view(
+                    variant.tempting_alternative,
+                    view,
+                    blocking_variable,
+                )
+                if blocking_codes(variant.tempting_alternative, mutated_view):
+                    raise ProbeValidationError(
+                        f"one-variable mutation did not release mechanical block in {key}"
+                    )
                 release_id = probe.mechanical_release_probe_id
                 if release_id is None:  # pragma: no cover - enforced by the model.
                     raise ProbeValidationError(f"missing release probe for {key}")
@@ -190,6 +368,16 @@ def validate_manifest(
             ):
                 raise ProbeValidationError(
                     f"invariance expected actions differ in {key} after reference rebuild"
+                )
+            if probe.side == "a" and probe.family_id in {7, 10, 11}:
+                twin_view = views[(twin.probe_id, variant.variant_id)]
+                _validate_twin_state(
+                    probe.probe_id,
+                    probe.family_id,
+                    variant,
+                    twin_variant,
+                    view,
+                    twin_view,
                 )
     return ProbeValidationReport(
         logical_probes=len(manifest.probes),

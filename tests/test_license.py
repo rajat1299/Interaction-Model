@@ -21,6 +21,7 @@ from im.license import (
     TimerFireView,
     TimerView,
     ToolResultView,
+    blocking_codes,
     check,
 )
 from im.schema.actions import Span
@@ -306,6 +307,15 @@ def test_objective_checks_block_their_invalid_case(
 
 def test_every_frozen_block_code_has_an_objective_negative_case() -> None:
     assert {case[3] for case in NEGATIVE_CASES} == set(LicenseBlockCode)
+
+
+def test_blocking_codes_enumerates_independent_violations_in_frozen_order() -> None:
+    raw = {**action_payload("respond"), "reply_to_event_id": "e_999999"}
+
+    assert blocking_codes(raw, view(floor_owned=True)) == (
+        LicenseBlockCode.UNKNOWN_REFERENCE,
+        LicenseBlockCode.FLOOR_OWNED,
+    )
 
 
 def test_quoted_instruction_is_not_a_license_policy_shortcut() -> None:

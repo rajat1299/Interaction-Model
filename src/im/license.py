@@ -330,6 +330,38 @@ def check(action: object, view: LicenseView) -> LicenseDecision:
     return Allowed(parsed)
 
 
+def blocking_codes(action: object, view: LicenseView) -> tuple[LicenseBlockCode, ...]:
+    """Return every independently violated invariant in frozen check order.
+
+    Production execution intentionally stops at the first block through :func:`check`. This pure
+    diagnostic companion is for corpus validation, where a mechanical negative must prove that it
+    isolates one objective invariant rather than merely observing the first one.
+    """
+    parsed = _parse_action(action)
+    if isinstance(parsed, Blocked):
+        return (parsed.code,)
+    blocked = tuple(
+        result.code
+        for checker in (
+            _check_payload_limit,
+            _check_references,
+            _check_reason_target,
+            _check_spans,
+            _check_result_ready,
+            _check_fire_open,
+            _check_timer_active,
+            _check_duplicate_schedule,
+            _check_duplicate_tool_request,
+            _check_floor_owned,
+            _check_target_already_handled,
+            _check_timer_limit,
+            _check_stale_decision,
+        )
+        if (result := checker(parsed, view)) is not None
+    )
+    return tuple(dict.fromkeys(blocked))
+
+
 def _parse_action(raw: object) -> Action | Blocked:
     """Map non-union raw policy output to the closed malformed-action code."""
     try:
@@ -403,8 +435,7 @@ def _check_reason_target(action: Action, view: LicenseView) -> Blocked | None:
                 valid = open_results[0].event_id == related_id
             else:
                 valid = (
-                    view.latest_snapshot is not None
-                    and view.latest_snapshot.event_id == related_id
+                    view.latest_snapshot is not None and view.latest_snapshot.event_id == related_id
                 )
         elif action.reason is IdleReason.ALREADY_HANDLED:
             retained_handled = sorted(
@@ -454,8 +485,10 @@ def _check_reason_target(action: Action, view: LicenseView) -> Blocked | None:
             if not open_failed or target.event_id != open_failed[0].event_id:
                 return Blocked(LicenseBlockCode.REASON_MISMATCH)
         elif isinstance(target, SnapshotView):
-            if open_failed or view.latest_snapshot is None or (
-                target.event_id != view.latest_snapshot.event_id
+            if (
+                open_failed
+                or view.latest_snapshot is None
+                or (target.event_id != view.latest_snapshot.event_id)
             ):
                 return Blocked(LicenseBlockCode.REASON_MISMATCH)
 
