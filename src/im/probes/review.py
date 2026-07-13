@@ -6,6 +6,18 @@ import json
 
 from im.probes.model import ProbeManifest
 from im.probes.validate import ProbeValidationReport
+from im.schema.actions import IntegrateAction, NudgeAction, SkipAction
+from im.schema.events import (
+    ActionExecutedEvent,
+    CancelAckEvent,
+    ScheduledEvent,
+    SnapshotEvent,
+    StateCheckpointEvent,
+    TimerFireEvent,
+    ToolRequestedEvent,
+    ToolResultEvent,
+)
+from im.serialize import parse_event
 
 
 def _action_json(action: object) -> str:
@@ -14,6 +26,79 @@ def _action_json(action: object) -> str:
 
 def _cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", "<br>")
+
+
+def _state_facts(policy_stream: str) -> str:
+    events = tuple(parse_event(line) for line in policy_stream.encode("utf-8").splitlines())
+    checkpoint = next(
+        (event for event in events if isinstance(event, StateCheckpointEvent)),
+        None,
+    )
+    if checkpoint is not None:
+        payload = checkpoint.payload
+        facts: dict[str, object] = {
+            "activity": payload.snapshot.activity.value,
+            "checkpoint_segment": payload.segment.segment_index,
+            "open_fires": {fire.event_id: fire.timer_id for fire in payload.open_timer_fires},
+            "open_results": {
+                result.event_id: {
+                    "data": result.data,
+                    "fact_event_id": result.fact_event_id,
+                    "request_id": result.request_id,
+                    "status": result.status.value,
+                }
+                for result in payload.open_tool_results
+            },
+            "pending_tools": {
+                request.request_id: request.fact_event_id for request in payload.pending_tools
+            },
+            "timers": {timer.timer_id: timer.status.value for timer in payload.timers},
+        }
+        return _action_json(facts)
+
+    activity: str | None = None
+    timers: dict[str, str] = {}
+    fires: dict[str, str] = {}
+    pending: set[str] = set()
+    results: dict[str, object] = {}
+    for event in events:
+        if isinstance(event, SnapshotEvent):
+            activity = event.activity.value
+        elif isinstance(event, ScheduledEvent):
+            timers[event.payload.timer_id] = "active"
+        elif isinstance(event, CancelAckEvent):
+            for timer_id in event.payload.timer_ids:
+                timers[timer_id] = "canceled"
+        elif isinstance(event, TimerFireEvent):
+            fires[event.id] = event.payload.timer_id
+        elif isinstance(event, ToolRequestedEvent):
+            pending.add(event.payload.request_id)
+        elif isinstance(event, ToolResultEvent):
+            pending.discard(event.payload.request_id)
+            results[event.id] = {
+                "data": event.payload.data,
+                "request_id": event.payload.request_id,
+                "status": event.payload.status.value,
+            }
+        elif isinstance(event, ActionExecutedEvent):
+            action = event.payload.action
+            if isinstance(action, IntegrateAction):
+                results.pop(action.result_event_id, None)
+            elif isinstance(action, SkipAction):
+                results.pop(action.target_event_id, None)
+                fires.pop(action.target_event_id, None)
+            elif isinstance(action, NudgeAction):
+                fires.pop(action.fire_event_id, None)
+    return _action_json(
+        {
+            "activity": activity,
+            "checkpoint_segment": None,
+            "open_fires": fires,
+            "open_results": results,
+            "pending_tools": sorted(pending),
+            "timers": timers,
+        }
+    )
 
 
 def render_review(
@@ -78,9 +163,9 @@ def render_review(
         lines.extend(
             [
                 "",
-                "| Variant | User snapshots in order | Expected action | Tempting action | "
-                "Licenses | Stream |",
-                "|---|---|---|---|---|---|",
+                "| Variant | User snapshots in order | Objective state facts | Expected action | "
+                "Tempting action | Licenses | Stream |",
+                "|---|---|---|---|---|---|---|",
             ]
         )
         for variant in probe.variants:
@@ -96,6 +181,7 @@ def render_review(
                     (
                         variant.variant_id,
                         user_texts,
+                        f"`{_cell(_state_facts(variant.policy_stream))}`",
                         f"`{_cell(expected)}`",
                         f"`{_cell(tempting)}`",
                         f"expected=allow; tempting={tempting_license}",

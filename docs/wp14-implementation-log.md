@@ -32,6 +32,17 @@
   questions such as “Which option would you choose?” lacked their options and therefore did not
   establish the required response warrant. Tool-result probes likewise carry concrete scripted
   answers and integrate those exact values instead of emitting a placeholder result sentence.
+- Mechanical validation enumerates every independently violated frozen license predicate, requires
+  exactly the declared singleton code, then mutates only the named `LicenseView` fact and proves the
+  same action becomes allowed. The separately rebuilt counterpart remains a second release check.
+- Pairwise teacher projection has no default candidate order. Its caller must explicitly place the
+  expected action in A or B, and tests require the two presentations to be exact swaps.
+- Floor invariance compares both normalized production streams and complete objective license views,
+  allowing only `activity/floor_owned` to differ. Rollover invariance compares actionable state and
+  proves that the post side is exactly one production checkpoint carrying the original open result.
+- The human review table derives compact objective state facts from each production stream: activity,
+  checkpoint segment, timer states, open fires/results (including result data and checkpoint fact
+  provenance), and pending tool requests.
 - Manifest-only labels (`negative_class`, block codes, license diagnostics) never enter teacher
   prompt construction.
 

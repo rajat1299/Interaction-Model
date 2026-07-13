@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 
 from im.probes.catalog import BuiltProbeCatalog, build_probe_catalog
-from im.probes.model import NegativeClass, ProbeManifest
+from im.probes.model import ExpectedPosition, NegativeClass, ProbeManifest
 from im.probes.review import render_review
+
+pytestmark = pytest.mark.gate
 
 
 @pytest.fixture(scope="module")
@@ -75,12 +77,24 @@ def test_floor_and_rollover_pairs_preserve_the_declared_invariance(
 def test_teacher_projection_contains_no_manifest_only_labels(catalog: BuiltProbeCatalog) -> None:
     for probe in catalog.manifest.probes:
         for variant in probe.variants:
-            teacher = probe.teacher_variant(variant.variant_id)
-            assert set(teacher) == {"policy_stream", "candidate_a", "candidate_b"}
-            serialized = str(teacher)
-            assert "negative_class" not in serialized
-            assert "tempting_license" not in serialized
-            assert "mechanical_release_probe_id" not in serialized
+            presentations = (
+                probe.teacher_variant(
+                    variant.variant_id,
+                    expected_position=ExpectedPosition.A,
+                ),
+                probe.teacher_variant(
+                    variant.variant_id,
+                    expected_position=ExpectedPosition.B,
+                ),
+            )
+            assert presentations[0]["candidate_a"] == presentations[1]["candidate_b"]
+            assert presentations[0]["candidate_b"] == presentations[1]["candidate_a"]
+            for teacher in presentations:
+                assert set(teacher) == {"policy_stream", "candidate_a", "candidate_b"}
+                serialized = str(teacher)
+                assert "negative_class" not in serialized
+                assert "tempting_license" not in serialized
+                assert "mechanical_release_probe_id" not in serialized
 
 
 def test_generated_artifacts_match_the_validated_catalog(
@@ -94,3 +108,8 @@ def test_generated_artifacts_match_the_validated_catalog(
     assert (repository / "probes/states/REVIEW.md").read_text(encoding="utf-8") == (
         render_review(catalog.manifest, catalog.validation)
     )
+    review = render_review(catalog.manifest, catalog.validation)
+    assert '"activity":"active"' in review
+    assert '"checkpoint_segment":1' in review
+    assert '"fact_event_id":"e_000002"' in review
+    assert '"open_fires":{"e_000005":"t_001"}' in review
