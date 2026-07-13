@@ -74,6 +74,15 @@ class RuntimeConfig:
         """Return the exact `tim-json-v1` config-hash preimage object."""
         return asdict(self)
 
+    def timer_capabilities(self) -> dict[str, int]:
+        """Return the behavior-relevant timer limits shown to the policy."""
+        return {
+            "min_timer_interval_ms": self.min_timer_interval_ms,
+            "max_timer_interval_ms": self.max_timer_interval_ms,
+            "max_active_timers": self.max_active_timers,
+            "max_timer_message_bytes": self.max_timer_message_bytes,
+        }
+
 
 def estimate_tokens(data: bytes, estimator_id: LengthEstimatorId = "bytes-div-4-v1") -> int:
     """Resolve and apply a registered deterministic length estimator."""

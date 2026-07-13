@@ -53,7 +53,7 @@ class IdleReason(StrEnum):
     TYPING_ACTIVE = "typing_active"
     AWAITING_TOOL = "awaiting_tool"
     AWAITING_OPENING = "awaiting_opening"
-    INSTRUCTION_QUOTED = "instruction_quoted"
+    INSTRUCTION_NOT_DIRECT = "instruction_not_direct"
     AMBIGUOUS = "ambiguous"
     ALREADY_HANDLED = "already_handled"
 

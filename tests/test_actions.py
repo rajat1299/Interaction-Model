@@ -118,6 +118,18 @@ def test_idle_related_event_matches_reason(reason: str, related_event_id: str | 
         )
 
 
+def test_non_direct_idle_reason_uses_the_frozen_pre_freeze_name() -> None:
+    action = ACTION_ADAPTER.validate_python(
+        {"type": "idle", "reason": "instruction_not_direct", "related_event_id": None}
+    )
+    assert action.reason == "instruction_not_direct"
+
+    with pytest.raises(ValidationError):
+        ACTION_ADAPTER.validate_python(
+            {"type": "idle", "reason": "instruction_quoted", "related_event_id": None}
+        )
+
+
 def test_lookup_query_and_timer_message_trim_outer_whitespace() -> None:
     delegate = ACTION_ADAPTER.validate_python(
         {"type": "delegate", "fact": SPAN, "tool": "lookup", "args": {"query": "  a  b  "}}

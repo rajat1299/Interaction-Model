@@ -22,25 +22,31 @@ from im.serialize import (
     render_event,
 )
 from test_actions import VALID_ACTIONS
-from test_events import CHECKPOINT_PAYLOAD, DIGEST, SPAN, VALID_EVENTS, envelope
+from test_events import CAPABILITIES, CHECKPOINT_PAYLOAD, DIGEST, SPAN, VALID_EVENTS, envelope
 
 FULL_CHECKPOINT_PAYLOAD = {
     **deepcopy(CHECKPOINT_PAYLOAD),
     "open_timer_fires": [
         {
             "event_id": "e_000002",
+            "policy_seq": 2,
             "timer_id": "t_001",
             "fire_count": 3,
             "missed_count": 1,
             "late_ms": 50,
+            "due_age_ms": 60,
             "age_ms": 10,
         }
     ],
     "open_tool_results": [
         {
             "event_id": "e_000003",
+            "policy_seq": 3,
             "request_id": "r_001",
+            "fact_event_id": "e_000001",
+            "fact_text": "test",
             "tool": "lookup",
+            "args": {"query": "score"},
             "status": "succeeded",
             "data": {"score": 4},
             "age_ms": 9,
@@ -49,11 +55,37 @@ FULL_CHECKPOINT_PAYLOAD = {
     "pending_tools": [
         {
             "request_id": "r_002",
+            "policy_seq": 4,
+            "fact_event_id": "e_000007",
             "fact_text": "test",
             "tool": "lookup",
             "args": {"query": "score"},
             "age_ms": 8,
         }
+    ],
+    "prior_uses": [
+        {
+            "kind": "delegate",
+            "action_event_id": "e_000009",
+            "policy_seq": 9,
+            "fact": SPAN,
+            "request_id": "r_003",
+            "tool": "lookup",
+            "args": {"query": "test"},
+            "result_event_id": "e_000011",
+            "result_status": "succeeded",
+            "result_disposition": "handled",
+            "age_ms": 5,
+        },
+        {
+            "kind": "schedule",
+            "action_event_id": "e_000010",
+            "policy_seq": 10,
+            "instruction": SPAN,
+            "timer_id": "t_002",
+            "timer_status": "canceled",
+            "age_ms": 4,
+        },
     ],
     "applied_marks": [
         {
@@ -63,8 +95,23 @@ FULL_CHECKPOINT_PAYLOAD = {
             "age_ms": 7,
         }
     ],
+    "ambiguous_marks": [
+        {
+            "mark_event_id": "e_000008",
+            "instruction_text": "test",
+            "targets": [SPAN],
+            "age_ms": 6,
+        }
+    ],
     "recent_events": [{"event_id": "e_000005", "rendered": "{}"}],
-    "dispositions": [{"event_id": "e_000006", "state": "handled"}],
+    "dispositions": [
+        {
+            "event_id": "e_000006",
+            "policy_seq": 6,
+            "relation": "event",
+            "state": "handled",
+        }
+    ],
 }
 
 FULL_VARIANT_EVENTS = [
@@ -207,6 +254,17 @@ def test_models_are_frozen_and_render_revalidates_mutable_nested_values() -> Non
         render_event(cancel_ack)
 
 
+def test_checkpoint_pending_tool_renders_authoritative_provenance_in_frozen_order() -> None:
+    rendered = render_event(envelope("runtime", "state_checkpoint", FULL_CHECKPOINT_PAYLOAD))
+
+    assert (
+        b'"pending_tools":[{"request_id":"r_002","policy_seq":4,'
+        b'"fact_event_id":"e_000007",'
+        b'"fact_text":"test","tool":"lookup","args":{"query":"score"},"age_ms":8}]'
+        in rendered
+    )
+
+
 valid_text = st.text(
     alphabet=st.characters(exclude_categories=("Cs",)),
     max_size=40,
@@ -265,7 +323,7 @@ def generated_action(draw, *, allow_idle: bool = True) -> dict[str, object]:
                     "typing_active",
                     "awaiting_tool",
                     "awaiting_opening",
-                    "instruction_quoted",
+                    "instruction_not_direct",
                     "ambiguous",
                     "already_handled",
                 ]
@@ -344,34 +402,45 @@ def generated_checkpoint_payload(draw) -> dict[str, object]:
     snapshot = draw(generated_snapshot_payload())
     timer_id = draw(timer_ids)
     request_id = draw(request_ids)
+    timer_status = draw(st.sampled_from(["active", "canceled"]))
     timer = {
         "timer_id": timer_id,
         "instruction_id": draw(instruction_ids),
         "instruction_text": draw(valid_text),
-        "interval_ms": draw(st.integers(min_value=1, max_value=86_400_000)),
+        "interval_ms": draw(st.integers(min_value=1_000, max_value=86_400_000)),
         "message": draw(valid_text),
-        "status": draw(st.sampled_from(["active", "canceled"])),
-        "next_due_in_ms": draw(st.none() | small_ints),
+        "status": timer_status,
+        "next_due_in_ms": draw(small_ints) if timer_status == "active" else None,
         "fire_count": draw(small_ints),
     }
+    fire_late_ms = draw(small_ints)
+    fire_age_ms = draw(small_ints)
     open_fire = {
         "event_id": "e_000002",
+        "policy_seq": draw(small_ints),
         "timer_id": timer_id,
         "fire_count": draw(st.integers(min_value=1, max_value=100_000)),
         "missed_count": draw(small_ints),
-        "late_ms": draw(small_ints),
-        "age_ms": draw(small_ints),
+        "late_ms": fire_late_ms,
+        "due_age_ms": fire_late_ms + fire_age_ms,
+        "age_ms": fire_age_ms,
     }
     open_result = {
         "event_id": "e_000003",
+        "policy_seq": draw(small_ints),
         "request_id": request_id,
+        "fact_event_id": "e_000001",
+        "fact_text": draw(valid_text),
         "tool": "lookup",
+        "args": {"query": draw(nonempty_text)},
         "status": draw(st.sampled_from(["succeeded", "failed"])),
         "data": draw(tim_json_values),
         "age_ms": draw(small_ints),
     }
     pending = {
         "request_id": "r_998",
+        "policy_seq": draw(small_ints),
+        "fact_event_id": "e_000007",
         "fact_text": draw(valid_text),
         "tool": "lookup",
         "args": {"query": draw(nonempty_text)},
@@ -383,18 +452,68 @@ def generated_checkpoint_payload(draw) -> dict[str, object]:
         "target": draw(generated_span()),
         "age_ms": draw(small_ints),
     }
+    ambiguous_mark = {
+        "mark_event_id": "e_000008",
+        "instruction_text": draw(valid_text),
+        "targets": [draw(generated_span())],
+        "age_ms": draw(small_ints),
+    }
+    prior_use = draw(
+        st.one_of(
+            st.just(
+                {
+                    "kind": "schedule",
+                    "action_event_id": "e_000009",
+                    "policy_seq": 9,
+                    "instruction": SPAN,
+                    "timer_id": "t_002",
+                    "timer_status": "canceled",
+                    "age_ms": 5,
+                }
+            ),
+            st.just(
+                {
+                    "kind": "delegate",
+                    "action_event_id": "e_000010",
+                    "policy_seq": 10,
+                    "fact": SPAN,
+                    "request_id": "r_003",
+                    "tool": "lookup",
+                    "args": {"query": "test"},
+                    "result_event_id": "e_000011",
+                    "result_status": "succeeded",
+                    "result_disposition": "handled",
+                    "age_ms": 4,
+                }
+            ),
+        )
+    )
+    disposition_relation = draw(st.sampled_from(["event", "responded_to"]))
+    disposition_state = (
+        "handled"
+        if disposition_relation == "responded_to"
+        else draw(st.sampled_from(["handled", "skipped", "superseded"]))
+    )
     return {
         "segment": {
             "segment_index": draw(st.integers(min_value=1, max_value=100)),
             "covers_through_policy_seq": draw(small_ints),
             "previous_segment_hash": DIGEST,
         },
-        "snapshot": {"event_id": "e_000001", **snapshot, "age_ms": draw(small_ints)},
+        "capabilities": CAPABILITIES,
+        "snapshot": {
+            "event_id": "e_000001",
+            "activity": draw(st.sampled_from(["active", "paused"])),
+            **snapshot,
+            "age_ms": draw(small_ints),
+        },
         "timers": [timer] if draw(st.booleans()) else [],
         "open_timer_fires": [open_fire] if draw(st.booleans()) else [],
         "open_tool_results": [open_result] if draw(st.booleans()) else [],
         "pending_tools": [pending] if draw(st.booleans()) else [],
+        "prior_uses": [prior_use] if draw(st.booleans()) else [],
         "applied_marks": [applied_mark] if draw(st.booleans()) else [],
+        "ambiguous_marks": [ambiguous_mark] if draw(st.booleans()) else [],
         "recent_events": (
             [{"event_id": "e_000005", "rendered": draw(valid_text)}] if draw(st.booleans()) else []
         ),
@@ -402,7 +521,9 @@ def generated_checkpoint_payload(draw) -> dict[str, object]:
             [
                 {
                     "event_id": "e_000006",
-                    "state": draw(st.sampled_from(["handled", "skipped", "superseded"])),
+                    "policy_seq": draw(small_ints),
+                    "relation": disposition_relation,
+                    "state": disposition_state,
                 }
             ]
             if draw(st.booleans())
@@ -476,6 +597,7 @@ def generated_event(draw) -> dict[str, object]:
             "canonicalizer_id": "tim-json-v1",
             "tool_registry_version": 1,
             "hash_algorithm": "sha256",
+            "capabilities": CAPABILITIES,
             "schema_hash": DIGEST,
             "spec_hash": DIGEST,
             "prompt_hash": DIGEST,
@@ -512,6 +634,7 @@ def generated_event(draw) -> dict[str, object]:
                         "duplicate_tool_request",
                         "floor_owned",
                         "target_already_handled",
+                        "reason_mismatch",
                         "timer_limit_exceeded",
                         "payload_limit_exceeded",
                         "stale_decision",

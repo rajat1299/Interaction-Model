@@ -75,6 +75,7 @@ class LicenseBlockCode(StrEnum):
     DUPLICATE_TOOL_REQUEST = "duplicate_tool_request"
     FLOOR_OWNED = "floor_owned"
     TARGET_ALREADY_HANDLED = "target_already_handled"
+    REASON_MISMATCH = "reason_mismatch"
     TIMER_LIMIT_EXCEEDED = "timer_limit_exceeded"
     PAYLOAD_LIMIT_EXCEEDED = "payload_limit_exceeded"
     STALE_DECISION = "stale_decision"

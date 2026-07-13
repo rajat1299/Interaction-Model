@@ -14,6 +14,12 @@ SNAPSHOT_PAYLOAD = {
     "edit_kind": "insert",
 }
 SPAN = {"event_id": "e_000001", "start_utf16": 0, "end_utf16": 4, "text": "test"}
+CAPABILITIES = {
+    "min_timer_interval_ms": 1_000,
+    "max_timer_interval_ms": 86_400_000,
+    "max_active_timers": 16,
+    "max_timer_message_bytes": 512,
+}
 
 
 def envelope(source: str, kind: str, payload: dict[str, object], **extra) -> dict[str, object]:
@@ -35,7 +41,13 @@ CHECKPOINT_PAYLOAD = {
         "covers_through_policy_seq": 42,
         "previous_segment_hash": DIGEST,
     },
-    "snapshot": {"event_id": "e_000001", **SNAPSHOT_PAYLOAD, "age_ms": 10},
+    "capabilities": CAPABILITIES,
+    "snapshot": {
+        "event_id": "e_000001",
+        "activity": "active",
+        **SNAPSHOT_PAYLOAD,
+        "age_ms": 10,
+    },
     "timers": [
         {
             "timer_id": "t_001",
@@ -50,8 +62,20 @@ CHECKPOINT_PAYLOAD = {
     ],
     "open_timer_fires": [],
     "open_tool_results": [],
-    "pending_tools": [],
+    "pending_tools": [
+        {
+            "request_id": "r_001",
+            "policy_seq": 7,
+            "fact_event_id": "e_000001",
+            "fact_text": "test",
+            "tool": "lookup",
+            "args": {"query": "test"},
+            "age_ms": 8,
+        }
+    ],
+    "prior_uses": [],
     "applied_marks": [],
+    "ambiguous_marks": [],
     "recent_events": [],
     "dispositions": [],
     "hashes": {
@@ -82,6 +106,7 @@ VALID_EVENTS = [
             "canonicalizer_id": "tim-json-v1",
             "tool_registry_version": 1,
             "hash_algorithm": "sha256",
+            "capabilities": CAPABILITIES,
             "schema_hash": DIGEST,
             "spec_hash": DIGEST,
             "prompt_hash": DIGEST,
@@ -222,8 +247,12 @@ def test_free_form_json_enforces_canonical_byte_limit_in_events_and_checkpoints(
         "open_tool_results": [
             {
                 "event_id": "e_000002",
+                "policy_seq": 2,
                 "request_id": "r_001",
+                "fact_event_id": "e_000001",
+                "fact_text": "test",
                 "tool": "lookup",
+                "args": {"query": "test"},
                 "status": "succeeded",
                 "data": oversized_data,
                 "age_ms": 0,
@@ -248,6 +277,62 @@ def test_checkpoint_arrays_require_lexicographic_unique_ids() -> None:
         EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
 
 
+def test_checkpoint_pending_tools_sort_only_by_request_id() -> None:
+    first = {
+        **CHECKPOINT_PAYLOAD["pending_tools"][0],
+        "request_id": "r_001",
+        "fact_event_id": "e_000002",
+    }
+    second = {
+        **CHECKPOINT_PAYLOAD["pending_tools"][0],
+        "request_id": "r_002",
+        "fact_event_id": "e_000001",
+    }
+    valid = {**CHECKPOINT_PAYLOAD, "pending_tools": [first, second]}
+    invalid = {**CHECKPOINT_PAYLOAD, "pending_tools": [second, first]}
+
+    event = EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", valid))
+    assert isinstance(event, StateCheckpointEvent)
+    with pytest.raises(ValidationError, match="lexicographically sorted"):
+        EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
+
+
+def test_checkpoint_fire_due_age_is_an_integrity_checked_relative_value() -> None:
+    invalid = {
+        **CHECKPOINT_PAYLOAD,
+        "open_timer_fires": [
+            {
+                "event_id": "e_000002",
+                "policy_seq": 2,
+                "timer_id": "t_001",
+                "fire_count": 1,
+                "missed_count": 0,
+                "late_ms": 4,
+                "due_age_ms": 6,
+                "age_ms": 3,
+            }
+        ],
+    }
+
+    with pytest.raises(ValidationError, match="due_age_ms"):
+        EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
+
+
+@pytest.mark.parametrize("fact_event_id", [None, "snapshot-1"])
+def test_checkpoint_pending_tool_requires_valid_fact_event_id(
+    fact_event_id: str | None,
+) -> None:
+    pending = dict(CHECKPOINT_PAYLOAD["pending_tools"][0])
+    if fact_event_id is None:
+        del pending["fact_event_id"]
+    else:
+        pending["fact_event_id"] = fact_event_id
+    invalid = {**CHECKPOINT_PAYLOAD, "pending_tools": [pending]}
+
+    with pytest.raises(ValidationError):
+        EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
+
+
 def test_checkpoint_is_fully_typed() -> None:
     event = EVENT_ADAPTER.validate_python(
         envelope("runtime", "state_checkpoint", CHECKPOINT_PAYLOAD)
@@ -255,13 +340,116 @@ def test_checkpoint_is_fully_typed() -> None:
 
     assert isinstance(event, StateCheckpointEvent)
     assert event.payload.snapshot.event_id == "e_000001"
+    assert event.payload.capabilities.max_active_timers == 16
     assert event.payload.timers[0].timer_id == "t_001"
+    assert event.payload.pending_tools[0].fact_event_id == "e_000001"
+
+
+def test_checkpoint_prior_uses_are_a_closed_sorted_union() -> None:
+    schedule_use = {
+        "kind": "schedule",
+        "action_event_id": "e_000010",
+        "policy_seq": 10,
+        "instruction": SPAN,
+        "timer_id": "t_002",
+        "timer_status": "canceled",
+        "age_ms": 5,
+    }
+    delegate_use = {
+        "kind": "delegate",
+        "action_event_id": "e_000009",
+        "policy_seq": 9,
+        "fact": SPAN,
+        "request_id": "r_002",
+        "tool": "lookup",
+        "args": {"query": "test"},
+        "result_event_id": "e_000011",
+        "result_status": "succeeded",
+        "result_disposition": "handled",
+        "age_ms": 6,
+    }
+    valid = {**CHECKPOINT_PAYLOAD, "prior_uses": [delegate_use, schedule_use]}
+    event = EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", valid))
+
+    assert isinstance(event, StateCheckpointEvent)
+    assert [item.kind for item in event.payload.prior_uses] == ["delegate", "schedule"]
+
+    for invalid_uses in (
+        [schedule_use, delegate_use],
+        [delegate_use, delegate_use],
+        [{**schedule_use, "kind": "unknown"}],
+        [{key: value for key, value in schedule_use.items() if key != "timer_status"}],
+    ):
+        with pytest.raises(ValidationError):
+            EVENT_ADAPTER.validate_python(
+                envelope(
+                    "runtime",
+                    "state_checkpoint",
+                    {**CHECKPOINT_PAYLOAD, "prior_uses": invalid_uses},
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "timer_patch,capability_patch",
+    [
+        ({"status": "active", "next_due_in_ms": None}, {}),
+        ({"status": "canceled", "next_due_in_ms": 1}, {}),
+        ({"interval_ms": 999}, {}),
+        ({"interval_ms": 86_400_001}, {}),
+        ({"message": "é" * 257}, {}),
+        ({}, {"max_active_timers": 0}),
+    ],
+)
+def test_checkpoint_timers_must_match_visible_capabilities(
+    timer_patch: dict[str, object],
+    capability_patch: dict[str, object],
+) -> None:
+    timer = {**CHECKPOINT_PAYLOAD["timers"][0], **timer_patch}
+    capabilities = {**CHECKPOINT_PAYLOAD["capabilities"], **capability_patch}
+    invalid = {**CHECKPOINT_PAYLOAD, "capabilities": capabilities, "timers": [timer]}
+
+    with pytest.raises(ValidationError):
+        EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
+
+
+def test_response_scoped_checkpoint_disposition_can_only_be_handled() -> None:
+    invalid = {
+        **CHECKPOINT_PAYLOAD,
+        "dispositions": [
+            {
+                "event_id": "e_000001",
+                "policy_seq": 1,
+                "relation": "responded_to",
+                "state": "skipped",
+            }
+        ],
+    }
+
+    with pytest.raises(ValidationError, match="responded_to"):
+        EVENT_ADAPTER.validate_python(envelope("runtime", "state_checkpoint", invalid))
 
 
 def test_event_schema_requires_kind_and_references_recursive_integer_json() -> None:
     schema = EVENT_ADAPTER.json_schema()
 
     assert "kind" in schema["$defs"]["SnapshotEvent"]["required"]
+    assert "capabilities" in schema["$defs"]["SessionStartPayload"]["required"]
+    assert "capabilities" in schema["$defs"]["StateCheckpointPayload"]["required"]
+    assert "policy_seq" in schema["$defs"]["CheckpointOpenTimerFire"]["required"]
+    assert "policy_seq" in schema["$defs"]["CheckpointOpenToolResult"]["required"]
+    assert "activity" in schema["$defs"]["CheckpointSnapshot"]["required"]
+    assert {
+        "fact_event_id",
+        "fact_text",
+        "args",
+    } <= set(schema["$defs"]["CheckpointOpenToolResult"]["required"])
+    assert "policy_seq" in schema["$defs"]["CheckpointPendingTool"]["required"]
+    assert "prior_uses" in schema["$defs"]["StateCheckpointPayload"]["required"]
+    assert {"policy_seq", "relation"} <= set(
+        schema["$defs"]["CheckpointDisposition"]["required"]
+    )
+    assert "ambiguous_marks" in schema["$defs"]["StateCheckpointPayload"]["required"]
     assert "TimJsonValue" in schema["$defs"]
     assert not any(
         branch.get("type") == "number" for branch in schema["$defs"]["TimJsonValue"]["anyOf"]

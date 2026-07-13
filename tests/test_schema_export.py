@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -134,6 +135,14 @@ def test_post_decode_pydantic_rejects_unportable_schema_invariants(
     ],
 )
 def test_exported_event_schema_rejects_structural_invalids(payload: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        Draft202012Validator(load_export(EVENT_SCHEMA_FILENAME)).validate(payload)
+
+
+def test_exported_checkpoint_schema_requires_pending_tool_fact_event_id() -> None:
+    payload = deepcopy(VALID_EVENTS[9])
+    del payload["payload"]["pending_tools"][0]["fact_event_id"]
+
     with pytest.raises(ValidationError):
         Draft202012Validator(load_export(EVENT_SCHEMA_FILENAME)).validate(payload)
 
