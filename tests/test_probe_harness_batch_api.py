@@ -11,6 +11,7 @@ import pytest
 from im.probes.harness.batch import BatchShard
 from im.probes.harness.batch_api import (
     BatchApiObservation,
+    BatchCreateRejected,
     BatchCreateUncertain,
     BatchLifecycleError,
     OpenAIBatchGateway,
@@ -371,3 +372,29 @@ async def test_openai_gateway_uses_official_files_and_responses_batch_shapes() -
     assert retrieved.payload["status"] == "completed"
     assert downloaded == b'{"custom_id":"p0.test.a1"}\n'
     assert len(requests) == 4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "error_type"),
+    [
+        (400, BatchCreateRejected),
+        (408, BatchCreateUncertain),
+        (429, BatchCreateUncertain),
+        (500, BatchCreateUncertain),
+    ],
+)
+async def test_create_http_status_only_rejects_when_non_acceptance_is_definitive(
+    status_code: int,
+    error_type: type[Exception],
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code, json={"error": "controlled"})
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        gateway = OpenAIBatchGateway(api_key="test-key", client=client)
+        with pytest.raises(error_type):
+            await gateway.create("file_input", {"im_stage": "p0"})
