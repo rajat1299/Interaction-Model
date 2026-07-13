@@ -64,3 +64,23 @@
 ### Open questions
 
 - Human review remains pending until the generated 144-probe review artifact is presented.
+
+## 2026-07-13 — Domain review and verification
+
+### Review outcome
+
+- A clean-context `gpt-5.6-sol` reviewer used the task-domain `applied-ml-research` evaluation skill.
+  Its implementation and raw-artifact review found no remaining P1/P2 issues and cleared WP14 to
+  enter the required human review gate. This is not WP14 completion: explicit human sign-off remains
+  the exit condition.
+- The review loop materially tightened grounded response probes, exact-one mechanical-block proofs,
+  explicit randomized candidate placement, floor/rollover invariance checks, checkpoint provenance,
+  and the runtime facts exposed in the human review sheet.
+
+### Final verification
+
+- `uv run ruff check .`: passed.
+- `uv run pytest -m gate`: 13 passed, 374 deselected.
+- `uv run pytest`: 387 passed.
+- The only warning is the pre-existing Starlette/httpx deprecation warning.
+- The generated machine manifest and human review sheet are deterministic and current.
