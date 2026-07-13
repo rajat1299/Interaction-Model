@@ -81,10 +81,13 @@ class LogicalProbe(_StrictModel):
     negative_class: NegativeClass
     blocking_variable: str | None = None
     mechanical_release_probe_id: ProbeId | None = None
-    pairwise_negative_class: Literal[
-        NegativeClass.SEMANTIC_PREFERENCE,
-        NegativeClass.MECHANICAL_NEGATIVE,
-    ] | None = None
+    pairwise_negative_class: (
+        Literal[
+            NegativeClass.SEMANTIC_PREFERENCE,
+            NegativeClass.MECHANICAL_NEGATIVE,
+        ]
+        | None
+    ) = None
     expected_action_equivalence: Literal["exact_after_reference_rebuild"] | None = None
     secondary_assertions: tuple[str, ...] = ()
     variants: Annotated[tuple[RenderedVariant, ...], Field(min_length=3, max_length=3)]

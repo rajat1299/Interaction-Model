@@ -15,6 +15,12 @@
 - Family 7 uses `idle(no_trigger)` as its legal restraint inverse and separately asserts that nudge
   is invariant to floor state. Family 11 is primarily an invariance family; its pairwise negative is
   classified independently.
+- Families 6 and 9 keep both twins at `activity=active`. That isolates instruction validity or
+  timer-count ambiguity and makes `idle(ambiguous)` consistent with the behavior rule that a yielded
+  unresolved request receives one clarification instead.
+- Family 2 represents the unsafe side as an animal-name prefix inside a still-open longer token
+  (for example `cat` in `catlike`) while both twins remain active. The only behavioral flip is the
+  lexical boundary, and the tempting mark remains schema/reference/license valid.
 - Manifest-only labels (`negative_class`, block codes, license diagnostics) never enter teacher
   prompt construction.
 
@@ -28,6 +34,10 @@
 
 - Fully rebuilding each paraphrase costs more generation time and artifact bytes than text
   substitution, but preserves runtime IDs, UTF-16 spans, timer/tool state, and license validity.
+- The offline manifest is deterministic compact JSON rather than one `tim-json-v1` value. Its
+  required 144-member probe array intentionally exceeds the runtime protocol's frozen 64-element
+  array cap. Every embedded policy stream and action is still produced and round-tripped through
+  the production canonicalizer; the corpus package itself is not a runtime wire payload.
 
 ### Open questions
 

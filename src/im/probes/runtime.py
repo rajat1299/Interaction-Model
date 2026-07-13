@@ -192,9 +192,7 @@ class RuntimeProbeBuilder:
         self.policy.queue(action)
         mark_sensitive = CancelAction | MarkAction | NudgeAction | ScheduleAction | SkipAction
         if isinstance(action, mark_sensitive):
-            self.policy.queue(
-                IdleAction(type="idle", reason="no_trigger", related_event_id=None)
-            )
+            self.policy.queue(IdleAction(type="idle", reason="no_trigger", related_event_id=None))
 
     async def capture_enqueued(self) -> RuntimeProbeState:
         """Stop before acting on already-enqueued timer/tool ingress."""

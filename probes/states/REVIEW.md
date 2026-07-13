@@ -1,0 +1,1698 @@
+# WP14 probe and paraphrase review
+
+> Status: awaiting user sign-off. Checking boxes is optional; the explicit user decision
+> in the implementation task is authoritative.
+
+## Validator summary
+
+- Logical probe states: 144
+- Fully rebuilt rendered states: 432
+- Semantic-preference states: 324
+- Mechanical-negative states: 72
+- Invariance states: 36
+- Every candidate passed schema and reference validation before license evaluation.
+- Every mechanical negative passed its one-variable release mutation.
+
+The teacher projection excludes all class, block-code, license, and validator fields.
+The full production-rendered bytes are in `manifest.json`; this review uses their SHA-256
+identities so the prose and machine artifact stay joined.
+
+## Family 1: mark: direct versus non-direct instruction
+
+Flip: `instruction_directness`
+
+### [ ] f01-t01-a
+
+- Twin: `f01-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including cat. | `{"instruction":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including cat."},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"cat"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:66178f0bd2eff8fee9a07663f7d719ae63f79e93fa12f4a0d5c134aef43329dd` |
+| v2 | Mark animal names, including dog. | `{"instruction":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including dog."},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"dog"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3c536cff471ee2e79b0131c2badd013e7a3c2be1fd467f15279b8003f954fae2` |
+| v3 | Mark animal names, including otter. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including otter."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"otter"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:08cf2b762514005dea4b84016c7cc62612ac407c9e2255b18e3351b2be61f550` |
+
+### [ ] f01-t01-b
+
+- Twin: `f01-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including cat." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":57,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including cat.\""},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"cat"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:b809e81e9da27efb5eca58efa81c26951ac465741c9815ab0dbcabaaaacff2a5` |
+| v2 | The style guide says, "Mark animal names, including dog." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":57,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including dog.\""},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"dog"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:33564b6630c76df0c436be68750694e2d262b2b6ba80a360f3ab32b26c8ce038` |
+| v3 | The style guide says, "Mark animal names, including otter." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including otter.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"otter"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:d417b435eb6c592969279a3999f5f186e806b3f7d2113179202dc407c727228c` |
+
+### [ ] f01-t02-a
+
+- Twin: `f01-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including horse. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including horse."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"horse"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:86bd4ed8a9475b825521d6794555e34f77625e62cbf76da839c46c126cc43870` |
+| v2 | Mark animal names, including rabbit. | `{"instruction":{"end_utf16":36,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including rabbit."},"target":{"end_utf16":14,"event_id":"e_000003","start_utf16":8,"text":"rabbit"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4324f4fb5874b6bc291a815a2fccea3b65f597f90a927c32201e2028d4982eae` |
+| v3 | Mark animal names, including fox. | `{"instruction":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including fox."},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"fox"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2ec89219e76263d86afb80901a9f5ff5a7f98208e95441d344bb9606b5b882be` |
+
+### [ ] f01-t02-b
+
+- Twin: `f01-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including horse." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including horse.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"horse"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:5f61e77749cd79a2a4fba3a60334f5f29e830b90e27baa61ee0f2d3e46f9a8f1` |
+| v2 | The style guide says, "Mark animal names, including rabbit." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":60,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including rabbit.\""},"target":{"end_utf16":14,"event_id":"e_000003","start_utf16":8,"text":"rabbit"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:036094346c985168cf1c2263975e1194f6ca76d56144457bd31668a20d3c9de1` |
+| v3 | The style guide says, "Mark animal names, including fox." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":57,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including fox.\""},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"fox"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:aa75f1f6920b03284de0f85a5e765b859517db11bcfb0c0cd43e0a51cd7ca14d` |
+
+### [ ] f01-t03-a
+
+- Twin: `f01-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including whale. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including whale."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"whale"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4e84478a55229aa6cbd08f3e11d58211a1cd2c00d41e84dabb5c7cee63216ea7` |
+| v2 | Mark animal names, including dolphin. | `{"instruction":{"end_utf16":37,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including dolphin."},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"dolphin"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:0a367b7249b675934d5601e787d0dcecbfd29d6b0220a2963044ed4ca339ac9d` |
+| v3 | Mark animal names, including seal. | `{"instruction":{"end_utf16":34,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including seal."},"target":{"end_utf16":12,"event_id":"e_000003","start_utf16":8,"text":"seal"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:239283b7f44a8ca6a78e4aca0d84a32f143f1df8db8533f015695646d42623b3` |
+
+### [ ] f01-t03-b
+
+- Twin: `f01-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including whale." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including whale.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"whale"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:bafba66f05ed062272c6069b2597b7f8557832da41d8f782e2f071a5e99d5e2d` |
+| v2 | The style guide says, "Mark animal names, including dolphin." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":61,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including dolphin.\""},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"dolphin"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:f4cddddf575bd2961ee7657d6b259c139849a44e9dbe8d75357857264c1b94af` |
+| v3 | The style guide says, "Mark animal names, including seal." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":58,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including seal.\""},"target":{"end_utf16":12,"event_id":"e_000003","start_utf16":8,"text":"seal"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:929c262c4e849e7d39608ee176af8b610732a0948626db1299600024e27c44e7` |
+
+### [ ] f01-t04-a
+
+- Twin: `f01-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including eagle. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including eagle."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"eagle"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dc4a84214880d6f51be8df8accad38bbf95a264d572cd7941c67748f58ecf9f1` |
+| v2 | Mark animal names, including sparrow. | `{"instruction":{"end_utf16":37,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including sparrow."},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"sparrow"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5b53f85881bffa6a3a94574bd6b36657ab915811e77190ce1c023c75b0756009` |
+| v3 | Mark animal names, including raven. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including raven."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"raven"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5d7bfbd2845816b6f666d44caeac545034d6763235e0e0a652d104f9643cb4c8` |
+
+### [ ] f01-t04-b
+
+- Twin: `f01-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including eagle." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including eagle.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"eagle"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:75c6620a3e5e41c1da6ef959e54b439e79e6c6c9fbb697848403a4b9a3ecd108` |
+| v2 | The style guide says, "Mark animal names, including sparrow." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":61,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including sparrow.\""},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"sparrow"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:b3afb6af8cb844b4e88ca86e6287979a834b074f814cadcacaa3bfed9fe1958b` |
+| v3 | The style guide says, "Mark animal names, including raven." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including raven.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"raven"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:f5c6d1cf66864d1e72a772ecd181c38f915decb060970ff0ba270b91e89b5b68` |
+
+### [ ] f01-t05-a
+
+- Twin: `f01-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including tiger. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including tiger."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"tiger"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:c5e72fd860987eb3821bdb5d54aa9cc355b30bcf185552fce8ccf79ce2995a5e` |
+| v2 | Mark animal names, including lion. | `{"instruction":{"end_utf16":34,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including lion."},"target":{"end_utf16":12,"event_id":"e_000003","start_utf16":8,"text":"lion"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4b8561ac2de32bd3543ca47707d33562233e9c1cdb2fcaf4bf12bd1a10a0e402` |
+| v3 | Mark animal names, including leopard. | `{"instruction":{"end_utf16":37,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including leopard."},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"leopard"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:c4ebe720cddc2bdf20b558006b5552a00eac8a709dd1e0317d56cf19704ca27f` |
+
+### [ ] f01-t05-b
+
+- Twin: `f01-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including tiger." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including tiger.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"tiger"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:59fe05b4a2b82e78fe94ce84a010dd9c1ffe6d200791fe5dfb189e2ae2c21751` |
+| v2 | The style guide says, "Mark animal names, including lion." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":58,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including lion.\""},"target":{"end_utf16":12,"event_id":"e_000003","start_utf16":8,"text":"lion"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:feab375b099087831b2aff1099fb109f82bb35385fe287e84c240496252f76f0` |
+| v3 | The style guide says, "Mark animal names, including leopard." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":61,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including leopard.\""},"target":{"end_utf16":15,"event_id":"e_000003","start_utf16":8,"text":"leopard"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:ce49e6c1ff0820645e6ddad667b342b21e342bda9e1c145cc0a704df0c023931` |
+
+### [ ] f01-t06-a
+
+- Twin: `f01-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Mark animal names, including yak. | `{"instruction":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including yak."},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"yak"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9d892a0388680fc23df54eceba467368a98d77c4c5a7205c6c44bc4b31b4e286` |
+| v2 | Mark animal names, including alpaca. | `{"instruction":{"end_utf16":36,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including alpaca."},"target":{"end_utf16":14,"event_id":"e_000003","start_utf16":8,"text":"alpaca"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:e595eb1a4d5429df9db3bae376fd778b573c6d24d37769dfd79c1dcc111f7b27` |
+| v3 | Mark animal names, including llama. | `{"instruction":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names, including llama."},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"llama"},"type":"mark"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:c0fa36412998bbb75ca5ca1403d9498b2af30191a1167508120739a40872e4a8` |
+
+### [ ] f01-t06-b
+
+- Twin: `f01-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The style guide says, "Mark animal names, including yak." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":57,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including yak.\""},"target":{"end_utf16":11,"event_id":"e_000003","start_utf16":8,"text":"yak"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:c478494f336d846554dfbf122b61e092e77f33eff911b3d95afae551d87c3ec6` |
+| v2 | The style guide says, "Mark animal names, including alpaca." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":60,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including alpaca.\""},"target":{"end_utf16":14,"event_id":"e_000003","start_utf16":8,"text":"alpaca"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:61ef47bca88db806b159f9bb3003030ac2b14d2937ade5141e928f529d092223` |
+| v3 | The style guide says, "Mark animal names, including llama." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":59,"event_id":"e_000002","start_utf16":0,"text":"The style guide says, \"Mark animal names, including llama.\""},"target":{"end_utf16":13,"event_id":"e_000003","start_utf16":8,"text":"llama"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:5ff06a520a33e52c39acdf88b2f1603a58737e43b006e961c57ddd86cff1ef10` |
+
+## Family 2: mark: complete versus mid-word target
+
+Flip: `target_lexical_completeness`
+
+### [ ] f02-t01-a
+
+- Twin: `f02-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is cat  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"cat"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:529bc3f7ffae452afe3ac2168772185f6b08dbcce380f67b9cd02f4bb7277c02` |
+| v2 | The next animal is dog  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"dog"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9ca9212756f711d00d96f6b2206af3cc6f421cb2e354f399d73364f462bf6e7b` |
+| v3 | The next animal is otter  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"otter"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:d79d6ad5db25ee76ba6fe5f3c3a07ac1b3fa2f7eeb3c791e08f0cbe4ff19379b` |
+
+### [ ] f02-t01-b
+
+- Twin: `f02-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is catlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"cat"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:acc38ee4194908171b6b105b5605de8106bb0f4c3ffc5bf1b4d8bf7a02528476` |
+| v2 | The next animal is doglike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"dog"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:16b9af0f3a24f175cf5e5360e6a1412a89808609a0cc9555d01a3113cbacc10d` |
+| v3 | The next animal is otterlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"otter"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:86c1fe6de510bf2c0f70e48ba7186823685e1232a8a2b6d69795b57a3931f884` |
+
+### [ ] f02-t02-a
+
+- Twin: `f02-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is horse  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"horse"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:92f7c20036f8ed86f875f3fe156f213dc4a4764003ddaa6d99913b426a04c4c8` |
+| v2 | The next animal is rabbit  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":25,"event_id":"e_000003","start_utf16":19,"text":"rabbit"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9efd3d221c002c6ef732ba84149bfb2159f4419da9ca6f0c0360bb0299d8992b` |
+| v3 | The next animal is fox  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"fox"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ff55fc9e73e72c18bec1b5211de0769344f8a4e89e8cd47b232261bd7d8c834e` |
+
+### [ ] f02-t02-b
+
+- Twin: `f02-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is horselike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"horse"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:f781cc8069cb2cb7fca642e935bcc34135434d93a64bc548eb4c7fc0ff467533` |
+| v2 | The next animal is rabbitlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":25,"event_id":"e_000003","start_utf16":19,"text":"rabbit"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:b455e1bfb08b840afe0150fa95fac82511781cc7f6cd9b13ede7810bb33b2781` |
+| v3 | The next animal is foxlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"fox"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:87410af9af860d63535ff65bab94650c259c526a2588c24d5838bbfa19ccec77` |
+
+### [ ] f02-t03-a
+
+- Twin: `f02-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is whale  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"whale"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:1e79ec55a2fc94ffd7e5be7a87cab3a3ba3f3b146fa07d28960598329ea85faa` |
+| v2 | The next animal is dolphin  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"dolphin"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f2f949d65fcd5ca3b9d312fb2df07dc16c755e19f417f48bd2f93e9c9584e820` |
+| v3 | The next animal is seal  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":23,"event_id":"e_000003","start_utf16":19,"text":"seal"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:926cf392b2d24df6cfc4653a185e1af335cb4435ca80bb0e569a153e810f40ce` |
+
+### [ ] f02-t03-b
+
+- Twin: `f02-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is whalelike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"whale"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:3e2df10d4302a2662aefadfda9a21d2711f4bb1aa3940ed82dab24e3370b251b` |
+| v2 | The next animal is dolphinlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"dolphin"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:b5761c0ce38b6a6c1fcfcfa17a4bebb7f592a3b1d715a8f0620bcc460deabd0b` |
+| v3 | The next animal is seallike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":23,"event_id":"e_000003","start_utf16":19,"text":"seal"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:333f12cd653d678b3463e12b0bfa7387c83df0d8419843bdf0a40a30d1bd38e7` |
+
+### [ ] f02-t04-a
+
+- Twin: `f02-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is eagle  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"eagle"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9f75a858b9b306b647fcf8602ef43583b1e7d6d01533d6ccff32c11781b9fd03` |
+| v2 | The next animal is sparrow  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"sparrow"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9ae489b54536f0f063f1d43dab8fb8dd3a0a30234e7ea8ed679194e2ceb42835` |
+| v3 | The next animal is raven  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"raven"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:76266ee5bbc8202d6f1b5f6b5ec255383d52d031b4420aa13e7c465aeb6b85ba` |
+
+### [ ] f02-t04-b
+
+- Twin: `f02-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is eaglelike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"eagle"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:a9cfc6a97efe8f02c341cea1c0aa474aff2872a11528f2297ee87748563c5c5f` |
+| v2 | The next animal is sparrowlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"sparrow"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:638a2076e7431d8af47e6a5f3d1c8ac96abe5941f45b0c7d90b9d5e896f41cf3` |
+| v3 | The next animal is ravenlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"raven"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:be187052381acc1a922a798770e001551b3355dc94b81a34b2f5f9b91ed19adf` |
+
+### [ ] f02-t05-a
+
+- Twin: `f02-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is tiger  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"tiger"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:c53d7bf517da745162f1f57eebc28e5cef15338b5013b250ef2847fc0d51f297` |
+| v2 | The next animal is lion  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":23,"event_id":"e_000003","start_utf16":19,"text":"lion"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:8ea4e619955413be65aa02ad7e203076ca9f361998dcf40f40734f6341cc156c` |
+| v3 | The next animal is leopard  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"leopard"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5ac06344f063eb324998124d602e431fcc5d988ca17aa965a9e91bfbee9df171` |
+
+### [ ] f02-t05-b
+
+- Twin: `f02-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is tigerlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"tiger"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:222a899216686a5fcbdd056899fb7c5c41fd253ac68f970b69097bb11bc15bd9` |
+| v2 | The next animal is lionlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":23,"event_id":"e_000003","start_utf16":19,"text":"lion"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:c1901cda8364dcfeb5c5b4cd47d740c63e261f80e372fa4bf3ab2f522257c4b4` |
+| v3 | The next animal is leopardlike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":26,"event_id":"e_000003","start_utf16":19,"text":"leopard"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:058fd771d78c645f4745f495d1c72fd9c993a14b84ff9829454cd6853b83fe51` |
+
+### [ ] f02-t06-a
+
+- Twin: `f02-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is yak  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"yak"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:c8ed28cf70c9ea7f9865bbdb7820aab7ba6067755989fd094403e291bab47972` |
+| v2 | The next animal is alpaca  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":25,"event_id":"e_000003","start_utf16":19,"text":"alpaca"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:404a0456e180a5dcf3f34701ebfc9e110dfb3eb348a2c3074b71f0e2e7ed0939` |
+| v3 | The next animal is llama  | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"llama"},"type":"mark"}` | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:551dcc05ec8ba34433b33ae2c7fe28c0a3a5543415ad408f7cfa4179098696a0` |
+
+### [ ] f02-t06-b
+
+- Twin: `f02-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The next animal is yaklike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":22,"event_id":"e_000003","start_utf16":19,"text":"yak"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:536ab76a059af44847079ce4bc24d7f650a1d961f48ee48cf12b5fce97f8a6aa` |
+| v2 | The next animal is alpacalike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":25,"event_id":"e_000003","start_utf16":19,"text":"alpaca"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:5439d07927e01453b158ad744524e098ba9c0322234c45bc8977c9682f1d8974` |
+| v3 | The next animal is llamalike | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":18,"event_id":"e_000002","start_utf16":0,"text":"Mark animal names."},"target":{"end_utf16":24,"event_id":"e_000003","start_utf16":19,"text":"llama"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:3a48173e0fa922570833fcdab4f59921cbed1b30957ecc31caafc4a3f1ee7c20` |
+
+## Family 3: tool result: live versus post-topic-change
+
+Flip: `result_need_staleness`
+
+### [ ] f03-t01-a
+
+- Twin: `f03-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:466daf9fe755ea1728fe3594ab7553381e4049e0301f9fdc91f0724738a0a6f3` |
+| v2 | Please look up the Austin forecast. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Austin forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:803526f65c7534636cf5ff82b9ff06f63136519fef018ef0094a7ef9799de76b` |
+| v3 | Please look up the Seattle forecast. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Seattle forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b7cdae538bf4f6c32e5ac882b1bfdbc720285b86105557a80c3e926131a38db2` |
+
+### [ ] f03-t01-b
+
+- Twin: `f03-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:8beea764b330ba799989804870fab7db1552ef0b92ad014173d86dbbebdf5cf8` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Austin forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:409f9a0ed98c132bd5c5f7f5bc943a3045e353402bd233094f7504091094acad` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Seattle forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:5c61f66db41ed04a268bd336e8874d962a4bd7e636cf8f01659396d0188079b1` |
+
+### [ ] f03-t02-a
+
+- Twin: `f03-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:4d34ede01aa8c7f56a0fb2a6a9a17ac32adbc19d8987f364634cea4438c1712e` |
+| v2 | Please look up the race result. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the race result.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:57f1fdb3ca2f335ba91dbdbdd443a99b5c23496121bb2718fc1a618b5227bc99` |
+| v3 | Please look up the final ranking. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the final ranking.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:c76e360bcb0579ba6cb136d79d869ba0db42c36ed54da1159f90b7f8d7eb96d6` |
+
+### [ ] f03-t02-b
+
+- Twin: `f03-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:7a95b85f4385780c736776dbf8ec465b0029c5dce82a66c254f10fb4c64dbfbc` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the race result.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:0e6a47edbdcdfbcde1783956f6cdf5fb1689e7249073a8ca755257a76f701df4` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the final ranking.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:fecc5323ffec24f921cbc459bc2a4e51d1e86ec0024b6c4d3da9d7c5e790b4f1` |
+
+### [ ] f03-t03-a
+
+- Twin: `f03-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5e71a4c078c80b26a60b01d01d8d70fab33e8e62f8fee3bdd2fc51862756f245` |
+| v2 | Please look up the museum hours. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the museum hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b6013264af7caab296a45bd4297b0529ed56fe906936555126ea6aca503db79b` |
+| v3 | Please look up the clinic hours. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the clinic hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:bf2cd07c08acf78009d673ddfd42f564379dc3ce1faa2db67dd7fad70c325c62` |
+
+### [ ] f03-t03-b
+
+- Twin: `f03-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:07a74af3fd0049037c254cdcb1779ebafe424bbbb43dbf1babbd1a9e828ad2eb` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the museum hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:13c9450612abd9e0b574b19652630118954bc724700cdc760a3e0bc75ff13b04` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the clinic hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:e38d118fd945ad17cc16713095d26751dfd3c331e0415347989d09e768d51c8a` |
+
+### [ ] f03-t04-a
+
+- Twin: `f03-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5bd63c472e9e2f0a3a02803bd12b8dd1d17628c6f872828f36beb0d27c269527` |
+| v2 | Please look up the latest flight status. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest flight status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:9cebee9b98541d3d5b8c70138f744adddde5238cab0768a191a8a3ee927aeef7` |
+| v3 | Please look up the current bus delay. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current bus delay.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:edfe49212b7fe71d44219ff6d791b70b7c342dd81de835af1a50945ede335ee4` |
+
+### [ ] f03-t04-b
+
+- Twin: `f03-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d5000a826e90fe0eaabf1f1655ea9642099477e2971d85bcdbaaf3a4fe48541a` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest flight status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:087eea98e9c2418383b21a18813f495b8a2c8b77099069643e7c95cfcf987d46` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current bus delay.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2ca38ad81c9e3542bab11ccf73b52ff3839437a7877dc32037c23a58660c1191` |
+
+### [ ] f03-t05-a
+
+- Twin: `f03-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b9f4b90927c10b0f81b3c57a0668907126db7c382a5da64156c47f9a57c2d942` |
+| v2 | Please look up the current index value. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current index value.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d2a74e77b17c0a5f6865ad029c37feb7be74d4c293c5de59ba0f27fb0cbfbdf2` |
+| v3 | Please look up the latest closing price. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest closing price.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:482308ecd62563736f9f966dc5c2132826bb8247bc13efdda7534a6f2a633313` |
+
+### [ ] f03-t05-b
+
+- Twin: `f03-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2cae56c4a9c1abaf51fe0988d8f40dfc818616799660496cfec284077131c3cf` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current index value.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:36844edcbb2e945e4a1795267e05da396e3f2d4889731a11783dd00b45e9bcd6` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest closing price.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:a81723cf5ae76cc568518ca198398e1dfa32627b311f5dee1b8f777aca484c7c` |
+
+### [ ] f03-t06-a
+
+- Twin: `f03-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2b876fa34d6735e9c3314200653d4bd36f02ea1d938819975369b038a3121af4` |
+| v2 | Please look up the filing date. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the filing date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:36f6af4965b89c51fa945a585c1d30a62052317520fb610a7c9652bb4603e222` |
+| v3 | Please look up the event date. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the event date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:12caef5bbf305b647212a7483f26ac26b9c72fc9831b2a9004331746100f6cb3` |
+
+### [ ] f03-t06-b
+
+- Twin: `f03-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d6f3fd290f046d838b69f59a0c4696cd6d551bc9b4dd29ab18576c362971a007` |
+| v2 | Switch to the draft. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the filing date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:52ab4b449e3a4a7c2f6189f6ef10bf566bb7e3276ada6dce8bd1b8f616765178` |
+| v3 | Back to my notes. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the event date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:75dfcf184eb00db60ccd3b207825c01470266ea3d6d399e76941c3d53b5fc57b` |
+
+## Family 4: delegate: absent versus pending request
+
+Flip: `canonical_request_pending`
+
+### [ ] f04-t01-a
+
+- Twin: `f04-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the Chicago forecast. | `{"args":{"query":"the Chicago forecast"},"fact":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"Look up the Chicago forecast."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b979796377525a5128668804353def501e9fe443e499b079be3b034e265710ce` |
+| v2 | Look up the Austin forecast. | `{"args":{"query":"the Austin forecast"},"fact":{"end_utf16":28,"event_id":"e_000002","start_utf16":0,"text":"Look up the Austin forecast."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4df71a3b4decdf1b40f065c02bf962ef72b2b36cdcbf6591307715230d8121a5` |
+| v3 | Look up the Seattle forecast. | `{"args":{"query":"the Seattle forecast"},"fact":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"Look up the Seattle forecast."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a9882f9c324d4eed683826cdc98cab7b769855cf61cbc27d6cad853bfc63adf3` |
+
+### [ ] f04-t01-b
+
+- Twin: `f04-t01`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t01-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the Chicago forecast. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the Chicago forecast"},"fact":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"Look up the Chicago forecast."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:0ae9cff100b78b91b505b7868ca2c4595eafeeeb05c3a9ee583fa18a7a44820f` |
+| v2 | Look up the Austin forecast. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the Austin forecast"},"fact":{"end_utf16":28,"event_id":"e_000002","start_utf16":0,"text":"Look up the Austin forecast."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:4457b606ed4104edc103902f88b6caf8c61ca7fc44d16641b39109c547f19a8d` |
+| v3 | Look up the Seattle forecast. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the Seattle forecast"},"fact":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"Look up the Seattle forecast."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:e620f61bc40e6bf7c15f093baaa7c2703749d750e4a03ade16ee386004d2e331` |
+
+### [ ] f04-t02-a
+
+- Twin: `f04-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the match score. | `{"args":{"query":"the match score"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the match score."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f53f5ba8e77efd7270c98ca62ec432977a44230614156b77ff9932bef2921e48` |
+| v2 | Look up the race result. | `{"args":{"query":"the race result"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the race result."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:7ff01aed530e8adb16fec019c7991e5c9b70fd9a755c3502f8427e0ad1c8a1a5` |
+| v3 | Look up the final ranking. | `{"args":{"query":"the final ranking"},"fact":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"Look up the final ranking."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:0f9ebeddccd815b923b1d53903cae35e971eacf97471e0c4bff9b7fcc37d38b4` |
+
+### [ ] f04-t02-b
+
+- Twin: `f04-t02`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t02-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the match score. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the match score"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the match score."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:6d6320ddf5250dfa9df7dbbceac4b431b4cfd97633ee0952d6196709872ae577` |
+| v2 | Look up the race result. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the race result"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the race result."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:b0a199432345c5491096b2c03afa2cc6a86a8d15d00da71c78df41491249ebda` |
+| v3 | Look up the final ranking. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the final ranking"},"fact":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"Look up the final ranking."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:a934908290181c3ab5836788c5283e61696d58449ce37f61af9b45eacceb53f5` |
+
+### [ ] f04-t03-a
+
+- Twin: `f04-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the library hours. | `{"args":{"query":"the library hours"},"fact":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"Look up the library hours."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:7a15fba950e1b3774b166685d695d70944c8ea9a36def27920782416bbf1f776` |
+| v2 | Look up the museum hours. | `{"args":{"query":"the museum hours"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the museum hours."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:863b830d15b855c8fe6432c00979bf9562eb4b62371ba75bbb697e44a8daf975` |
+| v3 | Look up the clinic hours. | `{"args":{"query":"the clinic hours"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the clinic hours."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:af08fdc670b225d3091849d04cd3c36684c60f615bec6206cd1866b051d35bf3` |
+
+### [ ] f04-t03-b
+
+- Twin: `f04-t03`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t03-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the library hours. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the library hours"},"fact":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"Look up the library hours."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:80c8b37425eccebf8f438c1ef0bce501b23f5ec7fa65e9b0918833a62df6171e` |
+| v2 | Look up the museum hours. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the museum hours"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the museum hours."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:fca7385965e2cb9a7dbe755c060e708bed13f76dedf3111b919ea79a7fed4863` |
+| v3 | Look up the clinic hours. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the clinic hours"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the clinic hours."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:45dd1fa188b1efa7aebeb957e285ca2d63e98b5a0ecca6229839c578faf55db8` |
+
+### [ ] f04-t04-a
+
+- Twin: `f04-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the latest train status. | `{"args":{"query":"the latest train status"},"fact":{"end_utf16":32,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest train status."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9007e97d67674975f6d7c207b2c4274687d9729941521622162bca919c836edd` |
+| v2 | Look up the latest flight status. | `{"args":{"query":"the latest flight status"},"fact":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest flight status."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:397780058150d063a4eb2ff8759627fe04c5e7a513c560f66b211f0822b2e840` |
+| v3 | Look up the current bus delay. | `{"args":{"query":"the current bus delay"},"fact":{"end_utf16":30,"event_id":"e_000002","start_utf16":0,"text":"Look up the current bus delay."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dd0861007ec484b54e83c01c9345ef528c02a317bad2e246107e3e47c5d02214` |
+
+### [ ] f04-t04-b
+
+- Twin: `f04-t04`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t04-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the latest train status. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the latest train status"},"fact":{"end_utf16":32,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest train status."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:8192d7019ffc281c06469bf4a06c62177623ecbb36d33f353f429bf49a225e3f` |
+| v2 | Look up the latest flight status. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the latest flight status"},"fact":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest flight status."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:3889a9a2f41808d524e370d1ff67b87e2d65b2cf36b3cd1ede0a368e4c3c8f50` |
+| v3 | Look up the current bus delay. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the current bus delay"},"fact":{"end_utf16":30,"event_id":"e_000002","start_utf16":0,"text":"Look up the current bus delay."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:5ef9e71ce4975c10402e6b96641405677966d8cc6634ba6f5a85a7b34763c959` |
+
+### [ ] f04-t05-a
+
+- Twin: `f04-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the current exchange rate. | `{"args":{"query":"the current exchange rate"},"fact":{"end_utf16":34,"event_id":"e_000002","start_utf16":0,"text":"Look up the current exchange rate."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5b4e4f88fc6282fe5416736567df41a622006d80c267a77430027f4f019a4e40` |
+| v2 | Look up the current index value. | `{"args":{"query":"the current index value"},"fact":{"end_utf16":32,"event_id":"e_000002","start_utf16":0,"text":"Look up the current index value."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:14d4576dd39962f2e5f13d4543426feaf7021841f0120f81f205b67b8b804fc4` |
+| v3 | Look up the latest closing price. | `{"args":{"query":"the latest closing price"},"fact":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest closing price."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:36e120f352d21a93d673b8d43815235670022d15d7b24f2c88ee9b7e1f46431b` |
+
+### [ ] f04-t05-b
+
+- Twin: `f04-t05`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t05-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the current exchange rate. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the current exchange rate"},"fact":{"end_utf16":34,"event_id":"e_000002","start_utf16":0,"text":"Look up the current exchange rate."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:addd81e1fe6c034d9cc1adf14709c4b4ddff114fa1a07a9800946a5b741215bd` |
+| v2 | Look up the current index value. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the current index value"},"fact":{"end_utf16":32,"event_id":"e_000002","start_utf16":0,"text":"Look up the current index value."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:9693920425e3feb7e68dfbc8642cbf0464eb76cf18e869bc642c6928a840f603` |
+| v3 | Look up the latest closing price. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the latest closing price"},"fact":{"end_utf16":33,"event_id":"e_000002","start_utf16":0,"text":"Look up the latest closing price."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:a2cc72560b291084d198a2ef79091e589c44b38b3520209dae84537ec5ff4b8d` |
+
+### [ ] f04-t06-a
+
+- Twin: `f04-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the release date. | `{"args":{"query":"the release date"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the release date."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:eae310c2ca1886f4618887d907bb9840f07464dc2b7ef64129cff4b028b5ce48` |
+| v2 | Look up the filing date. | `{"args":{"query":"the filing date"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the filing date."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:e029830ac13af092651dbaea76f63b9bf4aad3fd03403584f8f320c9571c5cb6` |
+| v3 | Look up the event date. | `{"args":{"query":"the event date"},"fact":{"end_utf16":23,"event_id":"e_000002","start_utf16":0,"text":"Look up the event date."},"tool":"lookup","type":"delegate"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:6f0233b97ca60e156a661c58311878235a4ad129a374ebe251f70d5a6b2a0f25` |
+
+### [ ] f04-t06-b
+
+- Twin: `f04-t06`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `canonical_request_pending`; release state: `f04-t06-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Look up the release date. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the release date"},"fact":{"end_utf16":25,"event_id":"e_000002","start_utf16":0,"text":"Look up the release date."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:e68154bf5b3a5230cf4ec3a996568eef4ac762ffdce970b8d8d4aa20d77fc9c2` |
+| v2 | Look up the filing date. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the filing date"},"fact":{"end_utf16":24,"event_id":"e_000002","start_utf16":0,"text":"Look up the filing date."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:07db28bf5722df1caa277b08657d7d27e52825db3d004823e9d91abd9048927c` |
+| v3 | Look up the event date. | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{"args":{"query":"the event date"},"fact":{"end_utf16":23,"event_id":"e_000002","start_utf16":0,"text":"Look up the event date."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=block:duplicate_tool_request | `sha256:589ec52f23340863cdca412bf731af5230ad9e5043ced27f52df92d8bcaac190` |
+
+## Family 5: tool result: opening versus mid-typing
+
+Flip: `user_floor_open`
+
+### [ ] f05-t01-a
+
+- Twin: `f05-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the Chicago forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:4671efa5ffdef773a74589609c50847d9a18336b6b9890e3a6bd2f5daa113328` |
+| v2 | Could you check the Austin forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Austin forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:0e9ed21e5a64582b88d802758218b39198d6b365963aa571350a31a61ec82f01` |
+| v3 | Could you check the Seattle forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Seattle forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:5c3b1cd2beb8118b26c220b0cef8d0c2610ffadaa122d0da0c1cf484536c2701` |
+
+### [ ] f05-t01-b
+
+- Twin: `f05-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the Chicago forecast? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d80507928a0b65ba17b7e919a69a531a8934b829d1dcdb488063223249fd80fb` |
+| v2 | Could you check the Austin forecast? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Austin forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:f298b9945cf3d739b1eea674b0a927ef8012e61e4065ea92cac944a50f7ce931` |
+| v3 | Could you check the Seattle forecast? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Seattle forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:1418ec7e72d66f2f7e796d58f24df0d704e0a3e7a94597ccf711c694c7e9289f` |
+
+### [ ] f05-t02-a
+
+- Twin: `f05-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the match score? | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:3b30675dced3e5b39ea33d86083f214c930444c44ed9141429440c8772b1d801` |
+| v2 | Could you check the race result? | `{"result_event_id":"e_000005","text":"Here is the verified result for the race result.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:9b307a7293ae9fc80535b2de166dfab480e9bca4e424fc0b0134e06a1b39b3b3` |
+| v3 | Could you check the final ranking? | `{"result_event_id":"e_000005","text":"Here is the verified result for the final ranking.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:14c38c334627df19c4021f234a49bf4b91c9a507aa094c4a365d4e40e050c8a9` |
+
+### [ ] f05-t02-b
+
+- Twin: `f05-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the match score? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:df942c0c61339cfc4d9b7ad4eb16ef5dce9220e6334b376278b15b299cf39b0a` |
+| v2 | Could you check the race result? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the race result.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:9836b5ec00555d102faf0a24c99dc7074d583a7e6fba5559ccc6b3a98edff023` |
+| v3 | Could you check the final ranking? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the final ranking.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4ee02b6a0df7c01fbf108f9d3d501502599d8a3ee7bfa791b8bf874997d67855` |
+
+### [ ] f05-t03-a
+
+- Twin: `f05-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the library hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:98b2ee1d81b9303c5366597db6716beeed8d5af18d0557058793affbb516e09e` |
+| v2 | Could you check the museum hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the museum hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:cd6ca4bb8238a029155c09f821263e5f17bd0298ebe6937743b0601913757d87` |
+| v3 | Could you check the clinic hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the clinic hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:aee920a47ded81200a59ad47ecf0b05c4d48c22814f8385863026f547f257f71` |
+
+### [ ] f05-t03-b
+
+- Twin: `f05-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the library hours? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:922a6ba949c2fc589471b1145a54f1cefc6bcb97a0dc212aa03e0bcbd4b9dc24` |
+| v2 | Could you check the museum hours? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the museum hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:24061e6e2ee1687d9057e7c2897dec8c69728082e04f628d2775633d30158692` |
+| v3 | Could you check the clinic hours? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the clinic hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d7b7d8b73a110f1a76fed99b6791d89fa643c6e10519b800d0598a3de213232c` |
+
+### [ ] f05-t04-a
+
+- Twin: `f05-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the latest train status? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:d77a1ceafc2bebf588b6fa744d695e47229f6f6a7ad2626383c4326608206639` |
+| v2 | Could you check the latest flight status? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest flight status.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:7084c64f7a35fec4597fe35a5c940b0cb0777bb61724879eddda04eb4a344060` |
+| v3 | Could you check the current bus delay? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current bus delay.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:7d4b53b0c98abcd27663fd02705ec4f6d4ec152a63624cf887c83e65db100f6c` |
+
+### [ ] f05-t04-b
+
+- Twin: `f05-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the latest train status? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:953d4d1da1c757a49420b7ce51a13e2b1188070291ab8cf9216927d7e77a809d` |
+| v2 | Could you check the latest flight status? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest flight status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b9f957e291217b482cd839f43d203ba5c7c10058ec7acb5d814c7151ea82c919` |
+| v3 | Could you check the current bus delay? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current bus delay.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2c08d3cba1ed5b4787c5769978ae715306dfe813743cf69679906ebb8db1c586` |
+
+### [ ] f05-t05-a
+
+- Twin: `f05-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the current exchange rate? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:15f11c2a3437fe4ed4301bb379049fd4f21f8333d5352a035a7abaecb2e681a8` |
+| v2 | Could you check the current index value? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current index value.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:072d45b186d8f6b23b19279eb12b73c7f278b89929423f5ce5ebe7872fe0fa65` |
+| v3 | Could you check the latest closing price? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest closing price.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:122ff21e55a9b67d8579e50bcabb6fc9cf34a46a267f2a752e7d9eed9bf258b1` |
+
+### [ ] f05-t05-b
+
+- Twin: `f05-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the current exchange rate? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4fbe9fb1f651000e420089095f36764994b7b9952d9326cb3fe4d76aa1acf9e4` |
+| v2 | Could you check the current index value? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current index value.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b0b309f74d5192f079ea5cf66e60e23043893446dede0193438b4aef70716f49` |
+| v3 | Could you check the latest closing price? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest closing price.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:271489f89657f095cb0532a865bee292209da5cf6e601d5f704230e5f37f293c` |
+
+### [ ] f05-t06-a
+
+- Twin: `f05-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the release date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:85fb88af7def871d8ac929660bb58f31e81a6e20f6a35c562ea31c1154c81542` |
+| v2 | Could you check the filing date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the filing date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:908182ded0623047c0dbd9ee8ceb0bf4b9127cf3571cf79bbfe010a7857912a4` |
+| v3 | Could you check the event date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the event date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:c01f4217dcbaf6f96132d41d768a32a5059efe344a70152ed970a85f8d826013` |
+
+### [ ] f05-t06-b
+
+- Twin: `f05-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Could you check the release date? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:eca7158e57a5c33d686808353cd06b6dd38298a7c2a1d6ca5804b1e01d4e572b` |
+| v2 | Could you check the filing date? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the filing date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2b3946630b4656f1b417fe49f63a7848e33b110f375d2e2a3b5daf377b70ecca` |
+| v3 | Could you check the event date? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the event date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4d6d9de6b05a8f6bc0689b266a23495fdad28c61ecfc791846683fd06c4fd671` |
+
+## Family 6: schedule: direct complete versus non-direct or ambiguous
+
+Flip: `schedule_instruction_validity`
+
+### [ ] f06-t01-a
+
+- Twin: `f06-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 2 minutes to stretch. | `{"instruction":{"end_utf16":37,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 2 minutes to stretch."},"interval_ms":120000,"message":"stretch","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ee7ee99517359f9e496680cb927d30daae6c0e74e59e6071c7014316a18edfee` |
+| v2 | Remind me every 2 minutes to drink water. | `{"instruction":{"end_utf16":41,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 2 minutes to drink water."},"interval_ms":120000,"message":"drink water","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9f3eb8743c9d0ef8a6555f0ac0a470a4d55e16b54e520a06e928f0110a618032` |
+| v3 | Remind me every 2 minutes to check posture. | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 2 minutes to check posture."},"interval_ms":120000,"message":"check posture","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:04071dd3e0ba7a240f7c47c6681f3651ff3e7abf9e39b5bb61d38d0111129275` |
+
+### [ ] f06-t01-b
+
+- Twin: `f06-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | My coworker wrote, "Remind me every 2 minutes to stretch." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":58,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 2 minutes to stretch.\""},"interval_ms":120000,"message":"stretch","type":"schedule"}` | expected=allow; tempting=allow | `sha256:fbb1b2e726dff7816c604b9bd57e20d54c619853540d54a05b30280185ff720f` |
+| v2 | My coworker wrote, "Remind me every 2 minutes to drink water." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":62,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 2 minutes to drink water.\""},"interval_ms":120000,"message":"drink water","type":"schedule"}` | expected=allow; tempting=allow | `sha256:633a37d54c5abdb6d281c78054399f5bffb34e7057c04730f35c55b6e6acee96` |
+| v3 | My coworker wrote, "Remind me every 2 minutes to check posture." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":64,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 2 minutes to check posture.\""},"interval_ms":120000,"message":"check posture","type":"schedule"}` | expected=allow; tempting=allow | `sha256:50a46e725f868b304d565a3aeaea5f7fff354c3d1f17480c754f3f0213b46b0e` |
+
+### [ ] f06-t02-a
+
+- Twin: `f06-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 3 minutes to review notes. | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 3 minutes to review notes."},"interval_ms":180000,"message":"review notes","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f3d19ccedfb845e82d0811fd42d619a1f215aa3a7c8214d6bc7195e2f6445157` |
+| v2 | Remind me every 3 minutes to save the draft. | `{"instruction":{"end_utf16":44,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 3 minutes to save the draft."},"interval_ms":180000,"message":"save the draft","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f0886905f2c4e505ce808b44a073ac272ace9ce7c2ea9ff052188b1f8a47cdd6` |
+| v3 | Remind me every 3 minutes to check the build. | `{"instruction":{"end_utf16":45,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 3 minutes to check the build."},"interval_ms":180000,"message":"check the build","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2b0dc63d4743c455013a0b0570722dbcc1bfc74e6d6ffb634d471cd276938aaa` |
+
+### [ ] f06-t02-b
+
+- Twin: `f06-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | My coworker wrote, "Remind me every 3 minutes to review notes." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":63,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 3 minutes to review notes.\""},"interval_ms":180000,"message":"review notes","type":"schedule"}` | expected=allow; tempting=allow | `sha256:22d82badd8471f6c3f8bed3d74bac93466b1f5aaddc562f8d84f2903ab870966` |
+| v2 | My coworker wrote, "Remind me every 3 minutes to save the draft." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":65,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 3 minutes to save the draft.\""},"interval_ms":180000,"message":"save the draft","type":"schedule"}` | expected=allow; tempting=allow | `sha256:5a3a1c318fb15a3216d820b822e6f128fff305b7a495aaf5f13431a6a72217f1` |
+| v3 | My coworker wrote, "Remind me every 3 minutes to check the build." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":66,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 3 minutes to check the build.\""},"interval_ms":180000,"message":"check the build","type":"schedule"}` | expected=allow; tempting=allow | `sha256:15d0f98a02cc1e7922b23881c518f896f19dacea1730cee867390ad3b82d3089` |
+
+### [ ] f06-t03-a
+
+- Twin: `f06-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 4 minutes to water the fern. | `{"instruction":{"end_utf16":44,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 4 minutes to water the fern."},"interval_ms":240000,"message":"water the fern","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2b6c45e7213d2ecde67f5e186a7dea147a195bf00f164ad80276f35441c6b742` |
+| v2 | Remind me every 4 minutes to feed the fish. | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 4 minutes to feed the fish."},"interval_ms":240000,"message":"feed the fish","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ab0953fd566e45c97f5500422632780b4d109fe50b1cb795888e28e100ee6afb` |
+| v3 | Remind me every 4 minutes to open the blinds. | `{"instruction":{"end_utf16":45,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 4 minutes to open the blinds."},"interval_ms":240000,"message":"open the blinds","type":"schedule"}` | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:39c5a8e8e08f3f419a5d946be9f9cf2d3c62ec4844933e249500403d7ec2f863` |
+
+### [ ] f06-t03-b
+
+- Twin: `f06-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | My coworker wrote, "Remind me every 4 minutes to water the fern." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":65,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 4 minutes to water the fern.\""},"interval_ms":240000,"message":"water the fern","type":"schedule"}` | expected=allow; tempting=allow | `sha256:97f0ab87b764d35d61f87c6072cf50caca3529348dcb2a981d050cf34f53a4b6` |
+| v2 | My coworker wrote, "Remind me every 4 minutes to feed the fish." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":64,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 4 minutes to feed the fish.\""},"interval_ms":240000,"message":"feed the fish","type":"schedule"}` | expected=allow; tempting=allow | `sha256:ad4479856f86c0ea6477227829f15cdb9a37abe9668b87fa75238fb6334ac37e` |
+| v3 | My coworker wrote, "Remind me every 4 minutes to open the blinds." | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":66,"event_id":"e_000002","start_utf16":0,"text":"My coworker wrote, \"Remind me every 4 minutes to open the blinds.\""},"interval_ms":240000,"message":"open the blinds","type":"schedule"}` | expected=allow; tempting=allow | `sha256:1c61e2e3b94537347ae83a43040de48ca712f8903924ac78a28d060c350e49fe` |
+
+### [ ] f06-t04-a
+
+- Twin: `f06-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 5 minutes to stand up. | `{"instruction":{"end_utf16":38,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 5 minutes to stand up."},"interval_ms":300000,"message":"stand up","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:7ec13a91771ca72c01ba825f83001f8bbcb244d3aca52bbf24e66f7348a2ab02` |
+| v2 | Remind me every 5 minutes to rest my eyes. | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 5 minutes to rest my eyes."},"interval_ms":300000,"message":"rest my eyes","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ae69cbeb39804782f6c0db81b0cc00eacca41fbc44b2e79e4ee0e7c4917a70af` |
+| v3 | Remind me every 5 minutes to take a breath. | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 5 minutes to take a breath."},"interval_ms":300000,"message":"take a breath","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:30191bd44ac0497481d3cfbde650a545cda3db59f3698cdb41057a6cf395a322` |
+
+### [ ] f06-t04-b
+
+- Twin: `f06-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every so often to stand up. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":37,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to stand up."},"interval_ms":300000,"message":"stand up","type":"schedule"}` | expected=allow; tempting=allow | `sha256:c2a02267527eed21580f37f6c17fdad7029112c11e59460ffd88d789ddc9d5db` |
+| v2 | Remind me every so often to rest my eyes. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":41,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to rest my eyes."},"interval_ms":300000,"message":"rest my eyes","type":"schedule"}` | expected=allow; tempting=allow | `sha256:74d5939c9b1d2ee2db7acaed5703388b74f7e1159952a5660f5379db2fcac255` |
+| v3 | Remind me every so often to take a breath. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to take a breath."},"interval_ms":300000,"message":"take a breath","type":"schedule"}` | expected=allow; tempting=allow | `sha256:71669548b8cfe90138835b68bc5e1df8a84f8eee27c5ebab11eaa3e861a8fad1` |
+
+### [ ] f06-t05-a
+
+- Twin: `f06-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 6 minutes to check the oven. | `{"instruction":{"end_utf16":44,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 6 minutes to check the oven."},"interval_ms":360000,"message":"check the oven","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:92a9a01559fde7a8b0df0ae3c5940883325281b2e5ee5af893e922ecc8beefa8` |
+| v2 | Remind me every 6 minutes to stir the soup. | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 6 minutes to stir the soup."},"interval_ms":360000,"message":"stir the soup","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9d93377d69e5e61a2dcffb96421166fb5c731890900f369db1e573fd0564296d` |
+| v3 | Remind me every 6 minutes to turn the pan. | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 6 minutes to turn the pan."},"interval_ms":360000,"message":"turn the pan","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:8258d4f513d0ccf2f1b04619e5447974d4e396be98ede35024d5a543db598147` |
+
+### [ ] f06-t05-b
+
+- Twin: `f06-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every so often to check the oven. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to check the oven."},"interval_ms":360000,"message":"check the oven","type":"schedule"}` | expected=allow; tempting=allow | `sha256:731d98e68fa1c67907a23d47ad551bebc7533477749fda99046ece0b2f1723a2` |
+| v2 | Remind me every so often to stir the soup. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to stir the soup."},"interval_ms":360000,"message":"stir the soup","type":"schedule"}` | expected=allow; tempting=allow | `sha256:0341bd801e7ad0940c73bfee4a648b15662699a1bc8297cb89f5ecff1c3c96ef` |
+| v3 | Remind me every so often to turn the pan. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":41,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to turn the pan."},"interval_ms":360000,"message":"turn the pan","type":"schedule"}` | expected=allow; tempting=allow | `sha256:b81f81ac7213f5ccfecf5934505361864c7ddc5e456888c72ef16748a8b33444` |
+
+### [ ] f06-t06-a
+
+- Twin: `f06-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every 7 minutes to call the desk. | `{"instruction":{"end_utf16":43,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 7 minutes to call the desk."},"interval_ms":420000,"message":"call the desk","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:72cd35f511091e7f11f2e95be09076216e3307856dd956e9ce363ab575b96df8` |
+| v2 | Remind me every 7 minutes to check the queue. | `{"instruction":{"end_utf16":45,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 7 minutes to check the queue."},"interval_ms":420000,"message":"check the queue","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:46745fffec463dad2e6642b4d713b2c9a3527389cbf063e6e891e4d85419e4f7` |
+| v3 | Remind me every 7 minutes to review the inbox. | `{"instruction":{"end_utf16":46,"event_id":"e_000002","start_utf16":0,"text":"Remind me every 7 minutes to review the inbox."},"interval_ms":420000,"message":"review the inbox","type":"schedule"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4cb39495049341815a44b989fc79893cb4984fbf8b59282d0e1045fd7348d642` |
+
+### [ ] f06-t06-b
+
+- Twin: `f06-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every so often to call the desk. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":42,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to call the desk."},"interval_ms":420000,"message":"call the desk","type":"schedule"}` | expected=allow; tempting=allow | `sha256:5936187e4997eab37bde832421057f706e1561be19f7f1466671082084f0226e` |
+| v2 | Remind me every so often to check the queue. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":44,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to check the queue."},"interval_ms":420000,"message":"check the queue","type":"schedule"}` | expected=allow; tempting=allow | `sha256:11b1e7951e2ad8f2ad3551ebc1ef24bbc5a7a3708f6b3973c9d8b6b252eff0ea` |
+| v3 | Remind me every so often to review the inbox. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":45,"event_id":"e_000002","start_utf16":0,"text":"Remind me every so often to review the inbox."},"interval_ms":420000,"message":"review the inbox","type":"schedule"}` | expected=allow; tempting=allow | `sha256:9914adcd0dbaab0ff3db860aae484da47b16b4206ce6d119df972d18c8efb4c0` |
+
+## Family 7: timer fire: floor-independent nudge
+
+Flip: `user_floor_open`
+
+### [ ] f07-t01-a
+
+- Twin: `f07-t01`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:e4ac308691fe016f2ff6e383af4e229944fc19b5273dab663e5240f2f3b9ebaf` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:982a059584a1e608091e7e13498e5fb09535c4f125994b1c8f0f634d5723178f` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:6eedda9f4b6686c410d795ecc24f8f945589f444692cc54251505617b02488ef` |
+
+### [ ] f07-t01-b
+
+- Twin: `f07-t01`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:302d40f3738920ebeea826e9106dc888771308c9b634a015f6b9b44efcb9dd2c` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2ed10910b20eecd132acedb4353125c2a02d8433f6ba3aeef83f740e7eb79278` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:61329cab6c3bb4c2537445d2e3165ea9bf9012718d388c4c61a54f20777e752a` |
+
+### [ ] f07-t02-a
+
+- Twin: `f07-t02`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ca251e751364e42a44b1157226bf1999eeec7c5b99baa16bb020b966f4ca32e9` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:aa8676dd0e1fa63a15f4b178546f29d0e10eea8a3226134cb8abee52d71dee55` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:41039773b78f0b9ae91233219254a09f25ee5535c5e4b62b6bd95b435f54f1e0` |
+
+### [ ] f07-t02-b
+
+- Twin: `f07-t02`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:84978d069f1a2fc43090db1af6bd4dd83b0bc7a919188067e4191b94167618df` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:8f3dd75dba27e6f91464dc6e07131b06816e7fba6e75b54b4ffd5ec8c3e9e3ee` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:8598197e0cc9901602056655219f9f762fd5c96b319b6065c5cee64f13e9e0af` |
+
+### [ ] f07-t03-a
+
+- Twin: `f07-t03`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dc1895eb5bc5b313116bb59427418150851da7497fe604aeb729a12d851e0f7a` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5482ac57f5c78cb73574b08d53b9f0bc57393aade7f6e596943a2fb1bf6debfd` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4b84418d385e3cb680ba239ef475fb5e5ffa302b76039a2b349d132bfe98903f` |
+
+### [ ] f07-t03-b
+
+- Twin: `f07-t03`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a00fb89b54fd18bbbde299dee739eb8890739e01a9bb7292c33159746599cbd1` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:d136f223b9345648895eb93b8ddfef4739830f5d392b7c07146021e604024b52` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:21dfc5b5d096972280b72d91b0ce221f41bf4a6cc70076e5dfc0b8a54a41b682` |
+
+### [ ] f07-t04-a
+
+- Twin: `f07-t04`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3f7a0feb456f5611584c5d39a10643f9e91c24b0b0fa42e0dc355fff885b67ae` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:0887367cafd4b94a7575cbd5ed8057ca73cd1509e5695166b47277480c59a77e` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:147893308dc71d626f199a9aea0dece178bcbd839dd61bc755df73914603925f` |
+
+### [ ] f07-t04-b
+
+- Twin: `f07-t04`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:01714369e334611040b017803d5b3c9e98e28149d34596ed334f298decf041ed` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a01fd3355ab4ff0b44e07d8f22cbbc49b3bc359ae4fcb20f5e4ed82d528b5a7f` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:07c9609308b37a2c75248c0aa778d51082ee0461c57fd9e2ad793b4371cf1e1b` |
+
+### [ ] f07-t05-a
+
+- Twin: `f07-t05`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:62bcf806bbe9a986c15bb52cc27ec0365912e3bcdce20ad94059c5272bdbf155` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:7ae7134fd56bacf9613e8b5b71585f48b4c2a8d54b88c300334cdc46d2d63b9a` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:052e4c202998f7266d0af9b312294f231aac63135312d83a162ce584e4446914` |
+
+### [ ] f07-t05-b
+
+- Twin: `f07-t05`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:51202af010bc5fb5be5c2f954b68487411f6cd3ec17f46c5ce1022ace6b10f1a` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:aba33d74634b94a4e28ee4ff418aa8ca3115f17ad1eafa6d68dcdf8cd6d34771` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a13645e7b93736c9832276948bf391644c76c83f9358f4423473835a6311d494` |
+
+### [ ] f07-t06-a
+
+- Twin: `f07-t06`; side: `a`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:cb272a26a4362ff47da6fcc938660e52e3616820a38b13db69dc2bce9bdf7075` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:16d2da3b9011fca94164b52fcd583421f45f26f7428845afed8a596d26ee62f1` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:40f637e786ecdbf4b8445b1e42a6cff629eca7dd7882696a4797f1c88f681440` |
+
+### [ ] f07-t06-b
+
+- Twin: `f07-t06`; side: `b`
+- Negative class: `semantic_preference`
+- Secondary assertions: `floor_invariance`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am still writing this sentence | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:56b8f1f752ff3f1892c0d5f24e2faa6a3003e8ae45b99d3a6290c75682cc15fe` |
+| v2 | I am continuing this draft | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5ca603a47fb2bb96602d3ba9b7c862a91fb3e9e01563f122bcf3682b2ad0e516` |
+| v3 | I am composing one more thought | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f35298dbbbdf248d828845009cc5d3296d0e0669f8bca7db92f993f1eea9562f` |
+
+## Family 8: timer fire: active versus canceled timer
+
+Flip: `timer_active`
+
+### [ ] f08-t01-a
+
+- Twin: `f08-t01`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t01-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to stretch. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:6b2372a07d5e62340b1a2eda480cd0bf5079874c725304abec14cb648a05ff68` |
+| v2 | Remind me every two seconds to drink water. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:b2efd6477969a66293de4b19eb03b0b4282a84cf733d3309b68db7721574d197` |
+| v3 | Remind me every two seconds to check posture. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:c96bc7f2b7369a958c416650610871691b1bc2b47775caa9812b85377f287afb` |
+
+### [ ] f08-t01-b
+
+- Twin: `f08-t01`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t01-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:f4810ab3608e2a02731638059cc548617c7784f60ff4c62fe3ea9b1ea5d60e39` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:6811b81c7b01cfe58b61058b4422c3478def722ac53e2dd991951191ef2566d1` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:aedbe7e1aeba031d9087b9571049cbed9f4faf923fbf156c73f780686be1a500` |
+
+### [ ] f08-t02-a
+
+- Twin: `f08-t02`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t02-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to review notes. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:7d4b7e26dd5f7d61291e1a8d1a6e0025cc51a63aa4489ba9b962b7c42f5f57d5` |
+| v2 | Remind me every two seconds to save the draft. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:64d8c9b38b0b9ec63199c3ee95cae5f2be64718e4d5edc3b2031119dfea39059` |
+| v3 | Remind me every two seconds to check the build. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:0973fd9ff21a2487875d5bcf04f4f45facdcaa7e5346f1c5767954eaf208117b` |
+
+### [ ] f08-t02-b
+
+- Twin: `f08-t02`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t02-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:4fdf24b7977e0adecf5c6036423b3569bc9dc4d779a4d82fc971e5eb601e81a6` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:758b7c56e2b307cf3c82bf6f5c76ab808dc026a14f4fdfc3d8dd5acb84fab8d6` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:4eec206c900e4deb55bf38bfc1b1a807cdd411f2355c4890e337f4f1a9aa5f9d` |
+
+### [ ] f08-t03-a
+
+- Twin: `f08-t03`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t03-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to water the fern. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:d1d221e18dd3fdb4194dc6426a9a72aeb1238f96e3ce6a07709afba676901de2` |
+| v2 | Remind me every two seconds to feed the fish. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:26e2939fd273199534e06f0e625f775cd61fc84cb77623b5b73831b582731575` |
+| v3 | Remind me every two seconds to open the blinds. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:b633572da7215b7e6e0241d21d1dd685f49986efa4c591e23343007edeaf4865` |
+
+### [ ] f08-t03-b
+
+- Twin: `f08-t03`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t03-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:d6d359a492e33886a376c7a05bc2e11d97f39df8599ff566b95035ce432ade57` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:ae60aeb9705d34f5ab96b7ab092a5def93718ea0530c4036cb2b64fc6951e49a` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:e41b53e82898d4a7487899d45e1230f590b42be18796849bcd7dc969c90f4805` |
+
+### [ ] f08-t04-a
+
+- Twin: `f08-t04`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t04-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to stand up. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:9cf876117e966e1e9259244566d283c2ee18c4648efd1816d36d529ee175bba1` |
+| v2 | Remind me every two seconds to rest my eyes. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:3ccd17957ac4acba2e2eaf2736087182119464d1459200471dbd2b76a902aeff` |
+| v3 | Remind me every two seconds to take a breath. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:43095f902249b31c5b9d5ea360c1420d31d3df8394de2602db4ad1b74b9f81f6` |
+
+### [ ] f08-t04-b
+
+- Twin: `f08-t04`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t04-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:35e0dac57ab5c3c1af8fa9fbf3f0f51fd02755a0a544b60bea44d6eaf411da83` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:f641e44edd2375c2dc4ae951b07898886a868355577b7bf72da469924d4e0581` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:f5398e37203358aad739569ff0bb6ba1dca8d36c5699ab615ab4da959978e7c0` |
+
+### [ ] f08-t05-a
+
+- Twin: `f08-t05`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t05-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to check the oven. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:5c0380b2b0d90d48268844b9790562570fd4891c06ad1862ce0e5d1999ad30d4` |
+| v2 | Remind me every two seconds to stir the soup. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:32a4fe980820000801da1fa30a1dcfdb7b834aa2bfc32fc739b3ea4d5739ae8f` |
+| v3 | Remind me every two seconds to turn the pan. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:30fa47d566976f79b53837e2a3f713c6c49df5678c583fbc1acd5957fbf35052` |
+
+### [ ] f08-t05-b
+
+- Twin: `f08-t05`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t05-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:7858773d8e513a3a0a5502d27feda3befc69064faa6733e060743c858b949e73` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:f8ef8c64425aca074f3b9dea3b6b85d76c47c982ebe5885a63259d0a0370e8e4` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:23134fc2575b1080ba15e9fadbe72085ecd949563b592c7ea944e0e4aa7aa09c` |
+
+### [ ] f08-t06-a
+
+- Twin: `f08-t06`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t06-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Remind me every two seconds to call the desk. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:6d15601f11bf7a13281dda26c5bcc36933ed52feeed8804878c29de435255919` |
+| v2 | Remind me every two seconds to check the queue. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:7168eaeae6eed3ace089a1c070f5a0fcf93fd60634c3ee6a5163a640a5d543df` |
+| v3 | Remind me every two seconds to review the inbox. | `{"fire_event_id":"e_000005","type":"nudge"}` | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=block:reason_mismatch | `sha256:48de725b165f0d2d9cd8caf3db260c543fe6ed9eba842bfc2ba4a7ad8b37c552` |
+
+### [ ] f08-t06-b
+
+- Twin: `f08-t06`; side: `b`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `timer_active`; release state: `f08-t06-a`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Cancel that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:01acd4481408b53d969519368c64b0723f5347a077bad34e26e3ea68153c33dc` |
+| v2 | Stop that timer. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:f58d608348e348a546a4e0dadff8c6ae2176d9ee8c15d3f375643727d1405287` |
+| v3 | End that reminder. | `{"reason":"canceled_timer","target_event_id":"e_000005","type":"skip"}` | `{"fire_event_id":"e_000005","type":"nudge"}` | expected=allow; tempting=block:timer_not_active | `sha256:66f008f9b726bfdf3414df61eb62d375a2de7f98a25b97435cfbbcbadf6fa7b0` |
+
+## Family 9: cancel: one versus two active timers
+
+Flip: `active_timer_count`
+
+### [ ] f09-t01-a
+
+- Twin: `f09-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f37e160344b17921c880080a7ec577f86d6a0da7fc147a3fcfa019bb1c3d0fef` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:ba47021b64ae6fa3b5d5c78094d8f81ca5f59a12e765ef7de5e488895c90d5b3` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4e99b721dd767eab033c9caa01e39115fafb4923c7a8e316ca7cc9d896de761d` |
+
+### [ ] f09-t01-b
+
+- Twin: `f09-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:7d88d2bed008f8dadb81664818541f02dc9b1fd530818ef0ed297d58851ac5ec` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:885c924c3abd1059e1045c45fdf614b3d2fde50f54e97cfdeaf03dcb4c2607b9` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:f6fb0a07fa788697d9d782b04c740ab32794ec8cb12f82878bf9187978df56b9` |
+
+### [ ] f09-t02-a
+
+- Twin: `f09-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:38831a3286fe4e1f12c0123256f8bd525b977a85bbb5dd8278395ccc7a113285` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:6e7996fc217d4f7e688fe0046507df9098d34562cb6fbf16cb0e6f5de91db595` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:44bf9c3476e3b7adce08f59d24375c6d4a37eb69c37ce61bb73800bfc93c46ab` |
+
+### [ ] f09-t02-b
+
+- Twin: `f09-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:cc70f22b4d025bf1854e2a46b04d52743a98e5b6ed58c7feb715004614dfeb58` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:db84727e3c7c01ac800d3d4e612b8056b97fae536217581ba087c5ada51a3414` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:114010a714ab334d845b7a28702addeb8f0d4a2e6f8c58bbf04506222a5eaefb` |
+
+### [ ] f09-t03-a
+
+- Twin: `f09-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f39f19a6df8f091b88ed67e806c3244797a09da7ff0249c2d5d9fa7cea669db8` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:6d181c650981d52f05a1d85bbd061aad0349ad72d6d66407aede7adca8624207` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:53522c8fe529916946c364292e098f015a16f942906e8148d9c0995b4b844976` |
+
+### [ ] f09-t03-b
+
+- Twin: `f09-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:0919a721aaf855263c4e2419ec28e84029772e25d79b9d57361d9e86b8497eea` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:65dd4b45270c8950789d033355a40981193799998bce5e5fd14600c195e04de1` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:f152b0f730d0081dcedc0661be805cdd45962d984bfe6660eb817690bc81b711` |
+
+### [ ] f09-t04-a
+
+- Twin: `f09-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4b01b708e4a3323724ded6c2dccc07fb6b6549a113bbfb11634ae39f0263593c` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b017035796c37537005997e35245511bf977b08b4406f8c7600b86be2a3291b7` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:e38aa6a1754eae723b856430db34ad1f6fc3f4784c325bbf32ef4cae2a4fe82d` |
+
+### [ ] f09-t04-b
+
+- Twin: `f09-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:ba4c16eec0b2fa73b1f0fd3b8c034baa8acf8a01f97de3fa57021942b4010232` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:965b95a92c33bbfed073fa7cb069f7d176d03ffe09a0e73a0da99d5be982cd29` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:a843a74d949744a749960b1692d2d281e23ea36e81430b8799fe44cac769b97c` |
+
+### [ ] f09-t05-a
+
+- Twin: `f09-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9a1020b90799c71d1fcc6e17604b732e95150bf2e3e0a80c1d50cfde093e24e2` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dbd283da8a6de978e7ed7786a8cfc3fccf61fa19f39a807cedebc696249de56a` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:583daf5566e4afe1fafeff29669211b5686281b4edb5f1889fc6e4177b9c3dea` |
+
+### [ ] f09-t05-b
+
+- Twin: `f09-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:6e1c9e4519fcd62238be2798d4a47a7dcd50b33bd7645d2baa14efd888578667` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:91fe8f03e4ad3227ea7c418336400a993515a2e25e1648edbc543bfb56ca9ee7` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:9ea77b0ab7df16dc959fac7e6318f3408674711efa9c3fd0e0b5905067312a5d` |
+
+### [ ] f09-t06-a
+
+- Twin: `f09-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"instruction":{"end_utf16":5,"event_id":"e_000005","start_utf16":0,"text":"Stop."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:1360517c681f8b530d00cd38138767a59d60c71b32f49e4985c9325439a30a66` |
+| v2 | Cancel it. | `{"instruction":{"end_utf16":10,"event_id":"e_000005","start_utf16":0,"text":"Cancel it."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2e276060c5256fd1a32fd9a2f6d8aa98982eeb2a051e1f13e471047b6e7922bc` |
+| v3 | End the reminder. | `{"instruction":{"end_utf16":17,"event_id":"e_000005","start_utf16":0,"text":"End the reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:8557d4d8e37568b9b1d96da7aef8f4f77d17ca8141de91b7ba022e0b76c902e1` |
+
+### [ ] f09-t06-b
+
+- Twin: `f09-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Stop. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":5,"event_id":"e_000008","start_utf16":0,"text":"Stop."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:2507beb789959a09081823586bb2ee8140ec5ca389fa8f2947504b846e7356e0` |
+| v2 | Cancel it. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":10,"event_id":"e_000008","start_utf16":0,"text":"Cancel it."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:bb026d13457d4c7433678d877d23b63b818f5e0e5859f2ef17b883f7427e3ab3` |
+| v3 | End the reminder. | `{"reason":"ambiguous","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":17,"event_id":"e_000008","start_utf16":0,"text":"End the reminder."},"target":{"kind":"all_active"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:ae012b3e3c09ea37669df534cb173c174fe4ef13658ad3ecfb76026c11d3698a` |
+
+## Family 10: respond: active floor versus explicit yield
+
+Flip: `user_floor_open`
+
+### [ ] f10-t01-a
+
+- Twin: `f10-t01`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t01-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Which option would you choose? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:ff148feaaf0f6f168aef043a96adfd11f8f8097751e190304665f61627c679db` |
+| v2 | What approach would you take? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:53c035b62301aa6d726d3c42b24c3af01002f6681d5fa4d18cd2bdd72f077c84` |
+| v3 | What do you think? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:3b8826a38e50bb59fab5caf4398384a9f65be841e1542c1d8133034ac00199ae` |
+
+### [ ] f10-t01-b
+
+- Twin: `f10-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Which option would you choose? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5d38d7ae8acb0a119b121edf57ef4c14715860213b921a6929c32f04af76ff79` |
+| v2 | What approach would you take? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:766780d19797c6ff00fdfbbd4dcc8f0a30fd2b269147c7a21f4205935a12e599` |
+| v3 | What do you think? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:eb117b821e34c532c946eea7327240b6d5b569c19e15140a07bcea4601fad22e` |
+
+### [ ] f10-t02-a
+
+- Twin: `f10-t02`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t02-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Should I simplify this? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:2a764b7655101e6c4a4c36ca6c76170217caba333a41edb001dc9d1b21559538` |
+| v2 | Would you keep this version? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:f5edaac290759fd841dfe62a83e5f67df99b88bf27651b585c2168b4eb7f1888` |
+| v3 | Is the shorter draft clearer? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:f67b09575711cd3fe37ea10e8559bf32f31d8369842361171554c44243ea21fb` |
+
+### [ ] f10-t02-b
+
+- Twin: `f10-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Should I simplify this? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:fe69b736080569e8fc58f594076916e02c8313152e7ad581d91d69ea62eb4cf6` |
+| v2 | Would you keep this version? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b4c8c37b23c4eca0225f48c44b3194fd8b49cc96ae2c865c96d0f7f1a15aa00a` |
+| v3 | Is the shorter draft clearer? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a122658fe99ca687df09a22bfc1bbf2bb01d9a5a457a10e0b74241eda174f3c8` |
+
+### [ ] f10-t03-a
+
+- Twin: `f10-t03`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t03-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Can you compare these ideas? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:963f4db1569b7e8ca4309cdf7c74ccda143d1d1fd3c9a6b9d0215c76cdb530bb` |
+| v2 | Could you weigh these options? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:a817d9775c78abcbe4ab3710a172a01258a81e132f2fb03c83347932f0123976` |
+| v3 | Which tradeoff is better? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:4c2a302112850f9cdc0c4d8113bfa56dcf6a6ffc567186c5d63d1bb35a0140a0` |
+
+### [ ] f10-t03-b
+
+- Twin: `f10-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Can you compare these ideas? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a7a5f3ea61dc291dc10c483668bc17627bb97721a8416a2187285698a1802d4a` |
+| v2 | Could you weigh these options? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dd2f68806670467a2bcfab54fa9fe937f409fc6334ffc9bc7adfd64ca836b96a` |
+| v3 | Which tradeoff is better? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:73b9bcd00a013b1b2ac087ce8538428a4c3f42e3d9caef5cb855488add8d35ef` |
+
+### [ ] f10-t04-a
+
+- Twin: `f10-t04`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t04-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Does this plan make sense? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:5d8fa408ea9f9238df3fc714ae06c9eed2347caeb8536e3d34ded9ea2fcd0c5c` |
+| v2 | Is this design coherent? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:7786005b71154ba695aa1311619d735a588ad3b173f22e471ade4171d8a8511c` |
+| v3 | Would this workflow hold up? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:cd16d7b191eb1bc471120dd68e99096302170083f1b3fb1f6c1666086a54640a` |
+
+### [ ] f10-t04-b
+
+- Twin: `f10-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Does this plan make sense? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:90b113eedfc0394f06c6ff65098c7b858342d774df2b3ee63486969effe61954` |
+| v2 | Is this design coherent? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:0b418fd78847e948017cb386ce445d9742f39ee1eb2238bd56d2aa0b187469d7` |
+| v3 | Would this workflow hold up? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:90fbe792e57e9a0a64662e346d4bf053d766d1e463627a0ebcca204d1d0f06c4` |
+
+### [ ] f10-t05-a
+
+- Twin: `f10-t05`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t05-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | What should I do next? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6527d982e23d1b25d00b955bd1bf444724d896b4a6768aefec6453d37ff79614` |
+| v2 | Which step comes next? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:5c4a987678b1e9234d85b0761e78e156169dcb177f92687df0dc13e27e87b7f3` |
+| v3 | How would you proceed? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6f19c3fd12eb9a674b3e5b65ff564a6fd64fdc3fdff51b74f28338d234936389` |
+
+### [ ] f10-t05-b
+
+- Twin: `f10-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | What should I do next? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3f089eb0a4674810e50fddd23b87025fd3d087b97bad6124c801ac06a7c643e5` |
+| v2 | Which step comes next? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:29ef11f899bdccbd0bbfea7ce8e8700d016bbfde58758518f6f1b06bc589b39d` |
+| v3 | How would you proceed? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9e8a3afbc1c2db757868bb6810537c21cc54658d9265d03c86afd64ae08e6207` |
+
+### [ ] f10-t06-a
+
+- Twin: `f10-t06`; side: `a`
+- Negative class: `mechanical_negative`
+- Isolated blocker: `floor_owned`; release state: `f10-t06-b`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Would you recommend this? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6861f1cf2bad3093d12fad8346d13144260684a42d5b0b4565601288719021e7` |
+| v2 | Do you favor this choice? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:cb32b0731f57aa0e9dac642bd9c6dde5bc2da7cd395999c8b2beb3b92d4dee37` |
+| v3 | Is this the better route? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:dbd8511e34ad2b466fc3966374bafbb5eed72453a911a3c82313ccd3067316fc` |
+
+### [ ] f10-t06-b
+
+- Twin: `f10-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Would you recommend this? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3de71210b6e79eb9123c0b9ddf9a2dccf63ffdb505a973ad277092a516453561` |
+| v2 | Do you favor this choice? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:621766849deefd27c64dab7aa9ad9c41e1aca09afc14d4f9d89fdb988b3202d6` |
+| v3 | Is this the better route? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:1f22e149f1821256b745e398685a203ca1bce8df93dd0984b788786fdcbc3ed4` |
+
+## Family 11: tool result: pre versus post rollover
+
+Flip: `rollover_representation`
+
+### [ ] f11-t01-a
+
+- Twin: `f11-t01`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the Chicago forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:41da6fab468ca04fd597e86182a7aa899db1836e40b81a2f7f6c52d599a4b6ee` |
+| v2 | Please retrieve the Austin forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Austin forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b1a8b9d8f14b4daf60343cd829c87810b40f1a00adab75c36d031aca04db054a` |
+| v3 | Please retrieve the Seattle forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Seattle forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:e4a2610fc815bfcdaefb02916936311cbe6b67f13156f379307b8e4bd66f7f09` |
+
+### [ ] f11-t01-b
+
+- Twin: `f11-t01`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the Chicago forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:79ea268fb3a8442d5af0cbbfeee16a95c3a1c9d4a726a73367263f614e5db211` |
+| v2 | Please retrieve the Austin forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Austin forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:70aa342ca151f630d5ebcad2402ddcfebec9f058f3a626179df6cb219ce06ff1` |
+| v3 | Please retrieve the Seattle forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Seattle forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:1140607290a119052aa7bd418a3990eafa56245a3fdaa895500889efc0f072e4` |
+
+### [ ] f11-t02-a
+
+- Twin: `f11-t02`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the match score. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:1d6637c759f70663bbf45ccdcf0388c71b80a5be43cc4c79cb31ba66177532b7` |
+| v2 | Please retrieve the race result. | `{"result_event_id":"e_000005","text":"Here is the verified result for the race result.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:9cbdbe5e903dbd8a609ab9e9e568ce32aa8e26c81050ff803fca1c1d07a1a5d0` |
+| v3 | Please retrieve the final ranking. | `{"result_event_id":"e_000005","text":"Here is the verified result for the final ranking.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:cf5bf2598f71b5f9f36f0e77dc5308edd97356bedc4a7b3dad157b883627b8df` |
+
+### [ ] f11-t02-b
+
+- Twin: `f11-t02`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the match score. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a7bc885e3bc3ab12815b3018788f8c2b0ca213162a791a0ab32843dca6dafcb5` |
+| v2 | Please retrieve the race result. | `{"result_event_id":"e_000005","text":"Here is the verified result for the race result.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:9e72ac4e9739fc9104d37ea0a76d72ad1f1e3cb2ff781740859feea761edb32b` |
+| v3 | Please retrieve the final ranking. | `{"result_event_id":"e_000005","text":"Here is the verified result for the final ranking.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:ef429167e8040175d7cc0c761561df6da9d63838e8a17082935b8c8feee4084e` |
+
+### [ ] f11-t03-a
+
+- Twin: `f11-t03`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the library hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:c848a8ce1894bb5509ef32ed136fbc5deadf45cff8667f008e5921b362afb84c` |
+| v2 | Please retrieve the museum hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the museum hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:64063075c428e70809f4fce0b90184b2faee317c2a1859f192884cb69f5684af` |
+| v3 | Please retrieve the clinic hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the clinic hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2bdce698e832d8fb13aab091de0f67b3abb76c53e5b3c1cff149109c4ee30052` |
+
+### [ ] f11-t03-b
+
+- Twin: `f11-t03`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the library hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:7f29fd6174834760f7fc689b9fe1532c3f4f8aadee583da4b5fb88f99c51e7d2` |
+| v2 | Please retrieve the museum hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the museum hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:678f59b69cf520f88c5f62a21facb71020a163cf082f65e26489b29744881259` |
+| v3 | Please retrieve the clinic hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the clinic hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:bffbb069a5372a3eb2d85547465a33a7ba4cbbe58e1772d27fca2a479433beef` |
+
+### [ ] f11-t04-a
+
+- Twin: `f11-t04`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the latest train status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2299dfd0173f9dc69ebea7f53aef54b87fd023fe3836e7143a6d442d60fea1e9` |
+| v2 | Please retrieve the latest flight status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest flight status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:12f5743cb5e96e32678dd2da036a8726f8b36164445318976c6e010b9dc2c8bb` |
+| v3 | Please retrieve the current bus delay. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current bus delay.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:64b21f3ae7bd68913f77ad008bdf1b78e5824b2b18c0c1d9e302f7a313ed9e5f` |
+
+### [ ] f11-t04-b
+
+- Twin: `f11-t04`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the latest train status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d774aa00bc4412317e4f870e26f31c9f2e18560930d9e92296e7b096d7fce866` |
+| v2 | Please retrieve the latest flight status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest flight status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:439ab26cbb4bc3f58cd62c13d067655cfabde8453bea190f5572c76f758761ec` |
+| v3 | Please retrieve the current bus delay. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current bus delay.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:58327f56e03a3758bfff5625b3fd66a0f1c8c2bcf425c79533198ac7c21f1ea8` |
+
+### [ ] f11-t05-a
+
+- Twin: `f11-t05`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the current exchange rate. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:bdc38b4be2abc731901151eb8bbb41f29903ff1b61d97c757a689f3dddfd831a` |
+| v2 | Please retrieve the current index value. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current index value.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:04cf78400928020971e2529fa20b1ffc0551328a40f2e6a51aa4193f0d560335` |
+| v3 | Please retrieve the latest closing price. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest closing price.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:07473f486c15e3515de0703ab1bb4d125158f9b113b3884b2297ca6a80c732db` |
+
+### [ ] f11-t05-b
+
+- Twin: `f11-t05`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the current exchange rate. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:0838187722c60867690c77c25d669d4b0ffe47f452c626568cf599abfce3b01e` |
+| v2 | Please retrieve the current index value. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current index value.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:67e415f66bf9f1dc0349160c641127d34b5d201d755d49af2a5761dbfe6fc13b` |
+| v3 | Please retrieve the latest closing price. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest closing price.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:ee84ee2db9f8112a872d2160a166b1b4197c01fba2c31cc831acc52982198ef3` |
+
+### [ ] f11-t06-a
+
+- Twin: `f11-t06`; side: `a`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the release date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:0ec3cfddbefa1bf44f6b73c1e24fe01960f643354cc2e03a67fd681e49eda678` |
+| v2 | Please retrieve the filing date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the filing date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:0f6176010f08c03b199e1c605b31b11ad2459558b63f66ed1c1d9f52998eb954` |
+| v3 | Please retrieve the event date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the event date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:46613a771fd04f70192f63870302d75bfd67251199f31a4aabe221e202c0a1b8` |
+
+### [ ] f11-t06-b
+
+- Twin: `f11-t06`; side: `b`
+- Negative class: `invariance`
+- Invariance: `exact_after_reference_rebuild`; pairwise negative: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Please retrieve the release date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:91af81e325045f174608ba94f32a18c996943c1c781f761e3dcf1478d5d6f8a3` |
+| v2 | Please retrieve the filing date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the filing date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8288f4b61dcad60197455b339bbea59f99f5565b29c02b6cb510ea4a4aa18d44` |
+| v3 | Please retrieve the event date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the event date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f0d8759769da3a6c8ecf8b51b2267e3bf05a101c67877b13860e47483bf3c205` |
+
+## Family 12: valid but unwanted versus no-trigger restraint
+
+Flip: `restraint_lexical_content`
+
+### [ ] f12-t01-a
+
+- Twin: `f12-t01`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am drafting a note about the budget. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:6cfde724d7fd91054959caa1a46fc63ef1d59b8d1d3df128c9724e39569e35f0` |
+| v2 | I am sketching a note about the budget. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:116556e4e4718a1721f17c54f84484f746cc5b3edac86ba96477b4f2f0bbe4b5` |
+| v3 | I am revising a note about the budget. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:91334f2bc14cfc15dbfc5b53ff59bac3a346e552a69c61ff2f2aa076086a1ca1` |
+
+### [ ] f12-t01-b
+
+- Twin: `f12-t01`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I am drafting a note about the roadmap. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:0b41fed8c764451fd6c8cf21339fcc4765efe2441d1623eeef6895ea37dbd079` |
+| v2 | I am sketching a note about the roadmap. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:4b814dcb2368596ea295ab38165de7522f52229e7e24c0975b033b09f582b4c7` |
+| v3 | I am revising a note about the roadmap. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:223ea505965540029dfa71b3129f9d8ae54f398c99fee8cf304fdeec29432b98` |
+
+### [ ] f12-t02-a
+
+- Twin: `f12-t02`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Paris is the capital of France. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Paris is the capital of France"},"fact":{"end_utf16":31,"event_id":"e_000002","start_utf16":0,"text":"Paris is the capital of France."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:a3cd36c9c4d57f1d3daa5bd4ba1021bdb6130344e45a799f192e4a202e706f98` |
+| v2 | Water freezes at zero Celsius. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Water freezes at zero Celsius"},"fact":{"end_utf16":30,"event_id":"e_000002","start_utf16":0,"text":"Water freezes at zero Celsius."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:3786f20b104a6ddf4984a54f6e2f2d5de9caeb98086f1c7fdbb9a8f2337df847` |
+| v3 | Jupiter is a gas giant. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Jupiter is a gas giant"},"fact":{"end_utf16":23,"event_id":"e_000002","start_utf16":0,"text":"Jupiter is a gas giant."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:e499bd2e85d63603196e6c8bacfedfc8519a8f724fdf8349d20ba12cdc574d77` |
+
+### [ ] f12-t02-b
+
+- Twin: `f12-t02`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Rome is the capital of Italy. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Rome is the capital of Italy"},"fact":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"Rome is the capital of Italy."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:8493f1995277e60bc8dd904a46069ac82485142915f4245d112ebc75e35c1f71` |
+| v2 | Water boils at one hundred Celsius. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Water boils at one hundred Celsius"},"fact":{"end_utf16":35,"event_id":"e_000002","start_utf16":0,"text":"Water boils at one hundred Celsius."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:4bdacf7dcc095a5654c34fa70affc4513b1fcf9f7bf95ff5e135eb11363d6e84` |
+| v3 | Saturn is a gas giant. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"args":{"query":"Saturn is a gas giant"},"fact":{"end_utf16":22,"event_id":"e_000002","start_utf16":0,"text":"Saturn is a gas giant."},"tool":"lookup","type":"delegate"}` | expected=allow; tempting=allow | `sha256:3006611576117d8edadf3f5fce52ca20204d4916d6778eb7b7eb186b60deb819` |
+
+### [ ] f12-t03-a
+
+- Twin: `f12-t03`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The word cat appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"The word cat appears here."},"target":{"end_utf16":12,"event_id":"e_000002","start_utf16":9,"text":"cat"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:ca0f62f52d3eace8c36c09133b92b5585dce51f712425c186b31dea602863f40` |
+| v2 | The word dog appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"The word dog appears here."},"target":{"end_utf16":12,"event_id":"e_000002","start_utf16":9,"text":"dog"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:d070669f3e1c091348b0ddf8ac19891d2f7607a726c7ea0e83b39b50a4522c75` |
+| v3 | The word otter appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":28,"event_id":"e_000002","start_utf16":0,"text":"The word otter appears here."},"target":{"end_utf16":14,"event_id":"e_000002","start_utf16":9,"text":"otter"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:a197ca3f9173cb8728c8bc5aabb1baf17e09e40d2345a840e8eefa18cff95f29` |
+
+### [ ] f12-t03-b
+
+- Twin: `f12-t03`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | The word fox appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":26,"event_id":"e_000002","start_utf16":0,"text":"The word fox appears here."},"target":{"end_utf16":12,"event_id":"e_000002","start_utf16":9,"text":"fox"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:48310015de363fdde12f21be9c5e0f1b1d1fc9b35d77e52a8f9960733286c5b9` |
+| v2 | The word horse appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":28,"event_id":"e_000002","start_utf16":0,"text":"The word horse appears here."},"target":{"end_utf16":14,"event_id":"e_000002","start_utf16":9,"text":"horse"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:bf80f4898b26149df06882caee5ab9f231455da4409de1d3bb3101f54b566412` |
+| v3 | The word rabbit appears here. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":29,"event_id":"e_000002","start_utf16":0,"text":"The word rabbit appears here."},"target":{"end_utf16":15,"event_id":"e_000002","start_utf16":9,"text":"rabbit"},"type":"mark"}` | expected=allow; tempting=allow | `sha256:c22e159714da3546c3162bc70c9d684bf4ac14b489a70c88066379363ef1b740` |
+
+### [ ] f12-t04-a
+
+- Twin: `f12-t04`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I might start a five-minute timer later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":40,"event_id":"e_000002","start_utf16":0,"text":"I might start a five-minute timer later."},"interval_ms":300000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:3953836772905edfc8c0a8d2ef83eaa5dead33327c098cd491371f6472ff80a1` |
+| v2 | I may set a five-minute reminder later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":39,"event_id":"e_000002","start_utf16":0,"text":"I may set a five-minute reminder later."},"interval_ms":300000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:c2f8ad5df4acd11a124aed9ca733e0c822aacf37649fa5703c516eaff15b943f` |
+| v3 | Perhaps I will use a five-minute timer later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":45,"event_id":"e_000002","start_utf16":0,"text":"Perhaps I will use a five-minute timer later."},"interval_ms":300000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:f0dc1427e5a9323bd8b5ee7599154be496804d69e87310fcfd17db0e79f357b1` |
+
+### [ ] f12-t04-b
+
+- Twin: `f12-t04`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | I might start a ten-minute timer later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":39,"event_id":"e_000002","start_utf16":0,"text":"I might start a ten-minute timer later."},"interval_ms":600000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:ac944ca7585eea3ffd2953202f107eafd2415d1934a334a4ca7f324080f4f41c` |
+| v2 | I may set a ten-minute reminder later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":38,"event_id":"e_000002","start_utf16":0,"text":"I may set a ten-minute reminder later."},"interval_ms":600000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:525a5ce8eedef03b6bb7a8cc3f5e45e9cd2e3b8881d28e518a98e7d6e33dd8c5` |
+| v3 | Perhaps I will use a ten-minute timer later. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":44,"event_id":"e_000002","start_utf16":0,"text":"Perhaps I will use a ten-minute timer later."},"interval_ms":600000,"message":"check later","type":"schedule"}` | expected=allow; tempting=allow | `sha256:ca1fd0ee344013c3b20f05d0345f5003226020a01679cd7d9c9245cc0be14eaf` |
+
+### [ ] f12-t05-a
+
+- Twin: `f12-t05`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | That reminder is working fine. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":30,"event_id":"e_000005","start_utf16":0,"text":"That reminder is working fine."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:110dc8b9135489bf74cbb01c1120a29f25f1be210ac7a3dab27793d63d43686f` |
+| v2 | The reminder is useful as it is. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":32,"event_id":"e_000005","start_utf16":0,"text":"The reminder is useful as it is."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:46193592c2ff828d88fe6cd3653acdb95872de67614ec56b6901c78cca0b2692` |
+| v3 | I like the current reminder. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":28,"event_id":"e_000005","start_utf16":0,"text":"I like the current reminder."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:7db6fbbea8e4e34c126a70ad637a2317b95fa3a474cbaaaa6951dbd1990c6342` |
+
+### [ ] f12-t05-b
+
+- Twin: `f12-t05`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | That timer is working fine. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":27,"event_id":"e_000005","start_utf16":0,"text":"That timer is working fine."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:e5b4423faac6d03ecb9621029d7f30c37c3e6963b0329844773bea4966782272` |
+| v2 | The timer is useful as it is. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":29,"event_id":"e_000005","start_utf16":0,"text":"The timer is useful as it is."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:4e0099190b5c58d77da2ecf2e1349014eed33eea2b3c49a026068fdb883cfd3a` |
+| v3 | I like the current timer. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"instruction":{"end_utf16":25,"event_id":"e_000005","start_utf16":0,"text":"I like the current timer."},"target":{"kind":"timer","timer_id":"t_001"},"type":"cancel"}` | expected=allow; tempting=allow | `sha256:8dc31c81316da2c7f073bfcd5c142464f7c82a1e66f9ab50d94365c7278c2078` |
+
+### [ ] f12-t06-a
+
+- Twin: `f12-t06`; side: `a`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Thanks. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:750b5a4fecab2481ff970ca4fafb47a917ec7cf215b73115e0e93f1c1e9e072f` |
+| v2 | Got it. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:a1fec202313754f7df27e4d4b4f911e8a2d89e7c2ad2a02b32e230eaa7dd9b4d` |
+| v3 | Understood. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:44a62cfcfb4247141ac2110c204f9cffa98afcda0fd243071269e67b6a971d1f` |
+
+### [ ] f12-t06-b
+
+- Twin: `f12-t06`; side: `b`
+- Negative class: `semantic_preference`
+
+| Variant | User-authored text | Expected action | Tempting action | Licenses | Stream |
+|---|---|---|---|---|---|
+| v1 | Okay. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:891b4a8d284d43a37473f981dfcb72c7438aeaa815bbd2da2bc8b64061d6d55c` |
+| v2 | Noted. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:d3a4fdff47e8cd2f3ea309b5b1e966e2ad2db29dac8d6341fe8d60632b7b6163` |
+| v3 | All right. | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I can help if you want to continue.","type":"respond"}` | expected=allow; tempting=allow | `sha256:06988951d380b684c080d59eaf99bbc8ad79eb37c5f33813580773cce88bd183` |

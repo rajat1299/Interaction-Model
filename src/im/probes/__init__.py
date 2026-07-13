@@ -1,5 +1,6 @@
 """Runtime-built teacher probe states and their strict manifest."""
 
+from im.probes.catalog import BuiltProbeCatalog, build_probe_catalog
 from im.probes.model import (
     LicenseExpectation,
     LogicalProbe,
@@ -10,6 +11,7 @@ from im.probes.model import (
 from im.probes.runtime import RuntimeProbeBuilder, RuntimeProbeState
 
 __all__ = [
+    "BuiltProbeCatalog",
     "LicenseExpectation",
     "LogicalProbe",
     "NegativeClass",
@@ -17,4 +19,5 @@ __all__ = [
     "RenderedVariant",
     "RuntimeProbeBuilder",
     "RuntimeProbeState",
+    "build_probe_catalog",
 ]

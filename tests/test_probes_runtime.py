@@ -54,6 +54,7 @@ async def test_builder_executes_schedule_through_tick_and_ledger(tmp_path: Path)
     )
     text = "Remind me every five seconds to stretch."
     try:
+
         def schedule(event_id: str) -> ScheduleAction:
             return ScheduleAction(
                 type="schedule",
