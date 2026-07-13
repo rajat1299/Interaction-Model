@@ -33,6 +33,18 @@ _STREAM_PLACEHOLDER = "{{policy_stream}}"
 _CUSTOM_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _MILLION = Decimal(1_000_000)
 _MAX_VALIDATION_ERROR_BYTES = 2_048
+
+
+def build_batch_line(custom_id: str, body: dict[str, object]) -> dict[str, object]:
+    """Wrap any already-rendered Responses body for the Batch API."""
+    if not _CUSTOM_ID.fullmatch(custom_id):
+        raise ValueError("custom_id must be 1-128 safe ASCII characters")
+    return {
+        "body": body,
+        "custom_id": custom_id,
+        "method": "POST",
+        "url": "/v1/responses",
+    }
 _RETRY_MESSAGE_FIXED_BYTES = 256
 
 
@@ -219,14 +231,7 @@ class ResponsesRequestBuilder:
         }
 
     def build_batch_line(self, custom_id: str, policy_bytes: bytes) -> dict[str, object]:
-        if not _CUSTOM_ID.fullmatch(custom_id):
-            raise ValueError("custom_id must be 1-128 safe ASCII characters")
-        return {
-            "body": self.build(policy_bytes),
-            "custom_id": custom_id,
-            "method": "POST",
-            "url": "/v1/responses",
-        }
+        return build_batch_line(custom_id, self.build(policy_bytes))
 
     def render_batch_jsonl(self, items: list[tuple[str, bytes]]) -> bytes:
         if not items:
@@ -420,7 +425,7 @@ class OpenAITransportError(PolicyCallError):
 
 
 @dataclass(frozen=True, slots=True)
-class _DecodedResponse:
+class DecodedActionResponse:
     attempt: object
     outcome: str
     valid: bool
@@ -453,10 +458,11 @@ def response_content(payload: dict[str, object]) -> tuple[str | None, str | None
     return _response_content(payload)
 
 
-def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
+def decode_action_response(payload: dict[str, object]) -> DecodedActionResponse:
+    """Apply the production action decoder without performing transport."""
     text, refusal = _response_content(payload)
     if refusal is not None:
-        return _DecodedResponse(
+        return DecodedActionResponse(
             attempt={"provider_refusal": True},
             outcome="refusal",
             valid=False,
@@ -464,14 +470,14 @@ def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
     if payload.get("status") != "completed":
         details = payload.get("incomplete_details")
         reason = details.get("reason") if isinstance(details, dict) else "unknown"
-        return _DecodedResponse(
+        return DecodedActionResponse(
             attempt={"provider_incomplete": True},
             outcome="incomplete",
             valid=False,
             validation_error=f"provider response incomplete: {reason}",
         )
     if text is None:
-        return _DecodedResponse(
+        return DecodedActionResponse(
             attempt={"provider_missing_output": True},
             outcome="invalid",
             valid=False,
@@ -481,16 +487,17 @@ def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
         parsed = parse_tim_json(text.encode("utf-8"))
         action = ACTION_ADAPTER.validate_python(parsed)
     except (TimJsonError, UnicodeEncodeError, ValidationError, ValueError) as error:
-        return _DecodedResponse(
+        return DecodedActionResponse(
             attempt={"provider_invalid": True},
             outcome="invalid",
             valid=False,
             validation_error=f"{type(error).__name__}: {error}",
         )
-    return _DecodedResponse(attempt=action, outcome="completed", valid=True)
+    return DecodedActionResponse(attempt=action, outcome="completed", valid=True)
 
 
-def _retry_body(body: dict[str, object], validation_error: str) -> dict[str, object]:
+def action_retry_body(body: dict[str, object], validation_error: str) -> dict[str, object]:
+    """Append the frozen single corrective instruction for an invalid action."""
     copied = json.loads(_json_bytes(body))
     if not isinstance(copied, dict):  # pragma: no cover - builder always returns an object.
         raise TypeError("request body copy lost its object root")
@@ -561,7 +568,7 @@ class PromptedPolicy:
     async def decide(self, policy_bytes: bytes) -> object:
         body = self.builder.build(policy_bytes)
         calls: list[PolicyCallTrace] = []
-        last = _DecodedResponse(
+        last = DecodedActionResponse(
             attempt={"provider_missing_output": True},
             outcome="invalid",
             valid=False,
@@ -632,7 +639,7 @@ class PromptedPolicy:
                 payload = {"status": "completed", "output": []}
             if not isinstance(payload, dict):
                 payload = {"status": "completed", "output": []}
-            last = _decode_response(payload)
+            last = decode_action_response(payload)
             calls.append(
                 PolicyCallTrace(
                     attempt_index=attempt_index,
@@ -648,5 +655,5 @@ class PromptedPolicy:
             if last.valid or last.outcome == "refusal":
                 break
             if attempt_index < self.builder.config.max_attempts:
-                body = _retry_body(body, last.validation_error or "invalid action")
+                body = action_retry_body(body, last.validation_error or "invalid action")
         return PolicyDecision(attempt=last.attempt, calls=tuple(calls))

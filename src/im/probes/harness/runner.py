@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from hashlib import sha256
 
 from pydantic import ValidationError
 
@@ -21,6 +19,7 @@ from im.probes.harness.artifacts import ApprovedProbeCatalog
 from im.probes.harness.backend import HarnessBackend
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.candidates import build_listwise_presentation
+from im.probes.harness.identity import cache_identity, canonical_request_bytes, digest
 from im.probes.harness.models import (
     CacheIdentity,
     GenerationResult,
@@ -109,7 +108,7 @@ class ProbeHarnessRunner:
         view = self.catalog.views[(probe.probe_id, "v1")]
         policy_bytes = variant.policy_stream.encode()
         body = self.generation_builder.build(policy_bytes)
-        request_bytes = _json_bytes(body)
+        request_bytes = canonical_request_bytes(body)
         identity = self._identity(
             probe_id=probe.probe_id,
             protocol=HarnessProtocol.GENERATION,
@@ -244,7 +243,9 @@ class ProbeHarnessRunner:
             probe_id=probe_id,
             protocol=HarnessProtocol.SEMANTIC_TEXT,
             variant_id="v1",
-            presentation=f"{rule.value}:{_digest(_json_bytes(actual.model_dump(mode='json')))}",
+            presentation=(
+                f"{rule.value}:{digest(canonical_request_bytes(actual.model_dump(mode='json')))}"
+            ),
             prompt_hash=request.prompt_hash,
             request_bytes=request.request_bytes,
         )
@@ -353,8 +354,10 @@ class ProbeHarnessRunner:
             policy_stream=variant.policy_stream,
             candidates=presentation.candidates,
         )
-        candidate_hash = _digest(
-            _json_bytes([candidate.as_prompt_json() for candidate in presentation.candidates])
+        candidate_hash = digest(
+            canonical_request_bytes(
+                [candidate.as_prompt_json() for candidate in presentation.candidates]
+            )
         )
         identity = self._identity(
             probe_id=probe.probe_id,
@@ -452,7 +455,7 @@ class ProbeHarnessRunner:
         prompt_hash: str,
         request_bytes: bytes,
     ) -> CacheIdentity:
-        return CacheIdentity(
+        return cache_identity(
             manifest_sha256=self.catalog.manifest_sha256,
             probe_id=probe_id,
             protocol=protocol,
@@ -461,22 +464,8 @@ class ProbeHarnessRunner:
             model=self.generation_builder.config.model,
             reasoning_effort=self.generation_builder.config.reasoning_effort,
             prompt_hash=prompt_hash,
-            request_hash=_digest(request_bytes),
+            request_bytes=request_bytes,
         )
-
-
-def _json_bytes(value: object) -> bytes:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode()
-
-
-def _digest(value: bytes) -> str:
-    return f"sha256:{sha256(value).hexdigest()}"
 
 
 async def _gather_phase[T](*awaitables: Awaitable[T]) -> tuple[T, ...]:

@@ -6,6 +6,7 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TypeVar
 
 import httpx
@@ -18,6 +19,14 @@ from im.probes.harness.protocols import ProtocolRequest
 
 T = TypeVar("T")
 _MAX_VALIDATION_ERROR_BYTES = 2_048
+
+
+@dataclass(frozen=True, slots=True)
+class DecodedProtocolResponse:
+    value: object
+    outcome: str
+    valid: bool
+    validation_error: str | None = None
 
 
 def response_usage(payload: dict[str, object]) -> ProviderUsage:
@@ -56,6 +65,45 @@ def usage_from_traces(traces: tuple[PolicyCallTrace, ...]) -> ProviderUsage:
         if isinstance(payload, dict):
             total += response_usage(payload)
     return total
+
+
+def decode_protocol_response[T](
+    payload: dict[str, object],
+    validator: Callable[[object], T],
+) -> DecodedProtocolResponse:
+    """Apply one structured protocol validator without performing transport."""
+    text, refusal = response_content(payload)
+    if refusal is not None:
+        return DecodedProtocolResponse(
+            value={"provider_refusal": True},
+            outcome="refusal",
+            valid=False,
+        )
+    if payload.get("status") != "completed":
+        return DecodedProtocolResponse(
+            value={"provider_incomplete": True},
+            outcome="incomplete",
+            valid=False,
+            validation_error="provider response was incomplete",
+        )
+    if text is None:
+        return DecodedProtocolResponse(
+            value={"provider_missing_output": True},
+            outcome="invalid",
+            valid=False,
+            validation_error="completed response has no output_text",
+        )
+    try:
+        parsed = parse_tim_json(text.encode())
+        validated = validator(parsed)
+    except (TimJsonError, UnicodeEncodeError, ValueError) as error:
+        return DecodedProtocolResponse(
+            value={"provider_invalid": True},
+            outcome="invalid",
+            valid=False,
+            validation_error=f"{type(error).__name__}: {error}",
+        )
+    return DecodedProtocolResponse(value=validated, outcome="completed", valid=True)
 
 
 class JsonResponsesClient:
@@ -167,30 +215,9 @@ class JsonResponsesClient:
             except (json.JSONDecodeError, UnicodeDecodeError):
                 payload = {}
             payload = payload if isinstance(payload, dict) else {}
-            text, refusal = response_content(payload)
-            validation_error: str | None = None
-            if refusal is not None:
-                outcome = "refusal"
-                value = {"provider_refusal": True}
-            elif payload.get("status") != "completed":
-                outcome = "incomplete"
-                value = {"provider_incomplete": True}
-                validation_error = "provider response was incomplete"
-            elif text is None:
-                outcome = "invalid"
-                value = {"provider_missing_output": True}
-                validation_error = "completed response has no output_text"
-            else:
-                try:
-                    parsed = parse_tim_json(text.encode())
-                    validated = validator(parsed)
-                except (TimJsonError, UnicodeEncodeError, ValueError) as error:
-                    outcome = "invalid"
-                    value = {"provider_invalid": True}
-                    validation_error = f"{type(error).__name__}: {error}"
-                else:
-                    outcome = "completed"
-                    value = validated
+            decoded = decode_protocol_response(payload, validator)
+            outcome = decoded.outcome
+            value = decoded.value
             traces.append(
                 _trace(
                     attempt_index=attempt_index,
@@ -206,7 +233,10 @@ class JsonResponsesClient:
             if outcome in {"completed", "refusal"}:
                 break
             if attempt_index < self.config.max_attempts:
-                body = _retry_body(body, validation_error or "invalid protocol response")
+                body = protocol_retry_body(
+                    body,
+                    decoded.validation_error or "invalid protocol response",
+                )
         return HarnessCompletion(
             value=value,
             outcome=outcome,
@@ -225,7 +255,8 @@ def _json_bytes(value: object) -> bytes:
     ).encode()
 
 
-def _retry_body(body: dict[str, object], validation_error: str) -> dict[str, object]:
+def protocol_retry_body(body: dict[str, object], validation_error: str) -> dict[str, object]:
+    """Append the single corrective instruction for an invalid protocol response."""
     copied = json.loads(_json_bytes(body))
     request_input = copied.get("input")
     if not isinstance(request_input, list):
