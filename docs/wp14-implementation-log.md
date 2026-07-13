@@ -21,6 +21,10 @@
 - Family 2 represents the unsafe side as an animal-name prefix inside a still-open longer token
   (for example `cat` in `catlike`) while both twins remain active. The only behavioral flip is the
   lexical boundary, and the tempting mark remains schema/reference/license valid.
+- The three rendered variants keep the same entity, task, fact, timer state, and declared twin flip;
+  only the user wording changes. Scenario diversity belongs to the six twin pairs. An initial draft
+  varied entities across `v1`–`v3`; raw-corpus inspection caught that substitution before review and
+  it was regenerated as true paraphrases.
 - Manifest-only labels (`negative_class`, block codes, license diagnostics) never enter teacher
   prompt construction.
 

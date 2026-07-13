@@ -68,29 +68,22 @@ _FLIP_VARIABLES = {
     12: "restraint_lexical_content",
 }
 
-_ANIMALS = (
-    ("cat", "dog", "otter"),
-    ("horse", "rabbit", "fox"),
-    ("whale", "dolphin", "seal"),
-    ("eagle", "sparrow", "raven"),
-    ("tiger", "lion", "leopard"),
-    ("yak", "alpaca", "llama"),
-)
+_ANIMALS = ("cat", "horse", "whale", "eagle", "tiger", "yak")
 _TASKS = (
-    ("stretch", "drink water", "check posture"),
-    ("review notes", "save the draft", "check the build"),
-    ("water the fern", "feed the fish", "open the blinds"),
-    ("stand up", "rest my eyes", "take a breath"),
-    ("check the oven", "stir the soup", "turn the pan"),
-    ("call the desk", "check the queue", "review the inbox"),
+    "stretch",
+    "review notes",
+    "water the fern",
+    "stand up",
+    "check the oven",
+    "call the desk",
 )
 _FACTS = (
-    ("the Chicago forecast", "the Austin forecast", "the Seattle forecast"),
-    ("the match score", "the race result", "the final ranking"),
-    ("the library hours", "the museum hours", "the clinic hours"),
-    ("the latest train status", "the latest flight status", "the current bus delay"),
-    ("the current exchange rate", "the current index value", "the latest closing price"),
-    ("the release date", "the filing date", "the event date"),
+    "the Chicago forecast",
+    "the match score",
+    "the library hours",
+    "the latest train status",
+    "the current exchange rate",
+    "the release date",
 )
 
 
@@ -125,6 +118,22 @@ def _span(event_id: str, text: str, needle: str | None = None) -> Span:
         end_utf16=start + utf16_len(selected),
         text=selected,
     )
+
+
+def _lookup_request(fact: str, variant: int) -> str:
+    return (
+        f"Please look up {fact}.",
+        f"Could you retrieve {fact}?",
+        f"Check {fact} for me.",
+    )[variant]
+
+
+def _recurring_request(task: str, interval: str, variant: int) -> str:
+    return (
+        f"Remind me every {interval} to {task}.",
+        f"Every {interval}, remind me to {task}.",
+        f"Set a repeating {interval} reminder to {task}.",
+    )[variant]
 
 
 def _expectation(action: Action, view: LicenseView) -> LicenseExpectation:
@@ -330,10 +339,18 @@ class ProbeCatalogBuilder:
     async def _family_01(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        animal = _ANIMALS[case - 1][variant]
-        command = f"Mark animal names, including {animal}."
+        animal = _ANIMALS[case - 1]
+        command = (
+            f"Mark animal names, including {animal}.",
+            f"Highlight animal names such as {animal}.",
+            f"Annotate animal names like {animal}.",
+        )[variant]
         quoted = f'The style guide says, "{command}"'
-        target_text = f"A quiet {animal} crossed the path."
+        target_text = (
+            f"A quiet {animal} crossed the path.",
+            f"Along the trail, a {animal} appeared.",
+            f"We noticed a {animal} near the trees.",
+        )[variant]
         twin = f"f01-t{case:02d}"
 
         direct = self._builder(f"{twin}-a", variant_id)
@@ -376,10 +393,19 @@ class ProbeCatalogBuilder:
     async def _family_02(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        animal = _ANIMALS[case - 1][variant]
-        command = "Mark animal names."
-        complete_text = f"The next animal is {animal} "
-        incomplete_text = f"The next animal is {animal}like"
+        animal = _ANIMALS[case - 1]
+        command = (
+            "Mark animal names.",
+            "Highlight animal names.",
+            "Annotate animal names.",
+        )[variant]
+        stem = (
+            "The next animal is ",
+            "I noticed a ",
+            "Near the path was a ",
+        )[variant]
+        complete_text = f"{stem}{animal} "
+        incomplete_text = f"{stem}{animal}like"
         twin = f"f02-t{case:02d}"
 
         complete = self._builder(f"{twin}-a", variant_id)
@@ -422,8 +448,8 @@ class ProbeCatalogBuilder:
     async def _family_03(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1][variant]
-        query_text = f"Please look up {fact}."
+        fact = _FACTS[case - 1]
+        query_text = _lookup_request(fact, variant)
         topics = ("Let's discuss lunch instead.", "Switch to the draft.", "Back to my notes.")
         topic = topics[variant]
         twin = f"f03-t{case:02d}"
@@ -472,8 +498,8 @@ class ProbeCatalogBuilder:
     async def _family_04(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1][variant]
-        text = f"Look up {fact}."
+        fact = _FACTS[case - 1]
+        text = _lookup_request(fact, variant)
         twin = f"f04-t{case:02d}"
 
         absent = self._builder(f"{twin}-a", variant_id)
@@ -520,8 +546,8 @@ class ProbeCatalogBuilder:
     async def _family_05(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1][variant]
-        text = f"Could you check {fact}?"
+        fact = _FACTS[case - 1]
+        text = _lookup_request(fact, variant)
         latency = 700 if case <= 3 else 8_000
         twin = f"f05-t{case:02d}"
 
@@ -564,15 +590,19 @@ class ProbeCatalogBuilder:
     async def _family_06(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        task = _TASKS[case - 1][variant]
+        task = _TASKS[case - 1]
         minutes = case + 1
         interval = minutes * 60_000
-        command = f"Remind me every {minutes} minutes to {task}."
+        command = _recurring_request(task, f"{minutes} minutes", variant)
         if case <= 3:
             invalid = f'My coworker wrote, "{command}"'
             reason = "instruction_not_direct"
         else:
-            invalid = f"Remind me every so often to {task}."
+            invalid = (
+                f"Remind me every so often to {task}.",
+                f"Periodically remind me to {task}.",
+                f"Set a recurring reminder to {task} sometime.",
+            )[variant]
             reason = "ambiguous"
         twin = f"f06-t{case:02d}"
 
@@ -614,8 +644,8 @@ class ProbeCatalogBuilder:
     async def _family_07(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        task = _TASKS[case - 1][variant]
-        schedule_text = f"Remind me every two seconds to {task}."
+        task = _TASKS[case - 1]
+        schedule_text = _recurring_request(task, "two seconds", variant)
         latest = (
             "I am still writing this sentence",
             "I am continuing this draft",
@@ -642,8 +672,8 @@ class ProbeCatalogBuilder:
     async def _family_08(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        task = _TASKS[case - 1][variant]
-        schedule_text = f"Remind me every two seconds to {task}."
+        task = _TASKS[case - 1]
+        schedule_text = _recurring_request(task, "two seconds", variant)
         cancel_text = ("Cancel that reminder.", "Stop that timer.", "End that reminder.")[variant]
         twin = f"f08-t{case:02d}"
 
@@ -696,15 +726,15 @@ class ProbeCatalogBuilder:
     async def _family_09(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        first_task = _TASKS[case - 1][variant]
-        second_task = _TASKS[(case + 1) % 6][variant]
+        first_task = _TASKS[case - 1]
+        second_task = _TASKS[case % 6]
         stop_text = ("Stop.", "Cancel it.", "End the reminder.")[variant]
         twin = f"f09-t{case:02d}"
 
         one = self._builder(f"{twin}-a", variant_id)
         _first_event, first_timer = await self._schedule(
             one,
-            text=f"Remind me every five minutes to {first_task}.",
+            text=_recurring_request(first_task, "five minutes", variant),
             interval_ms=300_000,
             message=first_task,
         )
@@ -725,13 +755,13 @@ class ProbeCatalogBuilder:
         two = self._builder(f"{twin}-b", variant_id)
         await self._schedule(
             two,
-            text=f"Remind me every five minutes to {first_task}.",
+            text=_recurring_request(first_task, "five minutes", variant),
             interval_ms=300_000,
             message=first_task,
         )
         await self._schedule(
             two,
-            text=f"Remind me every seven minutes to {second_task}.",
+            text=_recurring_request(second_task, "seven minutes", variant),
             interval_ms=420_000,
             message=second_task,
         )
@@ -806,8 +836,8 @@ class ProbeCatalogBuilder:
     async def _family_11(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1][variant]
-        text = f"Please retrieve {fact}."
+        fact = _FACTS[case - 1]
+        text = _lookup_request(fact, variant)
         twin = f"f11-t{case:02d}"
 
         async def side(label: str, do_rollover: bool) -> _BuiltState:
@@ -913,10 +943,10 @@ class ProbeCatalogBuilder:
             text = texts[case - 1][side_index][variant]
             timer_id: str | None = None
             if case == 5:
-                task = _TASKS[case - 1][variant]
+                task = _TASKS[case - 1]
                 _timer_event, timer_id = await self._schedule(
                     builder,
-                    text=f"Remind me every five minutes to {task}.",
+                    text=_recurring_request(task, "five minutes", variant),
                     interval_ms=300_000,
                     message=task,
                 )
