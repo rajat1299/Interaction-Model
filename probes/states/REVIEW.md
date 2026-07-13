@@ -300,9 +300,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:466daf9fe755ea1728fe3594ab7553381e4049e0301f9fdc91f0724738a0a6f3` |
-| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f5691d80d2c89659bf96373debaab74a4975c08b9740fd98a9a9a9f7a61e4a4d` |
-| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a639651ead9e26bce8f3ccfd698373512e03a5e3dcbd9e4b5186f708d46ae102` |
+| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:7d6d62456b8a42a17817eadebc633791a8cec65b228ff839cdbbd12571d43961` |
+| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:e68d53ed9fc09890e3e74a4d8a4f32db38299f7d043e0459696a1b4355b167c8` |
+| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:36c0e65a99f3687926db6c0c93f64e341bff48c22389bf8b1b11c188c95e05b1` |
 
 ### [ ] f03-t01-b
 
@@ -311,9 +311,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:8beea764b330ba799989804870fab7db1552ef0b92ad014173d86dbbebdf5cf8` |
-| v2 | Could you retrieve the Chicago forecast?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d4daea9a3cfd6aa7a4775592397fb5127fe0f1b4c134238d84319b7257a33df6` |
-| v3 | Check the Chicago forecast for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:beaa0626e1b667cc1f85f616a6be65066ca9fa04e66777553a7a4c75e558b9d7` |
+| v1 | Please look up the Chicago forecast.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:059053e5bdced6d8c4c5986a7e1a666601bb6a7be0caf5ef6abc61a99bdb77e9` |
+| v2 | Could you retrieve the Chicago forecast?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:065f4f65e27902f8efd03eafbca7a6461585fe59203a98c86d9d403bf870fce5` |
+| v3 | Check the Chicago forecast for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:e15e71e317002991618261203a3508f87620cb8087874542a9aff0a84b8ec538` |
 
 ### [ ] f03-t02-a
 
@@ -322,9 +322,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:4d34ede01aa8c7f56a0fb2a6a9a17ac32adbc19d8987f364634cea4438c1712e` |
-| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:757326b6c1d069c2d3835cdcf24f518ebf1d88d136abad275b15885783f5a341` |
-| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:05b95afdd8ded041056878e3f9503323bad6baae7b880c542055e711264e9ca6` |
+| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:25d2a9e4df5a2611b06f0e5a3a7e4adf5cb25a0fec359636d37a9aa62df5cb48` |
+| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b02a14ceeb43a31c539b34fb3bb38fa30c9f460babb4cbf2907c05fe3da7fd56` |
+| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a9cd4f0b94b11fada0231a18e0a7b9e2341e87a75bf988c84eff16884d94e87f` |
 
 ### [ ] f03-t02-b
 
@@ -333,9 +333,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:7a95b85f4385780c736776dbf8ec465b0029c5dce82a66c254f10fb4c64dbfbc` |
-| v2 | Could you retrieve the match score?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2385e17c013232800bbd28f598a4e3fdcdbaa344fef7bba4b1a936ba80198fb0` |
-| v3 | Check the match score for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:aff2a929dac78c48315893fe9678a43921abbdf59215066cb18d804025783220` |
+| v1 | Please look up the match score.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:ea0af9b43ded891ee68dc16e6f6d4e0e4997961a85ff83e4fd9998526cb7f694` |
+| v2 | Could you retrieve the match score?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:05b1ca674239e3f623b815e9120902a20f558e2f83b73f54009368cec4a37c4b` |
+| v3 | Check the match score for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:a6157b9954a44883265dfa9fb2cb1aca6e8c6a7fe07e120630dd71e6476a77ed` |
 
 ### [ ] f03-t03-a
 
@@ -344,9 +344,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5e71a4c078c80b26a60b01d01d8d70fab33e8e62f8fee3bdd2fc51862756f245` |
-| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8ba1a4b402f7edb405c51793adaed9a18a6ed6cce84d08acf817be4ea1737569` |
-| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:705b15976e677b26895e91829545b2ff8cd1d9f4f7e6efae65d3b7094f295ee7` |
+| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:06443034ce9bffcd09391209fbea95ff720cc99572a2a60dbf72dfb3fde9fa11` |
+| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:93b7d2d5f1059c9cc358ad478a35c79afed307ae1055a5091e4676dbd480d641` |
+| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a7851f18e437e14d03317baf21cb3a1a8dc16fba4b9d7facd41c7523ec0733e6` |
 
 ### [ ] f03-t03-b
 
@@ -355,9 +355,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:07a74af3fd0049037c254cdcb1779ebafe424bbbb43dbf1babbd1a9e828ad2eb` |
-| v2 | Could you retrieve the library hours?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d70b44a1ea9c5eaebb60dc6d049651cdf37f328379407ef1bd0864503223fb67` |
-| v3 | Check the library hours for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2c6868886894577fe8674c81106e819ce1adc3711af2f9e27300c9d7b5d932cf` |
+| v1 | Please look up the library hours.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b58ce02fab7d8a14a3b4043ce9100f60e47a78eccc5c12d2b87e297ae415fae7` |
+| v2 | Could you retrieve the library hours?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:bf187d65f485764951ce0629ae33d54f153f48fbbe91be9950ffd3ae71d83996` |
+| v3 | Check the library hours for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4529222b9d325ad66bcbac7b686db3e968feb102018b77882ff5c45f8f948631` |
 
 ### [ ] f03-t04-a
 
@@ -366,9 +366,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5bd63c472e9e2f0a3a02803bd12b8dd1d17628c6f872828f36beb0d27c269527` |
-| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a17fbe45ef725fc727eab968785cf8df03c40e7d7e8451ab9d8571a808e6836a` |
-| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8f50673727fe0976e6f164fc04ec5b20f483783ca18cf4222953c5fbf236a732` |
+| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8d483f19a15e665130f4ace86fcc9ff1d223e95c2122de560461b7d0ebc56eb8` |
+| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:03d215fe0645b71ad76fc4a94279b7fd27a5e085d45ae40fbb03cad7e762e5f7` |
+| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d807ea0bcea543824fec2be334f2b4ba10eba4441f4d1238286fb5a47971a052` |
 
 ### [ ] f03-t04-b
 
@@ -377,9 +377,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d5000a826e90fe0eaabf1f1655ea9642099477e2971d85bcdbaaf3a4fe48541a` |
-| v2 | Could you retrieve the latest train status?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4361b7a5f41383447cda8c6d76a9e649a30ad88757075528511a3bfb6666de9f` |
-| v3 | Check the latest train status for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4181acd0eaf9d79765b1ffd50dd55d4daa7bd9da29ff4c56892c2bb92a71e9d3` |
+| v1 | Please look up the latest train status.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:dbed592fb32f0b91248d95b10f8d65c58dfe5536faa7065f568f6cf800ce33ba` |
+| v2 | Could you retrieve the latest train status?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d736218a809953d21cee29992be4bdb1622b6373b6410d5a7736a6972c3add7b` |
+| v3 | Check the latest train status for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4467a6837f63c4508c2d6bb434b9c0cbf7ebdb81eb6f6e3f9c8d5ccc41e2d112` |
 
 ### [ ] f03-t05-a
 
@@ -388,9 +388,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b9f4b90927c10b0f81b3c57a0668907126db7c382a5da64156c47f9a57c2d942` |
-| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f1bf8d71d7d8a8043bd2c84f3522195f9bb23f94eaff4100d7abc7b98aca4fbd` |
-| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b471d8c787a0e3480b9633f6a052110bc51a034954c867342b6df65ac0b9431b` |
+| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:17f8b39ce4869bec222dd9684dc989b829be4e97980ed584a08ecb002ae2dc29` |
+| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d8a522c1a4bae8c12fe649524eb5d730698b6cb38605ee32a9cbe4b4a18960c5` |
+| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f53e6479ddf9b0b8573313c575f897e11cd511baac59560f6192771a2a64e744` |
 
 ### [ ] f03-t05-b
 
@@ -399,9 +399,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2cae56c4a9c1abaf51fe0988d8f40dfc818616799660496cfec284077131c3cf` |
-| v2 | Could you retrieve the current exchange rate?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:8e6affdec7ab874c477a3e41551c0994b70f11f4bee50e9240138fd4c4042abc` |
-| v3 | Check the current exchange rate for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:7ec90858dd79b573202173107fe69bbf5a07a0d4841c0ca9b94e6ac36c05ea4d` |
+| v1 | Please look up the current exchange rate.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:adb3921afc5fa9fda27fd2b00105ff8de33e77165aa2babf4a0a7ccb3d1ed814` |
+| v2 | Could you retrieve the current exchange rate?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:89a4e7eecec053921dc7ef8285fa5f9e6faf2099c15e34928a0793d4c89302fa` |
+| v3 | Check the current exchange rate for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:56757e049d264edb36c5a9f8b38fafdda5491786fce63e185ceedbc9836cb573` |
 
 ### [ ] f03-t06-a
 
@@ -410,9 +410,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2b876fa34d6735e9c3314200653d4bd36f02ea1d938819975369b038a3121af4` |
-| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:4d0be65fe50479d1a52344dc37ee5fcccb57cb23edb94c6a46dc230f1eee4ae0` |
-| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2706af7b933511f92b45cfa98896574fbb070d75b3b63adada10987fec14a92f` |
+| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:65017710f41d0defa2ad62891555f3eb91e5f5f737b411ac431ccd557ae90a88` |
+| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f7e3104e4654f77e19a41179dc9e8b8d966c59a8df3fa950651ba9e215e476d0` |
+| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:fc6841303b1234b6a60004a79d9130689a05cace5dc28fdb1527195328b7f19f` |
 
 ### [ ] f03-t06-b
 
@@ -421,9 +421,9 @@ Flip: `result_need_staleness`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d6f3fd290f046d838b69f59a0c4696cd6d551bc9b4dd29ab18576c362971a007` |
-| v2 | Could you retrieve the release date?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:c235c411f4139ac83f9a824f5aa0b632510663aba7fb3fac34b9f7b6f9e2d394` |
-| v3 | Check the release date for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The lookup returned a verified answer for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:21f10cc12acb2e0970bc9f8b55a7800deb690c50ba169235be9bcae5040392b7` |
+| v1 | Please look up the release date.<br>→ Let's discuss lunch instead. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b0c5ca901181259de107acfc623162afe334fc8b8fb839f4ba45a5675579ba04` |
+| v2 | Could you retrieve the release date?<br>→ Could we switch to lunch plans? | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:5317a6b2f20bc48fcd2fa56b05e68a4fdf8183a17dbf529f1f452aca76daa247` |
+| v3 | Check the release date for me.<br>→ Back to planning lunch now. | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:354bbd3f3d56d1c2aa69271a7501e4a3ec634cf9f780565025a9bba3f22ac82c` |
 
 ## Family 4: delegate: absent versus pending request
 
@@ -578,9 +578,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast.<br>→ Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:cd8f19de178b0e57e381b84748b883bc422e2c95ff1e7d890b678584fceabf05` |
-| v2 | Could you retrieve the Chicago forecast?<br>→ Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:710834943ec0b461592b414a6b57ed3ce9532fe0f050421bf04d9905d511313a` |
-| v3 | Check the Chicago forecast for me.<br>→ Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:8a66b5e0f1e079827c6fb9543cd79b96b95f587df4a545102e1cf7970395f7e3` |
+| v1 | Please look up the Chicago forecast.<br>→ Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:5787e9749e6b7a6adb63c1cbf69ef56c5c1a0f6feb4016560d9e60ccc077c7d3` |
+| v2 | Could you retrieve the Chicago forecast?<br>→ Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:02899eb682fb74153e9c91e336296670644807729463c961fc92c249bac3b40f` |
+| v3 | Check the Chicago forecast for me.<br>→ Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:5fb17c9b5d735d44a63241035ff91b4abbadac2c1cb6a1f1e6049b2f51572b7c` |
 
 ### [ ] f05-t01-b
 
@@ -589,9 +589,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast.<br>→ Please look up the Chicago forecast. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4143e228dec4b22ce94f241276f0ee8a372c449ed9fcb2f30519c2018001538c` |
-| v2 | Could you retrieve the Chicago forecast?<br>→ Could you retrieve the Chicago forecast? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:4ccc9b944894451527dc5b1cfb443f05621fdb4dc58c90be4dcb9d934c28e1b2` |
-| v3 | Check the Chicago forecast for me.<br>→ Check the Chicago forecast for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b7de9c23861766445084ff9074d1635875a86b65bf0adfd2c5d9d87460cf8c1b` |
+| v1 | Please look up the Chicago forecast.<br>→ Please look up the Chicago forecast. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2efd3a0a19ce539ad9257866c8ba9878cb9043ba5e48a0ea8ff7b4babbf88898` |
+| v2 | Could you retrieve the Chicago forecast?<br>→ Could you retrieve the Chicago forecast? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:c42dc1e8d23b13c28ea3de95bee7bb7b7b14a3b398b9052e88ad2f66d8a7c93b` |
+| v3 | Check the Chicago forecast for me.<br>→ Check the Chicago forecast for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:6afc062ebea65e0fe7c3f85fc22ea80e29be7e5069b4e7352478fb6cf8eac244` |
 
 ### [ ] f05-t02-a
 
@@ -600,9 +600,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score.<br>→ Please look up the match score. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:b106ab5b14df921ab34b315eb95873960ad1c89cea71179001c7bf7fb36ecd37` |
-| v2 | Could you retrieve the match score?<br>→ Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:ad5ad83004d9d48678bdd89ed6f7ff2dcdde2f42c863d8a63252cbea097cf218` |
-| v3 | Check the match score for me.<br>→ Check the match score for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:c60f91ccad3498cadaa1b225a319ef11740d2383bca72ee4b1896a5bf2bcc979` |
+| v1 | Please look up the match score.<br>→ Please look up the match score. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:1d23ac4c6358da9d151e0b39f454867690217559692969c05f16a131b0455796` |
+| v2 | Could you retrieve the match score?<br>→ Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:e426ab073ab17056bf14b397181258758f216d24e7943b45b2b02c42df15c3c9` |
+| v3 | Check the match score for me.<br>→ Check the match score for me. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:902fe5708d559f3e5f2b6790e1dcf843abb3a9947ce6e0c645cd27ca06482f7f` |
 
 ### [ ] f05-t02-b
 
@@ -611,9 +611,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score.<br>→ Please look up the match score. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:c87d824f2c352327090ca6bcf38745e99f94fe575130483c3793d03a73c50637` |
-| v2 | Could you retrieve the match score?<br>→ Could you retrieve the match score? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:0a7060a007bfabda079e7c864027eb9e200789a68d54a7685e2ced576be5f2a6` |
-| v3 | Check the match score for me.<br>→ Check the match score for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:737862f56f6e7f1c044d2b255273bb8b604b359f9169f5ad9e1cd19defe2324d` |
+| v1 | Please look up the match score.<br>→ Please look up the match score. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:071a1a19ae765dfcf52964cd4b8f79b65aa92005b2b1d1be7bfbb68d10cfecab` |
+| v2 | Could you retrieve the match score?<br>→ Could you retrieve the match score? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:94fb7c5f5ed18b98c4625b36e5477a5c156c49e80b9b0564a756d923c3b59055` |
+| v3 | Check the match score for me.<br>→ Check the match score for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:6911ef02fe66af4d24ff411284dc6e03015a7f0e3c79bca86a1792a84dc54bcc` |
 
 ### [ ] f05-t03-a
 
@@ -622,9 +622,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours.<br>→ Please look up the library hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:10035447fd6bb9dbc0628d5e329575e92d00bd7599d81e8f935835a25ad725f6` |
-| v2 | Could you retrieve the library hours?<br>→ Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:6cd66f25ae4339ac2831c0fbe180319579e1b6a8020b42136c3887e3ee49251c` |
-| v3 | Check the library hours for me.<br>→ Check the library hours for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:443dd1c2747476ffbfaa190c9b0ce7ea8dd77f051927e8769e4668e2ec328a82` |
+| v1 | Please look up the library hours.<br>→ Please look up the library hours. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:f89d9df9156876cc40fc21a9ee0b2315024e2afacf8cd98c3f83d35fdf5c9166` |
+| v2 | Could you retrieve the library hours?<br>→ Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:d79b40ae903548f7f45b35b04ce43a812da858f823322bc9759bf6737757db32` |
+| v3 | Check the library hours for me.<br>→ Check the library hours for me. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:a9e706d3b86f071aac79317873175fa28af3cfcc1989a6ed6585035d018f3f71` |
 
 ### [ ] f05-t03-b
 
@@ -633,9 +633,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours.<br>→ Please look up the library hours. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:e5a484a9d299e0d298df74db253b28b309e0730a41f0ad6d90611514eeaccfd0` |
-| v2 | Could you retrieve the library hours?<br>→ Could you retrieve the library hours? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:5e220d3dd4c123c51b922fa4eff231ff25394478e06195ca894cca779f5564ad` |
-| v3 | Check the library hours for me.<br>→ Check the library hours for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:fc1be1dc4cda86fde8476c789358acc1d3996e1f434b229615799bd0fa7b029c` |
+| v1 | Please look up the library hours.<br>→ Please look up the library hours. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:bcf74c93493faf2a3dce86063bdac22656ef2e8ef73a992d803897684483097c` |
+| v2 | Could you retrieve the library hours?<br>→ Could you retrieve the library hours? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:d09000445f2d5e7c0d144f6f77f9ff3db077bd9e88da7953cf85d55bfa5565d0` |
+| v3 | Check the library hours for me.<br>→ Check the library hours for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:02d0bc44b0df3f31a8cafde11f6ef8ba0cf9498bec64b6c9e5f79174dec56f03` |
 
 ### [ ] f05-t04-a
 
@@ -644,9 +644,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status.<br>→ Please look up the latest train status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:2b3eb1054fe984a8c9fa9209a2ad935e5e7bcc5e0104f23dac44b42634b2d408` |
-| v2 | Could you retrieve the latest train status?<br>→ Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:11b216c1538c177ce61dde63bff6ce51135d7e3a73c7bd1d473308bf43eb68af` |
-| v3 | Check the latest train status for me.<br>→ Check the latest train status for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:ae801ed00850c91d4a844f60204dedbf111009479357e6a7f922d3a6411562fc` |
+| v1 | Please look up the latest train status.<br>→ Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:809223541f4c3fd438835cbbe22077e41682677ba12cf49d70ed756d1ce89487` |
+| v2 | Could you retrieve the latest train status?<br>→ Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:58092f3739bf340494d1cd511a4a76c5098f1c42eba83789272011e23b85481c` |
+| v3 | Check the latest train status for me.<br>→ Check the latest train status for me. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:55983d5961c84fb6474f909b8d8ec33e7cc359535419e8982b799bebe80cc1a8` |
 
 ### [ ] f05-t04-b
 
@@ -655,9 +655,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status.<br>→ Please look up the latest train status. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2b40ec3d00b9aa2e144dfcb640c128602228dc1fe56ab9f63fa9a029fe24df68` |
-| v2 | Could you retrieve the latest train status?<br>→ Could you retrieve the latest train status? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:972f3a145ed532b5877ca21e8485be8d68004fbfd5fa8ef87eab865223a8bbcb` |
-| v3 | Check the latest train status for me.<br>→ Check the latest train status for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:bf046c4b5020ae0d339a247bb40d06d72e9f89744c838635a1456a5a04ebd5db` |
+| v1 | Please look up the latest train status.<br>→ Please look up the latest train status. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:2a013ac54a7609e46c828e936c2181ae29dafc84978bf9c60b3d561ead260c13` |
+| v2 | Could you retrieve the latest train status?<br>→ Could you retrieve the latest train status? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:1f46f437fa361186f24789c6d378ad20494ed55cdc37375564f4770849a51d00` |
+| v3 | Check the latest train status for me.<br>→ Check the latest train status for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:145c118335b534f2a5f778d9c63928490ef37ef2c0299ad85aed917c83150194` |
 
 ### [ ] f05-t05-a
 
@@ -666,9 +666,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate.<br>→ Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:664adec4f58cbcfc2268de82032d12c8686a1b3229f8af6029915b9bdd857891` |
-| v2 | Could you retrieve the current exchange rate?<br>→ Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:15302bf7318a99929de75f0723a4a1e759e8b0aed3f1c14ac02f6a66e91e6522` |
-| v3 | Check the current exchange rate for me.<br>→ Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:b796970d7ad4efac8eec962b720ea46e6ae2e27f39090b8f9c0023e576b12ffa` |
+| v1 | Please look up the current exchange rate.<br>→ Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:b4fe56215fc0e5b25398d56019aefedea41047af6befec0d7fecf7eba14d4046` |
+| v2 | Could you retrieve the current exchange rate?<br>→ Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:4f3868a01ed3327a4ca59b4f5d2090bef87430f9379ac9022159861c3ab87fc3` |
+| v3 | Check the current exchange rate for me.<br>→ Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:cabd27ac3650c9ecb1f9b23cef6cd0121c3980bb79fe9f74b30041557d4513bd` |
 
 ### [ ] f05-t05-b
 
@@ -677,9 +677,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate.<br>→ Please look up the current exchange rate. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:7ca11a8a3f6111878c6459be2713c57a14e0c956eb46dea60e2d0354808e031b` |
-| v2 | Could you retrieve the current exchange rate?<br>→ Could you retrieve the current exchange rate? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:77ae8b91398ebd07ab74debe56eb4d1febbf49918c6082fb1c8247d8317b7a5c` |
-| v3 | Check the current exchange rate for me.<br>→ Check the current exchange rate for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:8f64b71e9bbda9f2f8a4398c3f429c3f2bbacbe675e8515dce0ca36cb236d1cd` |
+| v1 | Please look up the current exchange rate.<br>→ Please look up the current exchange rate. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:52b814ec03f96dcc6042cb8e7ed40fe4110897eaf715c8b9af54fc56783a3a75` |
+| v2 | Could you retrieve the current exchange rate?<br>→ Could you retrieve the current exchange rate? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:b3287338098444d4ec3f0be08429661b568d0f9f69bb29883e439ed8669cf568` |
+| v3 | Check the current exchange rate for me.<br>→ Check the current exchange rate for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:ab01d127fa1b94204619b3b2fd3d3a010e430b37518f9dc8258befa9824d6009` |
 
 ### [ ] f05-t06-a
 
@@ -688,9 +688,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date.<br>→ Please look up the release date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:fc5968cfb3e89e62980555b375fe041226a8165d0de1afc4a8b2ba1cee0f9020` |
-| v2 | Could you retrieve the release date?<br>→ Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:a308744007af86fa9dcf7e0bc0b98d9bc8e8f32e592c9d6f8600b06b1deb5ba9` |
-| v3 | Check the release date for me.<br>→ Check the release date for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:893bb22f9c7ef93f524a74852c5968c408a4fb5e97176594dc70ecc1dda80fe3` |
+| v1 | Please look up the release date.<br>→ Please look up the release date. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:972d5560756d6d34c62006dd8472b20469daaec2ac26c5db9b5f8f88380f2836` |
+| v2 | Could you retrieve the release date?<br>→ Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:6983acc33b57e5e29fddc950928db4fc66e1ed4891d1a70e42092fd718d0b6ab` |
+| v3 | Check the release date for me.<br>→ Check the release date for me. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | expected=allow; tempting=allow | `sha256:bd09522e6d1d0e8c5df6fa1d297f9aaf4506a97696cf2e4aab346a03b050210b` |
 
 ### [ ] f05-t06-b
 
@@ -699,9 +699,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date.<br>→ Please look up the release date. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:a34053dc1f98eefcf2b48b21158e7e14e6c6680a2399780eea270ca8d9c778d5` |
-| v2 | Could you retrieve the release date?<br>→ Could you retrieve the release date? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:f1fc1795533cea4ec0c828ddb9d3ec6b645525693a922e71628fb2a965f02ac3` |
-| v3 | Check the release date for me.<br>→ Check the release date for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:6f69d79790f8a3fff076abb3b27f8d754be7a9db0eadff2d1c7072f9184a8a6f` |
+| v1 | Please look up the release date.<br>→ Please look up the release date. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:385c1b07025e74fa7b0962b78846f52ba680bd52332a4f2cf9bf11573bbda681` |
+| v2 | Could you retrieve the release date?<br>→ Could you retrieve the release date? | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:adb5d2bb2a158c76dc1e30311d7a80e63cb49005d3049081150187017184520c` |
+| v3 | Check the release date for me.<br>→ Check the release date for me. | `{"reason":"awaiting_opening","related_event_id":"e_000005","type":"idle"}` | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | expected=allow; tempting=allow | `sha256:fb318b428c09f6f7106f53f459f07d25f97e5c473ad7c946735e356273f49b52` |
 
 ## Family 6: schedule: direct complete versus non-direct or ambiguous
 
@@ -1283,9 +1283,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Which option would you choose? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:ff148feaaf0f6f168aef043a96adfd11f8f8097751e190304665f61627c679db` |
-| v2 | What approach would you take? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:53c035b62301aa6d726d3c42b24c3af01002f6681d5fa4d18cd2bdd72f077c84` |
-| v3 | What do you think? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:3b8826a38e50bb59fab5caf4398384a9f65be841e1542c1d8133034ac00199ae` |
+| v1 | What is a concise synonym for quick? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:74a00d3fb19928bcb07cb0fb86535fe7fa140ee073df20abbf40a6421fd867b6` |
+| v2 | Could you give me a short synonym for quick? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:f00725ea7297f5830e413b6262e77328b0f2335bb54fabb7b69a6b5bf651d414` |
+| v3 | Which brief word means the same as quick? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:06bb9b584bc4fefe69a0630b8b41738e5ee0785ee985c7cfb85c592a948a75db` |
 
 ### [ ] f10-t01-b
 
@@ -1294,9 +1294,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Which option would you choose? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:5d38d7ae8acb0a119b121edf57ef4c14715860213b921a6929c32f04af76ff79` |
-| v2 | What approach would you take? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:766780d19797c6ff00fdfbbd4dcc8f0a30fd2b269147c7a21f4205935a12e599` |
-| v3 | What do you think? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:eb117b821e34c532c946eea7327240b6d5b569c19e15140a07bcea4601fad22e` |
+| v1 | What is a concise synonym for quick? | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:e8577d391ada488a49407d6fa70a0bff9dd45a61290b1f783bbe5834b6ef1d02` |
+| v2 | Could you give me a short synonym for quick? | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:01eafe73957bcd87715b39d511262699895bec073bc6925ce3fda83f99111275` |
+| v3 | Which brief word means the same as quick? | `{"reply_to_event_id":"e_000002","text":"“Fast” is a concise synonym for “quick.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4393acf70ff2fd09280b8615ca5f912f4a830008d4ac08ac8f1730344f02b0e4` |
 
 ### [ ] f10-t02-a
 
@@ -1306,9 +1306,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Should I simplify this? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:2a764b7655101e6c4a4c36ca6c76170217caba333a41edb001dc9d1b21559538` |
-| v2 | Would you keep this version? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:f5edaac290759fd841dfe62a83e5f67df99b88bf27651b585c2168b4eb7f1888` |
-| v3 | Is the shorter draft clearer? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:f67b09575711cd3fe37ea10e8559bf32f31d8369842361171554c44243ea21fb` |
+| v1 | Can you suggest a neutral title for a project plan? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:dbee8b256bfd6c921e1e5dc00ee5c43d775edf282a1477acf03513bd15051be6` |
+| v2 | What neutral title would fit a project plan? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:0ee00a52083b530db87120fa5d871655950a10c3959dbd0e5bf7e3cb9a71577f` |
+| v3 | Give me a plain title for a project plan. | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:83c1aa24ea6177de15ed25b9480fe1805805f5cd3f6d3442c2bf38fb4dee3675` |
 
 ### [ ] f10-t02-b
 
@@ -1317,9 +1317,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Should I simplify this? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:fe69b736080569e8fc58f594076916e02c8313152e7ad581d91d69ea62eb4cf6` |
-| v2 | Would you keep this version? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b4c8c37b23c4eca0225f48c44b3194fd8b49cc96ae2c865c96d0f7f1a15aa00a` |
-| v3 | Is the shorter draft clearer? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a122658fe99ca687df09a22bfc1bbf2bb01d9a5a457a10e0b74241eda174f3c8` |
+| v1 | Can you suggest a neutral title for a project plan? | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3f29f251eb57a596d4a1227126969648962e5e3aeec6e2cf34da41821882839b` |
+| v2 | What neutral title would fit a project plan? | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b93f4e9b68d3b475d2d85e3a6379e6496a75ad502ae784c24425141fc001db52` |
+| v3 | Give me a plain title for a project plan. | `{"reply_to_event_id":"e_000002","text":"“Project Plan” is a neutral title.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:64bab238f826c4c38b9943b7f82dbc48d236249e138eb102fe206e3ea5aa8b56` |
 
 ### [ ] f10-t03-a
 
@@ -1329,9 +1329,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Can you compare these ideas? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:963f4db1569b7e8ca4309cdf7c74ccda143d1d1fd3c9a6b9d0215c76cdb530bb` |
-| v2 | Could you weigh these options? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:a817d9775c78abcbe4ab3710a172a01258a81e132f2fb03c83347932f0123976` |
-| v3 | Which tradeoff is better? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:4c2a302112850f9cdc0c4d8113bfa56dcf6a6ffc567186c5d63d1bb35a0140a0` |
+| v1 | Which is shorter: alpha or alphabet? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:3a63a2fe45f130b4fc85cd674abba49d1df59c6d87abdee1c45becbbf3cff763` |
+| v2 | Between alpha and alphabet, which word is shorter? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:7ee942911db99a2c6846e3dfdf2d943ebdbcf03518401757381cf144fc2f511e` |
+| v3 | Is alpha shorter than alphabet? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:ba2e200dc4bd5d244ad1e8d1fb23d3abfdef13f846b6eeb39a9e12b51f58abff` |
 
 ### [ ] f10-t03-b
 
@@ -1340,9 +1340,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Can you compare these ideas? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a7a5f3ea61dc291dc10c483668bc17627bb97721a8416a2187285698a1802d4a` |
-| v2 | Could you weigh these options? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dd2f68806670467a2bcfab54fa9fe937f409fc6334ffc9bc7adfd64ca836b96a` |
-| v3 | Which tradeoff is better? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:73b9bcd00a013b1b2ac087ce8538428a4c3f42e3d9caef5cb855488add8d35ef` |
+| v1 | Which is shorter: alpha or alphabet? | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:50949148461100b71b1cef6f88173738610b0d0fd01302393c54ed44632a62ae` |
+| v2 | Between alpha and alphabet, which word is shorter? | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:53fb22b6620646758f06821297533bc1c0804171c33d7f02e17bbdb4c8eafb69` |
+| v3 | Is alpha shorter than alphabet? | `{"reply_to_event_id":"e_000002","text":"“Alpha” is shorter than “alphabet.”","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:66be67018a10544f2ac1c2b86e73e34d98efb4983d4f0916a7ed186096bfdcae` |
 
 ### [ ] f10-t04-a
 
@@ -1352,9 +1352,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Does this plan make sense? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:5d8fa408ea9f9238df3fc714ae06c9eed2347caeb8536e3d34ded9ea2fcd0c5c` |
-| v2 | Is this design coherent? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:7786005b71154ba695aa1311619d735a588ad3b173f22e471ade4171d8a8511c` |
-| v3 | Would this workflow hold up? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:cd16d7b191eb1bc471120dd68e99096302170083f1b3fb1f6c1666086a54640a` |
+| v1 | Does this sentence read clearly: 'The build passed'? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:3406e413625b6be72103d45f94136f22ca5ff85c1f4c6bccb2ac53d2b922ac2c` |
+| v2 | Is 'The build passed' a clear sentence? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:b49704317eaaad2dd501640c1091c5ab7674dfec530fe0de247fdcccea2af226` |
+| v3 | Would you call the sentence 'The build passed' clear? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:7cecbdb6c6fb4fa05e289ec9cae5cefe19c6f6f6b08a1c8fe344d942825c68a3` |
 
 ### [ ] f10-t04-b
 
@@ -1363,9 +1363,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Does this plan make sense? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:90b113eedfc0394f06c6ff65098c7b858342d774df2b3ee63486969effe61954` |
-| v2 | Is this design coherent? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:0b418fd78847e948017cb386ce445d9742f39ee1eb2238bd56d2aa0b187469d7` |
-| v3 | Would this workflow hold up? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:90fbe792e57e9a0a64662e346d4bf053d766d1e463627a0ebcca204d1d0f06c4` |
+| v1 | Does this sentence read clearly: 'The build passed'? | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:b178950e61ea72b0cd23f5d36a3c0c67adefd56a01bfad668054411d9dd1dda6` |
+| v2 | Is 'The build passed' a clear sentence? | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:dfc2bfab81a71f778e6ed04ffb5aa1f3e9bf6fec3d40d282d45cbc694bcf72a6` |
+| v3 | Would you call the sentence 'The build passed' clear? | `{"reply_to_event_id":"e_000002","text":"Yes. “The build passed” is clear and direct.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:83ec4f466c30e8c84b6192a91e9602308a2f1c1e7cae1671746f8149371b49f7` |
 
 ### [ ] f10-t05-a
 
@@ -1375,9 +1375,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | What should I do next? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6527d982e23d1b25d00b955bd1bf444724d896b4a6768aefec6453d37ff79614` |
-| v2 | Which step comes next? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:5c4a987678b1e9234d85b0761e78e156169dcb177f92687df0dc13e27e87b7f3` |
-| v3 | How would you proceed? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6f19c3fd12eb9a674b3e5b65ff564a6fd64fdc3fdff51b74f28338d234936389` |
+| v1 | What comes after step one in a numbered list? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:120a77961af8a9e4292e72f1a018de98219fda846a97450444dac145a8a5571a` |
+| v2 | Which numbered step follows step one? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:2f37c21fa6c112609ea224da49d68b82e7e9fff54d677e56967b1ee63c87d7ec` |
+| v3 | After step one, what is the next numbered step? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:eef00ecc44d308829b18d981fadeb7b03ec0c35db0723e68cf92e43c9d8a9665` |
 
 ### [ ] f10-t05-b
 
@@ -1386,9 +1386,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | What should I do next? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3f089eb0a4674810e50fddd23b87025fd3d087b97bad6124c801ac06a7c643e5` |
-| v2 | Which step comes next? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:29ef11f899bdccbd0bbfea7ce8e8700d016bbfde58758518f6f1b06bc589b39d` |
-| v3 | How would you proceed? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:9e8a3afbc1c2db757868bb6810537c21cc54658d9265d03c86afd64ae08e6207` |
+| v1 | What comes after step one in a numbered list? | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:f05b42c5762c504b4b2acc099096549dceddfbac7902e91ecf314d394e2a262d` |
+| v2 | Which numbered step follows step one? | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:7fe5aa2a3221113ec8c345c3f49e98f4c308af4d1e4d582bc19d9fa5a380eb4f` |
+| v3 | After step one, what is the next numbered step? | `{"reply_to_event_id":"e_000002","text":"Step two comes after step one.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:a75152e5263e2fc2ebca37c5c9d2b2dbf53a5795e464495f3263747ff4a6a7d9` |
 
 ### [ ] f10-t06-a
 
@@ -1398,9 +1398,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Would you recommend this? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:6861f1cf2bad3093d12fad8346d13144260684a42d5b0b4565601288719021e7` |
-| v2 | Do you favor this choice? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:cb32b0731f57aa0e9dac642bd9c6dde5bc2da7cd395999c8b2beb3b92d4dee37` |
-| v3 | Is this the better route? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:dbd8511e34ad2b466fc3966374bafbb5eed72453a911a3c82313ccd3067316fc` |
+| v1 | Should I save my work before restarting? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:0bd1faa69dc4f1c67bdf60195c71f49ff8cb98f818aa314d921c8dbe585713f6` |
+| v2 | Would you recommend saving before a restart? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:c76ff660725b4ec2ff602c9a42212d455dd818d4c5f2562ba3cc48a1a71f8896` |
+| v3 | Is it prudent to save work before restarting? | `{"reason":"typing_active","related_event_id":null,"type":"idle"}` | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | expected=allow; tempting=block:floor_owned | `sha256:a5fb38558bf73a6651f716fc26fc7cdd9dca7996ac991c45319bbed4c37f0341` |
 
 ### [ ] f10-t06-b
 
@@ -1409,9 +1409,9 @@ Flip: `user_floor_open`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Would you recommend this? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:3de71210b6e79eb9123c0b9ddf9a2dccf63ffdb505a973ad277092a516453561` |
-| v2 | Do you favor this choice? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:621766849deefd27c64dab7aa9ad9c41e1aca09afc14d4f9d89fdb988b3202d6` |
-| v3 | Is this the better route? | `{"reply_to_event_id":"e_000002","text":"I would choose the simpler option based on the information here.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:1f22e149f1821256b745e398685a203ca1bce8df93dd0984b788786fdcbc3ed4` |
+| v1 | Should I save my work before restarting? | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:af250f5bfb69e4ff2c141f1bbe5c84343970cb9b1569965e11276b42c569bd92` |
+| v2 | Would you recommend saving before a restart? | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:2908f85b994f838c5c5671849517abf94394b943f9bb3e30902b8b2a52ce3f30` |
+| v3 | Is it prudent to save work before restarting? | `{"reply_to_event_id":"e_000002","text":"Yes, saving your work before restarting is prudent.","type":"respond"}` | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | expected=allow; tempting=allow | `sha256:4060f7145c37f98b75c25555f243a490795e8d1ec1560bfe1775ef3bf5beb99f` |
 
 ## Family 11: tool result: pre versus post rollover
 
@@ -1425,9 +1425,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:466daf9fe755ea1728fe3594ab7553381e4049e0301f9fdc91f0724738a0a6f3` |
-| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f5691d80d2c89659bf96373debaab74a4975c08b9740fd98a9a9a9f7a61e4a4d` |
-| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a639651ead9e26bce8f3ccfd698373512e03a5e3dcbd9e4b5186f708d46ae102` |
+| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:7d6d62456b8a42a17817eadebc633791a8cec65b228ff839cdbbd12571d43961` |
+| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:e68d53ed9fc09890e3e74a4d8a4f32db38299f7d043e0459696a1b4355b167c8` |
+| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:36c0e65a99f3687926db6c0c93f64e341bff48c22389bf8b1b11c188c95e05b1` |
 
 ### [ ] f11-t01-b
 
@@ -1437,9 +1437,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:1fcb613cbf84c42bb7cf91a695d110fa067cd7c7a1e359e9263a61dbab9693ac` |
-| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:9e8050ebc08c971bbfcddc4819da426c9e4deb4d1a3d43eddb783d84ca2e3fb0` |
-| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the Chicago forecast.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:7992d824d9ffdd70e969708cc35b621febd5e933fbc49cd7db45f758cd03ab3e` |
+| v1 | Please look up the Chicago forecast. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b3366df911b334ac5ef9579510994ad16aa9fa4e44080423b789f6ea478ff578` |
+| v2 | Could you retrieve the Chicago forecast? | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:00cf7ee4ea495e79e504b8bf4c0df23e915815c0714864a43c450c8da8e57eb3` |
+| v3 | Check the Chicago forecast for me. | `{"result_event_id":"e_000005","text":"The Chicago forecast is 18°C and clear.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a72af0b8527ee97333065d5f2149e003770f00810c026068b40830f936f38d69` |
 
 ### [ ] f11-t02-a
 
@@ -1449,9 +1449,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:4d34ede01aa8c7f56a0fb2a6a9a17ac32adbc19d8987f364634cea4438c1712e` |
-| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:757326b6c1d069c2d3835cdcf24f518ebf1d88d136abad275b15885783f5a341` |
-| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:05b95afdd8ded041056878e3f9503323bad6baae7b880c542055e711264e9ca6` |
+| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:25d2a9e4df5a2611b06f0e5a3a7e4adf5cb25a0fec359636d37a9aa62df5cb48` |
+| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b02a14ceeb43a31c539b34fb3bb38fa30c9f460babb4cbf2907c05fe3da7fd56` |
+| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a9cd4f0b94b11fada0231a18e0a7b9e2341e87a75bf988c84eff16884d94e87f` |
 
 ### [ ] f11-t02-b
 
@@ -1461,9 +1461,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:38fa5ddfa3a2772fe2a532963abacc777057974662bde29d14f99ff9237447d3` |
-| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:39b45b7cf9b75a7dec7813c941c055d5ab2a05d33ec1598fdd0ca81e11d4239c` |
-| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the match score.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:91195d4682831413d7cd0d9df8469714bddc8ea2d872d3d5c3a406fcf1f43bd3` |
+| v1 | Please look up the match score. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:87173960b41fc53434df2ba3b6298c9835a950531f9f7c82541c941856a2a1e1` |
+| v2 | Could you retrieve the match score? | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:212f52c16bfae2d83960fa4b62c2488d4981111ae520a8fe81e81eb2758ba578` |
+| v3 | Check the match score for me. | `{"result_event_id":"e_000005","text":"The match score is 3–1.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d637de3ed11c149b82f461597684bbc70e747d3ed90bb8a670023fcdc17bf49b` |
 
 ### [ ] f11-t03-a
 
@@ -1473,9 +1473,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5e71a4c078c80b26a60b01d01d8d70fab33e8e62f8fee3bdd2fc51862756f245` |
-| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8ba1a4b402f7edb405c51793adaed9a18a6ed6cce84d08acf817be4ea1737569` |
-| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:705b15976e677b26895e91829545b2ff8cd1d9f4f7e6efae65d3b7094f295ee7` |
+| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:06443034ce9bffcd09391209fbea95ff720cc99572a2a60dbf72dfb3fde9fa11` |
+| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:93b7d2d5f1059c9cc358ad478a35c79afed307ae1055a5091e4676dbd480d641` |
+| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a7851f18e437e14d03317baf21cb3a1a8dc16fba4b9d7facd41c7523ec0733e6` |
 
 ### [ ] f11-t03-b
 
@@ -1485,9 +1485,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a59a05ff1bee0689233400ff7b13c6f009b4794b08c382fb0586ec1c9a832a44` |
-| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:c37fe8bcacce5267bf859598dc5c8ee364850351337b78918a68c2bbbe9a7d2a` |
-| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the library hours.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:0e627817acd6afa6a2ac27db0864329083de18dccd9bf038feb9b69f9a191e8d` |
+| v1 | Please look up the library hours. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:dd886ca5c8158e66c0870e29419051dd04408b88773a2cea96c56e18a9b0550b` |
+| v2 | Could you retrieve the library hours? | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:79ae80663bc4ed909886707cd9d62080e2ab4b5a6b0b73d2c95b472eb5eb79a2` |
+| v3 | Check the library hours for me. | `{"result_event_id":"e_000005","text":"The library hours is 09:00–17:00.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:eeb5f9c423094576c1f38761d4c34718e406d8ff781fe5a1193f41d33a815820` |
 
 ### [ ] f11-t04-a
 
@@ -1497,9 +1497,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:5bd63c472e9e2f0a3a02803bd12b8dd1d17628c6f872828f36beb0d27c269527` |
-| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:a17fbe45ef725fc727eab968785cf8df03c40e7d7e8451ab9d8571a808e6836a` |
-| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8f50673727fe0976e6f164fc04ec5b20f483783ca18cf4222953c5fbf236a732` |
+| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8d483f19a15e665130f4ace86fcc9ff1d223e95c2122de560461b7d0ebc56eb8` |
+| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:03d215fe0645b71ad76fc4a94279b7fd27a5e085d45ae40fbb03cad7e762e5f7` |
+| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d807ea0bcea543824fec2be334f2b4ba10eba4441f4d1238286fb5a47971a052` |
 
 ### [ ] f11-t04-b
 
@@ -1509,9 +1509,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:c81460c0b692540be621d18c5af440781d83fcb88c3cbcfe9b461ac00e9f994a` |
-| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:8aa4b96e476e5696d60d5436e4fd4f6df57355fca9fc6617a94bfa9721ee4b49` |
-| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the latest train status.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:22e0cef020537a99c4ec354e4919a831d1536b8c334bb66c96a9e520a266d74e` |
+| v1 | Please look up the latest train status. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:3417d457c5dfef1413cf45893bae9c630b6113bd783104ca01f9b1ac03d58ce2` |
+| v2 | Could you retrieve the latest train status? | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:60f70c8b391f09651419aef1ca33350b8daef56e2b8bf5302bbb5018fecaf5a5` |
+| v3 | Check the latest train status for me. | `{"result_event_id":"e_000005","text":"The latest train status is on time.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:88962c4d016b066878f16d61713038fdc8624ffab36600928ca7d32a9c95dd1a` |
 
 ### [ ] f11-t05-a
 
@@ -1521,9 +1521,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b9f4b90927c10b0f81b3c57a0668907126db7c382a5da64156c47f9a57c2d942` |
-| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f1bf8d71d7d8a8043bd2c84f3522195f9bb23f94eaff4100d7abc7b98aca4fbd` |
-| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b471d8c787a0e3480b9633f6a052110bc51a034954c867342b6df65ac0b9431b` |
+| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:17f8b39ce4869bec222dd9684dc989b829be4e97980ed584a08ecb002ae2dc29` |
+| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:d8a522c1a4bae8c12fe649524eb5d730698b6cb38605ee32a9cbe4b4a18960c5` |
+| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f53e6479ddf9b0b8573313c575f897e11cd511baac59560f6192771a2a64e744` |
 
 ### [ ] f11-t05-b
 
@@ -1533,9 +1533,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:b10d5e2f91b89e4bb61ac03f7340cd4ddb5ee4a31b0b57248aeba1688946cd8b` |
-| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:66b26c71d60fde16617af74cb931d5aaeca4377a87d1ccf29273ef4a356ca1c9` |
-| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the current exchange rate.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:74121f4bb6199b675a0f244a8f03cf24a587131962cd2f26101897356c13e3da` |
+| v1 | Please look up the current exchange rate. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:e6e0fb60ebb8a5431fa5a64ec7dc5526fce0cfa77c574571ffbb359e3d62e025` |
+| v2 | Could you retrieve the current exchange rate? | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:28092079dbd4def4b3634026ca332cc1160dca2332957e1aa02fa40543e4b1b5` |
+| v3 | Check the current exchange rate for me. | `{"result_event_id":"e_000005","text":"The current exchange rate is 1 USD = 0.92 EUR.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:728dc7958d16e9ecc220bb3f852614ff33aa2f6c1a789b00a4dd977681bf1064` |
 
 ### [ ] f11-t06-a
 
@@ -1545,9 +1545,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2b876fa34d6735e9c3314200653d4bd36f02ea1d938819975369b038a3121af4` |
-| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:4d0be65fe50479d1a52344dc37ee5fcccb57cb23edb94c6a46dc230f1eee4ae0` |
-| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2706af7b933511f92b45cfa98896574fbb070d75b3b63adada10987fec14a92f` |
+| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:65017710f41d0defa2ad62891555f3eb91e5f5f737b411ac431ccd557ae90a88` |
+| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f7e3104e4654f77e19a41179dc9e8b8d966c59a8df3fa950651ba9e215e476d0` |
+| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:fc6841303b1234b6a60004a79d9130689a05cace5dc28fdb1527195328b7f19f` |
 
 ### [ ] f11-t06-b
 
@@ -1557,9 +1557,9 @@ Flip: `rollover_representation`
 
 | Variant | User snapshots in order | Expected action | Tempting action | Licenses | Stream |
 |---|---|---|---|---|---|
-| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:e8d5bfef7039c6a47a11fb7d38b545213be4dee40244feb6921c8c82edb88266` |
-| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:22201bcee3f3c4c3dfed0f8e1e7dca8415cb8f74d9e757ef1cd23030d95b334b` |
-| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"Here is the verified result for the release date.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f0f6443f8958644960e7f9ba5f2295c19d7ad7d45d983325e412e4662d8862a5` |
+| v1 | Please look up the release date. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:2383672723cc223f0a83bdda74ef41d66fe4a18609c071f346414f629a32fb8e` |
+| v2 | Could you retrieve the release date? | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:f0d22fe8c7ba3c05201097bb60641450366892500176ffbdf73b79c46a79bfa6` |
+| v3 | Check the release date for me. | `{"result_event_id":"e_000005","text":"The release date is 2026-08-14.","type":"integrate"}` | `{"reason":"stale_tool_result","target_event_id":"e_000005","type":"skip"}` | expected=allow; tempting=allow | `sha256:6018d7bfa6ff312b1f2c5fa5807e5d8d2c2a35557cf14df40dfa0001072010b6` |
 
 ## Family 12: valid but unwanted versus no-trigger restraint
 

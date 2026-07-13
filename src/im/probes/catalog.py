@@ -86,6 +86,14 @@ _FACTS = (
     "the current exchange rate",
     "the release date",
 )
+_FACT_ANSWERS = {
+    "the Chicago forecast": "18°C and clear",
+    "the match score": "3–1",
+    "the library hours": "09:00–17:00",
+    "the latest train status": "on time",
+    "the current exchange rate": "1 USD = 0.92 EUR",
+    "the release date": "2026-08-14",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +144,11 @@ def _recurring_request(task: str, interval: str, variant: int) -> str:
         f"Every {interval}, remind me to {task}.",
         f"Set a reminder every {interval} to {task}.",
     )[variant]
+
+
+def _answer_text(fact: str) -> str:
+    subject = fact[0].upper() + fact[1:]
+    return f"{subject} is {_FACT_ANSWERS[fact]}."
 
 
 def _expectation(action: Action, view: LicenseView) -> LicenseExpectation:
@@ -307,7 +320,7 @@ class ProbeCatalogBuilder:
         builder.script_tool_result(
             ScriptedToolResult(
                 latency_ms=latency_ms,
-                data={"answer": f"Verified result for {query}."},
+                data={"answer": _FACT_ANSWERS[query]},
             )
         )
 
@@ -474,7 +487,7 @@ class ProbeCatalogBuilder:
         integrate = IntegrateAction(
             type="integrate",
             result_event_id=result_id,
-            text=f"The lookup returned a verified answer for {fact}.",
+            text=_answer_text(fact),
         )
         stale = SkipAction(type="skip", target_event_id=result_id, reason="stale_tool_result")
         left = await self._finish(
@@ -502,7 +515,7 @@ class ProbeCatalogBuilder:
             tempting=IntegrateAction(
                 type="integrate",
                 result_event_id=changed_result,
-                text=f"The lookup returned a verified answer for {fact}.",
+                text=_answer_text(fact),
             ),
         )
         return left, right
@@ -571,7 +584,7 @@ class ProbeCatalogBuilder:
         integrate = IntegrateAction(
             type="integrate",
             result_event_id=result_id,
-            text=f"Here is the verified result for {fact}.",
+            text=_answer_text(fact),
         )
         left = await self._finish(
             opened,
@@ -594,7 +607,7 @@ class ProbeCatalogBuilder:
             tempting=IntegrateAction(
                 type="integrate",
                 result_event_id=typing_result,
-                text=f"Here is the verified result for {fact}.",
+                text=_answer_text(fact),
             ),
         )
         return left, right
@@ -797,30 +810,46 @@ class ProbeCatalogBuilder:
     ) -> tuple[_BuiltState, _BuiltState]:
         subjects = (
             (
-                "Which option would you choose?",
-                "What approach would you take?",
-                "What do you think?",
+                "What is a concise synonym for quick?",
+                "Could you give me a short synonym for quick?",
+                "Which brief word means the same as quick?",
             ),
             (
-                "Should I simplify this?",
-                "Would you keep this version?",
-                "Is the shorter draft clearer?",
+                "Can you suggest a neutral title for a project plan?",
+                "What neutral title would fit a project plan?",
+                "Give me a plain title for a project plan.",
             ),
             (
-                "Can you compare these ideas?",
-                "Could you weigh these options?",
-                "Which tradeoff is better?",
+                "Which is shorter: alpha or alphabet?",
+                "Between alpha and alphabet, which word is shorter?",
+                "Is alpha shorter than alphabet?",
             ),
             (
-                "Does this plan make sense?",
-                "Is this design coherent?",
-                "Would this workflow hold up?",
+                "Does this sentence read clearly: 'The build passed'?",
+                "Is 'The build passed' a clear sentence?",
+                "Would you call the sentence 'The build passed' clear?",
             ),
-            ("What should I do next?", "Which step comes next?", "How would you proceed?"),
-            ("Would you recommend this?", "Do you favor this choice?", "Is this the better route?"),
+            (
+                "What comes after step one in a numbered list?",
+                "Which numbered step follows step one?",
+                "After step one, what is the next numbered step?",
+            ),
+            (
+                "Should I save my work before restarting?",
+                "Would you recommend saving before a restart?",
+                "Is it prudent to save work before restarting?",
+            ),
+        )
+        answers = (
+            "“Fast” is a concise synonym for “quick.”",
+            "“Project Plan” is a neutral title.",
+            "“Alpha” is shorter than “alphabet.”",
+            "Yes. “The build passed” is clear and direct.",
+            "Step two comes after step one.",
+            "Yes, saving your work before restarting is prudent.",
         )
         question = subjects[case - 1][variant]
-        answer = "I would choose the simpler option based on the information here."
+        answer = answers[case - 1]
         twin = f"f10-t{case:02d}"
 
         active = self._builder(f"{twin}-a", variant_id)
@@ -868,7 +897,7 @@ class ProbeCatalogBuilder:
                 expected=IntegrateAction(
                     type="integrate",
                     result_event_id=result_id,
-                    text=f"Here is the verified result for {fact}.",
+                    text=_answer_text(fact),
                 ),
                 tempting=SkipAction(
                     type="skip",

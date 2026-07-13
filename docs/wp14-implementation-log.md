@@ -28,6 +28,10 @@
 - Each variant records every committed user snapshot in order, in addition to its primary review
   text. The human review sheet exposes the complete sequence (including setup instructions and
   later topic changes) rather than forcing reviewers to decode the compact manifest stream.
+- Response-floor probes use self-contained, answerable questions in both twins. Earlier generic
+  questions such as “Which option would you choose?” lacked their options and therefore did not
+  establish the required response warrant. Tool-result probes likewise carry concrete scripted
+  answers and integrate those exact values instead of emitting a placeholder result sentence.
 - Manifest-only labels (`negative_class`, block codes, license diagnostics) never enter teacher
   prompt construction.
 
