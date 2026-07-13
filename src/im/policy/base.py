@@ -1,5 +1,6 @@
 """Policy boundary and deterministic scripted test policy."""
 
+import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
@@ -32,6 +33,14 @@ class PolicyCallError(RuntimeError):
 
     def __init__(self, message: str, calls: tuple[PolicyCallTrace, ...]) -> None:
         super().__init__(message)
+        self.calls = calls
+
+
+class PolicyCallCancelled(asyncio.CancelledError):
+    """Cancellation carrying an audit trace for an indeterminate provider call."""
+
+    def __init__(self, calls: tuple[PolicyCallTrace, ...]) -> None:
+        super().__init__("provider call cancelled")
         self.calls = calls
 
 

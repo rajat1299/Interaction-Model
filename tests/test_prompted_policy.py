@@ -1,5 +1,6 @@
-"""Pure WP13 prompt, Batch, and cost construction tests."""
+"""Pure WP13 prompt, Batch, cost, and mocked-provider tests."""
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -8,9 +9,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from im.policy.base import PolicyCallTrace, PolicyDecision
+from im.policy.base import PolicyCallCancelled, PolicyCallTrace, PolicyDecision
 from im.policy.prompted import (
     ModelPricing,
+    OpenAITransportError,
     PromptArtifacts,
     PromptedPolicy,
     PromptedPolicyConfig,
@@ -92,11 +94,15 @@ def test_cost_estimate_exposes_expected_and_conservative_scenarios() -> None:
         builder(),
         decisions=10,
         average_policy_bytes=8_000,
+        max_policy_bytes=32_000,
         expected_output_tokens=1_000,
     )
 
     assert estimate.fixed_input_tokens_per_attempt > 1_024
-    assert estimate.variable_input_tokens_per_attempt > 0
+    assert estimate.average_variable_input_tokens_per_attempt > 0
+    assert estimate.max_variable_input_tokens_per_attempt > (
+        estimate.average_variable_input_tokens_per_attempt
+    )
     assert estimate.synchronous_warm_cache.expected_usd < (
         estimate.synchronous_no_cache.expected_usd
     )
@@ -105,6 +111,33 @@ def test_cost_estimate_exposes_expected_and_conservative_scenarios() -> None:
     )
     assert estimate.synchronous_no_cache.ceiling_usd > (
         estimate.synchronous_no_cache.expected_usd
+    )
+
+
+def test_cost_estimate_counts_retry_feedback_in_expected_and_ceiling() -> None:
+    one_attempt = estimate_run_cost(
+        builder(),
+        decisions=10,
+        average_policy_bytes=8_000,
+        max_policy_bytes=32_000,
+        expected_output_tokens=1_000,
+        attempts_per_decision=1,
+    )
+    two_attempts = estimate_run_cost(
+        builder(),
+        decisions=10,
+        average_policy_bytes=8_000,
+        max_policy_bytes=32_000,
+        expected_output_tokens=1_000,
+        attempts_per_decision=2,
+    )
+
+    assert two_attempts.retry_feedback_tokens_per_retry > 0
+    assert two_attempts.synchronous_no_cache.expected_usd > (
+        one_attempt.synchronous_no_cache.expected_usd * 2
+    )
+    assert two_attempts.synchronous_no_cache.ceiling_usd > (
+        one_attempt.synchronous_no_cache.ceiling_usd * 2
     )
 
 
@@ -210,6 +243,147 @@ async def test_prompted_policy_does_not_retry_refusal() -> None:
     assert len(requests) == 1
 
 
+@pytest.mark.asyncio
+async def test_prompted_policy_retries_malformed_utf8_and_retains_exact_bytes() -> None:
+    requests: list[bytes] = []
+    responses = [
+        httpx.Response(200, content=b"\xff"),
+        httpx.Response(
+            200,
+            json=response_payload(
+                text='{"type":"idle","reason":"no_trigger","related_event_id":null}'
+            ),
+        ),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.content)
+        return responses.pop(0)
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        decision = await PromptedPolicy(
+            builder(), api_key="test-key", client=client
+        ).decide(b'{"v":1}')
+
+    assert isinstance(decision, PolicyDecision)
+    assert isinstance(decision.attempt, IdleAction)
+    assert [call.outcome for call in decision.calls] == ["invalid", "completed"]
+    assert decision.calls[0].response == b"\xff"
+    assert len(requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_retries_incomplete_response() -> None:
+    client, requests = mock_client(
+        [
+            {
+                "id": "resp_incomplete",
+                "object": "response",
+                "output": [],
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+            },
+            response_payload(
+                text='{"type":"idle","reason":"no_trigger","related_event_id":null}'
+            ),
+        ]
+    )
+    async with client:
+        decision = await PromptedPolicy(
+            builder(), api_key="test-key", client=client
+        ).decide(b'{"v":1}')
+
+    assert isinstance(decision, PolicyDecision)
+    assert [call.outcome for call in decision.calls] == ["incomplete", "completed"]
+    assert len(requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_bounds_invalid_attempt_after_retry_exhaustion() -> None:
+    invalid = response_payload(text='{"type":"idle","reason":"no_trigger"}')
+    client, requests = mock_client([invalid, invalid])
+    async with client:
+        decision = await PromptedPolicy(
+            builder(), api_key="test-key", client=client
+        ).decide(b'{"v":1}')
+
+    assert isinstance(decision, PolicyDecision)
+    assert decision.attempt == {"provider_invalid": True}
+    assert [call.outcome for call in decision.calls] == ["invalid", "invalid"]
+    assert len(requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_surfaces_http_error_with_exact_trace() -> None:
+    raw = b'{"error":{"message":"bad request"}}'
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, content=raw)
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        with pytest.raises(OpenAITransportError) as caught:
+            await PromptedPolicy(builder(), api_key="test-key", client=client).decide(
+                b'{"v":1}'
+            )
+
+    assert len(caught.value.calls) == 1
+    assert caught.value.calls[0].outcome == "http_error"
+    assert caught.value.calls[0].http_status == 400
+    assert caught.value.calls[0].response == raw
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_surfaces_transport_error_with_trace() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        with pytest.raises(OpenAITransportError) as caught:
+            await PromptedPolicy(builder(), api_key="test-key", client=client).decide(
+                b'{"v":1}'
+            )
+
+    assert len(caught.value.calls) == 1
+    assert caught.value.calls[0].outcome == "transport_error"
+    assert caught.value.calls[0].http_status is None
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_cancellation_carries_indeterminate_call_trace() -> None:
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        entered.set()
+        await release.wait()
+        return httpx.Response(200, json=response_payload(refusal="unused"))
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        policy = PromptedPolicy(builder(), api_key="test-key", client=client)
+        task = asyncio.create_task(policy.decide(b'{"v":1}'))
+        await entered.wait()
+        task.cancel()
+        with pytest.raises(PolicyCallCancelled) as caught:
+            await task
+
+    assert len(caught.value.calls) == 1
+    assert caught.value.calls[0].outcome == "cancelled"
+    assert caught.value.calls[0].response == b""
+    assert caught.value.calls[0].http_status is None
+
+
 class TracedIdlePolicy:
     def __init__(self, trace: PolicyCallTrace) -> None:
         self.trace = trace
@@ -223,6 +397,14 @@ class TracedIdlePolicy:
             ),
             calls=(self.trace,),
         )
+
+
+class CancelledPolicy:
+    def __init__(self, trace: PolicyCallTrace) -> None:
+        self.trace = trace
+
+    async def decide(self, _policy_bytes: bytes) -> object:
+        raise PolicyCallCancelled((self.trace,))
 
 
 @pytest.mark.asyncio
@@ -271,5 +453,56 @@ async def test_tick_records_exact_provider_exchange_before_action_audit(tmp_path
         assert store._connection.execute("SELECT kind FROM audit").fetchall() == [
             ("action_attempt",)
         ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_tick_records_cancelled_provider_exchange_before_reraising(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    trace = PolicyCallTrace(
+        attempt_index=1,
+        model="gpt-5.6-terra",
+        prompt_hash="sha256:" + "a" * 64,
+        request=b'{"in_flight":true}',
+        response=b"",
+        latency_ms=3,
+        http_status=None,
+        outcome="cancelled",
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=CancelledPolicy(trace),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    snapshot = PolicyEventDraft(
+        id=store.allocate_id("event"),
+        source="user",
+        kind="snapshot",
+        payload={
+            "text": "typing",
+            "selection_start_utf16": 6,
+            "selection_end_utf16": 6,
+            "is_composing": False,
+            "edit_kind": "insert",
+        },
+        occurred_mono_ns=clock.monotonic_ns(),
+        activity="active",
+    )
+    try:
+        runtime.enqueue_committed_ingress(snapshot)
+        with pytest.raises(PolicyCallCancelled):
+            await runtime.run_until_idle()
+
+        (record,) = store.policy_call_records("d_000001")
+        assert record.request == trace.request
+        assert record.response == b""
+        assert record.outcome == "cancelled"
+        assert store._connection.execute("SELECT kind FROM audit").fetchall() == []
     finally:
         store.close()

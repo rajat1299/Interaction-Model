@@ -49,3 +49,35 @@
   No OpenAI model request was made while building or testing this slice.
 - Recalculate WP15 cost from its exact generated manifest after WP14 fixes request counts and prompt
   sizes; today's large-run estimate is planning guidance, not a funding commitment.
+
+## 2026-07-12 — Independent-review hardening
+
+### Design decisions
+
+- Treat cancellation during an awaited provider request as an indeterminate provider exchange.
+  Preserve the exact request with a `cancelled` outcome in `policy_calls`, then propagate
+  cancellation so structured shutdown semantics remain intact.
+- Create the owned `httpx` client lazily on the first real decision. App construction, session
+  initialization, dry runs, and cost reports therefore allocate no provider transport and cannot
+  leak one when local setup fails.
+- Keep malformed successful response bytes and oversized invalid model text exclusively in the
+  exact BLOB audit lane. The action audit receives a bounded typed sentinel; this preserves frozen
+  canonical audit limits without discarding forensic evidence.
+- Define a cost ceiling from maximum policy-stream bytes plus the configured maximum output tokens,
+  and include bounded corrective-retry feedback in both expected and ceiling calculations.
+
+### Deviations and interpretations
+
+- The WP13 acceptance line named three mocked cases. The adversarial suite now also covers
+  incomplete responses, malformed UTF-8, exhausted correction, HTTP errors, transport errors,
+  cancellation persistence, lazy transport creation, and exception-safe session cleanup. This is
+  test expansion only; provider behavior and the frozen action contract are unchanged.
+
+### Tradeoffs
+
+- A canceled HTTP call has no response bytes because the client cannot know whether the provider
+  completed it. Recording an explicit indeterminate outcome is more accurate than manufacturing a
+  response or silently dropping the call.
+- The conservative estimate deliberately assumes every request reaches the supplied maximum policy
+  size and every response consumes the full 8,192-token output budget. It is a funding bound under
+  those inputs, not an expected invoice.

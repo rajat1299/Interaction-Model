@@ -19,6 +19,7 @@ async def test_factory_constructs_policy_without_calling_provider(monkeypatch) -
     assert isinstance(policy, PromptedPolicy)
     assert policy.builder.config.model == "gpt-5.6-terra"
     assert policy.builder.config.reasoning_effort == "high"
+    assert policy._client is None
     await policy.aclose()
 
 

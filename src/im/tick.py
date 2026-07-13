@@ -30,7 +30,13 @@ from im.license import (
     check,
 )
 from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
-from im.policy.base import Policy, PolicyCallError, PolicyCallTrace, PolicyDecision
+from im.policy.base import (
+    Policy,
+    PolicyCallCancelled,
+    PolicyCallError,
+    PolicyCallTrace,
+    PolicyDecision,
+)
 from im.scheduler import Clock, TimerScheduler
 from im.schema.actions import (
     CancelAction,
@@ -481,7 +487,7 @@ class TickRuntime:
         try:
             try:
                 policy_result = await self.policy.decide(self.store.policy_bytes())
-            except PolicyCallError as error:
+            except (PolicyCallError, PolicyCallCancelled) as error:
                 self._record_policy_call_traces(decision_id, error.calls)
                 raise
             if isinstance(policy_result, PolicyDecision):

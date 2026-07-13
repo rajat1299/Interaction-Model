@@ -594,9 +594,11 @@ class RuntimeSession:
                 await socket.close(code=status.WS_1001_GOING_AWAY)
             except RuntimeError:
                 pass
-        if isinstance(self.tick.policy, AsyncClosablePolicy):
-            await self.tick.policy.aclose()
-        self.store.close()
+        try:
+            if isinstance(self.tick.policy, AsyncClosablePolicy):
+                await self.tick.policy.aclose()
+        finally:
+            self.store.close()
 
 
 class SessionRegistry:

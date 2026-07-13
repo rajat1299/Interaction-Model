@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -16,7 +17,12 @@ from pydantic import ValidationError
 
 from im.canonical_json import TimJsonError, parse_tim_json
 from im.config import estimate_tokens
-from im.policy.base import PolicyCallError, PolicyCallTrace, PolicyDecision
+from im.policy.base import (
+    PolicyCallCancelled,
+    PolicyCallError,
+    PolicyCallTrace,
+    PolicyDecision,
+)
 from im.schema.actions import ACTION_ADAPTER
 
 ReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
@@ -26,6 +32,8 @@ _SCHEMA_PLACEHOLDER = "{{action_schema}}"
 _STREAM_PLACEHOLDER = "{{policy_stream}}"
 _CUSTOM_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _MILLION = Decimal(1_000_000)
+_MAX_VALIDATION_ERROR_BYTES = 2_048
+_RETRY_MESSAGE_FIXED_BYTES = 256
 
 
 def _sha256_digest(data: bytes) -> str:
@@ -264,7 +272,9 @@ class RunCostEstimate:
     decisions: int
     attempts_per_decision: int
     fixed_input_tokens_per_attempt: int
-    variable_input_tokens_per_attempt: int
+    average_variable_input_tokens_per_attempt: int
+    max_variable_input_tokens_per_attempt: int
+    retry_feedback_tokens_per_retry: int
     expected_output_tokens_per_attempt: int
     max_output_tokens_per_attempt: int
     synchronous_no_cache: CostScenario
@@ -279,7 +289,13 @@ class RunCostEstimate:
                 "expected_output_tokens_per_attempt": self.expected_output_tokens_per_attempt,
                 "fixed_input_tokens_per_attempt": self.fixed_input_tokens_per_attempt,
                 "max_output_tokens_per_attempt": self.max_output_tokens_per_attempt,
-                "variable_input_tokens_per_attempt": self.variable_input_tokens_per_attempt,
+                "average_variable_input_tokens_per_attempt": (
+                    self.average_variable_input_tokens_per_attempt
+                ),
+                "max_variable_input_tokens_per_attempt": (
+                    self.max_variable_input_tokens_per_attempt
+                ),
+                "retry_feedback_tokens_per_retry": self.retry_feedback_tokens_per_retry,
             },
             "batch_no_cache": self.batch_no_cache.as_json(),
             "synchronous_no_cache": self.synchronous_no_cache.as_json(),
@@ -292,6 +308,7 @@ def estimate_run_cost(
     *,
     decisions: int,
     average_policy_bytes: int,
+    max_policy_bytes: int | None = None,
     expected_output_tokens: int,
     attempts_per_decision: int = 1,
     pricing: ModelPricing | None = None,
@@ -307,6 +324,11 @@ def estimate_run_cost(
             raise TypeError(f"{name} must be an integer")
         if value <= 0:
             raise ValueError(f"{name} must be positive")
+    maximum_policy_bytes = average_policy_bytes if max_policy_bytes is None else max_policy_bytes
+    if isinstance(maximum_policy_bytes, bool) or not isinstance(maximum_policy_bytes, int):
+        raise TypeError("max_policy_bytes must be an integer")
+    if maximum_policy_bytes < average_policy_bytes:
+        raise ValueError("max_policy_bytes must be at least average_policy_bytes")
     if attempts_per_decision > builder.config.max_attempts:
         raise ValueError("attempts_per_decision exceeds configured retry budget")
     if expected_output_tokens > builder.config.max_output_tokens:
@@ -318,21 +340,30 @@ def estimate_run_cost(
 
     fixed_bytes = builder.renderer.render(b"").system.encode("utf-8")
     fixed_tokens = estimate_tokens(fixed_bytes) + 32
-    variable_tokens = estimate_tokens(b"x" * average_policy_bytes) + 8
+    average_variable_tokens = estimate_tokens(b"x" * average_policy_bytes) + 8
+    max_variable_tokens = estimate_tokens(b"x" * maximum_policy_bytes) + 8
+    retry_feedback_tokens = estimate_tokens(
+        b"x" * (_MAX_VALIDATION_ERROR_BYTES + _RETRY_MESSAGE_FIXED_BYTES)
+    )
     attempts = decisions * attempts_per_decision
-    total_input = attempts * (fixed_tokens + variable_tokens)
+    retries = decisions * (attempts_per_decision - 1)
+    expected_variable_input = attempts * average_variable_tokens + retries * retry_feedback_tokens
+    max_variable_input = attempts * max_variable_tokens + retries * retry_feedback_tokens
+    expected_total_input = attempts * fixed_tokens + expected_variable_input
+    max_total_input = attempts * fixed_tokens + max_variable_input
     total_expected_output = attempts * expected_output_tokens
     total_max_output = attempts * builder.config.max_output_tokens
 
     def token_cost(tokens: int, rate: Decimal) -> Decimal:
         return Decimal(tokens) * rate / _MILLION
 
-    no_cache_input = token_cost(total_input, rates.input_per_million)
+    no_cache_expected_input = token_cost(expected_total_input, rates.input_per_million)
+    no_cache_max_input = token_cost(max_total_input, rates.input_per_million)
     expected_output_cost = token_cost(total_expected_output, rates.output_per_million)
     max_output_cost = token_cost(total_max_output, rates.output_per_million)
     no_cache = CostScenario(
-        expected_usd=no_cache_input + expected_output_cost,
-        ceiling_usd=no_cache_input + max_output_cost,
+        expected_usd=no_cache_expected_input + expected_output_cost,
+        ceiling_usd=no_cache_max_input + max_output_cost,
     )
 
     cache_write_rate = rates.input_per_million * rates.cache_write_multiplier
@@ -341,11 +372,13 @@ def estimate_run_cost(
         max(0, attempts - 1) * fixed_tokens,
         rates.cached_input_per_million,
     )
-    variable_uncached = token_cost(attempts * variable_tokens, rates.input_per_million)
-    warm_input = fixed_write + fixed_reads + variable_uncached
+    expected_variable_uncached = token_cost(expected_variable_input, rates.input_per_million)
+    max_variable_uncached = token_cost(max_variable_input, rates.input_per_million)
+    warm_expected_input = fixed_write + fixed_reads + expected_variable_uncached
+    warm_max_input = fixed_write + fixed_reads + max_variable_uncached
     warm = CostScenario(
-        expected_usd=warm_input + expected_output_cost,
-        ceiling_usd=warm_input + max_output_cost,
+        expected_usd=warm_expected_input + expected_output_cost,
+        ceiling_usd=warm_max_input + max_output_cost,
     )
 
     batch = CostScenario(
@@ -356,7 +389,9 @@ def estimate_run_cost(
         decisions=decisions,
         attempts_per_decision=attempts_per_decision,
         fixed_input_tokens_per_attempt=fixed_tokens,
-        variable_input_tokens_per_attempt=variable_tokens,
+        average_variable_input_tokens_per_attempt=average_variable_tokens,
+        max_variable_input_tokens_per_attempt=max_variable_tokens,
+        retry_feedback_tokens_per_retry=retry_feedback_tokens,
         expected_output_tokens_per_attempt=expected_output_tokens,
         max_output_tokens_per_attempt=builder.config.max_output_tokens,
         synchronous_no_cache=no_cache,
@@ -427,7 +462,7 @@ def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
         action = ACTION_ADAPTER.validate_python(parsed)
     except (TimJsonError, UnicodeEncodeError, ValidationError, ValueError) as error:
         return _DecodedResponse(
-            attempt=text,
+            attempt={"provider_invalid": True},
             outcome="invalid",
             valid=False,
             validation_error=f"{type(error).__name__}: {error}",
@@ -442,7 +477,10 @@ def _retry_body(body: dict[str, object], validation_error: str) -> dict[str, obj
     request_input = copied.get("input")
     if not isinstance(request_input, list):  # pragma: no cover - guarded by builder tests.
         raise TypeError("request body input must be an array")
-    concise_error = validation_error.replace("\n", " ")[:2_000]
+    normalized_error = validation_error.replace("\n", " ").encode("utf-8")
+    concise_error = normalized_error[:_MAX_VALIDATION_ERROR_BYTES].decode(
+        "utf-8", errors="ignore"
+    )
     request_input.append(
         {
             "role": "user",
@@ -477,10 +515,7 @@ class PromptedPolicy:
             raise ValueError("api_key must not be empty")
         self.builder = builder
         self._owns_client = client is None
-        self._client = client or httpx.AsyncClient(
-            base_url=builder.config.base_url,
-            timeout=builder.config.timeout_seconds,
-        )
+        self._client = client
         self._headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -491,8 +526,17 @@ class PromptedPolicy:
             self._headers["OpenAI-Project"] = project_id
 
     async def aclose(self) -> None:
-        if self._owns_client:
+        if self._owns_client and self._client is not None:
             await self._client.aclose()
+            self._client = None
+
+    def _transport(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self.builder.config.base_url,
+                timeout=self.builder.config.timeout_seconds,
+            )
+        return self._client
 
     async def decide(self, policy_bytes: bytes) -> object:
         body = self.builder.build(policy_bytes)
@@ -507,11 +551,26 @@ class PromptedPolicy:
             request = _json_bytes(body)
             started_ns = time.perf_counter_ns()
             try:
-                response = await self._client.post(
+                response = await self._transport().post(
                     "/responses",
                     content=request,
                     headers=self._headers,
                 )
+            except asyncio.CancelledError as error:
+                latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)
+                calls.append(
+                    PolicyCallTrace(
+                        attempt_index=attempt_index,
+                        model=self.builder.config.model,
+                        prompt_hash=self.builder.renderer.artifacts.prompt_hash,
+                        request=request,
+                        response=b"",
+                        latency_ms=latency_ms,
+                        http_status=None,
+                        outcome="cancelled",
+                    )
+                )
+                raise PolicyCallCancelled(tuple(calls)) from error
             except httpx.HTTPError as error:
                 latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)
                 calls.append(
@@ -549,7 +608,7 @@ class PromptedPolicy:
                 )
             try:
                 payload = response.json()
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 payload = {"status": "completed", "output": []}
             if not isinstance(payload, dict):
                 payload = {"status": "completed", "output": []}

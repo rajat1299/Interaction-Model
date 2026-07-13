@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--decisions", type=_positive, default=30)
     parser.add_argument("--average-policy-bytes", type=_positive, default=12_000)
+    parser.add_argument("--max-policy-bytes", type=_positive, default=48_000)
     parser.add_argument("--expected-output-tokens", type=_positive, default=2_000)
     parser.add_argument("--attempts-per-decision", type=_positive, choices=(1, 2), default=1)
     return parser.parse_args()
@@ -59,6 +60,7 @@ def main() -> None:
         builder,
         decisions=args.decisions,
         average_policy_bytes=args.average_policy_bytes,
+        max_policy_bytes=args.max_policy_bytes,
         expected_output_tokens=args.expected_output_tokens,
         attempts_per_decision=args.attempts_per_decision,
         pricing=pricing,

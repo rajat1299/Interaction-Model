@@ -1,6 +1,7 @@
 """Raw WebSocket transport, session artifacts, and full scripted runtime tests."""
 
 import asyncio
+import sqlite3
 import time
 from hashlib import sha256
 from pathlib import Path
@@ -15,7 +16,12 @@ from im.config import RuntimeConfig
 from im.policy.base import ScriptedPolicy
 from im.scheduler import ManualClock
 from im.schema.events import SessionStartEvent, SnapshotEvent, TimerFireEvent
-from im.server import RuntimeSession, create_app
+from im.server import (
+    ArtifactPaths,
+    RuntimeSession,
+    create_app,
+    load_session_artifacts,
+)
 
 
 def sampler_frame(
@@ -58,6 +64,11 @@ class GatedScriptedPolicy(ScriptedPolicy):
             self.entered[call].set()
             await self.release[call].wait()
         return await super().decide(policy_bytes)
+
+
+class FailingClosePolicy(ScriptedPolicy):
+    async def aclose(self) -> None:
+        raise RuntimeError("close failed")
 
 
 async def wait_for_ingress(
@@ -151,6 +162,26 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
     for name, preimage in retained_preimages.items():
         digest = artifact_hashes[name].removeprefix("sha256:")
         assert (tmp_path / session_id / "artifacts/sha256" / digest).read_bytes() == preimage
+
+
+@pytest.mark.asyncio
+async def test_session_close_releases_store_when_policy_close_fails(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    config = RuntimeConfig()
+    session = RuntimeSession(
+        session_id="s_close_failure",
+        directory=tmp_path / "s_close_failure",
+        policy=FailingClosePolicy([]),
+        clock=ManualClock(),
+        config=config,
+        artifacts=load_session_artifacts(ArtifactPaths.from_repository(repo), config),
+    )
+
+    with pytest.raises(RuntimeError, match="close failed"):
+        await session.close()
+
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        session.store._connection.execute("SELECT 1")
 
 
 def test_raw_duplicate_key_frame_is_retained_then_rejected(tmp_path: Path) -> None:
