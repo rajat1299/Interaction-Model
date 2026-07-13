@@ -25,15 +25,24 @@ from im.schema.actions import (
     CancelTimersTarget,
     CancelTimerTarget,
     DelegateAction,
+    IdleAction,
+    IdleReason,
     IntegrateAction,
     MarkAction,
     NudgeAction,
     RespondAction,
     ScheduleAction,
     SkipAction,
+    SkipReason,
     Span,
 )
-from im.schema.common import Disposition, LicenseBlockCode, TimerStatus, ToolName
+from im.schema.common import (
+    Disposition,
+    LicenseBlockCode,
+    TimerStatus,
+    ToolName,
+    ToolResultStatus,
+)
 from im.schema.textspan import utf16_slice
 from im.tools import canonical_tool_key
 
@@ -64,6 +73,8 @@ class SnapshotView:
 
     event_id: str
     text: str
+    policy_seq: int = 0
+    responded_to: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +84,7 @@ class TimerFireView:
     event_id: str
     timer_id: str
     disposition: Disposition = Disposition.OPEN
+    policy_seq: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +94,9 @@ class ToolResultView:
     event_id: str
     request_id: str
     completed: bool
+    status: ToolResultStatus
     disposition: Disposition = Disposition.OPEN
+    policy_seq: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +106,7 @@ class OtherEventView:
     event_id: str
     kind: LicenseEventKind
     disposition: Disposition | None = None
+    policy_seq: int = 0
 
 
 type AddressableEventView = SnapshotView | TimerFireView | ToolResultView | OtherEventView
@@ -117,16 +132,27 @@ class PendingToolRequestView:
     """A pending request represented by its immutable canonical dedup key."""
 
     request_id: str
+    fact_event_id: str
     tool: ToolName
     canonical_key: str
+    policy_seq: int = 0
 
     @classmethod
-    def from_args(cls, request_id: str, tool: ToolName, args: object) -> PendingToolRequestView:
+    def from_args(
+        cls,
+        request_id: str,
+        fact_event_id: str,
+        tool: ToolName,
+        args: object,
+        policy_seq: int = 0,
+    ) -> PendingToolRequestView:
         """Create a projection from adapter arguments without retaining mutable JSON."""
         return cls(
             request_id=request_id,
+            fact_event_id=fact_event_id,
             tool=tool,
             canonical_key=canonical_tool_key(tool, args),
+            policy_seq=policy_seq,
         )
 
     def matches(self, action: DelegateAction) -> bool:
@@ -140,11 +166,22 @@ class AppliedMarkView:
     """An already-rendered stateless mark, used to prevent exact replay."""
 
     mark_event_id: str
-    instruction: Span
+    instruction: Span | None
     target: Span
 
     def matches(self, action: MarkAction) -> bool:
-        return self.instruction == action.instruction and self.target == action.target
+        return self.target == action.target
+
+
+@dataclass(frozen=True, slots=True)
+class AmbiguousMarkView:
+    """The exact surviving occurrence set of one revision-ambiguous old mark."""
+
+    mark_event_id: str
+    targets: tuple[Span, ...]
+
+    def matches(self, action: MarkAction) -> bool:
+        return action.target in self.targets
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,11 +198,20 @@ class LicenseView:
     latest_snapshot: SnapshotView | None = None
     events: tuple[AddressableEventView, ...] = ()
     timers: tuple[TimerView, ...] = ()
+    visible_timer_ids: frozenset[str] | None = None
     pending_tool_requests: tuple[PendingToolRequestView, ...] = ()
     applied_marks: tuple[AppliedMarkView, ...] = ()
+    ambiguous_marks: tuple[AmbiguousMarkView, ...] = ()
+    visible_handled_event_ids: frozenset[str] | None = None
     floor_owned: bool = False
     payload_within_limits: bool = True
     newer_pending_snapshot: bool = False
+    min_timer_interval_ms: int = field(
+        default_factory=lambda: RuntimeConfig().min_timer_interval_ms
+    )
+    max_timer_interval_ms: int = field(
+        default_factory=lambda: RuntimeConfig().max_timer_interval_ms
+    )
     max_active_timers: int = field(default_factory=lambda: RuntimeConfig().max_active_timers)
 
     def __post_init__(self) -> None:
@@ -178,19 +224,45 @@ class LicenseView:
             events = (*events, self.latest_snapshot)
         object.__setattr__(self, "events", events)
         object.__setattr__(self, "timers", tuple(self.timers))
+        visible_timer_ids = (
+            frozenset(timer.timer_id for timer in self.timers)
+            if self.visible_timer_ids is None
+            else frozenset(self.visible_timer_ids)
+        )
+        object.__setattr__(self, "visible_timer_ids", visible_timer_ids)
         object.__setattr__(self, "pending_tool_requests", tuple(self.pending_tool_requests))
         object.__setattr__(self, "applied_marks", tuple(self.applied_marks))
+        object.__setattr__(self, "ambiguous_marks", tuple(self.ambiguous_marks))
+        if self.visible_handled_event_ids is None:
+            visible_handled_event_ids = frozenset(
+                event.event_id
+                for event in events
+                if (isinstance(event, SnapshotView) and event.responded_to)
+                or (
+                    isinstance(event, TimerFireView | ToolResultView | OtherEventView)
+                    and event.disposition
+                    in {
+                        Disposition.HANDLED,
+                        Disposition.SKIPPED,
+                        Disposition.SUPERSEDED,
+                    }
+                )
+            )
+        else:
+            visible_handled_event_ids = frozenset(self.visible_handled_event_ids)
+        object.__setattr__(self, "visible_handled_event_ids", visible_handled_event_ids)
 
         _require_unique_ids(events, "event_id", "event")
         _require_unique_ids(self.timers, "timer_id", "timer")
         _require_unique_ids(self.pending_tool_requests, "request_id", "pending tool request")
         _require_unique_ids(self.applied_marks, "mark_event_id", "applied mark")
-        if (
-            isinstance(self.max_active_timers, bool)
-            or not isinstance(self.max_active_timers, int)
-            or self.max_active_timers < 1
-        ):
-            raise ValueError("max_active_timers must be a positive integer")
+        _require_unique_ids(self.ambiguous_marks, "mark_event_id", "ambiguous mark")
+        for name in ("min_timer_interval_ms", "max_timer_interval_ms", "max_active_timers"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        if self.min_timer_interval_ms > self.max_timer_interval_ms:
+            raise ValueError("minimum timer interval exceeds maximum")
 
     def event(self, event_id: str) -> AddressableEventView | None:
         return next((event for event in self.events if event.event_id == event_id), None)
@@ -240,6 +312,7 @@ def check(action: object, view: LicenseView) -> LicenseDecision:
     for checker in (
         _check_payload_limit,
         _check_references,
+        _check_reason_target,
         _check_spans,
         _check_result_ready,
         _check_fire_open,
@@ -285,8 +358,118 @@ def _check_references(action: Action, view: LicenseView) -> Blocked | None:
         return Blocked(LicenseBlockCode.UNKNOWN_REFERENCE)
     if isinstance(action, CancelAction):
         timer_ids = _cancel_timer_ids(action, view)
-        if any(view.timer(timer_id) is None for timer_id in timer_ids):
+        if any(timer_id not in view.visible_timer_ids for timer_id in timer_ids):
             return Blocked(LicenseBlockCode.UNKNOWN_REFERENCE)
+    if isinstance(action, RespondAction):
+        target = view.event(action.reply_to_event_id)
+        is_user_content = isinstance(target, SnapshotView)
+        is_failed_result = (
+            isinstance(target, ToolResultView)
+            and target.completed
+            and target.status is ToolResultStatus.FAILED
+        )
+        if not (is_user_content or is_failed_result):
+            return Blocked(LicenseBlockCode.UNKNOWN_REFERENCE)
+    return None
+
+
+def _check_reason_target(action: Action, view: LicenseView) -> Blocked | None:
+    """Bind closed idle/skip reasons to the objective subject they describe."""
+    if isinstance(action, IdleAction):
+        related_id = action.related_event_id
+        if action.reason is IdleReason.AWAITING_TOOL:
+            oldest = min(
+                view.pending_tool_requests,
+                key=lambda pending: (pending.policy_seq, pending.request_id),
+                default=None,
+            )
+            valid = oldest is not None and oldest.fact_event_id == related_id
+        elif action.reason is IdleReason.AWAITING_OPENING:
+            open_results = sorted(
+                (
+                    event
+                    for event in view.events
+                    if isinstance(event, ToolResultView)
+                    and event.completed
+                    and event.disposition is Disposition.OPEN
+                ),
+                key=lambda event: (
+                    0 if event.status is ToolResultStatus.SUCCEEDED else 1,
+                    event.policy_seq,
+                    event.event_id,
+                ),
+            )
+            if open_results:
+                valid = open_results[0].event_id == related_id
+            else:
+                valid = (
+                    view.latest_snapshot is not None
+                    and view.latest_snapshot.event_id == related_id
+                )
+        elif action.reason is IdleReason.ALREADY_HANDLED:
+            retained_handled = sorted(
+                (
+                    event
+                    for event in view.events
+                    if event.event_id in view.visible_handled_event_ids
+                    and (
+                        (isinstance(event, SnapshotView) and event.responded_to)
+                        or (
+                            isinstance(event, TimerFireView | ToolResultView | OtherEventView)
+                            and event.disposition
+                            in {
+                                Disposition.HANDLED,
+                                Disposition.SKIPPED,
+                                Disposition.SUPERSEDED,
+                            }
+                        )
+                    )
+                ),
+                key=lambda event: (event.policy_seq, event.event_id),
+            )
+            valid = bool(retained_handled) and retained_handled[0].event_id == related_id
+        else:
+            valid = True
+        if not valid:
+            return Blocked(LicenseBlockCode.REASON_MISMATCH)
+
+    if isinstance(action, RespondAction):
+        target = view.event(action.reply_to_event_id)
+        open_failed = sorted(
+            (
+                event
+                for event in view.events
+                if isinstance(event, ToolResultView)
+                and event.completed
+                and event.status is ToolResultStatus.FAILED
+                and event.disposition is Disposition.OPEN
+            ),
+            key=lambda event: (event.policy_seq, event.event_id),
+        )
+        if (
+            isinstance(target, ToolResultView)
+            and target.status is ToolResultStatus.FAILED
+            and target.disposition is Disposition.OPEN
+        ):
+            if not open_failed or target.event_id != open_failed[0].event_id:
+                return Blocked(LicenseBlockCode.REASON_MISMATCH)
+        elif isinstance(target, SnapshotView):
+            if open_failed or view.latest_snapshot is None or (
+                target.event_id != view.latest_snapshot.event_id
+            ):
+                return Blocked(LicenseBlockCode.REASON_MISMATCH)
+
+    if isinstance(action, SkipAction):
+        target = view.event(action.target_event_id)
+        if action.reason is SkipReason.CANCELED_TIMER:
+            valid = isinstance(target, TimerFireView) and (
+                (timer := view.timer(target.timer_id)) is not None
+                and timer.status is TimerStatus.CANCELED
+            )
+        else:
+            valid = isinstance(target, ToolResultView)
+        if not valid:
+            return Blocked(LicenseBlockCode.REASON_MISMATCH)
     return None
 
 
@@ -313,7 +496,11 @@ def _check_result_ready(action: Action, view: LicenseView) -> Blocked | None:
     if not isinstance(action, IntegrateAction):
         return None
     result = view.event(action.result_event_id)
-    if not isinstance(result, ToolResultView) or not result.completed:
+    if (
+        not isinstance(result, ToolResultView)
+        or not result.completed
+        or result.status is not ToolResultStatus.SUCCEEDED
+    ):
         return Blocked(LicenseBlockCode.RESULT_NOT_READY)
     return None
 
@@ -377,7 +564,10 @@ def _check_floor_owned(action: Action, view: LicenseView) -> Blocked | None:
 
 def _check_target_already_handled(action: Action, view: LicenseView) -> Blocked | None:
     """Protect consumed integrate/skip targets and exact repeated marks."""
-    if isinstance(action, MarkAction) and any(mark.matches(action) for mark in view.applied_marks):
+    if isinstance(action, MarkAction) and (
+        any(mark.matches(action) for mark in view.applied_marks)
+        or any(mark.matches(action) for mark in view.ambiguous_marks)
+    ):
         return Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
     if isinstance(action, IntegrateAction | SkipAction):
         target_id = (
@@ -391,13 +581,23 @@ def _check_target_already_handled(action: Action, view: LicenseView) -> Blocked 
                 return Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
         else:
             return Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
+    if isinstance(action, RespondAction):
+        target = view.event(action.reply_to_event_id)
+        if isinstance(target, ToolResultView) and target.disposition is not Disposition.OPEN:
+            return Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
+        if isinstance(target, SnapshotView) and target.responded_to:
+            return Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
     return None
 
 
 def _check_timer_limit(action: Action, view: LicenseView) -> Blocked | None:
-    """Enforce the configured maximum before a new schedule can execute."""
-    if isinstance(action, ScheduleAction) and len(view.active_timers) >= view.max_active_timers:
-        return Blocked(LicenseBlockCode.TIMER_LIMIT_EXCEEDED)
+    """Enforce the configured interval range and capacity before scheduling."""
+    if isinstance(action, ScheduleAction):
+        outside_interval_range = not (
+            view.min_timer_interval_ms <= action.interval_ms <= view.max_timer_interval_ms
+        )
+        if outside_interval_range or len(view.active_timers) >= view.max_active_timers:
+            return Blocked(LicenseBlockCode.TIMER_LIMIT_EXCEEDED)
     return None
 
 
@@ -452,6 +652,7 @@ def _cancel_timer_ids(action: CancelAction, view: LicenseView) -> tuple[str, ...
 __all__ = [
     "AddressableEventView",
     "Allowed",
+    "AmbiguousMarkView",
     "AppliedMarkView",
     "Blocked",
     "LicenseDecision",

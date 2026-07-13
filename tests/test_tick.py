@@ -24,7 +24,7 @@ from im.schema.actions import (
     SkipReason,
     Span,
 )
-from im.schema.common import Disposition, LicenseBlockCode
+from im.schema.common import Disposition, LicenseBlockCode, ToolResultStatus
 from im.schema.events import ActionExecutedEvent, TimerFireEvent
 from im.store import PolicyEventDraft, Store
 from im.tick import RenderKind, TickPhase, TickRuntime, build_license_view
@@ -140,7 +140,13 @@ async def test_mark_and_respond_emit_only_after_committed_action(tmp_path: Path)
     respond = RespondAction(type="respond", reply_to_event_id=second.id, text="Okay")
     scheduler = TimerScheduler(store, clock)
     tools = ToolAdapter(store, clock)
-    policy = ScriptedPolicy([mark, respond])
+    policy = ScriptedPolicy(
+        [
+            mark,
+            IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
+            respond,
+        ]
+    )
 
     async def sink(effect) -> None:
         assert any(record.event.id == effect.action_event_id for record in store.policy_records())
@@ -157,12 +163,13 @@ async def test_mark_and_respond_emit_only_after_committed_action(tmp_path: Path)
     try:
         runtime.enqueue_committed_ingress(first)
         await runtime.run_until_idle()
+        assert len(build_license_view(store, runtime.config).applied_marks) == 1
         runtime.enqueue_committed_ingress(second)
         await runtime.run_until_idle()
 
         assert action_types(store) == ["mark", "respond"]
         assert [effect.kind for effect in effects] == [RenderKind.MARK, RenderKind.RESPOND]
-        assert len(build_license_view(store, runtime.config).applied_marks) == 1
+        assert build_license_view(store, runtime.config).applied_marks == ()
     finally:
         store.close()
 
@@ -182,7 +189,9 @@ async def test_cancel_fire_race(tmp_path: Path) -> None:
     )
     scheduler = TimerScheduler(store, clock)
     tools = ToolAdapter(store, clock)
-    policy = ScriptedPolicy([schedule])
+    policy = ScriptedPolicy(
+        [schedule, IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None)]
+    )
     runtime = TickRuntime(
         store=store,
         policy=policy,
@@ -213,11 +222,12 @@ async def test_cancel_fire_race(tmp_path: Path) -> None:
                     target_event_id=fire.event_id,
                     reason=SkipReason.CANCELED_TIMER,
                 ),
+                IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
             ]
         )
         await runtime.run_until_idle()
 
-        assert runtime.tick_count == policy.call_count == 3
+        assert runtime.tick_count == policy.call_count == 5
         assert action_types(store) == ["schedule", "cancel", "skip"]
         assert store.get_disposition(fire.event_id).state is Disposition.SKIPPED  # type: ignore[union-attr]
         assert all(effect.kind is not RenderKind.NUDGE for effect in effects)
@@ -395,6 +405,106 @@ async def test_delegate_result_integrate_lifecycle(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_failed_result_response_consumes_result_without_retry_loop(tmp_path: Path) -> None:
+    effects = []
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    fact = snapshot_draft(store, clock, "lookup nonce", activity="paused")
+    delegate = DelegateAction(
+        type="delegate",
+        fact=span(fact, "nonce", 7),
+        tool="lookup",
+        args={"query": "nonce"},
+    )
+    policy = ScriptedPolicy([delegate])
+    tools = ToolAdapter(store, clock)
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=tools,
+        clock=clock,
+        render_sink=effects.append,
+        tool_script=lambda _action: ScriptedToolResult(
+            latency_ms=0,
+            status=ToolResultStatus.FAILED,
+            data={"error": "unavailable"},
+        ),
+    )
+    try:
+        runtime.enqueue_committed_ingress(fact)
+        await runtime.run_until_idle()
+        (delivery,) = tools.deliver_due()
+        policy._actions.append(
+            RespondAction(
+                type="respond",
+                reply_to_event_id=delivery.event_id,
+                text="The lookup failed.",
+            )
+        )
+
+        runtime.enqueue_committed_ingress(delivery.as_policy_draft())
+        await runtime.run_until_idle()
+
+        assert action_types(store) == ["delegate", "respond"]
+        assert store.get_disposition(delivery.event_id).state is Disposition.HANDLED  # type: ignore[union-attr]
+        assert policy.call_count == runtime.tick_count == 2
+        assert effects[-1].kind is RenderKind.RESPOND
+        assert effects[-1].payload["reply_to_event_id"] == delivery.event_id
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_ordinary_response_is_one_shot_without_consuming_other_snapshot_actions(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    user = snapshot_draft(store, clock, "Which timer should I stop?", activity="paused")
+    response = RespondAction(
+        type="respond",
+        reply_to_event_id=user.id,
+        text="Which timer should I stop?",
+    )
+    policy = ScriptedPolicy([response, response])
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    try:
+        runtime.enqueue_committed_ingress(user)
+        await runtime.run_until_idle()
+
+        clock.advance_ms(1)
+        annotation_id = store.allocate_id("event")
+        runtime.enqueue_committed_ingress(
+            PolicyEventDraft(
+                id=annotation_id,
+                source="user",
+                kind="annotation",
+                payload={"text": "wake"},
+                occurred_mono_ns=clock.monotonic_ns(),
+            )
+        )
+        await runtime.run_until_idle()
+
+        assert action_types(store) == ["respond"]
+        assert store.response_disposition(user.id) is not None
+        block = store._connection.execute(
+            "SELECT payload FROM audit WHERE kind = 'action_blocked' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+        assert parse_tim_json(bytes(block[0]))["code"] == (
+            LicenseBlockCode.TARGET_ALREADY_HANDLED.value
+        )
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_nudge_consumes_fire_and_uses_canonical_timer_message(tmp_path: Path) -> None:
     effects = []
     store = Store(tmp_path / "session.sqlite3")
@@ -409,7 +519,12 @@ async def test_nudge_consumes_fire_and_uses_canonical_timer_message(tmp_path: Pa
     )
     clock.advance_ms(1_000)
     (fire,) = scheduler.claim_due()
-    policy = ScriptedPolicy([NudgeAction(type="nudge", fire_event_id=fire.event_id)])
+    policy = ScriptedPolicy(
+        [
+            NudgeAction(type="nudge", fire_event_id=fire.event_id),
+            IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
+        ]
+    )
     runtime = TickRuntime(
         store=store,
         policy=policy,
@@ -426,6 +541,87 @@ async def test_nudge_consumes_fire_and_uses_canonical_timer_message(tmp_path: Pa
         assert store.get_disposition(fire.event_id).state is Disposition.HANDLED  # type: ignore[union-attr]
         assert effects[-1].kind is RenderKind.NUDGE
         assert effects[-1].payload["message"] == "canonical breathe"
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_high_priority_action_drains_marks_before_rollover_can_observe_baseline(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    snapshot = snapshot_draft(store, clock, "mark animals cat", activity="paused")
+    scheduler = TimerScheduler(store, clock)
+    scheduler.schedule(
+        instruction_id="i_001",
+        instruction=span(snapshot, "mark animals", 0),
+        interval_ms=1_000,
+        message="breathe",
+    )
+    clock.advance_ms(1_000)
+    (fire,) = scheduler.claim_due()
+    mark = MarkAction(
+        type="mark",
+        instruction=span(snapshot, "mark animals", 0),
+        target=span(snapshot, "cat", 13),
+    )
+    policy = ScriptedPolicy(
+        [
+            NudgeAction(type="nudge", fire_event_id=fire.event_id),
+            mark,
+            {"type": "respond"},
+            IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
+        ]
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=scheduler,
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    try:
+        runtime.enqueue_committed_ingress(snapshot)
+        runtime.enqueue_committed_ingress(fire.draft)
+        await runtime.run_until_idle()
+
+        assert action_types(store) == ["nudge", "mark"]
+        assert policy.call_count == runtime.tick_count == 4
+        assert runtime.mark_quiescent
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_repeated_blocked_mark_continuation_fails_explicitly(tmp_path: Path) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    snapshot = snapshot_draft(store, clock, "mark cat", activity="paused")
+    mark = MarkAction(
+        type="mark",
+        instruction=span(snapshot, "mark", 0),
+        target=span(snapshot, "cat", 5),
+    )
+    policy = ScriptedPolicy(
+        [mark, {"type": "respond"}, {"type": "respond"}, {"type": "respond"}]
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    try:
+        runtime.enqueue_committed_ingress(snapshot)
+
+        with pytest.raises(RuntimeError, match="mark-quiescence"):
+            await runtime.run_until_idle()
+
+        assert not runtime.mark_quiescent
+        assert action_types(store) == ["mark"]
+        assert policy.call_count == runtime.tick_count == 4
     finally:
         store.close()
 

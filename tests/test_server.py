@@ -78,9 +78,15 @@ async def wait_for_ingress(
 
 
 def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> None:
-    config = RuntimeConfig()
+    config = RuntimeConfig(
+        min_timer_interval_ms=2_000,
+        max_timer_interval_ms=60_000,
+        max_active_timers=3,
+        max_timer_message_bytes=128,
+    )
     app = create_app(
         session_root=tmp_path,
+        config=config,
         policy_factory=lambda _session_id: ScriptedPolicy([]),
         clock_factory=lambda _session_id: ManualClock(),
     )
@@ -109,6 +115,7 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
     assert event.id == "e_000001"
     assert event.seq == 0
     assert event.dt_ms == 0
+    assert event.payload.capabilities.model_dump(mode="python") == config.timer_capabilities()
     assert stored_config == config.as_json_object()
     assert artifact_hashes == {
         "config": event.payload.config_hash,
@@ -392,8 +399,10 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 "interval_ms": 5_000,
                 "message": "breathe",
             },
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
             {"type": "idle", "reason": "typing_active", "related_event_id": None},
             {"type": "nudge", "fire_event_id": first_fire_id},
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
             {"type": "idle", "reason": "typing_active", "related_event_id": None},
             {
                 "type": "cancel",
@@ -410,8 +419,9 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 "target_event_id": second_fire_id,
                 "reason": "canceled_timer",
             },
+            {"type": "idle", "reason": "no_trigger", "related_event_id": None},
         ],
-        gated_calls={1, 3, 5},
+        gated_calls={1, 4, 7},
     )
     clock = ManualClock()
     app = create_app(
@@ -457,7 +467,7 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
             websocket.send_json(
                 sampler_frame(f"{reminder}!", client_ts=typed_snapshot_count + 1)
             )
-            client.portal.call(policy.entered[3].wait)
+            client.portal.call(policy.entered[4].wait)
             client.portal.call(clock.advance_ms, 5_000)
             client.portal.call(
                 wait_for_ingress,
@@ -467,7 +477,7 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 1,
             )
             fired = websocket.receive_json()
-            client.portal.call(policy.release[3].set)
+            client.portal.call(policy.release[4].set)
             nudge = websocket.receive_json()
             assert fired["type"] == "timer_status"
             assert fired["fire_count"] == 1
@@ -486,7 +496,7 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
             websocket.send_json(
                 sampler_frame(f"{reminder}!!", client_ts=typed_snapshot_count + 2)
             )
-            client.portal.call(policy.entered[5].wait)
+            client.portal.call(policy.entered[7].wait)
             client.portal.call(clock.advance_ms, 5_000)
             client.portal.call(
                 wait_for_ingress,
@@ -507,9 +517,9 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 "snapshot",
                 typed_snapshot_count + 6,
             )
-            client.portal.call(policy.release[5].set)
+            client.portal.call(policy.release[7].set)
             canceled = websocket.receive_json()
-            client.portal.call(wait_for_calls, policy, 7)
+            client.portal.call(wait_for_calls, policy, 10)
             assert second_fire["type"] == "timer_status"
             assert second_fire["fire_count"] == 2
             assert canceled["type"] == "timer_status"
@@ -539,4 +549,4 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 with pytest.raises(anyio.WouldBlock):
                     websocket.portal.call(websocket._send_rx.receive_nowait)
 
-        assert before == (2, 2, 7)
+        assert before == (2, 2, 10)

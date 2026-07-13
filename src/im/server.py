@@ -276,6 +276,7 @@ class RuntimeSession:
             "canonicalizer_id": CANONICALIZER_ID,
             "tool_registry_version": TOOL_REGISTRY_VERSION,
             "hash_algorithm": "sha256",
+            "capabilities": self.config.timer_capabilities(),
             "schema_hash": artifacts.hashes["schema"],
             "spec_hash": artifacts.hashes["spec"],
             "prompt_hash": artifacts.hashes["prompt"],
@@ -468,6 +469,8 @@ class RuntimeSession:
                 self._rollover_if_needed()
 
     def _rollover_if_needed(self) -> None:
+        if not self.tick.mark_quiescent:
+            return
         policy_tokens = estimate_tokens(
             self.store.policy_bytes(), self.config.len_estimator_id
         )

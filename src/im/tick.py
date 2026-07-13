@@ -16,6 +16,7 @@ from im.config import RuntimeConfig
 from im.license import (
     AddressableEventView,
     Allowed,
+    AmbiguousMarkView,
     AppliedMarkView,
     Blocked,
     LicenseEventKind,
@@ -28,6 +29,7 @@ from im.license import (
     ToolResultView,
     check,
 )
+from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
 from im.policy.base import Policy
 from im.scheduler import Clock, TimerScheduler
 from im.schema.actions import (
@@ -46,8 +48,22 @@ from im.schema.actions import (
     SkipAction,
     Span,
 )
-from im.schema.common import Activity, Disposition, LicenseBlockCode, TimerStatus, ToolName
-from im.schema.events import ActionExecutedEvent, SnapshotEvent, TimerFireEvent, ToolResultEvent
+from im.schema.common import (
+    Activity,
+    Disposition,
+    LicenseBlockCode,
+    TimerStatus,
+    ToolName,
+    ToolResultStatus,
+)
+from im.schema.events import (
+    ActionExecutedEvent,
+    SnapshotEvent,
+    StateCheckpointEvent,
+    TimerFireEvent,
+    ToolRequestedEvent,
+    ToolResultEvent,
+)
 from im.store import IdKind, PolicyEventDraft, PolicyRecord, Store
 from im.tools import ScriptedToolResult, ToolAdapter
 
@@ -75,6 +91,7 @@ class RenderCommand:
 
 type RenderSink = Callable[[RenderCommand], Awaitable[None] | None]
 type ToolScript = Callable[[DelegateAction], ScriptedToolResult | None]
+MAX_MARK_QUIESCENCE_BLOCKS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +100,8 @@ class TickResult:
     executed_action_event_id: str | None = None
     blocked_code: LicenseBlockCode | None = None
     fresh_ingress_committed: bool = False
+    mark_quiescent: bool | None = None
+    force_continuation: bool = False
 
 
 def _event_kind(record: PolicyRecord) -> LicenseEventKind:
@@ -99,6 +118,38 @@ def build_license_view(
     """Project objective license facts from one durable store snapshot."""
     records = store.policy_records()
     disposition_by_id = {item.event_id: item.state for item in store.dispositions()}
+    responded_to_ids = {item.event_id for item in store.response_dispositions()}
+    tool_request_policy_seq = {
+        record.event.payload.request_id: record.seq
+        for record in records
+        if isinstance(record.event, ToolRequestedEvent)
+    }
+    current_records = store.policy_records(store.current_segment_index())
+    visible_handled_event_ids: set[str] = set()
+    for record in current_records:
+        event = record.event
+        if isinstance(event, StateCheckpointEvent):
+            visible_handled_event_ids.update(
+                item.event_id for item in event.payload.dispositions
+            )
+        if isinstance(event, TimerFireEvent | ToolResultEvent) and disposition_by_id.get(
+            event.id
+        ) in {
+            Disposition.HANDLED,
+            Disposition.SKIPPED,
+            Disposition.SUPERSEDED,
+        }:
+            visible_handled_event_ids.add(event.id)
+        if isinstance(event, ActionExecutedEvent):
+            action = event.payload.action
+            if isinstance(action, IntegrateAction):
+                visible_handled_event_ids.add(action.result_event_id)
+            elif isinstance(action, SkipAction):
+                visible_handled_event_ids.add(action.target_event_id)
+            elif isinstance(action, NudgeAction):
+                visible_handled_event_ids.add(action.fire_event_id)
+            elif isinstance(action, RespondAction):
+                visible_handled_event_ids.add(action.reply_to_event_id)
     latest_snapshot_record = next(
         (record for record in reversed(records) if isinstance(record.event, SnapshotEvent)), None
     )
@@ -108,48 +159,194 @@ def build_license_view(
         else SnapshotView(
             event_id=latest_snapshot_record.event.id,
             text=latest_snapshot_record.event.payload.text,
+            policy_seq=latest_snapshot_record.seq,
+            responded_to=latest_snapshot_record.event.id in responded_to_ids,
         )
     )
 
-    events: list[AddressableEventView] = []
+    event_by_id: dict[str, AddressableEventView] = {}
     applied_marks: list[AppliedMarkView] = []
-    for record in records:
+    ambiguous_marks: list[AmbiguousMarkView] = []
+    visible_timer_ids = {timer.timer_id for timer in store.active_timers()}
+
+    def retain_event(event: AddressableEventView) -> None:
+        event_by_id[event.event_id] = event
+
+    for record in current_records:
+        checkpoint = record.event
+        if not isinstance(checkpoint, StateCheckpointEvent):
+            continue
+        payload = checkpoint.payload
+        disposition_items = {item.event_id: item for item in payload.dispositions}
+        retain_event(
+            SnapshotView(
+                event_id=payload.snapshot.event_id,
+                text=payload.snapshot.text,
+                policy_seq=(
+                    disposition_items[payload.snapshot.event_id].policy_seq
+                    if payload.snapshot.event_id in disposition_items
+                    else 0
+                ),
+                responded_to=payload.snapshot.event_id in responded_to_ids,
+            )
+        )
+        for fire in payload.open_timer_fires:
+            retain_event(
+                TimerFireView(
+                    event_id=fire.event_id,
+                    timer_id=fire.timer_id,
+                    disposition=Disposition.OPEN,
+                    policy_seq=fire.policy_seq,
+                )
+            )
+            visible_timer_ids.add(fire.timer_id)
+        for result in payload.open_tool_results:
+            retain_event(
+                ToolResultView(
+                    event_id=result.event_id,
+                    request_id=result.request_id,
+                    completed=True,
+                    status=result.status,
+                    disposition=Disposition.OPEN,
+                    policy_seq=result.policy_seq,
+                )
+            )
+        for pending in payload.pending_tools:
+            if pending.fact_event_id not in event_by_id:
+                retain_event(
+                    OtherEventView(
+                        event_id=pending.fact_event_id,
+                        kind=LicenseEventKind.USER_SNAPSHOT,
+                        policy_seq=pending.policy_seq,
+                    )
+                )
+        for prior_use in payload.prior_uses:
+            if prior_use.kind == "schedule":
+                visible_timer_ids.add(prior_use.timer_id)
+                continue
+            if prior_use.result_event_id in event_by_id:
+                continue
+            disposition_item = disposition_items.get(prior_use.result_event_id)
+            retain_event(
+                ToolResultView(
+                    event_id=prior_use.result_event_id,
+                    request_id=prior_use.request_id,
+                    completed=True,
+                    status=prior_use.result_status,
+                    disposition=prior_use.result_disposition,
+                    policy_seq=(
+                        prior_use.policy_seq
+                        if disposition_item is None
+                        else disposition_item.policy_seq
+                    ),
+                )
+            )
+        for disposition in payload.dispositions:
+            existing = event_by_id.get(disposition.event_id)
+            if disposition.relation == "responded_to":
+                if isinstance(existing, SnapshotView):
+                    retain_event(replace(existing, responded_to=True))
+                continue
+            if isinstance(existing, TimerFireView | ToolResultView | OtherEventView):
+                retain_event(replace(existing, disposition=disposition.state))
+            elif existing is None:
+                retain_event(
+                    OtherEventView(
+                        event_id=disposition.event_id,
+                        kind=LicenseEventKind.MODEL_ACTION_EXECUTED,
+                        disposition=disposition.state,
+                        policy_seq=disposition.policy_seq,
+                    )
+                )
+        for recent in payload.recent_events:
+            retain_event(
+                OtherEventView(
+                    event_id=recent.event_id,
+                    kind=LicenseEventKind.MODEL_ACTION_EXECUTED,
+                )
+            )
+        for mark in payload.applied_marks:
+            applied_marks.append(
+                AppliedMarkView(
+                    mark_event_id=mark.mark_event_id,
+                    instruction=None,
+                    target=mark.target,
+                )
+            )
+        for mark in payload.ambiguous_marks:
+            ambiguous_marks.append(
+                AmbiguousMarkView(mark_event_id=mark.mark_event_id, targets=tuple(mark.targets))
+            )
+        visible_timer_ids.update(timer.timer_id for timer in payload.timers)
+    snapshots = tuple(
+        record.event for record in records if isinstance(record.event, SnapshotEvent)
+    )
+    for record in current_records:
         event = record.event
         if isinstance(event, SnapshotEvent):
-            events.append(SnapshotView(event_id=event.id, text=event.payload.text))
+            retain_event(
+                SnapshotView(
+                    event_id=event.id,
+                    text=event.payload.text,
+                    policy_seq=record.seq,
+                    responded_to=event.id in responded_to_ids,
+                )
+            )
         elif isinstance(event, TimerFireEvent):
-            events.append(
+            retain_event(
                 TimerFireView(
                     event_id=event.id,
                     timer_id=event.payload.timer_id,
                     disposition=disposition_by_id.get(event.id, Disposition.OPEN),
+                    policy_seq=record.seq,
                 )
             )
         elif isinstance(event, ToolResultEvent):
-            events.append(
+            retain_event(
                 ToolResultView(
                     event_id=event.id,
                     request_id=event.payload.request_id,
                     completed=True,
+                    status=event.payload.status,
                     disposition=disposition_by_id.get(event.id, Disposition.OPEN),
+                    policy_seq=record.seq,
                 )
             )
         else:
-            events.append(
+            retain_event(
                 OtherEventView(
                     event_id=event.id,
                     kind=_event_kind(record),
                     disposition=disposition_by_id.get(event.id),
+                    policy_seq=record.seq,
                 )
             )
         if isinstance(event, ActionExecutedEvent) and isinstance(event.payload.action, MarkAction):
-            applied_marks.append(
-                AppliedMarkView(
-                    mark_event_id=event.id,
-                    instruction=event.payload.action.instruction,
-                    target=event.payload.action.target,
+            target = project_mark_target(event.payload.action.target, snapshots)
+            if target is not None:
+                applied_marks.append(
+                    AppliedMarkView(
+                        mark_event_id=event.id,
+                        instruction=event.payload.action.instruction,
+                        target=target,
+                    )
                 )
-            )
+            else:
+                targets = project_ambiguous_mark_targets(event.payload.action.target, snapshots)
+                if targets:
+                    ambiguous_marks.append(
+                        AmbiguousMarkView(mark_event_id=event.id, targets=targets)
+                    )
+        if isinstance(event, TimerFireEvent):
+            visible_timer_ids.add(event.payload.timer_id)
+        if isinstance(event, ActionExecutedEvent) and isinstance(
+            event.payload.action, CancelAction
+        ):
+            target = event.payload.action.target
+            if isinstance(target, CancelTimerTarget):
+                visible_timer_ids.add(target.timer_id)
+            elif isinstance(target, CancelTimersTarget):
+                visible_timer_ids.update(target.timer_ids)
 
     timers = tuple(
         TimerView(
@@ -169,8 +366,10 @@ def build_license_view(
     pending_tools = tuple(
         PendingToolRequestView(
             request_id=request.request_id,
+            fact_event_id=request.fact_event_id,
             tool=ToolName(request.tool),
             canonical_key=request.canonical_key,
+            policy_seq=tool_request_policy_seq[request.request_id],
         )
         for request in store.pending_tool_requests()
     )
@@ -183,13 +382,20 @@ def build_license_view(
     )
     return LicenseView(
         latest_snapshot=latest_snapshot,
-        events=tuple(events),
+        events=tuple(
+            sorted(event_by_id.values(), key=lambda event: (event.policy_seq, event.event_id))
+        ),
         timers=timers,
+        visible_timer_ids=frozenset(visible_timer_ids),
         pending_tool_requests=pending_tools,
         applied_marks=tuple(applied_marks),
+        ambiguous_marks=tuple(ambiguous_marks),
+        visible_handled_event_ids=frozenset(visible_handled_event_ids),
         floor_owned=floor_owned,
         payload_within_limits=payload_within_limits,
         newer_pending_snapshot=newer_pending_snapshot,
+        min_timer_interval_ms=config.min_timer_interval_ms,
+        max_timer_interval_ms=config.max_timer_interval_ms,
         max_active_timers=config.max_active_timers,
     )
 
@@ -222,10 +428,16 @@ class TickRuntime:
         self._decision_count = 0
         self._pending: list[PendingEvent] = []
         self._drain_lock = asyncio.Lock()
+        self._mark_quiescent = True
 
     @property
     def pending(self) -> tuple[PendingEvent, ...]:
         return tuple(self._pending)
+
+    @property
+    def mark_quiescent(self) -> bool:
+        """Whether the latest snapshot is safe to freeze as a checkpoint baseline."""
+        return self._mark_quiescent
 
     def enqueue_committed_ingress(self, draft: PendingEvent) -> None:
         """Queue ingress only after its raw evidence row committed durably."""
@@ -241,9 +453,20 @@ class TickRuntime:
         """Drain pending work and exact continuation ticks under one actor lock."""
         async with self._drain_lock:
             continue_tick = False
+            blocked_quiescence_attempts = 0
             while self._pending or continue_tick:
                 result = await self._run_tick()
-                continue_tick = result.fresh_ingress_committed or (
+                if result.mark_quiescent is not None:
+                    self._mark_quiescent = result.mark_quiescent
+                if result.blocked_code is not None and not self._mark_quiescent:
+                    blocked_quiescence_attempts += 1
+                    if blocked_quiescence_attempts >= MAX_MARK_QUIESCENCE_BLOCKS:
+                        raise RuntimeError(
+                            "mark-quiescence continuation exceeded blocked-attempt limit"
+                        )
+                else:
+                    blocked_quiescence_attempts = 0
+                continue_tick = result.force_continuation or result.fresh_ingress_committed or (
                     result.changed_state and self._has_open_actionable_event()
                 )
 
@@ -261,9 +484,14 @@ class TickRuntime:
             decision = self._check_attempt(raw_attempt)
             if isinstance(decision, Blocked):
                 self._audit_block(decision.code, decision_id, observed_seq)
-                return TickResult(False, blocked_code=decision.code)
+                return TickResult(
+                    False,
+                    blocked_code=decision.code,
+                    mark_quiescent=False if self._pending else None,
+                    force_continuation=not self._mark_quiescent,
+                )
             if isinstance(decision.action, IdleAction):
-                return TickResult(False)
+                return TickResult(False, mark_quiescent=not self._pending)
             return await self._execute(decision.action, decision_id, observed_seq)
         finally:
             self.phase = TickPhase.IDLE
@@ -390,14 +618,22 @@ class TickRuntime:
                 False,
                 blocked_code=blocked,
                 fresh_ingress_committed=bool(fresh_batch),
+                mark_quiescent=False if fresh_batch else None,
+                force_continuation=not self._mark_quiescent,
             )
         if action_event_id is None:  # pragma: no cover - narrowed by the branch above.
             raise RuntimeError("allowed action execution lost its event id")
         await self._emit(effects)
+        requires_mark_continuation = isinstance(
+            action,
+            CancelAction | ScheduleAction | NudgeAction | SkipAction | MarkAction,
+        )
         return TickResult(
             True,
             executed_action_event_id=action_event_id,
             fresh_ingress_committed=bool(fresh_batch),
+            mark_quiescent=not (requires_mark_continuation or fresh_batch),
+            force_continuation=requires_mark_continuation,
         )
 
     def _apply_action(self, action: NonIdleAction, action_event_id: str) -> list[RenderCommand]:
@@ -444,6 +680,28 @@ class TickRuntime:
             )
             return []
         if isinstance(action, RespondAction):
+            referenced = next(
+                (
+                    record.event
+                    for record in self.store.policy_records()
+                    if record.event.id == action.reply_to_event_id
+                ),
+                None,
+            )
+            if (
+                isinstance(referenced, ToolResultEvent)
+                and referenced.payload.status is ToolResultStatus.FAILED
+            ):
+                self.store.set_disposition(
+                    referenced.id,
+                    Disposition.HANDLED,
+                    by_action_event_id=action_event_id,
+                )
+            elif isinstance(referenced, SnapshotEvent):
+                self.store.set_response_disposition(
+                    referenced.id,
+                    by_action_event_id=action_event_id,
+                )
             return [
                 RenderCommand(
                     RenderKind.RESPOND,

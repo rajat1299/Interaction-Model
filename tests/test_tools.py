@@ -49,6 +49,41 @@ def test_closed_lookup_registry_and_canonical_key() -> None:
         canonical_tool_key("lookup", {"query": "planet", "limit": 1})
 
 
+@pytest.mark.parametrize("data", [None, "   ", [], {}, [None, ""]])
+def test_structurally_empty_success_is_normalized_to_typed_failure(data: object) -> None:
+    result = ScriptedToolResult(latency_ms=0, status="succeeded", data=data)
+
+    assert result.status is ToolResultStatus.FAILED
+    assert result.data == {
+        "code": "no_usable_data",
+        "message": "lookup returned no usable data",
+    }
+
+
+def test_unconfigured_lookup_delivers_a_typed_failure_not_successful_null(
+    tmp_path: Path,
+) -> None:
+    clock = FakeClock()
+    with Store(tmp_path / "session.sqlite3") as store:
+        adapter = ToolAdapter(store, clock)
+        request_id = adapter.request(
+            "lookup",
+            {"query": "no script"},
+            fact_event_id="e_000010",
+        )
+
+        (delivery,) = adapter.deliver_due()
+
+        assert delivery.payload == {
+            "data": {
+                "code": "no_usable_data",
+                "message": "lookup returned no usable data",
+            },
+            "request_id": request_id,
+            "status": "failed",
+        }
+
+
 def test_scripted_result_is_delivered_at_due_time_with_verbatim_canonical_data(
     tmp_path: Path,
 ) -> None:

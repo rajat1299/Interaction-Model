@@ -44,6 +44,30 @@ class ToolValidationError(ValueError):
     """Raised when a request does not belong to the closed v1 tool registry."""
 
 
+_FAILURE_MESSAGES = {
+    "lookup_failed": "lookup failed",
+    "no_usable_data": "lookup returned no usable data",
+    "malformed_result": "lookup returned malformed data",
+    "projection_failed": "lookup result projection failed",
+}
+
+
+def _failure_projection(code: str) -> dict[str, str]:
+    return {"code": code, "message": _FAILURE_MESSAGES[code]}
+
+
+def _contains_usable_answer(value: TimJsonValue) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(_contains_usable_answer(item) for item in value)
+    if isinstance(value, dict):
+        return any(_contains_usable_answer(item) for item in value.values())
+    return True
+
+
 @dataclass(frozen=True, slots=True)
 class ScriptedToolResult:
     """The complete deterministic outcome configured for one fake request."""
@@ -61,8 +85,21 @@ class ScriptedToolResult:
             status = ToolResultStatus(self.status)
         except ValueError as error:
             raise ValueError(f"unknown tool result status: {self.status}") from error
-        normalized_data = normalize_tim_json(self.data)
-        canonicalize_tim_json(normalized_data)
+        try:
+            normalized_data = normalize_tim_json(self.data)
+            canonicalize_tim_json(normalized_data)
+        except (TypeError, ValueError) as error:
+            status = ToolResultStatus.FAILED
+            code = "projection_failed" if "exceed" in str(error) else "malformed_result"
+            normalized_data = _failure_projection(code)
+        else:
+            if status is ToolResultStatus.SUCCEEDED and not _contains_usable_answer(
+                normalized_data
+            ):
+                status = ToolResultStatus.FAILED
+                normalized_data = _failure_projection("no_usable_data")
+            elif status is ToolResultStatus.FAILED:
+                normalized_data = _failure_projection("lookup_failed")
         object.__setattr__(self, "status", status)
         object.__setattr__(self, "data", normalized_data)
 

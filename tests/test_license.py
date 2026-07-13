@@ -13,7 +13,9 @@ from hypothesis import strategies as st
 from im.license import (
     Allowed,
     Blocked,
+    LicenseEventKind,
     LicenseView,
+    OtherEventView,
     PendingToolRequestView,
     SnapshotView,
     TimerFireView,
@@ -22,7 +24,13 @@ from im.license import (
     check,
 )
 from im.schema.actions import Span
-from im.schema.common import Disposition, LicenseBlockCode, TimerStatus, ToolName
+from im.schema.common import (
+    Disposition,
+    LicenseBlockCode,
+    TimerStatus,
+    ToolName,
+    ToolResultStatus,
+)
 
 CURRENT_SNAPSHOT_ID = "e_000001"
 RESULT_EVENT_ID = "e_000002"
@@ -90,7 +98,12 @@ def view(**overrides: Any) -> LicenseView:
     defaults: dict[str, Any] = {
         "latest_snapshot": SnapshotView(CURRENT_SNAPSHOT_ID, TEXT),
         "events": (
-            ToolResultView(RESULT_EVENT_ID, "r_001", completed=True),
+            ToolResultView(
+                RESULT_EVENT_ID,
+                "r_001",
+                completed=True,
+                status=ToolResultStatus.SUCCEEDED,
+            ),
             TimerFireView(FIRE_EVENT_ID, TIMER_ID),
         ),
         "timers": (TimerView(TIMER_ID, TimerStatus.ACTIVE),),
@@ -123,6 +136,15 @@ POSITIVE_CASES: list[PositiveCase] = [
     ("duplicate_tool_request", action_payload("delegate"), view),
     ("floor_owned", action_payload("respond"), view),
     ("target_already_handled", action_payload("skip"), view),
+    (
+        "reason_mismatch",
+        {
+            "type": "idle",
+            "reason": "awaiting_opening",
+            "related_event_id": RESULT_EVENT_ID,
+        },
+        view,
+    ),
     ("timer_limit_exceeded", action_payload("schedule"), lambda: view(max_active_timers=2)),
     ("payload_limit_exceeded", action_payload("idle"), view),
     ("stale_decision", action_payload("respond"), view),
@@ -163,7 +185,16 @@ NEGATIVE_CASES: list[tuple[str, object, Callable[[], LicenseView], LicenseBlockC
     (
         "result_not_ready",
         action_payload("integrate"),
-        lambda: view(events=(ToolResultView(RESULT_EVENT_ID, "r_001", completed=False),)),
+        lambda: view(
+            events=(
+                ToolResultView(
+                    RESULT_EVENT_ID,
+                    "r_001",
+                    completed=False,
+                    status=ToolResultStatus.SUCCEEDED,
+                ),
+            )
+        ),
         LicenseBlockCode.RESULT_NOT_READY,
     ),
     (
@@ -199,7 +230,12 @@ NEGATIVE_CASES: list[tuple[str, object, Callable[[], LicenseView], LicenseBlockC
         {**action_payload("delegate"), "args": {"query": "  weather  "}},
         lambda: view(
             pending_tool_requests=(
-                PendingToolRequestView.from_args("r_001", ToolName.LOOKUP, {"query": "weather"}),
+                PendingToolRequestView.from_args(
+                    "r_001",
+                    CURRENT_SNAPSHOT_ID,
+                    ToolName.LOOKUP,
+                    {"query": "weather"},
+                ),
             )
         ),
         LicenseBlockCode.DUPLICATE_TOOL_REQUEST,
@@ -219,11 +255,22 @@ NEGATIVE_CASES: list[tuple[str, object, Callable[[], LicenseView], LicenseBlockC
                     RESULT_EVENT_ID,
                     "r_001",
                     completed=True,
+                    status=ToolResultStatus.SUCCEEDED,
                     disposition=Disposition.HANDLED,
                 ),
             )
         ),
         LicenseBlockCode.TARGET_ALREADY_HANDLED,
+    ),
+    (
+        "reason_mismatch",
+        {
+            "type": "idle",
+            "reason": "awaiting_tool",
+            "related_event_id": CURRENT_SNAPSHOT_ID,
+        },
+        view,
+        LicenseBlockCode.REASON_MISMATCH,
     ),
     (
         "timer_limit_exceeded",
@@ -291,6 +338,200 @@ def test_schedule_consumes_instruction_even_if_payload_changes() -> None:
         raw,
         view(timers=(timer,)),
         LicenseBlockCode.DUPLICATE_SCHEDULE,
+    )
+
+
+@pytest.mark.parametrize("interval_ms", [999, 2_001])
+def test_schedule_interval_must_fit_model_visible_session_capabilities(
+    interval_ms: int,
+) -> None:
+    raw = {**action_payload("schedule"), "interval_ms": interval_ms}
+
+    assert_blocked(
+        raw,
+        view(min_timer_interval_ms=1_000, max_timer_interval_ms=2_000),
+        LicenseBlockCode.TIMER_LIMIT_EXCEEDED,
+    )
+
+
+def test_failed_result_is_not_integrable_but_can_warrant_one_failure_response() -> None:
+    failed = ToolResultView(
+        RESULT_EVENT_ID,
+        "r_001",
+        completed=True,
+        status=ToolResultStatus.FAILED,
+    )
+    state = view(events=(failed,))
+
+    assert_blocked(action_payload("integrate"), state, LicenseBlockCode.RESULT_NOT_READY)
+    response = {
+        **action_payload("respond"),
+        "reply_to_event_id": RESULT_EVENT_ID,
+        "text": "The lookup failed.",
+    }
+    assert_allowed(response, state)
+
+    handled = ToolResultView(
+        RESULT_EVENT_ID,
+        "r_001",
+        completed=True,
+        status=ToolResultStatus.FAILED,
+        disposition=Disposition.HANDLED,
+    )
+    assert_blocked(
+        response,
+        view(events=(handled,)),
+        LicenseBlockCode.TARGET_ALREADY_HANDLED,
+    )
+
+
+def test_reserved_user_annotation_cannot_be_a_response_warrant() -> None:
+    annotation = OtherEventView(
+        event_id="e_000004",
+        kind=LicenseEventKind.USER_ANNOTATION,
+    )
+    raw = {**action_payload("respond"), "reply_to_event_id": annotation.event_id}
+
+    assert_blocked(
+        raw,
+        view(events=(annotation,)),
+        LicenseBlockCode.UNKNOWN_REFERENCE,
+    )
+
+
+@pytest.mark.parametrize("reason", ["stale_tool_result", "superseded_query"])
+def test_tool_skip_reasons_cannot_target_timer_fires(reason: str) -> None:
+    raw = {"type": "skip", "target_event_id": FIRE_EVENT_ID, "reason": reason}
+
+    assert_blocked(raw, view(), LicenseBlockCode.REASON_MISMATCH)
+
+
+def test_canceled_timer_reason_requires_a_canceled_fire_timer() -> None:
+    raw = {
+        "type": "skip",
+        "target_event_id": FIRE_EVENT_ID,
+        "reason": "canceled_timer",
+    }
+    assert_blocked(raw, view(), LicenseBlockCode.REASON_MISMATCH)
+    assert_allowed(raw, view(timers=(TimerView(TIMER_ID, TimerStatus.CANCELED),)))
+
+
+def test_idle_referents_bind_to_pending_open_and_handled_subjects() -> None:
+    awaiting_tool = {
+        "type": "idle",
+        "reason": "awaiting_tool",
+        "related_event_id": CURRENT_SNAPSHOT_ID,
+    }
+    pending = PendingToolRequestView.from_args(
+        "r_001",
+        CURRENT_SNAPSHOT_ID,
+        ToolName.LOOKUP,
+        {"query": "weather"},
+    )
+    assert_allowed(awaiting_tool, view(pending_tool_requests=(pending,)))
+
+    already_handled = {
+        "type": "idle",
+        "reason": "already_handled",
+        "related_event_id": RESULT_EVENT_ID,
+    }
+    handled = ToolResultView(
+        RESULT_EVENT_ID,
+        "r_001",
+        completed=True,
+        status=ToolResultStatus.SUCCEEDED,
+        disposition=Disposition.HANDLED,
+    )
+    assert_allowed(already_handled, view(events=(handled,)))
+    assert_blocked(already_handled, view(), LicenseBlockCode.REASON_MISMATCH)
+
+
+def test_multi_subject_idle_and_failed_response_tie_breaks_are_objective() -> None:
+    older_pending = PendingToolRequestView.from_args(
+        "r_002",
+        "e_000010",
+        ToolName.LOOKUP,
+        {"query": "older"},
+        policy_seq=10,
+    )
+    newer_pending = PendingToolRequestView.from_args(
+        "r_001",
+        "e_000011",
+        ToolName.LOOKUP,
+        {"query": "newer"},
+        policy_seq=12,
+    )
+    awaiting_newer = {
+        "type": "idle",
+        "reason": "awaiting_tool",
+        "related_event_id": newer_pending.fact_event_id,
+    }
+    awaiting_older = {**awaiting_newer, "related_event_id": older_pending.fact_event_id}
+    pending_state = view(
+        events=(
+            SnapshotView(older_pending.fact_event_id, "older"),
+            SnapshotView(newer_pending.fact_event_id, "newer"),
+        ),
+        pending_tool_requests=(newer_pending, older_pending),
+    )
+    assert_allowed(awaiting_older, pending_state)
+    assert_blocked(awaiting_newer, pending_state, LicenseBlockCode.REASON_MISMATCH)
+
+    older_failed = ToolResultView(
+        "e_000020",
+        "r_020",
+        completed=True,
+        status=ToolResultStatus.FAILED,
+        policy_seq=20,
+    )
+    newer_failed = ToolResultView(
+        "e_000021",
+        "r_021",
+        completed=True,
+        status=ToolResultStatus.FAILED,
+        policy_seq=21,
+    )
+    failed_state = view(events=(newer_failed, older_failed))
+    assert_allowed(
+        {"type": "respond", "reply_to_event_id": older_failed.event_id, "text": "failed"},
+        failed_state,
+    )
+    assert_blocked(
+        {"type": "respond", "reply_to_event_id": newer_failed.event_id, "text": "failed"},
+        failed_state,
+        LicenseBlockCode.REASON_MISMATCH,
+    )
+
+
+def test_already_handled_tie_break_ignores_checkpoint_hidden_history() -> None:
+    hidden = ToolResultView(
+        "e_000030",
+        "r_030",
+        completed=True,
+        status=ToolResultStatus.SUCCEEDED,
+        disposition=Disposition.HANDLED,
+        policy_seq=3,
+    )
+    visible = ToolResultView(
+        "e_000031",
+        "r_031",
+        completed=True,
+        status=ToolResultStatus.SUCCEEDED,
+        disposition=Disposition.HANDLED,
+        policy_seq=31,
+    )
+    action = {
+        "type": "idle",
+        "reason": "already_handled",
+        "related_event_id": visible.event_id,
+    }
+
+    assert_allowed(
+        action,
+        view(
+            events=(hidden, visible),
+            visible_handled_event_ids=frozenset({visible.event_id}),
+        ),
     )
 
 
