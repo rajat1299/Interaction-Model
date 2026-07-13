@@ -33,7 +33,7 @@ from im.canonical_json import (
 )
 from im.coalesce import SnapshotState, derive_edit_kind
 from im.config import MAX_SAFE_INTEGER, RuntimeConfig, estimate_tokens
-from im.policy.base import Policy
+from im.policy.base import AsyncClosablePolicy, Policy
 from im.rollover import rollover, should_rollover
 from im.scheduler import AsyncioClock, Clock, DueTimerFire, TimerScheduler
 from im.schema.actions import Span
@@ -594,6 +594,8 @@ class RuntimeSession:
                 await socket.close(code=status.WS_1001_GOING_AWAY)
             except RuntimeError:
                 pass
+        if isinstance(self.tick.policy, AsyncClosablePolicy):
+            await self.tick.policy.aclose()
         self.store.close()
 
 

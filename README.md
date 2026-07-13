@@ -6,9 +6,17 @@ disabled). Event-sourced runtime, nine-action policy, SFT + DPO.
 
 Full plan: [docs/build-plan.md](docs/build-plan.md).
 
-## Status
+## WP13 dry run
 
-Repo scaffold only — no implementation yet. Work proceeds by phase (see plan §2).
+The prompted policy is configured for OpenAI `gpt-5.6-terra` with high reasoning. Before any
+live request, validate the local key and print expected/conservative costs:
+
+```bash
+uv run python scripts/wp13_dry_run.py
+```
+
+The command never calls OpenAI and never prints the key. When the live WP13 run is approved, the
+browser server entrypoint is `uv run uvicorn im.entrypoint:app`.
 
 ## Layout
 

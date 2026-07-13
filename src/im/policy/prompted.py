@@ -469,6 +469,8 @@ class PromptedPolicy:
         builder: ResponsesRequestBuilder,
         *,
         api_key: str,
+        organization_id: str | None = None,
+        project_id: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
@@ -479,7 +481,14 @@ class PromptedPolicy:
             base_url=builder.config.base_url,
             timeout=builder.config.timeout_seconds,
         )
-        self._authorization = f"Bearer {api_key}"
+        self._headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if organization_id:
+            self._headers["OpenAI-Organization"] = organization_id
+        if project_id:
+            self._headers["OpenAI-Project"] = project_id
 
     async def aclose(self) -> None:
         if self._owns_client:
@@ -501,10 +510,7 @@ class PromptedPolicy:
                 response = await self._client.post(
                     "/responses",
                     content=request,
-                    headers={
-                        "Authorization": self._authorization,
-                        "Content-Type": "application/json",
-                    },
+                    headers=self._headers,
                 )
             except httpx.HTTPError as error:
                 latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)

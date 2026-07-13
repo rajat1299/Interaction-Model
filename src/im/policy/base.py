@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +40,14 @@ class Policy(Protocol):
 
     async def decide(self, policy_bytes: bytes) -> object:
         """Return one raw action attempt for schema validation and audit."""
+
+
+@runtime_checkable
+class AsyncClosablePolicy(Protocol):
+    """Optional lifecycle implemented by policies owning network clients."""
+
+    async def aclose(self) -> None:
+        """Release provider transport resources."""
 
 
 class ScriptedPolicy:
