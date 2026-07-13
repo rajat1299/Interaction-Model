@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from im.policy.prompted import ModelPricing
 from im.probes.harness.cost import HarnessCostEstimate, usage_cost
-from im.probes.harness.models import HarnessRun
+from im.probes.harness.models import HarnessRun, ProviderUsage
 
 
 def render_report(
@@ -17,10 +17,22 @@ def render_report(
     *,
     run_kind: str,
     repository_commit: str,
+    billing_multiplier: Decimal = Decimal(1),
+    fresh_usage_override: ProviderUsage | None = None,
+    execution_details: tuple[str, ...] = (),
 ) -> str:
     pricing = ModelPricing(model=run.model)
-    corpus_cost = usage_cost(run.usage, pricing)
-    fresh_cost = usage_cost(run.fresh_usage, pricing)
+    fresh_usage = run.fresh_usage if fresh_usage_override is None else fresh_usage_override
+    corpus_cost = usage_cost(
+        run.usage,
+        pricing,
+        billing_multiplier=billing_multiplier,
+    )
+    fresh_cost = usage_cost(
+        fresh_usage,
+        pricing,
+        billing_multiplier=billing_multiplier,
+    )
     lines = [
         f"# WP15 teacher probe — {run.model} / {run.reasoning_effort}",
         "",
@@ -37,12 +49,18 @@ def render_report(
         f"- Human review: `{run.review_sha256}`",
         f"- Model: `{run.model}`",
         f"- Reasoning effort: `{run.reasoning_effort}`",
+        *(
+            [f"- Billing multiplier: `{billing_multiplier}`"]
+            if billing_multiplier != Decimal(1)
+            else []
+        ),
         "- Base protocol calls represented: "
         f"{len(run.generation) + len(run.pairwise) + len(run.listwise)}",
         f"- Open-text rubric records: {len(run.semantic_text)} "
         f"({sum(result.executed for result in run.semantic_text)} provider calls executed)",
         "- Semantic authority: same model and reasoning configuration as generation; this is "
         "self-grading, not independent human adjudication.",
+        *execution_details,
         "",
         "## Promotion gates",
         "",
@@ -114,13 +132,18 @@ def render_report(
             "",
             f"- Offline warm-cache estimate: ${_money(estimate.synchronous_warm_cache_usd)}",
             f"- Offline no-cache estimate: ${_money(estimate.synchronous_no_cache_usd)}",
+            *(
+                [f"- Offline Batch no-cache estimate: ${_money(estimate.batch_no_cache_usd)}"]
+                if billing_multiplier != Decimal(1)
+                else []
+            ),
             f"- Offline all-calls-retry warm estimate: "
             f"${_money(estimate.all_calls_one_retry_warm_cache_usd)}",
             "- Provider usage represented by this report: "
             f"`{json.dumps(run.usage.as_json(), sort_keys=True)}`",
             f"- Estimated charge represented by cached corpus results: ${_money(corpus_cost)}",
             "- Fresh usage in this invocation: "
-            f"`{json.dumps(run.fresh_usage.as_json(), sort_keys=True)}`",
+            f"`{json.dumps(fresh_usage.as_json(), sort_keys=True)}`",
             f"- Estimated incremental charge for this invocation: ${_money(fresh_cost)}",
             "- Provider billing remains authoritative.",
             "",

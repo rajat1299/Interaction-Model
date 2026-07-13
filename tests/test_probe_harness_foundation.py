@@ -1,11 +1,13 @@
 """WP15 signed-artifact and resumable-cache foundations."""
 
 import sqlite3
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from im.policy.base import PolicyCallTrace
+from im.policy.prompted import ModelPricing
 from im.probes.harness.artifacts import (
     APPROVED_MANIFEST_SHA256,
     APPROVED_REVIEW_SHA256,
@@ -14,6 +16,7 @@ from im.probes.harness.artifacts import (
     load_approved_manifest,
 )
 from im.probes.harness.cache import HarnessCache, IndeterminateCacheEntry
+from im.probes.harness.cost import usage_cost
 from im.probes.harness.models import (
     BatchJobRecord,
     CacheIdentity,
@@ -221,6 +224,20 @@ def test_batch_job_ledger_is_resumable_and_append_only(tmp_path: Path) -> None:
                     estimated_input_tokens=20,
                 )
             )
+
+
+def test_batch_billing_multiplier_halves_usage_based_cost() -> None:
+    usage = ProviderUsage(input_tokens=1_000, output_tokens=100)
+    pricing = ModelPricing()
+
+    synchronous = usage_cost(usage, pricing)
+    batch = usage_cost(
+        usage,
+        pricing,
+        billing_multiplier=pricing.batch_multiplier,
+    )
+
+    assert batch == synchronous * Decimal("0.50")
 
 
 def test_cache_identity_separates_candidate_orderings(tmp_path: Path) -> None:

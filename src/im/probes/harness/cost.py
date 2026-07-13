@@ -163,12 +163,19 @@ def estimate_harness_cost(
     )
 
 
-def usage_cost(usage: ProviderUsage, pricing: ModelPricing) -> Decimal:
+def usage_cost(
+    usage: ProviderUsage,
+    pricing: ModelPricing,
+    *,
+    billing_multiplier: Decimal = Decimal(1),
+) -> Decimal:
     """Apply the pinned pricing snapshot to provider-reported token classes."""
+    if not billing_multiplier.is_finite() or billing_multiplier <= 0:
+        raise ValueError("billing_multiplier must be a positive finite decimal")
     cached = min(usage.input_tokens, usage.cached_input_tokens)
     writable = min(max(0, usage.input_tokens - cached), usage.cache_write_tokens)
     ordinary = max(0, usage.input_tokens - cached - writable)
-    return (
+    return billing_multiplier * (
         _token_cost(ordinary, pricing.input_per_million)
         + _token_cost(cached, pricing.cached_input_per_million)
         + _token_cost(
