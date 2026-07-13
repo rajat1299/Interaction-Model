@@ -80,6 +80,7 @@ class LogicalProbe(_StrictModel):
     flip_variable: str
     negative_class: NegativeClass
     blocking_variable: str | None = None
+    mechanical_release_probe_id: ProbeId | None = None
     pairwise_negative_class: Literal[
         NegativeClass.SEMANTIC_PREFERENCE,
         NegativeClass.MECHANICAL_NEGATIVE,
@@ -105,6 +106,12 @@ class LogicalProbe(_StrictModel):
         mechanical = self.negative_class is NegativeClass.MECHANICAL_NEGATIVE
         if mechanical != (self.blocking_variable is not None):
             raise ValueError("blocking_variable is required exactly for mechanical negatives")
+        if mechanical != (self.mechanical_release_probe_id is not None):
+            raise ValueError(
+                "mechanical_release_probe_id is required exactly for mechanical negatives"
+            )
+        if self.mechanical_release_probe_id == self.probe_id:
+            raise ValueError("mechanical release state must differ from the blocked state")
         invariance = self.negative_class is NegativeClass.INVARIANCE
         if invariance != (self.expected_action_equivalence is not None):
             raise ValueError("invariance probes require expected-action equivalence")

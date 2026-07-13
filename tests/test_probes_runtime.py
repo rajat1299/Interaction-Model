@@ -13,6 +13,7 @@ from im.probes.model import (
     RenderedVariant,
 )
 from im.probes.runtime import RuntimeProbeBuilder
+from im.probes.validate import ProbeValidationError, assert_reference_integrity
 from im.schema.actions import IdleAction, ScheduleAction, Span
 from im.server import ArtifactPaths, load_session_artifacts
 
@@ -116,3 +117,30 @@ def test_rendered_variant_never_exposes_manifest_metadata_to_teacher() -> None:
     assert set(teacher) == {"policy_stream", "candidate_a", "candidate_b"}
     assert teacher["candidate_a"] == idle.model_dump(mode="json")
     assert teacher["candidate_b"] == alternative.model_dump(mode="json")
+
+
+@pytest.mark.asyncio
+async def test_reference_validation_precedes_license_checks(tmp_path: Path) -> None:
+    builder = RuntimeProbeBuilder(
+        probe_id="foundation-reference-order",
+        directory=tmp_path / "reference-order",
+        artifacts=artifacts(),
+    )
+    try:
+        _event_id, state = await builder.capture_snapshot("Visible text")
+        unknown = ScheduleAction(
+            type="schedule",
+            instruction=Span(
+                event_id="e_999999",
+                start_utf16=0,
+                end_utf16=7,
+                text="Missing",
+            ),
+            interval_ms=5_000,
+            message="test",
+        )
+
+        with pytest.raises(ProbeValidationError, match="unknown candidate event"):
+            assert_reference_integrity(unknown, state.license_view)
+    finally:
+        await builder.close()
