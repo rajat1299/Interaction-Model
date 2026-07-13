@@ -18,13 +18,10 @@ from im.probes.grading import (
 from im.probes.harness.artifacts import ApprovedProbeCatalog
 from im.probes.harness.backend import HarnessBackend
 from im.probes.harness.cache import HarnessCache
-from im.probes.harness.candidates import build_listwise_presentation
-from im.probes.harness.identity import cache_identity, canonical_request_bytes, digest
 from im.probes.harness.models import (
     CacheIdentity,
     GenerationResult,
     HarnessCompletion,
-    HarnessProtocol,
     HarnessRun,
     ListwiseRanking,
     ListwiseResult,
@@ -33,6 +30,12 @@ from im.probes.harness.models import (
     ProviderUsage,
     SemanticTextResult,
     SemanticTextVerdict,
+)
+from im.probes.harness.planning import (
+    plan_generation,
+    plan_listwise,
+    plan_pairwise,
+    plan_semantic,
 )
 from im.probes.harness.protocols import ProtocolPromptBuilder
 from im.probes.model import ExpectedPosition, NegativeClass
@@ -106,18 +109,11 @@ class ProbeHarnessRunner:
     ) -> tuple[GenerationResult, SemanticTextResult | None]:
         variant = probe.variants[0]
         view = self.catalog.views[(probe.probe_id, "v1")]
-        policy_bytes = variant.policy_stream.encode()
-        body = self.generation_builder.build(policy_bytes)
-        request_bytes = canonical_request_bytes(body)
-        identity = self._identity(
-            probe_id=probe.probe_id,
-            protocol=HarnessProtocol.GENERATION,
-            variant_id="v1",
-            presentation="canonical",
-            prompt_hash=self.generation_builder.renderer.artifacts.prompt_hash,
-            request_bytes=request_bytes,
+        planned = plan_generation(self.catalog, self.generation_builder, probe)
+        completion = await self._cached(
+            planned.identity,
+            lambda: self.backend.generate(planned.policy_bytes),
         )
-        completion = await self._cached(identity, lambda: self.backend.generate(policy_bytes))
         actual: Action | None = None
         schema_valid = reference_valid = license_allowed = structural_match = False
         block_code: str | None = None
@@ -234,24 +230,21 @@ class ProbeHarnessRunner:
         actual: Action,
         rule,
     ) -> SemanticTextResult:
-        request = self.prompts.semantic_text(
+        planned = plan_semantic(
+            self.catalog,
+            self.generation_builder,
+            self.prompts,
+            probe_id=probe_id,
             policy_stream=policy_stream,
-            action=actual,
+            actual=actual,
             rule=rule,
         )
-        identity = self._identity(
-            probe_id=probe_id,
-            protocol=HarnessProtocol.SEMANTIC_TEXT,
-            variant_id="v1",
-            presentation=(
-                f"{rule.value}:{digest(canonical_request_bytes(actual.model_dump(mode='json')))}"
-            ),
-            prompt_hash=request.prompt_hash,
-            request_bytes=request.request_bytes,
-        )
         completion = await self._cached(
-            identity,
-            lambda: self.backend.complete(request, SemanticTextVerdict.model_validate),
+            planned.identity,
+            lambda: self.backend.complete(
+                planned.request,
+                SemanticTextVerdict.model_validate,
+            ),
         )
         try:
             verdict = SemanticTextVerdict.model_validate(completion.value)
@@ -293,23 +286,20 @@ class ProbeHarnessRunner:
         variant_id: str,
         position: ExpectedPosition,
     ) -> PairwiseResult:
-        presentation = probe.teacher_variant(variant_id, expected_position=position)
-        request = self.prompts.pairwise(
-            policy_stream=str(presentation["policy_stream"]),
-            candidate_a=presentation["candidate_a"],
-            candidate_b=presentation["candidate_b"],
-        )
-        identity = self._identity(
-            probe_id=probe.probe_id,
-            protocol=HarnessProtocol.PAIRWISE,
-            variant_id=variant_id,
-            presentation=f"expected-{position.value}",
-            prompt_hash=request.prompt_hash,
-            request_bytes=request.request_bytes,
+        planned = plan_pairwise(
+            self.catalog,
+            self.generation_builder,
+            self.prompts,
+            probe,
+            variant_id,
+            position,
         )
         completion = await self._cached(
-            identity,
-            lambda: self.backend.complete(request, PairwiseChoice.model_validate),
+            planned.identity,
+            lambda: self.backend.complete(
+                planned.request,
+                PairwiseChoice.model_validate,
+            ),
         )
         choice: str | None = None
         try:
@@ -347,29 +337,19 @@ class ProbeHarnessRunner:
         )
 
     async def _run_listwise(self, probe) -> ListwiseResult:
-        variant = probe.variants[0]
-        view = self.catalog.views[(probe.probe_id, "v1")]
-        presentation = build_listwise_presentation(probe, variant, view)
-        request = self.prompts.listwise(
-            policy_stream=variant.policy_stream,
-            candidates=presentation.candidates,
+        planned = plan_listwise(
+            self.catalog,
+            self.generation_builder,
+            self.prompts,
+            probe,
         )
-        candidate_hash = digest(
-            canonical_request_bytes(
-                [candidate.as_prompt_json() for candidate in presentation.candidates]
-            )
-        )
-        identity = self._identity(
-            probe_id=probe.probe_id,
-            protocol=HarnessProtocol.LISTWISE,
-            variant_id="v1",
-            presentation=candidate_hash,
-            prompt_hash=request.prompt_hash,
-            request_bytes=request.request_bytes,
-        )
+        presentation = planned.presentation
         completion = await self._cached(
-            identity,
-            lambda: self.backend.complete(request, ListwiseRanking.model_validate),
+            planned.identity,
+            lambda: self.backend.complete(
+                planned.request,
+                ListwiseRanking.model_validate,
+            ),
         )
         ranking: tuple[str, ...] = ()
         expected_ids = tuple(candidate.candidate_id for candidate in presentation.candidates)
@@ -444,29 +424,6 @@ class ProbeHarnessRunner:
                 raise
             self.cache.put(identity, completion)
             return completion
-
-    def _identity(
-        self,
-        *,
-        probe_id: str,
-        protocol: HarnessProtocol,
-        variant_id: str,
-        presentation: str,
-        prompt_hash: str,
-        request_bytes: bytes,
-    ) -> CacheIdentity:
-        return cache_identity(
-            manifest_sha256=self.catalog.manifest_sha256,
-            probe_id=probe_id,
-            protocol=protocol,
-            variant_id=variant_id,
-            presentation=presentation,
-            model=self.generation_builder.config.model,
-            reasoning_effort=self.generation_builder.config.reasoning_effort,
-            prompt_hash=prompt_hash,
-            request_bytes=request_bytes,
-        )
-
 
 async def _gather_phase[T](*awaitables: Awaitable[T]) -> tuple[T, ...]:
     """Cancel and drain an entire phase before propagating its first failure."""
