@@ -7,13 +7,14 @@ PASS. This verdict applies only to the frozen WP15 promotion gates.
 ## Run identity
 
 - Run kind: `mocked-oracle`
-- Repository commit: `5a9b6553897130de023a68b31cad31192eac0008`
+- Repository commit: `9fe725a97bf3a9e610eee2eaa2e137ca6fcb969b`
 - Manifest: `sha256:9430f7385f804d93f4b9f7c3f0750ce3735731fbea5dbc4a8bf444f80866900a`
 - Human review: `sha256:290d06d6ff895da4489a3ad1277c3e53cf6a1206dd658c50817f39de4e9ca67e`
 - Model: `gpt-5.6-terra`
 - Reasoning effort: `high`
-- Protocol calls represented: 1152
-- Open-text semantic grading calls are included in generation usage.
+- Base protocol calls represented: 1152
+- Open-text rubric records: 22 (22 provider calls executed)
+- Semantic authority: same model and reasoning configuration as generation; this is self-grading, not independent human adjudication.
 
 ## Promotion gates
 
@@ -49,6 +50,7 @@ PASS. This verdict applies only to the frozen WP15 promotion gates.
 - Raw license allowance: 100.00% (144/144)
 - Structural match: 100.00% (144/144)
 - Open-text semantic grade: 100.00% (22/22)
+- Open-text rubric outcomes: completed=22
 - Overall generation: 100.00% (144/144)
 - Intrusive action rate on idle-expected probes: 0.00% (0/58)
 - Invented/non-exact non-text arguments: 0.00% (0/144)
@@ -63,9 +65,9 @@ PASS. This verdict applies only to the frozen WP15 promotion gates.
 
 ## Cost and usage
 
-- Offline warm-cache estimate: $9.575423
-- Offline no-cache estimate: $42.529848
-- Offline all-calls-retry warm estimate: $20.911846
+- Offline warm-cache estimate: $9.578208
+- Offline no-cache estimate: $42.532632
+- Offline all-calls-retry warm estimate: $20.917416
 - Provider usage represented by this report: `{"cache_write_tokens": 0, "cached_input_tokens": 0, "input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0}`
 - Estimated charge represented by cached corpus results: $0.000000
 - Fresh usage in this invocation: `{"cache_write_tokens": 0, "cached_input_tokens": 0, "input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0}`
