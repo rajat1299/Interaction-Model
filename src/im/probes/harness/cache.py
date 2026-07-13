@@ -138,6 +138,24 @@ class HarnessCache:
             return None
         return BatchJobRecord(*row)
 
+    def batch_jobs(self, *, stage: str | None = None) -> tuple[BatchJobRecord, ...]:
+        query = """
+            SELECT input_sha256, stage, shard_index, input_jsonl, request_count,
+                   estimated_input_tokens, status, input_file_id, batch_id,
+                   output_file_id, error_file_id, latest_batch_json,
+                   output_jsonl, error_jsonl
+            FROM batch_jobs
+        """
+        parameters: tuple[object, ...] = ()
+        if stage is not None:
+            query += " WHERE stage = ?"
+            parameters = (stage,)
+        query += " ORDER BY stage, shard_index, input_sha256"
+        return tuple(
+            BatchJobRecord(*row)
+            for row in self._connection.execute(query, parameters).fetchall()
+        )
+
     def put_batch_job(
         self,
         record: BatchJobRecord,

@@ -14,10 +14,12 @@ from im.policy.prompted import (
     ResponsesRequestBuilder,
 )
 from im.probes.harness.artifacts import load_approved_catalog
-from im.probes.harness.batch_api import BatchApiObservation
+from im.probes.harness.batch import plan_primary_work, shard_work
+from im.probes.harness.batch_api import BatchApiObservation, execute_batch_shard
 from im.probes.harness.batch_runner import (
     BatchHarnessConfig,
     BatchProbeHarnessRunner,
+    materialize_batch_stage,
 )
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.metrics import compute_metrics
@@ -182,7 +184,7 @@ async def test_full_batch_oracle_matches_shared_wp15_grading_and_resumes(
             prompts=prompts,
             gateway=gateway,
             cache=cache,
-            config=BatchHarnessConfig(max_enqueued_tokens=100_000_000),
+            config=BatchHarnessConfig(max_enqueued_tokens=1_000_000),
         ).run()
 
     metrics = compute_metrics(first.run)
@@ -195,4 +197,50 @@ async def test_full_batch_oracle_matches_shared_wp15_grading_and_resumes(
     assert gateway.upload_count == 2
     assert gateway.create_count == 2
     assert second.run == first.run
+    assert second.jobs == first.jobs
     assert second.submitted_this_invocation_usage.input_tokens == 0
+
+
+@pytest.mark.asyncio
+async def test_downloaded_job_is_recovered_before_changed_cap_can_reshard(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    catalog = await load_approved_catalog(repository)
+    artifacts = PromptArtifacts.from_repository(repository)
+    config = PromptedPolicyConfig()
+    builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
+    prompts = ProtocolPromptBuilder(artifacts, config)
+    gateway = _OracleBatchGateway(
+        {
+            (probe.probe_id, variant.variant_id): variant.expected_action.model_dump(
+                mode="json"
+            )
+            for probe in catalog.manifest.probes
+            for variant in probe.variants
+        }
+    )
+    work = plan_primary_work(catalog, builder, prompts)[:4]
+    original = shard_work("p0", work, max_enqueued_tokens=100_000_000)[0]
+    with HarnessCache(tmp_path / "batch.sqlite") as cache:
+        downloaded = await execute_batch_shard(
+            original,
+            cache=cache,
+            gateway=gateway,
+            poll_seconds=1,
+        )
+        assert downloaded.output_jsonl
+        assert all(not cache.history(item.identity) for item in work)
+
+        recovered = await materialize_batch_stage(
+            "p0",
+            work,
+            cache=cache,
+            gateway=gateway,
+            config=BatchHarnessConfig(max_enqueued_tokens=1),
+        )
+
+        assert all(cache.history(item.identity) for item in work)
+    assert recovered.jobs == (downloaded,)
+    assert recovered.submitted_this_invocation_usage.input_tokens == 0
+    assert gateway.create_count == 1

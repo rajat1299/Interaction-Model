@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from pydantic import ValidationError
@@ -10,6 +11,8 @@ from im.policy.prompted import ResponsesRequestBuilder
 from im.probes.grading import grade_generation_structure
 from im.probes.harness.artifacts import ApprovedProbeCatalog
 from im.probes.harness.batch import (
+    BatchArtifactError,
+    BatchShard,
     BatchWorkItem,
     decode_batch_completion,
     parse_batch_artifacts,
@@ -226,66 +229,139 @@ async def materialize_batch_stage(
     """Execute and decode one independently resumable stage, including pilot subsets."""
     jobs: list[BatchJobRecord] = []
     submitted_usage = ProviderUsage()
-    shards = shard_work(
-        stage,
-        items,
-        max_enqueued_tokens=config.max_enqueued_tokens,
-    )
-    for shard in shards:
-        before = cache.get_batch_job(shard.input_sha256)
-        submitted_now = before is None or before.batch_id is None
-        record = await execute_batch_shard(
+    items_by_id = {item.custom_id: item for item in items}
+    if len(items_by_id) != len(items):
+        raise BatchLifecycleError("Batch stage contains duplicate custom_id values")
+
+    existing = cache.batch_jobs(stage=stage)
+    for record in existing:
+        shard = _recover_shard(record, items_by_id)
+        recovered, usage = await _materialize_shard(
             shard,
             cache=cache,
             gateway=gateway,
-            poll_seconds=config.poll_seconds,
+            config=config,
+        )
+        jobs.append(recovered)
+        submitted_usage += usage
+
+    pending = tuple(item for item in items if not _is_materialized(cache, item))
+    shards = shard_work(
+        stage,
+        pending,
+        max_enqueued_tokens=config.max_enqueued_tokens,
+    )
+    for shard in shards:
+        record, usage = await _materialize_shard(
+            shard,
+            cache=cache,
+            gateway=gateway,
+            config=config,
         )
         jobs.append(record)
-        artifacts = parse_batch_artifacts(
-            shard.items,
-            output_jsonl=record.output_jsonl,
-            error_jsonl=record.error_jsonl,
-        )
-        indeterminate: list[str] = []
-        for item in shard.items:
-            history = cache.history(item.identity)
-            if any(
-                trace.execution_mode != "batch"
-                for completion in history
-                for trace in completion.traces
-            ):
-                raise BatchLifecycleError(
-                    "the all-Batch run cannot consume synchronous completion provenance"
-                )
-            if any(
-                trace.batch_custom_id == item.custom_id
-                for completion in history
-                for trace in completion.traces
-            ):
-                continue
-            prior_traces = history[-1].traces if item.attempt_index == 2 and history else ()
-            decoded = decode_batch_completion(
-                item,
-                artifacts[item.custom_id],
-                batch_id=record.batch_id or "",
-                stage=stage,
-                shard_index=shard.shard_index,
-                prior_traces=prior_traces,
-            )
-            cache.put(item.identity, decoded.completion)
-            if submitted_now:
-                submitted_usage += usage_from_traces((decoded.completion.traces[-1],))
-            if decoded.completion.outcome in {"batch_error", "http_error"}:
-                indeterminate.append(item.identity.digest)
-        if record.status != "completed":
-            raise BatchLifecycleError(
-                f"Batch {record.batch_id} ended in terminal status {record.status!r}"
-            )
-        if indeterminate:
-            raise BatchLifecycleError(
-                "Batch contained indeterminate provider items: " + ", ".join(indeterminate)
-            )
+        submitted_usage += usage
     return BatchStageResult(
         jobs=tuple(jobs),
         submitted_this_invocation_usage=submitted_usage,
+    )
+
+
+async def _materialize_shard(
+    shard: BatchShard,
+    *,
+    cache: HarnessCache,
+    gateway: BatchGateway,
+    config: BatchHarnessConfig,
+) -> tuple[BatchJobRecord, ProviderUsage]:
+    before = cache.get_batch_job(shard.input_sha256)
+    submitted_now = before is None or before.batch_id is None
+    record = await execute_batch_shard(
+        shard,
+        cache=cache,
+        gateway=gateway,
+        poll_seconds=config.poll_seconds,
+    )
+    artifacts = parse_batch_artifacts(
+        shard.items,
+        output_jsonl=record.output_jsonl,
+        error_jsonl=record.error_jsonl,
+    )
+    submitted_usage = ProviderUsage()
+    indeterminate: list[str] = []
+    for item in shard.items:
+        if _is_materialized(cache, item):
+            continue
+        history = cache.history(item.identity)
+        prior_traces = history[-1].traces if item.attempt_index == 2 and history else ()
+        decoded = decode_batch_completion(
+            item,
+            artifacts[item.custom_id],
+            batch_id=record.batch_id or "",
+            stage=shard.stage,
+            shard_index=shard.shard_index,
+            prior_traces=prior_traces,
+        )
+        cache.put(item.identity, decoded.completion)
+        if submitted_now:
+            submitted_usage += usage_from_traces((decoded.completion.traces[-1],))
+        if decoded.completion.outcome in {"batch_error", "http_error"}:
+            indeterminate.append(item.identity.digest)
+    if record.status != "completed":
+        raise BatchLifecycleError(
+            f"Batch {record.batch_id} ended in terminal status {record.status!r}"
+        )
+    if indeterminate:
+        raise BatchLifecycleError(
+            "Batch contained indeterminate provider items: " + ", ".join(indeterminate)
+        )
+    return record, submitted_usage
+
+
+def _is_materialized(cache: HarnessCache, item: BatchWorkItem) -> bool:
+    history = cache.history(item.identity)
+    if any(
+        trace.execution_mode != "batch"
+        for completion in history
+        for trace in completion.traces
+    ):
+        raise BatchLifecycleError(
+            "the all-Batch run cannot consume synchronous completion provenance"
+        )
+    return any(
+        trace.batch_custom_id == item.custom_id
+        for completion in history
+        for trace in completion.traces
+    )
+
+
+def _recover_shard(
+    record: BatchJobRecord,
+    items_by_id: dict[str, BatchWorkItem],
+) -> BatchShard:
+    ordered: list[BatchWorkItem] = []
+    for raw_line in record.input_jsonl.splitlines(keepends=True):
+        try:
+            parsed = json.loads(raw_line)
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            raise BatchArtifactError("retained Batch input contains invalid JSONL") from error
+        custom_id = parsed.get("custom_id") if isinstance(parsed, dict) else None
+        if not isinstance(custom_id, str) or custom_id not in items_by_id:
+            raise BatchLifecycleError(
+                "retained Batch job is not a subset of the current signed stage plan"
+            )
+        ordered.append(items_by_id[custom_id])
+    if len(ordered) != record.request_count or len({item.custom_id for item in ordered}) != len(
+        ordered
+    ):
+        raise BatchLifecycleError("retained Batch input count/custom_id set is inconsistent")
+    exact = b"".join(item.request_line for item in ordered)
+    if exact != record.input_jsonl:
+        raise BatchLifecycleError("retained Batch input bytes differ from current request planning")
+    return BatchShard(
+        stage=record.stage,
+        shard_index=record.shard_index,
+        items=tuple(ordered),
+        input_jsonl=record.input_jsonl,
+        estimated_input_tokens=record.estimated_input_tokens,
+        input_sha256=record.input_sha256,
     )
