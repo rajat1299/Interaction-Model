@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 
 from im.canonical_json import canonicalize_tim_json, parse_tim_json
 from im.license import Allowed, Blocked, LicenseView, SnapshotView, check
@@ -24,6 +25,7 @@ from im.schema.actions import (
     Span,
 )
 from im.schema.textspan import utf16_slice
+from im.serialize import parse_event, render_event
 
 
 class ProbeValidationError(ValueError):
@@ -42,6 +44,19 @@ class ProbeValidationReport:
 def _round_trip(action: Action) -> Action:
     raw = canonicalize_tim_json(action.model_dump(mode="json"))
     return ACTION_ADAPTER.validate_python(parse_tim_json(raw))
+
+
+def _validate_policy_stream(policy_stream: str, expected_digest: str) -> None:
+    encoded = policy_stream.encode("utf-8")
+    actual_digest = f"sha256:{sha256(encoded).hexdigest()}"
+    if actual_digest != expected_digest:
+        raise ProbeValidationError(
+            f"policy stream digest mismatch: {expected_digest} != {actual_digest}"
+        )
+    for line_number, line in enumerate(encoded.splitlines(), start=1):
+        event = parse_event(line)
+        if render_event(event) != line:
+            raise ProbeValidationError(f"noncanonical policy event at rendered line {line_number}")
 
 
 def _spans(action: Action) -> tuple[Span, ...]:
@@ -128,6 +143,10 @@ def validate_manifest(
                 view = views[key]
             except KeyError as error:
                 raise ProbeValidationError(f"missing runtime view: {key}") from error
+            _validate_policy_stream(
+                variant.policy_stream,
+                variant.policy_stream_sha256,
+            )
             for action in (variant.expected_action, variant.tempting_alternative):
                 if _round_trip(action) != action:
                     raise ProbeValidationError(f"non-canonical action round trip in {key}")
