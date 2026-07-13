@@ -171,3 +171,11 @@
 
 - Explicit human sign-off remains the only WP14 exit condition. WP15 must not begin until it is
   received.
+
+## 2026-07-13 — Human gate approved
+
+- The user approved the required WP14 human-review gate after reviewing the bound artifact pair.
+- No probe-content, licensing, rollover, span, grading, or artifact-binding exception was granted or
+  remains open.
+- WP14 is complete. The signed `manifest.json` and `REVIEW.md` bytes remain unchanged; WP15 consumes
+  them by their recorded SHA-256 identities.
