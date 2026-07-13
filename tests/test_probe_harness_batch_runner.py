@@ -22,7 +22,11 @@ from im.probes.harness.batch import (
     plan_primary_work,
     shard_work,
 )
-from im.probes.harness.batch_api import BatchApiObservation, execute_batch_shard
+from im.probes.harness.batch_api import (
+    BatchApiObservation,
+    BatchLifecycleError,
+    execute_batch_shard,
+)
 from im.probes.harness.batch_runner import (
     BatchHarnessConfig,
     BatchProbeHarnessRunner,
@@ -158,6 +162,39 @@ class _OracleBatchGateway:
                 ).encode()
             )
         return b"\n".join(reversed(output)) + b"\n"
+
+
+class _TokenLimitOnceGateway(_OracleBatchGateway):
+    async def create(
+        self,
+        input_file_id: str,
+        metadata: dict[str, str],
+    ) -> BatchApiObservation:
+        if self.create_count == 0:
+            self.create_count += 1
+            return _observation(
+                {
+                    "endpoint": "/v1/responses",
+                    "error_file_id": None,
+                    "errors": {
+                        "data": [
+                            {
+                                "code": "token_limit_exceeded",
+                                "message": "controlled quota",
+                            }
+                        ],
+                        "object": "list",
+                    },
+                    "id": "batch_token_limit",
+                    "input_file_id": input_file_id,
+                    "metadata": metadata,
+                    "output_file_id": None,
+                    "request_counts": {"completed": 0, "failed": 0, "total": 0},
+                    "status": "failed",
+                    "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+                }
+            )
+        return await super().create(input_file_id, metadata)
 
 
 @pytest.mark.asyncio
@@ -406,3 +443,50 @@ async def test_explicit_provider_retry_uses_distinct_custom_id_without_consuming
     assert [trace.attempt_index for trace in current.traces] == [1, 1]
     assert result.submitted_this_invocation_usage.input_tokens == 10
     assert gateway.create_count == 1
+
+
+@pytest.mark.asyncio
+async def test_zero_usage_token_limit_failure_can_be_safely_resharded(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    catalog = await load_approved_catalog(repository)
+    artifacts = PromptArtifacts.from_repository(repository)
+    config = PromptedPolicyConfig()
+    builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
+    prompts = ProtocolPromptBuilder(artifacts, config)
+    work = plan_primary_work(catalog, builder, prompts)[:4]
+    gateway = _TokenLimitOnceGateway(
+        {
+            (probe.probe_id, variant.variant_id): variant.expected_action.model_dump(
+                mode="json"
+            )
+            for probe in catalog.manifest.probes
+            for variant in probe.variants
+        }
+    )
+    with HarnessCache(tmp_path / "batch.sqlite") as cache:
+        with pytest.raises(BatchLifecycleError, match="smaller"):
+            await materialize_batch_stage(
+                "p0",
+                work,
+                cache=cache,
+                gateway=gateway,
+                config=BatchHarnessConfig(max_enqueued_tokens=1_000_000),
+            )
+        assert all(not cache.history(item.identity) for item in work)
+        first_job = cache.batch_jobs(stage="p0")[0]
+        assert first_job.status == "failed"
+
+        resumed = await materialize_batch_stage(
+            "p0",
+            work,
+            cache=cache,
+            gateway=gateway,
+            config=BatchHarnessConfig(max_enqueued_tokens=30_000),
+        )
+
+        assert all(cache.get(item.identity).outcome == "completed" for item in work)
+    assert resumed.jobs[0] == first_job
+    assert all(job.status == "completed" for job in resumed.jobs[1:])
+    assert resumed.submitted_this_invocation_usage.input_tokens == 40

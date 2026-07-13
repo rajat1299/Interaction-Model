@@ -289,3 +289,28 @@
   reconciliation path. The live API mechanics gate is green.
 - The pilot cache remains isolated and is not eligible for the full report. The next run starts from
   the distinct full Batch cache so every reported teacher result has homogeneous provenance.
+
+## 2026-07-13 — Full-run capacity discovery
+
+### Provider result
+
+- The first full-cache shard used the explicit 1,000,000-token operator cap and contained 72
+  requests estimated at 999,836 input tokens. Batch
+  `batch_6a554ea8cd5c8190b05581182e9879d9` failed during provider validation with the exact code
+  `token_limit_exceeded`; the returned organization limit is 900,000 enqueued Terra tokens.
+- The provider record proves no inference occurred: request counts total/completed/failed were all
+  zero, usage input/output/total tokens were all zero, and neither an output file nor an error file
+  was created. No teacher result was accepted and no token charge is inferred.
+
+### Recovery decision
+
+- A terminal failed Batch is not generally retryable or safe to reshard. The one closed exception is
+  a `token_limit_exceeded` record that simultaneously has zero request counts, zero total usage, and
+  no output/error artifact. That conjunction objectively proves the shard never entered per-item
+  execution.
+- Such a record remains in the append-only job ledger. Its custom IDs remain unmaterialized and may
+  be deterministically re-sharded only under a smaller explicit cap. Reusing the same oversized cap
+  fails locally with a precise instruction instead of recreating or silently skipping the job.
+- Partial, charged, artifact-bearing, differently coded, or otherwise failed Batches do not satisfy
+  this exception and continue to stop the run. An adversarial regression covers the zero-execution
+  recovery and successful smaller-cap continuation.

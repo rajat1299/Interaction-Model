@@ -265,6 +265,7 @@ async def materialize_batch_stage(
         )
 
     existing = cache.batch_jobs(stage=stage)
+    nonexecuted_failures: set[str] = set()
     for record in existing:
         shard = _recover_shard(record, items_by_id)
         recovered, usage = await _materialize_shard(
@@ -275,6 +276,8 @@ async def materialize_batch_stage(
         )
         jobs.append(recovered)
         submitted_usage += usage
+        if _is_nonexecuted_token_limit_failure(recovered):
+            nonexecuted_failures.add(recovered.input_sha256)
 
     pending = tuple(
         item
@@ -287,6 +290,11 @@ async def materialize_batch_stage(
         max_enqueued_tokens=config.max_enqueued_tokens,
     )
     for shard in shards:
+        if shard.input_sha256 in nonexecuted_failures:
+            raise BatchLifecycleError(
+                "the deterministic shard exceeds the provider's enqueued-token limit; "
+                "resume with a smaller --batch-max-enqueued-tokens value"
+            )
         record, usage = await _materialize_shard(
             shard,
             cache=cache,
@@ -295,6 +303,11 @@ async def materialize_batch_stage(
         )
         jobs.append(record)
         submitted_usage += usage
+        if _is_nonexecuted_token_limit_failure(record):
+            raise BatchLifecycleError(
+                "the deterministic shard exceeds the provider's enqueued-token limit; "
+                "resume with a smaller --batch-max-enqueued-tokens value"
+            )
     return BatchStageResult(
         jobs=tuple(jobs),
         submitted_this_invocation_usage=submitted_usage,
@@ -316,6 +329,12 @@ async def _materialize_shard(
         gateway=gateway,
         poll_seconds=config.poll_seconds,
     )
+    if record.status != "completed":
+        if _is_nonexecuted_token_limit_failure(record):
+            return record, ProviderUsage()
+        raise BatchLifecycleError(
+            f"Batch {record.batch_id} ended in terminal status {record.status!r}"
+        )
     artifacts = parse_batch_artifacts(
         shard.items,
         output_jsonl=record.output_jsonl,
@@ -349,15 +368,55 @@ async def _materialize_shard(
             submitted_usage += usage_from_traces((decoded.completion.traces[-1],))
         if decoded.completion.outcome in {"batch_error", "http_error"}:
             indeterminate.append(item.identity.digest)
-    if record.status != "completed":
-        raise BatchLifecycleError(
-            f"Batch {record.batch_id} ended in terminal status {record.status!r}"
-        )
     if indeterminate:
         raise BatchLifecycleError(
             "Batch contained indeterminate provider items: " + ", ".join(indeterminate)
         )
     return record, submitted_usage
+
+
+def _is_nonexecuted_token_limit_failure(record: BatchJobRecord) -> bool:
+    if (
+        record.status != "failed"
+        or record.output_file_id is not None
+        or record.error_file_id is not None
+        or record.output_jsonl
+        or record.error_jsonl
+        or not record.latest_batch_json
+    ):
+        return False
+    try:
+        payload = json.loads(record.latest_batch_json)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    errors = payload.get("errors")
+    error_data = errors.get("data") if isinstance(errors, dict) else None
+    if (
+        not isinstance(error_data, list)
+        or not error_data
+        or not all(
+            isinstance(error, dict) and error.get("code") == "token_limit_exceeded"
+            for error in error_data
+        )
+    ):
+        return False
+    request_counts = payload.get("request_counts")
+    usage = payload.get("usage")
+    return (
+        isinstance(request_counts, dict)
+        and all(
+            isinstance(request_counts.get(key), int)
+            and not isinstance(request_counts.get(key), bool)
+            and request_counts.get(key) == 0
+            for key in ("total", "completed", "failed")
+        )
+        and isinstance(usage, dict)
+        and isinstance(usage.get("total_tokens"), int)
+        and not isinstance(usage.get("total_tokens"), bool)
+        and usage.get("total_tokens") == 0
+    )
 
 
 def _is_materialized(cache: HarnessCache, item: BatchWorkItem) -> bool:
