@@ -34,7 +34,12 @@ from im.schema.actions import (
     Span,
 )
 from im.schema.common import Activity, Disposition, TimerStatus
-from im.schema.events import SnapshotEvent, StateCheckpointEvent
+from im.schema.events import (
+    ActionExecutedEvent,
+    SnapshotEvent,
+    StateCheckpointEvent,
+    ToolResultEvent,
+)
 from im.schema.textspan import utf16_slice
 from im.serialize import parse_event, render_event
 
@@ -277,9 +282,35 @@ def _validate_twin_state(
         expected = left_variant.expected_action
         if not isinstance(expected, IntegrateAction):
             raise ProbeValidationError(f"rollover expected action is not integrate: {probe_id}")
-        carried = tuple(item.event_id for item in checkpoint.payload.open_tool_results)
-        if carried != (expected.result_event_id,):
+        carried = tuple(checkpoint.payload.open_tool_results)
+        if tuple(item.event_id for item in carried) != (expected.result_event_id,):
             raise ProbeValidationError(f"rollover lost the open result identity: {probe_id}")
+        delegates = tuple(
+            event.payload.action
+            for event in left_events
+            if isinstance(event, ActionExecutedEvent)
+            and isinstance(event.payload.action, DelegateAction)
+        )
+        source_results = tuple(
+            event
+            for event in left_events
+            if isinstance(event, ToolResultEvent) and event.id == expected.result_event_id
+        )
+        if len(delegates) != 1 or len(source_results) != 1:
+            raise ProbeValidationError(f"rollover source provenance is incomplete: {probe_id}")
+        delegate = delegates[0]
+        source_result = source_results[0]
+        retained = carried[0]
+        if (
+            retained.fact_event_id != delegate.fact.event_id
+            or retained.fact_text != delegate.fact.text
+            or retained.tool != delegate.tool
+            or retained.args != delegate.args
+            or retained.request_id != source_result.payload.request_id
+            or retained.status != source_result.payload.status
+            or retained.data != source_result.payload.data
+        ):
+            raise ProbeValidationError(f"rollover changed tool-result provenance: {probe_id}")
 
 
 def validate_manifest(
