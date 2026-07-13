@@ -27,7 +27,7 @@ from im.policy.prompted import (
     ResponsesRequestBuilder,
 )
 from im.probes.harness.artifacts import load_approved_catalog
-from im.probes.harness.batch import plan_primary_work, shard_work
+from im.probes.harness.batch import BatchWorkItem, plan_primary_work, shard_work
 from im.probes.harness.batch_api import OpenAIBatchGateway, adopt_uncertain_batch
 from im.probes.harness.batch_runner import (
     BatchHarnessConfig,
@@ -181,6 +181,8 @@ async def _run(args: argparse.Namespace) -> None:
     if args.mode == "pilot":
         if pilot_count is None:
             raise RuntimeError("--mode pilot requires --batch-pilot-requests")
+        if pilot_count < 3:
+            raise RuntimeError("pilot requires at least three requests to cover every P0 protocol")
         if pilot_count > len(primary):
             raise RuntimeError(f"pilot requests cannot exceed {len(primary)}")
         approval_ceiling = (
@@ -214,13 +216,14 @@ async def _run(args: argparse.Namespace) -> None:
         max_enqueued_tokens=args.batch_max_enqueued_tokens,
         poll_seconds=args.batch_poll_seconds,
     )
+    pilot_work = _pilot_work(primary, pilot_count) if args.mode == "pilot" else ()
     try:
         with _exclusive_cache_lock(cache_path):
             with HarnessCache(cache_path) as cache:
                 if args.mode == "pilot":
                     pilot = await materialize_batch_stage(
                         "p0",
-                        primary[:pilot_count],
+                        pilot_work,
                         cache=cache,
                         gateway=gateway,
                         config=batch_config,
@@ -228,12 +231,12 @@ async def _run(args: argparse.Namespace) -> None:
                     outcomes = {
                         outcome: sum(
                             cache.get(item.identity).outcome == outcome
-                            for item in primary[:pilot_count]
+                            for item in pilot_work
                         )
                         for outcome in sorted(
                             {
                                 cache.get(item.identity).outcome
-                                for item in primary[:pilot_count]
+                                for item in pilot_work
                             }
                         )
                     }
@@ -353,6 +356,23 @@ def _job_summary(job: BatchJobRecord) -> dict[str, object]:
         "stage": job.stage,
         "status": job.status,
     }
+
+
+def _pilot_work(
+    primary: tuple[BatchWorkItem, ...],
+    count: int,
+) -> tuple[BatchWorkItem, ...]:
+    """Cover generation, pairwise, and listwise before filling in stable P0 order."""
+    anchors = (primary[0], primary[144], primary[1_008])
+    selected = list(anchors)
+    selected_ids = {item.custom_id for item in selected}
+    for item in primary:
+        if len(selected) == count:
+            break
+        if item.custom_id not in selected_ids:
+            selected.append(item)
+            selected_ids.add(item.custom_id)
+    return tuple(selected)
 
 
 def _resolve(repository: Path, provided: Path | None, default: Path) -> Path:
