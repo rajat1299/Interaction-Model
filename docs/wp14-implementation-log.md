@@ -84,3 +84,45 @@
 - `uv run pytest`: 387 passed.
 - The only warning is the pre-existing Starlette/httpx deprecation warning.
 - The generated machine manifest and human review sheet are deterministic and current.
+
+## 2026-07-13 — Human semantic gate reopened
+
+### Review outcome
+
+- The first human gate did not sign off. It accepted the machine-construction and license contract,
+  then found under-specified lookup subjects, one ungrounded restraint candidate, an undefined
+  open-text generation score, grammar defects, overly broad quoted-command spans, and repetitive
+  rollover coverage. These findings supersede the earlier readiness statement.
+
+### Design decisions
+
+- Lookup topics are now independently identifiable, and each `delegate.fact` span selects the
+  factual subject inside the user's request instead of the surrounding request language. Result
+  answers and integration sentences are topic-specific rather than generated with a generic
+  subject-plus-`is` template.
+- Family 12 pair 4 describes an existing oven-checking routine. Its tempting schedule uses the
+  exact grounded message `check the oven`; non-direct narration is now its only semantic defect.
+- Quoted mark and schedule alternatives reference only the command inside quotation marks. The
+  enclosing snapshot remains the evidence that the otherwise strongest candidate is non-direct.
+- Family 2 is named for the actual flip: a standalone lexical unit versus the same prefix embedded
+  in a longer word.
+- Family 11 now covers six distinct checkpoint projections: succeeded result, pending request,
+  active fire, canceled open fire, failed result, and handled disposition. The rebuilt catalog has
+  432 unique rendered streams.
+- Free-generation scoring is field-aware. Every non-text field is exact. `integrate.text` requires a
+  result-faithfulness semantic assessment, while `respond.text` requires the response-warrant and
+  answer-quality rubric. An open-text action cannot pass without its declared assessment.
+- The manifest format is version 2 because it now carries the grading contract and typed rollover
+  projection metadata. This does not change the frozen event or action schemas.
+- A generated `SHA256SUMS` sidecar records top-level hashes for `manifest.json` and `REVIEW.md` so a
+  reviewed artifact pair cannot be silently regenerated after approval.
+
+### Tradeoffs
+
+- Diversifying rollover construction and validating each projection costs more generator and
+  validator code, but directly exercises the checkpoint surfaces most likely to fail and removes
+  duplicated teacher calls.
+
+### Open questions
+
+- Human sign-off remains pending on the regenerated artifacts.

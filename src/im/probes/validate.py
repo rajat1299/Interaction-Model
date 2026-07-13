@@ -16,7 +16,7 @@ from im.license import (
     blocking_codes,
     check,
 )
-from im.probes.model import NegativeClass, ProbeManifest, RenderedVariant
+from im.probes.model import NegativeClass, ProbeManifest, RenderedVariant, RolloverProjection
 from im.schema.actions import (
     ACTION_ADAPTER,
     Action,
@@ -33,11 +33,13 @@ from im.schema.actions import (
     SkipAction,
     Span,
 )
-from im.schema.common import Activity, Disposition, TimerStatus
+from im.schema.common import Activity, Disposition, TimerStatus, ToolResultStatus
 from im.schema.events import (
     ActionExecutedEvent,
     SnapshotEvent,
     StateCheckpointEvent,
+    TimerFireEvent,
+    ToolRequestedEvent,
     ToolResultEvent,
 )
 from im.schema.textspan import utf16_slice
@@ -52,6 +54,7 @@ class ProbeValidationError(ValueError):
 class ProbeValidationReport:
     logical_probes: int
     rendered_states: int
+    unique_rendered_streams: int
     semantic_states: int
     mechanical_states: int
     invariance_states: int
@@ -228,6 +231,7 @@ def _validate_twin_state(
     right_variant: RenderedVariant,
     left_view: LicenseView,
     right_view: LicenseView,
+    rollover_projection: RolloverProjection | None = None,
 ) -> None:
     if family_id in {7, 10}:
         if not left_view.floor_owned or right_view.floor_owned:
@@ -265,6 +269,8 @@ def _validate_twin_state(
         if (left_activity, right_activity) != (Activity.ACTIVE, Activity.PAUSED):
             raise ProbeValidationError(f"floor twin activity values are not exact: {probe_id}")
     if family_id == 11:
+        if rollover_projection is None:
+            raise ProbeValidationError(f"rollover twin lacks projection metadata: {probe_id}")
         if _actionable_projection(left_view) != _actionable_projection(right_view):
             raise ProbeValidationError(f"rollover changed actionable state: {probe_id}")
         left_events = tuple(
@@ -284,37 +290,138 @@ def _validate_twin_state(
         if checkpoint.payload.snapshot.activity is not Activity.PAUSED:
             raise ProbeValidationError(f"rollover checkpoint lost open floor: {probe_id}")
         expected = left_variant.expected_action
-        if not isinstance(expected, IntegrateAction):
-            raise ProbeValidationError(f"rollover expected action is not integrate: {probe_id}")
-        carried = tuple(checkpoint.payload.open_tool_results)
-        if tuple(item.event_id for item in carried) != (expected.result_event_id,):
-            raise ProbeValidationError(f"rollover lost the open result identity: {probe_id}")
         delegates = tuple(
             event.payload.action
             for event in left_events
             if isinstance(event, ActionExecutedEvent)
             and isinstance(event.payload.action, DelegateAction)
         )
-        source_results = tuple(
-            event
-            for event in left_events
-            if isinstance(event, ToolResultEvent) and event.id == expected.result_event_id
-        )
-        if len(delegates) != 1 or len(source_results) != 1:
-            raise ProbeValidationError(f"rollover source provenance is incomplete: {probe_id}")
-        delegate = delegates[0]
-        source_result = source_results[0]
-        retained = carried[0]
-        if (
-            retained.fact_event_id != delegate.fact.event_id
-            or retained.fact_text != delegate.fact.text
-            or retained.tool != delegate.tool
-            or retained.args != delegate.args
-            or retained.request_id != source_result.payload.request_id
-            or retained.status != source_result.payload.status
-            or retained.data != source_result.payload.data
-        ):
-            raise ProbeValidationError(f"rollover changed tool-result provenance: {probe_id}")
+
+        def validate_open_result(result_event_id: str, status: ToolResultStatus) -> None:
+            carried = tuple(checkpoint.payload.open_tool_results)
+            if tuple(item.event_id for item in carried) != (result_event_id,):
+                raise ProbeValidationError(f"rollover lost the open result identity: {probe_id}")
+            source_results = tuple(
+                event
+                for event in left_events
+                if isinstance(event, ToolResultEvent) and event.id == result_event_id
+            )
+            if len(delegates) != 1 or len(source_results) != 1:
+                raise ProbeValidationError(f"rollover source provenance is incomplete: {probe_id}")
+            delegate = delegates[0]
+            source_result = source_results[0]
+            retained = carried[0]
+            if (
+                retained.fact_event_id != delegate.fact.event_id
+                or retained.fact_text != delegate.fact.text
+                or retained.tool != delegate.tool
+                or retained.args != delegate.args
+                or retained.request_id != source_result.payload.request_id
+                or retained.status is not status
+                or retained.status != source_result.payload.status
+                or retained.data != source_result.payload.data
+            ):
+                raise ProbeValidationError(f"rollover changed tool-result provenance: {probe_id}")
+
+        if rollover_projection is RolloverProjection.SUCCEEDED_RESULT:
+            if not isinstance(expected, IntegrateAction):
+                raise ProbeValidationError(f"succeeded-result rollover must integrate: {probe_id}")
+            validate_open_result(expected.result_event_id, ToolResultStatus.SUCCEEDED)
+        elif rollover_projection is RolloverProjection.PENDING_REQUEST:
+            if not isinstance(expected, IdleAction) or expected.reason != "awaiting_tool":
+                raise ProbeValidationError(f"pending rollover must await its tool: {probe_id}")
+            pending = tuple(checkpoint.payload.pending_tools)
+            requested = tuple(
+                event for event in left_events if isinstance(event, ToolRequestedEvent)
+            )
+            if len(delegates) != 1 or len(requested) != 1 or len(pending) != 1:
+                raise ProbeValidationError(f"rollover pending provenance is incomplete: {probe_id}")
+            delegate = delegates[0]
+            request = requested[0]
+            retained = pending[0]
+            if (
+                expected.related_event_id != delegate.fact.event_id
+                or retained.fact_event_id != delegate.fact.event_id
+                or retained.fact_text != delegate.fact.text
+                or retained.tool != delegate.tool
+                or retained.args != delegate.args
+                or retained.request_id != request.payload.request_id
+            ):
+                raise ProbeValidationError(f"rollover changed pending provenance: {probe_id}")
+        elif rollover_projection in {
+            RolloverProjection.ACTIVE_FIRE,
+            RolloverProjection.CANCELED_OPEN_FIRE,
+        }:
+            fire_event_id = (
+                expected.fire_event_id
+                if isinstance(expected, NudgeAction)
+                else expected.target_event_id
+                if isinstance(expected, SkipAction)
+                else None
+            )
+            if fire_event_id is None:
+                raise ProbeValidationError(f"timer rollover has wrong expected action: {probe_id}")
+            source_fires = tuple(
+                event
+                for event in left_events
+                if isinstance(event, TimerFireEvent) and event.id == fire_event_id
+            )
+            carried = tuple(checkpoint.payload.open_timer_fires)
+            if len(source_fires) != 1 or tuple(item.event_id for item in carried) != (
+                fire_event_id,
+            ):
+                raise ProbeValidationError(f"rollover lost the open timer fire: {probe_id}")
+            source_fire = source_fires[0]
+            retained = carried[0]
+            expected_status = (
+                TimerStatus.ACTIVE
+                if rollover_projection is RolloverProjection.ACTIVE_FIRE
+                else TimerStatus.CANCELED
+            )
+            timers = tuple(
+                timer for timer in checkpoint.payload.timers if timer.timer_id == retained.timer_id
+            )
+            if (
+                retained.timer_id != source_fire.payload.timer_id
+                or retained.fire_count != source_fire.payload.fire_count
+                or retained.missed_count != source_fire.payload.missed_count
+                or retained.late_ms != source_fire.payload.late_ms
+                or len(timers) != 1
+                or timers[0].status is not expected_status
+            ):
+                raise ProbeValidationError(f"rollover changed timer-fire state: {probe_id}")
+        elif rollover_projection is RolloverProjection.FAILED_RESULT:
+            if not isinstance(expected, RespondAction):
+                raise ProbeValidationError(f"failed-result rollover must respond: {probe_id}")
+            validate_open_result(expected.reply_to_event_id, ToolResultStatus.FAILED)
+        else:
+            if (
+                not isinstance(expected, IdleAction)
+                or expected.reason != "already_handled"
+                or expected.related_event_id is None
+            ):
+                raise ProbeValidationError(
+                    f"handled-disposition rollover must idle(already_handled): {probe_id}"
+                )
+            prior_uses = tuple(
+                item
+                for item in checkpoint.payload.prior_uses
+                if item.kind == "delegate" and item.result_event_id == expected.related_event_id
+            )
+            dispositions = tuple(
+                item
+                for item in checkpoint.payload.dispositions
+                if item.event_id == expected.related_event_id and item.relation == "event"
+            )
+            if (
+                len(prior_uses) != 1
+                or prior_uses[0].result_disposition is not Disposition.HANDLED
+                or len(dispositions) != 1
+                or dispositions[0].state is not Disposition.HANDLED
+            ):
+                raise ProbeValidationError(
+                    f"rollover lost the handled-result disposition: {probe_id}"
+                )
 
 
 def validate_manifest(
@@ -413,10 +520,18 @@ def validate_manifest(
                     twin_variant,
                     view,
                     twin_view,
+                    probe.rollover_projection,
                 )
     return ProbeValidationReport(
         logical_probes=len(manifest.probes),
         rendered_states=sum(len(probe.variants) for probe in manifest.probes),
+        unique_rendered_streams=len(
+            {
+                variant.policy_stream_sha256
+                for probe in manifest.probes
+                for variant in probe.variants
+            }
+        ),
         semantic_states=semantic * 3,
         mechanical_states=mechanical * 3,
         invariance_states=invariance * 3,

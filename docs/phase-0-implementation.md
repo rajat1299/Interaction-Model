@@ -368,7 +368,7 @@ Acceptance: mocked-transport unit tests (valid, invalid-then-retry, refusal); dr
 | # | Family | Flip under test | Expected ↔ tempting |
 |---|---|---|---|
 | 1 | mark: direct vs non-direct instruction | directness | mark ↔ idle(instruction_not_direct) |
-| 2 | mark: complete vs mid-word target | completeness | mark ↔ idle(typing_active) |
+| 2 | mark: standalone lexical unit vs prefix embedded in a longer word | lexical boundary | mark ↔ idle(typing_active) |
 | 3 | tool result: live vs post-topic-change | staleness | integrate ↔ skip(stale_tool_result) |
 | 4 | delegate: absent vs pending request | duplication | delegate ↔ idle(awaiting_tool) |
 | 5 | result latency 700ms vs 8s; opening vs mid-typing | opening gate | integrate ↔ idle(awaiting_opening) |
@@ -377,7 +377,7 @@ Acceptance: mocked-transport unit tests (valid, invalid-then-retry, refusal); dr
 | 8 | fire after cancel | timer state | skip(canceled_timer) ↔ nudge |
 | 9 | "stop" with one vs two active timers | ambiguity | cancel ↔ idle(ambiguous) |
 | 10 | respond: active floor vs explicit yield | floor | idle(typing_active) ↔ respond |
-| 11 | identical state pre vs post rollover | rollover | same action both sides |
+| 11 | six actionable projections pre vs post rollover | rollover representation | same action both sides |
 | 12 | valid-but-unwanted + pure no-trigger idle | restraint | idle(no_trigger) ↔ any plausible action |
 
 Acceptance: all 144 logical probes are constructed through production store/tick APIs and each has
@@ -396,9 +396,23 @@ full validation. Semantic, mechanical, and invariance metrics remain separate. T
 every family has six twin pairs. Final human gate: user has reviewed all 144 logical probes and their
 three variants.
 
+Free-generation grading is field-aware: action type and every non-text payload field are exact;
+`integrate.text` is graded for result-faithful semantic equivalence and `respond.text` for response
+warrant plus answer quality. The manifest action remains the canonical reference payload, not a
+byte-exact gold string for either open text field. Pairwise and listwise candidates remain fixed full
+payloads. Teacher calls are cached by exact rendered-stream hash; duplicate hashes execute once and
+must not be counted twice in aggregate metrics.
+
+Family 11's six twin pairs respectively preserve a succeeded result, pending request, active fire,
+canceled open fire, failed result, and handled disposition across a production checkpoint.
+
 ### WP15 — Probe harness + metrics (~2.5h)
 `probes/harness/`: three protocols against a configured model:
-1. **Generation** — WP13 policy on each probe; measure exact-action match, unconstrained schema validity, reference validity, invented arguments, intrusive-action rate on idle-expected probes.
+1. **Generation** — WP13 policy on each probe. Parse and validate schema, references, and license
+   first. Compare action type and every non-text field exactly; grade `integrate.text` for faithful
+   entailment from the referenced result and `respond.text` for response warrant and answer quality.
+   Report structural match and semantic text grade separately, plus invented arguments and
+   intrusive-action rate on idle-expected probes.
 2. **Pairwise** — expected vs tempting payloads presented as candidates A/B, both orderings × ≥3 paraphrases; measure recognition accuracy, position bias (|acc(A-first) − acc(B-first)|), per-probe paraphrase spread.
 3. **Listwise** — all nine action types with valid candidate payloads where constructible; ask for a full ranking; measure top-1 and whether expected ranks above tempting.
 

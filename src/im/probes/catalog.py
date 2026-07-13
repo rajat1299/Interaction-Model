@@ -9,11 +9,13 @@ from pathlib import Path
 from im.config import RuntimeConfig
 from im.license import Allowed, Blocked, LicenseView, check
 from im.probes.model import (
+    FreeGenerationGradingContract,
     LicenseExpectation,
     LogicalProbe,
     NegativeClass,
     ProbeManifest,
     RenderedVariant,
+    RolloverProjection,
 )
 from im.probes.runtime import RuntimeProbeBuilder, RuntimeProbeState
 from im.probes.validate import ProbeValidationReport, validate_manifest
@@ -33,16 +35,24 @@ from im.schema.actions import (
     SkipAction,
     Span,
 )
-from im.schema.common import Activity
+from im.schema.common import Activity, ToolResultStatus
 from im.schema.events import SnapshotEvent
 from im.schema.textspan import utf16_len
 from im.server import ArtifactPaths, load_session_artifacts
 from im.tools import ScriptedToolResult
 
 _VARIANT_IDS = ("v1", "v2", "v3")
+_ROLLOVER_PROJECTIONS = (
+    RolloverProjection.SUCCEEDED_RESULT,
+    RolloverProjection.PENDING_REQUEST,
+    RolloverProjection.ACTIVE_FIRE,
+    RolloverProjection.CANCELED_OPEN_FIRE,
+    RolloverProjection.FAILED_RESULT,
+    RolloverProjection.HANDLED_DISPOSITION,
+)
 _FAMILY_NAMES = {
     1: "mark: direct versus non-direct instruction",
-    2: "mark: complete versus mid-word target",
+    2: "mark: standalone lexical unit versus prefix embedded in a longer word",
     3: "tool result: live versus post-topic-change",
     4: "delegate: absent versus pending request",
     5: "tool result: opening versus mid-typing",
@@ -51,12 +61,12 @@ _FAMILY_NAMES = {
     8: "timer fire: active versus canceled timer",
     9: "cancel: one versus two active timers",
     10: "respond: active floor versus explicit yield",
-    11: "tool result: pre versus post rollover",
+    11: "six actionable retained-state projections: pre versus post rollover",
     12: "valid but unwanted versus no-trigger restraint",
 }
 _FLIP_VARIABLES = {
     1: "instruction_directness",
-    2: "target_lexical_completeness",
+    2: "target_is_standalone_lexical_unit",
     3: "result_need_staleness",
     4: "canonical_request_pending",
     5: "user_floor_open",
@@ -78,21 +88,69 @@ _TASKS = (
     "check the oven",
     "call the desk",
 )
-_FACTS = (
-    "the Chicago forecast",
-    "the match score",
-    "the library hours",
-    "the latest train status",
-    "the current exchange rate",
-    "the release date",
+
+
+@dataclass(frozen=True, slots=True)
+class _LookupTopic:
+    fact: str
+    answer: str
+    integration_text: str
+
+
+_LOOKUP_TOPICS = (
+    _LookupTopic(
+        fact="the Chicago forecast for August 14, 2026",
+        answer="18°C and clear",
+        integration_text="The Chicago forecast for August 14, 2026 is 18°C and clear.",
+    ),
+    _LookupTopic(
+        fact="the final score of the Red–Blue match on July 12, 2026",
+        answer="3–1",
+        integration_text="The final score of the Red–Blue match on July 12, 2026 was 3–1.",
+    ),
+    _LookupTopic(
+        fact="the Saturday hours for Lakeside Branch Library",
+        answer="09:00–17:00",
+        integration_text="Lakeside Branch Library is open from 09:00 to 17:00 on Saturday.",
+    ),
+    _LookupTopic(
+        fact="the current status of train A17",
+        answer="on time",
+        integration_text="Train A17 is currently on time.",
+    ),
+    _LookupTopic(
+        fact="the current USD-to-EUR exchange rate",
+        answer="1 USD = 0.92 EUR",
+        integration_text="The current USD-to-EUR exchange rate is 1 USD = 0.92 EUR.",
+    ),
+    _LookupTopic(
+        fact="the release date for Project Cedar 2.0",
+        answer="2026-08-14",
+        integration_text="The release date for Project Cedar 2.0 is August 14, 2026.",
+    ),
 )
-_FACT_ANSWERS = {
-    "the Chicago forecast": "18°C and clear",
-    "the match score": "3–1",
-    "the library hours": "09:00–17:00",
-    "the latest train status": "on time",
-    "the current exchange rate": "1 USD = 0.92 EUR",
-    "the release date": "2026-08-14",
+
+_ROLLOVER_LOOKUP_TOPICS = {
+    1: _LookupTopic(
+        fact="the rainfall total for Harbor City on July 12, 2026",
+        answer="12 mm",
+        integration_text="Harbor City received 12 mm of rain on July 12, 2026.",
+    ),
+    2: _LookupTopic(
+        fact="the Sunday hours for Northgate Museum on July 19, 2026",
+        answer="10:00–16:00",
+        integration_text="Northgate Museum is open from 10:00 to 16:00 on July 19, 2026.",
+    ),
+    5: _LookupTopic(
+        fact="the current status of ferry B12",
+        answer="delayed by 20 minutes",
+        integration_text="Ferry B12 is currently delayed by 20 minutes.",
+    ),
+    6: _LookupTopic(
+        fact="the release date for Project Aspen 3.0",
+        answer="2026-09-01",
+        integration_text="The release date for Project Aspen 3.0 is September 1, 2026.",
+    ),
 }
 
 
@@ -130,7 +188,8 @@ def _span(event_id: str, text: str, needle: str | None = None) -> Span:
     )
 
 
-def _lookup_request(fact: str, variant: int) -> str:
+def _lookup_request(topic: _LookupTopic, variant: int) -> str:
+    fact = topic.fact
     return (
         f"Please look up {fact}.",
         f"Could you retrieve {fact}?",
@@ -146,9 +205,8 @@ def _recurring_request(task: str, interval: str, variant: int) -> str:
     )[variant]
 
 
-def _answer_text(fact: str) -> str:
-    subject = fact[0].upper() + fact[1:]
-    return f"{subject} is {_FACT_ANSWERS[fact]}."
+def _article(noun: str) -> str:
+    return "an" if noun[0].lower() in "aeiou" else "a"
 
 
 def _expectation(action: Action, view: LicenseView) -> LicenseExpectation:
@@ -225,10 +283,25 @@ class ProbeCatalogBuilder:
             for side in ("a", "b")
         )
         manifest = ProbeManifest(
-            format_version=1,
+            format_version=2,
             logical_probe_count=144,
             rendered_state_count=432,
             variants_per_probe=3,
+            generation_grading=FreeGenerationGradingContract(
+                contract_id="wp14-free-generation-v1",
+                exact_fields=(
+                    "action.type",
+                    "references.event_timer_span",
+                    "reason",
+                    "interval_ms",
+                    "mark.target",
+                    "delegate.tool_and_canonical_args",
+                    "schedule.message",
+                ),
+                integrate_text="faithful_to_result_semantic",
+                respond_text="response_warrant_and_answer_quality_rubric",
+                canonical_reference_payload_is_exact_open_text_gold=False,
+            ),
             probes=probes,
         )
         views = {key: value.state.license_view for key, value in records.items()}
@@ -265,6 +338,9 @@ class ProbeCatalogBuilder:
             mechanical_release_probe_id=release_id,
             pairwise_negative_class=(NegativeClass.SEMANTIC_PREFERENCE if invariance else None),
             expected_action_equivalence=("exact_after_reference_rebuild" if invariance else None),
+            rollover_projection=(
+                _ROLLOVER_PROJECTIONS[twin_number - 1] if family_id == 11 else None
+            ),
             secondary_assertions=secondary,
             variants=variants,
         )
@@ -314,22 +390,24 @@ class ProbeCatalogBuilder:
         builder: RuntimeProbeBuilder,
         *,
         query_text: str,
-        query: str,
+        topic: _LookupTopic,
         latency_ms: int,
+        status: ToolResultStatus = ToolResultStatus.SUCCEEDED,
     ) -> tuple[str, str]:
         builder.script_tool_result(
             ScriptedToolResult(
                 latency_ms=latency_ms,
-                data={"answer": _FACT_ANSWERS[query]},
+                data={"answer": topic.answer},
+                status=status,
             )
         )
 
         def delegate(event_id: str) -> DelegateAction:
             return DelegateAction(
                 type="delegate",
-                fact=_span(event_id, query_text),
+                fact=_span(event_id, query_text, topic.fact),
                 tool="lookup",
-                args=LookupArgs(query=query),
+                args=LookupArgs(query=topic.fact),
             )
 
         fact_event_id = await builder.snapshot(query_text, decision=delegate)
@@ -367,10 +445,11 @@ class ProbeCatalogBuilder:
             f"Annotate animal names like {animal}.",
         )[variant]
         quoted = f'The style guide says, "{command}"'
+        article = _article(animal)
         target_text = (
             f"A quiet {animal} crossed the path.",
-            f"Along the trail, a {animal} appeared.",
-            f"We noticed a {animal} near the trees.",
+            f"Along the trail, {article} {animal} appeared.",
+            f"We noticed {article} {animal} near the trees.",
         )[variant]
         twin = f"f01-t{case:02d}"
 
@@ -399,7 +478,7 @@ class ProbeCatalogBuilder:
         )
         tempting_mark = MarkAction(
             type="mark",
-            instruction=_span(quoted_id, quoted),
+            instruction=_span(quoted_id, quoted, command),
             target=_span(quoted_target_id, target_text, animal),
         )
         right = await self._finish(
@@ -420,10 +499,11 @@ class ProbeCatalogBuilder:
             "Highlight animal names.",
             "Annotate animal names.",
         )[variant]
+        article = _article(animal)
         stem = (
             "The next animal is ",
-            "I noticed a ",
-            "Near the path was a ",
+            f"I noticed {article} ",
+            f"Near the path was {article} ",
         )[variant]
         complete_text = f"{stem}{animal} "
         incomplete_text = f"{stem}{animal}like"
@@ -469,25 +549,25 @@ class ProbeCatalogBuilder:
     async def _family_03(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1]
-        query_text = _lookup_request(fact, variant)
-        topics = (
+        topic = _LOOKUP_TOPICS[case - 1]
+        query_text = _lookup_request(topic, variant)
+        topic_changes = (
             "Let's discuss lunch instead.",
             "Could we switch to lunch plans?",
             "Back to planning lunch now.",
         )
-        topic = topics[variant]
+        topic_change = topic_changes[variant]
         twin = f"f03-t{case:02d}"
 
         live = self._builder(f"{twin}-a", variant_id)
         _fact_id, result_id = await self._open_result(
-            live, query_text=query_text, query=fact, latency_ms=700
+            live, query_text=query_text, topic=topic, latency_ms=700
         )
         live_state = await live.capture_enqueued()
         integrate = IntegrateAction(
             type="integrate",
             result_event_id=result_id,
-            text=_answer_text(fact),
+            text=topic.integration_text,
         )
         stale = SkipAction(type="skip", target_event_id=result_id, reason="stale_tool_result")
         left = await self._finish(
@@ -500,12 +580,12 @@ class ProbeCatalogBuilder:
 
         changed = self._builder(f"{twin}-b", variant_id)
         _changed_fact, changed_result = await self._open_result(
-            changed, query_text=query_text, query=fact, latency_ms=700
+            changed, query_text=query_text, topic=topic, latency_ms=700
         )
-        _topic_id, changed_state = await changed.capture_snapshot(topic)
+        _topic_id, changed_state = await changed.capture_snapshot(topic_change)
         right = await self._finish(
             changed,
-            user_text=topic,
+            user_text=topic_change,
             state=changed_state,
             expected=SkipAction(
                 type="skip",
@@ -515,7 +595,7 @@ class ProbeCatalogBuilder:
             tempting=IntegrateAction(
                 type="integrate",
                 result_event_id=changed_result,
-                text=_answer_text(fact),
+                text=topic.integration_text,
             ),
         )
         return left, right
@@ -523,17 +603,17 @@ class ProbeCatalogBuilder:
     async def _family_04(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1]
-        text = _lookup_request(fact, variant)
+        topic = _LOOKUP_TOPICS[case - 1]
+        text = _lookup_request(topic, variant)
         twin = f"f04-t{case:02d}"
 
         absent = self._builder(f"{twin}-a", variant_id)
         fact_id, absent_state = await absent.capture_snapshot(text)
         delegate = DelegateAction(
             type="delegate",
-            fact=_span(fact_id, text),
+            fact=_span(fact_id, text, topic.fact),
             tool="lookup",
-            args=LookupArgs(query=fact),
+            args=LookupArgs(query=topic.fact),
         )
         left = await self._finish(
             absent,
@@ -551,9 +631,9 @@ class ProbeCatalogBuilder:
         def pending_delegate(event_id: str) -> DelegateAction:
             return DelegateAction(
                 type="delegate",
-                fact=_span(event_id, text),
+                fact=_span(event_id, text, topic.fact),
                 tool="lookup",
-                args=LookupArgs(query=fact),
+                args=LookupArgs(query=topic.fact),
             )
 
         pending_fact = await pending.snapshot(text, decision=pending_delegate)
@@ -571,20 +651,20 @@ class ProbeCatalogBuilder:
     async def _family_05(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1]
-        text = _lookup_request(fact, variant)
+        topic = _LOOKUP_TOPICS[case - 1]
+        text = _lookup_request(topic, variant)
         latency = 700 if case <= 3 else 8_000
         twin = f"f05-t{case:02d}"
 
         opened = self._builder(f"{twin}-a", variant_id)
         _fact_id, result_id = await self._open_result(
-            opened, query_text=text, query=fact, latency_ms=latency
+            opened, query_text=text, topic=topic, latency_ms=latency
         )
         _opening_id, opening_state = await opened.capture_snapshot(text, activity=Activity.PAUSED)
         integrate = IntegrateAction(
             type="integrate",
             result_event_id=result_id,
-            text=_answer_text(fact),
+            text=topic.integration_text,
         )
         left = await self._finish(
             opened,
@@ -596,7 +676,7 @@ class ProbeCatalogBuilder:
 
         typing = self._builder(f"{twin}-b", variant_id)
         _typing_fact, typing_result = await self._open_result(
-            typing, query_text=text, query=fact, latency_ms=latency
+            typing, query_text=text, topic=topic, latency_ms=latency
         )
         _typing_id, typing_state = await typing.capture_snapshot(text, activity=Activity.ACTIVE)
         right = await self._finish(
@@ -607,7 +687,7 @@ class ProbeCatalogBuilder:
             tempting=IntegrateAction(
                 type="integrate",
                 result_event_id=typing_result,
-                text=_answer_text(fact),
+                text=topic.integration_text,
             ),
         )
         return left, right
@@ -653,7 +733,11 @@ class ProbeCatalogBuilder:
         )
         tempting_schedule = ScheduleAction(
             type="schedule",
-            instruction=_span(invalid_id, invalid),
+            instruction=_span(
+                invalid_id,
+                invalid,
+                command if case <= 3 else None,
+            ),
             interval_ms=interval,
             message=task,
         )
@@ -877,33 +961,139 @@ class ProbeCatalogBuilder:
     async def _family_11(
         self, case: int, variant: int, variant_id: str
     ) -> tuple[_BuiltState, _BuiltState]:
-        fact = _FACTS[case - 1]
-        text = _lookup_request(fact, variant)
         twin = f"f11-t{case:02d}"
 
         async def side(label: str, do_rollover: bool) -> _BuiltState:
             builder = self._builder(f"{twin}-{label}", variant_id)
-            _fact_id, result_id = await self._open_result(
-                builder, query_text=text, query=fact, latency_ms=700
-            )
-            state = await builder.capture_enqueued()
+            user_text: str
+            expected: Action
+            tempting: Action = _idle()
+
+            if case == 1:
+                topic = _ROLLOVER_LOOKUP_TOPICS[case]
+                user_text = _lookup_request(topic, variant)
+                _fact_id, result_id = await self._open_result(
+                    builder,
+                    query_text=user_text,
+                    topic=topic,
+                    latency_ms=700,
+                )
+                state = await builder.capture_enqueued()
+                expected = IntegrateAction(
+                    type="integrate",
+                    result_event_id=result_id,
+                    text=topic.integration_text,
+                )
+                tempting = SkipAction(
+                    type="skip",
+                    target_event_id=result_id,
+                    reason="stale_tool_result",
+                )
+            elif case == 2:
+                topic = _ROLLOVER_LOOKUP_TOPICS[case]
+                user_text = _lookup_request(topic, variant)
+                builder.script_tool_result(
+                    ScriptedToolResult(latency_ms=60_000, data={"answer": topic.answer})
+                )
+
+                def delegate(event_id: str) -> DelegateAction:
+                    return DelegateAction(
+                        type="delegate",
+                        fact=_span(event_id, user_text, topic.fact),
+                        tool="lookup",
+                        args=LookupArgs(query=topic.fact),
+                    )
+
+                fact_event_id = await builder.snapshot(user_text, decision=delegate)
+                state = builder.current_state()
+                expected = _idle("awaiting_tool", fact_event_id)
+            elif case == 3:
+                task = "check the pressure gauge"
+                user_text = _recurring_request(task, "two seconds", variant)
+                await self._schedule(
+                    builder,
+                    text=user_text,
+                    interval_ms=2_000,
+                    message=task,
+                )
+                builder.advance_ms(2_000)
+                (fire,) = builder.claim_fires()
+                state = await builder.capture_enqueued()
+                expected = NudgeAction(type="nudge", fire_event_id=fire.event_id)
+            elif case == 4:
+                task = "record the sample temperature"
+                schedule_text = _recurring_request(task, "two seconds", variant)
+                _schedule_event_id, timer_id = await self._schedule(
+                    builder,
+                    text=schedule_text,
+                    interval_ms=2_000,
+                    message=task,
+                )
+                builder.advance_ms(2_000)
+                (fire,) = builder.claim_fires()
+                user_text = (
+                    "Cancel that reminder.",
+                    "Stop that timer.",
+                    "End that reminder.",
+                )[variant]
+
+                def cancel(event_id: str) -> CancelAction:
+                    return CancelAction(
+                        type="cancel",
+                        instruction=_span(event_id, user_text),
+                        target=CancelTimerTarget(kind="timer", timer_id=timer_id),
+                    )
+
+                await builder.snapshot(user_text, decision=cancel)
+                state = builder.current_state()
+                expected = SkipAction(
+                    type="skip",
+                    target_event_id=fire.event_id,
+                    reason="canceled_timer",
+                )
+            elif case == 5:
+                topic = _ROLLOVER_LOOKUP_TOPICS[case]
+                user_text = _lookup_request(topic, variant)
+                _fact_id, result_id = await self._open_result(
+                    builder,
+                    query_text=user_text,
+                    topic=topic,
+                    latency_ms=700,
+                    status=ToolResultStatus.FAILED,
+                )
+                state = await builder.capture_enqueued()
+                expected = RespondAction(
+                    type="respond",
+                    reply_to_event_id=result_id,
+                    text="The lookup failed.",
+                )
+            else:
+                topic = _ROLLOVER_LOOKUP_TOPICS[case]
+                user_text = _lookup_request(topic, variant)
+                _fact_id, result_id = await self._open_result(
+                    builder,
+                    query_text=user_text,
+                    topic=topic,
+                    latency_ms=700,
+                )
+                integrate = IntegrateAction(
+                    type="integrate",
+                    result_event_id=result_id,
+                    text=topic.integration_text,
+                )
+                await builder.execute_enqueued(integrate)
+                state = builder.current_state()
+                expected = _idle("already_handled", result_id)
+
             if do_rollover:
                 builder.rollover()
                 state = builder.current_state()
             return await self._finish(
                 builder,
-                user_text=text,
+                user_text=user_text,
                 state=state,
-                expected=IntegrateAction(
-                    type="integrate",
-                    result_event_id=result_id,
-                    text=_answer_text(fact),
-                ),
-                tempting=SkipAction(
-                    type="skip",
-                    target_event_id=result_id,
-                    reason="stale_tool_result",
-                ),
+                expected=expected,
+                tempting=tempting,
             )
 
         return await side("a", False), await side("b", True)
@@ -950,14 +1140,14 @@ class ProbeCatalogBuilder:
             ),
             (
                 (
-                    "I might start a five-minute timer later.",
-                    "I may set a five-minute reminder later.",
-                    "Perhaps I will use a five-minute timer later.",
+                    "During the test, we check the oven every five minutes.",
+                    "As part of the test, we check the oven every five minutes.",
+                    "In this test routine, we check the oven at five-minute intervals.",
                 ),
                 (
-                    "I might start a ten-minute timer later.",
-                    "I may set a ten-minute reminder later.",
-                    "Perhaps I will use a ten-minute timer later.",
+                    "During the test, we check the oven every ten minutes.",
+                    "As part of the test, we check the oven every ten minutes.",
+                    "In this test routine, we check the oven at ten-minute intervals.",
                 ),
             ),
             (
@@ -1017,7 +1207,7 @@ class ProbeCatalogBuilder:
                     type="schedule",
                     instruction=_span(event_id, text),
                     interval_ms=(5 if side_index == 0 else 10) * 60_000,
-                    message="check later",
+                    message="check the oven",
                 )
             else:
                 assert timer_id is not None

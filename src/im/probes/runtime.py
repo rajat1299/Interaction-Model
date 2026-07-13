@@ -199,6 +199,14 @@ class RuntimeProbeBuilder:
         self.policy.queue_capture()
         return await self._capture_pending()
 
+    async def execute_enqueued(self, action: object) -> None:
+        """Execute one explicit setup action against already-enqueued production ingress."""
+        parsed: Action = ACTION_ADAPTER.validate_python(action)
+        self._queue_setup_action(parsed)
+        await self.session.tick.run_until_idle()
+        self._assert_script_drained()
+        self.advance_ms(100)
+
     async def _capture_pending(self) -> RuntimeProbeState:
         try:
             await self.session.tick.run_until_idle()

@@ -116,6 +116,7 @@ def render_review(
         "",
         f"- Logical probe states: {validation.logical_probes}",
         f"- Fully rebuilt rendered states: {validation.rendered_states}",
+        f"- Unique production-rendered streams: {validation.unique_rendered_streams}",
         f"- Semantic-preference states: {validation.semantic_states}",
         f"- Mechanical-negative states: {validation.mechanical_states}",
         f"- Invariance states: {validation.invariance_states}",
@@ -123,6 +124,18 @@ def render_review(
         "- Every mechanical negative passed its one-variable release mutation.",
         "",
         "The teacher projection excludes all class, block-code, license, and validator fields.",
+        "",
+        "## Free-generation grading contract",
+        "",
+        "- Exact: action type; references; reason; interval; mark target; tool and canonical args;",
+        "  schedule message; and every other non-text payload field.",
+        "- `integrate.text`: semantic check for a faithful answer entailed by its result.",
+        "- `respond.text`: response-warrant and answer-quality rubric, including concise failure",
+        "  notices. Generic acknowledgements and fabricated answers fail.",
+        "- The manifest action is the canonical reference, not a byte-exact gold string for",
+        "  `integrate.text` or `respond.text`.",
+        "- Schema, reference, and license validation precede structural and semantic grading.",
+        "",
         "The full production-rendered bytes are in `manifest.json`; this review uses their SHA-256",
         "identities so the prose and machine artifact stay joined.",
         "",
@@ -157,6 +170,8 @@ def render_review(
                 f"- Invariance: `{probe.expected_action_equivalence}`; pairwise negative: "
                 f"`{probe.pairwise_negative_class.value}`"
             )
+        if probe.rollover_projection is not None:
+            lines.append(f"- Rollover projection: `{probe.rollover_projection.value}`")
         if probe.secondary_assertions:
             rendered = ", ".join(f"`{value}`" for value in probe.secondary_assertions)
             lines.append(f"- Secondary assertions: {rendered}")

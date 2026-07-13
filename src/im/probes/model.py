@@ -34,6 +34,42 @@ class ExpectedPosition(StrEnum):
     B = "b"
 
 
+class RolloverProjection(StrEnum):
+    """The objective checkpoint projection exercised by one Family 11 twin."""
+
+    SUCCEEDED_RESULT = "succeeded_result"
+    PENDING_REQUEST = "pending_request"
+    ACTIVE_FIRE = "active_fire"
+    CANCELED_OPEN_FIRE = "canceled_open_fire"
+    FAILED_RESULT = "failed_result"
+    HANDLED_DISPOSITION = "handled_disposition"
+
+
+class FreeGenerationGradingContract(_StrictModel):
+    """Frozen field-level scoring contract for WP15 free generation."""
+
+    contract_id: Literal["wp14-free-generation-v1"]
+    exact_fields: tuple[str, ...]
+    integrate_text: Literal["faithful_to_result_semantic"]
+    respond_text: Literal["response_warrant_and_answer_quality_rubric"]
+    canonical_reference_payload_is_exact_open_text_gold: Literal[False]
+
+    @model_validator(mode="after")
+    def validate_exact_fields(self) -> FreeGenerationGradingContract:
+        required = (
+            "action.type",
+            "references.event_timer_span",
+            "reason",
+            "interval_ms",
+            "mark.target",
+            "delegate.tool_and_canonical_args",
+            "schedule.message",
+        )
+        if self.exact_fields != required:
+            raise ValueError("free-generation exact fields must match the frozen WP14 contract")
+        return self
+
+
 class LicenseExpectation(_StrictModel):
     """Manifest assertion for one candidate under the production license."""
 
@@ -106,6 +142,7 @@ class LogicalProbe(_StrictModel):
         | None
     ) = None
     expected_action_equivalence: Literal["exact_after_reference_rebuild"] | None = None
+    rollover_projection: RolloverProjection | None = None
     secondary_assertions: tuple[str, ...] = ()
     variants: Annotated[tuple[RenderedVariant, ...], Field(min_length=3, max_length=3)]
 
@@ -137,6 +174,8 @@ class LogicalProbe(_StrictModel):
             raise ValueError("invariance probes require expected-action equivalence")
         if invariance != (self.pairwise_negative_class is not None):
             raise ValueError("invariance probes require a separate pairwise negative class")
+        if (self.family_id == 11) != (self.rollover_projection is not None):
+            raise ValueError("rollover_projection is required exactly for Family 11")
 
         for variant in self.variants:
             if variant.expected_license.outcome != "allow":
@@ -180,10 +219,11 @@ class LogicalProbe(_StrictModel):
 class ProbeManifest(_StrictModel):
     """The complete deterministic WP14 catalog."""
 
-    format_version: Literal[1]
+    format_version: Literal[2]
     logical_probe_count: Literal[144]
     rendered_state_count: Literal[432]
     variants_per_probe: Literal[3]
+    generation_grading: FreeGenerationGradingContract
     probes: Annotated[tuple[LogicalProbe, ...], Field(min_length=144, max_length=144)]
 
     @model_validator(mode="after")

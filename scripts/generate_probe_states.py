@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -38,14 +39,19 @@ async def _generate(repository: Path, output: Path) -> None:
         ).encode("utf-8")
         + b"\n"
     )
+    review_bytes = render_review(built.manifest, built.validation).encode("utf-8")
     (output / "manifest.json").write_bytes(manifest_bytes)
-    (output / "REVIEW.md").write_text(
-        render_review(built.manifest, built.validation),
+    (output / "REVIEW.md").write_bytes(review_bytes)
+    manifest_digest = sha256(manifest_bytes).hexdigest()
+    review_digest = sha256(review_bytes).hexdigest()
+    (output / "SHA256SUMS").write_text(
+        f"{manifest_digest}  manifest.json\n{review_digest}  REVIEW.md\n",
         encoding="utf-8",
     )
     print(
         f"generated {built.validation.logical_probes} logical probes / "
-        f"{built.validation.rendered_states} rendered states"
+        f"{built.validation.rendered_states} rendered states / "
+        f"manifest sha256:{manifest_digest} / review sha256:{review_digest}"
     )
 
 
