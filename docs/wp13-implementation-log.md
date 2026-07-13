@@ -92,3 +92,11 @@
 - Session teardown preserves the first socket, policy, or store cleanup error while still attempting
   every later cleanup step. A transport-close failure cannot strand the policy client or SQLite
   handle.
+
+### Offline validation
+
+- Final independent Sol review: PASS, with no remaining P1/P2, freeze-contract, or credential
+  findings.
+- Repository suite: 376 tests passed; all 7 exit-gate tests passed; Ruff passed.
+- Dry-run guard was independently exercised with dotenv disabled and socket creation forbidden. No
+  provider request was made.
