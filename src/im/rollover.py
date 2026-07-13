@@ -8,7 +8,15 @@ from hashlib import sha256
 from pydantic import ValidationError
 
 from im.config import RuntimeConfig, estimate_tokens
-from im.schema.actions import DelegateAction, IntegrateAction, MarkAction, RespondAction
+from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
+from im.schema.actions import (
+    DelegateAction,
+    IntegrateAction,
+    MarkAction,
+    RespondAction,
+    ScheduleAction,
+    Span,
+)
 from im.schema.common import Disposition, TimerStatus
 from im.schema.events import (
     ActionExecutedEvent,
@@ -20,7 +28,7 @@ from im.schema.events import (
     ToolResultEvent,
 )
 from im.serialize import EventSerializationError, render_event
-from im.store import IdKind, PolicyEventDraft, PolicyRecord, Store
+from im.store import IdKind, PolicyEventDraft, PolicyRecord, Store, ToolRequestStatus
 
 
 class ProjectionError(RuntimeError):
@@ -33,6 +41,15 @@ class RolloverResult:
     seq: int
     rendered: bytes
     payload: StateCheckpointPayload
+
+
+@dataclass(frozen=True, slots=True)
+class _RequestProvenance:
+    action_event_id: str
+    action_policy_seq: int
+    action_occurred_mono_ns: int
+    fact: Span
+    request_policy_seq: int
 
 
 def should_rollover(policy_len_tokens: int, config: RuntimeConfig) -> bool:
@@ -60,8 +77,8 @@ def _session_hashes(store: Store) -> CheckpointHashes:
         raise ProjectionError("session_hashes metadata is invalid") from error
 
 
-def _request_fact_text(records: tuple[PolicyRecord, ...]) -> dict[str, str]:
-    facts: dict[str, str] = {}
+def _request_facts(records: tuple[PolicyRecord, ...]) -> dict[str, _RequestProvenance]:
+    facts: dict[str, _RequestProvenance] = {}
     for index, record in enumerate(records):
         event = record.event
         if not isinstance(event, ToolRequestedEvent) or index == 0:
@@ -74,15 +91,25 @@ def _request_fact_text(records: tuple[PolicyRecord, ...]) -> dict[str, str]:
             continue
         if action.tool != event.payload.tool or action.args != event.payload.args:
             continue
-        facts[event.payload.request_id] = action.fact.text
+        facts[event.payload.request_id] = _RequestProvenance(
+            action_event_id=previous.id,
+            action_policy_seq=records[index - 1].seq,
+            action_occurred_mono_ns=records[index - 1].occurred_mono_ns,
+            fact=action.fact,
+            request_policy_seq=record.seq,
+        )
     return facts
 
 
 def _recent_dispositions(
     selected: list[PolicyRecord],
     disposition_by_id: dict[str, Disposition],
+    policy_seq_by_id: dict[str, int],
+    responded_to_ids: set[str],
+    snapshot_event_id: str,
+    mandatory_event_ids: set[str],
 ) -> list[dict[str, object]]:
-    referenced: set[str] = set()
+    referenced = set(mandatory_event_ids)
     for record in selected:
         event = record.event
         if isinstance(event, ActionExecutedEvent) and isinstance(
@@ -90,11 +117,26 @@ def _recent_dispositions(
         ):
             referenced.add(event.payload.action.result_event_id)
     terminal = {Disposition.HANDLED, Disposition.SKIPPED, Disposition.SUPERSEDED}
-    return [
-        {"event_id": event_id, "state": disposition_by_id[event_id].value}
+    items = [
+        {
+            "event_id": event_id,
+            "policy_seq": policy_seq_by_id[event_id],
+            "relation": "event",
+            "state": disposition_by_id[event_id].value,
+        }
         for event_id in sorted(referenced)
         if disposition_by_id.get(event_id) in terminal
     ]
+    if snapshot_event_id in responded_to_ids:
+        items.append(
+            {
+                "event_id": snapshot_event_id,
+                "policy_seq": policy_seq_by_id[snapshot_event_id],
+                "relation": "responded_to",
+                "state": Disposition.HANDLED.value,
+            }
+        )
+    return sorted(items, key=lambda item: str(item["event_id"]))
 
 
 def _render_checkpoint_candidate(
@@ -158,6 +200,7 @@ def project(
     assert isinstance(snapshot_event, SnapshotEvent)
 
     dispositions = {item.event_id: item.state for item in store.dispositions()}
+    responded_to_ids = {item.event_id for item in store.response_dispositions()}
     open_fire_records = [
         record
         for record in records
@@ -200,6 +243,7 @@ def project(
             }
         )
 
+    facts_by_request = _request_facts(records)
     tool_by_request = {request.request_id: request for request in store.tool_requests()}
     result_items: list[dict[str, object]] = []
     for record in open_result_records:
@@ -208,27 +252,39 @@ def project(
         request = tool_by_request.get(event.payload.request_id)
         if request is None or request.result_event_id != event.id:
             raise ProjectionError("open tool result does not resolve to its completed request")
+        fact = facts_by_request.get(request.request_id)
+        if fact is None:
+            raise ProjectionError("open tool result lacks delegate provenance")
+        if request.fact_event_id != fact.fact.event_id:
+            raise ProjectionError("open tool result delegate provenance disagrees with ledger")
         result_items.append(
             {
                 "event_id": event.id,
+                "policy_seq": record.seq,
                 "request_id": event.payload.request_id,
+                "fact_event_id": fact.fact.event_id,
+                "fact_text": fact.fact.text,
                 "tool": request.tool,
+                "args": request.args,
                 "status": event.payload.status.value,
                 "data": event.payload.data,
                 "age_ms": _age_ms(checkpoint_mono_ns, record.occurred_mono_ns, "open tool result"),
             }
         )
 
-    fact_text_by_request = _request_fact_text(records)
     pending_items: list[dict[str, object]] = []
     for request in store.pending_tool_requests():
-        fact_text = fact_text_by_request.get(request.request_id)
-        if fact_text is None:
+        fact = facts_by_request.get(request.request_id)
+        if fact is None:
             raise ProjectionError("pending tool request lacks delegate provenance")
+        if request.fact_event_id != fact.fact.event_id:
+            raise ProjectionError("pending tool request delegate provenance disagrees with ledger")
         pending_items.append(
             {
                 "request_id": request.request_id,
-                "fact_text": fact_text,
+                "policy_seq": fact.request_policy_seq,
+                "fact_event_id": fact.fact.event_id,
+                "fact_text": fact.fact.text,
                 "tool": request.tool,
                 "args": request.args,
                 "age_ms": _age_ms(
@@ -237,18 +293,153 @@ def project(
             }
         )
 
-    applied_mark_items = [
-        {
-            "mark_event_id": record.event.id,
-            "instruction_text": record.event.payload.action.instruction.text,
-            "target": record.event.payload.action.target.model_dump(mode="python"),
-            "age_ms": _age_ms(checkpoint_mono_ns, record.occurred_mono_ns, "applied mark"),
-        }
+    schedule_actions: dict[tuple[str, int, int, str], PolicyRecord] = {}
+    for record in records:
+        event = record.event
+        if not (
+            isinstance(event, ActionExecutedEvent)
+            and isinstance(event.payload.action, ScheduleAction)
+        ):
+            continue
+        instruction = event.payload.action.instruction
+        key = (
+            instruction.event_id,
+            instruction.start_utf16,
+            instruction.end_utf16,
+            instruction.text,
+        )
+        if key in schedule_actions:
+            raise ProjectionError("one schedule provenance span has multiple executed actions")
+        schedule_actions[key] = record
+
+    prior_use_items: list[dict[str, object]] = []
+    mandatory_disposition_ids: set[str] = set()
+    for timer in store.timers():
+        if timer.instruction_event_id != snapshot_event.id:
+            continue
+        key = (
+            timer.instruction_event_id,
+            timer.instruction_start_utf16,
+            timer.instruction_end_utf16,
+            timer.instruction_text,
+        )
+        action_record = schedule_actions.get(key)
+        if action_record is None:
+            raise ProjectionError("visible timer prior use lacks executed schedule provenance")
+        instruction = Span(
+            event_id=timer.instruction_event_id,
+            start_utf16=timer.instruction_start_utf16,
+            end_utf16=timer.instruction_end_utf16,
+            text=timer.instruction_text,
+        )
+        prior_use_items.append(
+            {
+                "kind": "schedule",
+                "action_event_id": action_record.event.id,
+                "policy_seq": action_record.seq,
+                "instruction": instruction.model_dump(mode="python"),
+                "timer_id": timer.timer_id,
+                "timer_status": timer.status.value,
+                "age_ms": _age_ms(
+                    checkpoint_mono_ns,
+                    action_record.occurred_mono_ns,
+                    "schedule prior use",
+                ),
+            }
+        )
+
+    result_records = {
+        record.event.id: record
         for record in records
-        if isinstance(record.event, ActionExecutedEvent)
-        and isinstance(record.event.payload.action, MarkAction)
-        and record.event.payload.action.target.event_id == snapshot_event.id
-    ]
+        if isinstance(record.event, ToolResultEvent)
+    }
+    for request in store.tool_requests():
+        if request.status is not ToolRequestStatus.COMPLETED:
+            continue
+        provenance = facts_by_request.get(request.request_id)
+        if provenance is None:
+            raise ProjectionError("completed tool request lacks delegate provenance")
+        if provenance.fact.event_id != snapshot_event.id:
+            continue
+        if request.fact_event_id != provenance.fact.event_id:
+            raise ProjectionError(
+                "completed tool request delegate provenance disagrees with ledger"
+            )
+        if request.result_event_id is None:
+            raise ProjectionError("completed tool request lacks a result event")
+        result_record = result_records.get(request.result_event_id)
+        if result_record is None:
+            raise ProjectionError("completed tool request result is absent from policy history")
+        result_event = result_record.event
+        assert isinstance(result_event, ToolResultEvent)
+        if result_event.payload.request_id != request.request_id:
+            raise ProjectionError("completed tool request result identity disagrees with ledger")
+        result_disposition = dispositions.get(result_event.id, Disposition.OPEN)
+        if result_disposition in {
+            Disposition.HANDLED,
+            Disposition.SKIPPED,
+            Disposition.SUPERSEDED,
+        }:
+            mandatory_disposition_ids.add(result_event.id)
+        prior_use_items.append(
+            {
+                "kind": "delegate",
+                "action_event_id": provenance.action_event_id,
+                "policy_seq": provenance.action_policy_seq,
+                "fact": provenance.fact.model_dump(mode="python"),
+                "request_id": request.request_id,
+                "tool": request.tool,
+                "args": request.args,
+                "result_event_id": result_event.id,
+                "result_status": result_event.payload.status.value,
+                "result_disposition": result_disposition.value,
+                "age_ms": _age_ms(
+                    checkpoint_mono_ns,
+                    provenance.action_occurred_mono_ns,
+                    "delegate prior use",
+                ),
+            }
+        )
+
+    snapshots = tuple(
+        record.event for record in records if isinstance(record.event, SnapshotEvent)
+    )
+    applied_mark_items: list[dict[str, object]] = []
+    ambiguous_mark_items: list[dict[str, object]] = []
+    for record in records:
+        event = record.event
+        if not (
+            isinstance(event, ActionExecutedEvent)
+            and isinstance(event.payload.action, MarkAction)
+        ):
+            continue
+        target = project_mark_target(event.payload.action.target, snapshots)
+        if target is None:
+            candidates = project_ambiguous_mark_targets(event.payload.action.target, snapshots)
+            if candidates:
+                ambiguous_mark_items.append(
+                    {
+                        "mark_event_id": event.id,
+                        "instruction_text": event.payload.action.instruction.text,
+                        "targets": [item.model_dump(mode="python") for item in candidates],
+                        "age_ms": _age_ms(
+                            checkpoint_mono_ns,
+                            record.occurred_mono_ns,
+                            "ambiguous mark",
+                        ),
+                    }
+                )
+            continue
+        if target.event_id != snapshot_event.id:
+            continue
+        applied_mark_items.append(
+            {
+                "mark_event_id": event.id,
+                "instruction_text": event.payload.action.instruction.text,
+                "target": target.model_dump(mode="python"),
+                "age_ms": _age_ms(checkpoint_mono_ns, record.occurred_mono_ns, "applied mark"),
+            }
+        )
 
     mandatory = {
         "segment": {
@@ -258,8 +449,10 @@ def project(
                 f"sha256:{sha256(store.policy_bytes(current_segment)).hexdigest()}"
             ),
         },
+        "capabilities": runtime_config.timer_capabilities(),
         "snapshot": {
             "event_id": snapshot_event.id,
+            "activity": snapshot_event.activity.value,
             **snapshot_event.payload.model_dump(mode="python"),
             "age_ms": _age_ms(
                 checkpoint_mono_ns, latest_snapshot.occurred_mono_ns, "latest snapshot"
@@ -270,7 +463,16 @@ def project(
             [
                 {
                     "event_id": record.event.id,
+                    "policy_seq": record.seq,
                     **record.event.payload.model_dump(mode="python"),
+                    "due_age_ms": (
+                        _age_ms(
+                            checkpoint_mono_ns,
+                            record.occurred_mono_ns,
+                            "open timer fire",
+                        )
+                        + record.event.payload.late_ms
+                    ),
                     "age_ms": _age_ms(
                         checkpoint_mono_ns, record.occurred_mono_ns, "open timer fire"
                     ),
@@ -282,7 +484,15 @@ def project(
         ),
         "open_tool_results": sorted(result_items, key=lambda item: str(item["event_id"])),
         "pending_tools": sorted(pending_items, key=lambda item: str(item["request_id"])),
+        "prior_uses": sorted(
+            prior_use_items,
+            key=lambda item: str(item["action_event_id"]),
+        ),
         "applied_marks": sorted(applied_mark_items, key=lambda item: str(item["mark_event_id"])),
+        "ambiguous_marks": sorted(
+            ambiguous_mark_items,
+            key=lambda item: str(item["mark_event_id"]),
+        ),
         "hashes": _session_hashes(store).model_dump(mode="python"),
     }
 
@@ -305,7 +515,14 @@ def project(
             {
                 **mandatory,
                 "recent_events": recent,
-                "dispositions": _recent_dispositions(selected, dispositions),
+                "dispositions": _recent_dispositions(
+                    selected,
+                    dispositions,
+                    {record.event.id: record.seq for record in records},
+                    responded_to_ids,
+                    snapshot_event.id,
+                    mandatory_disposition_ids,
+                ),
             }
         )
 

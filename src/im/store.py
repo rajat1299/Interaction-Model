@@ -30,6 +30,10 @@ class ToolRequestDeliveryError(StoreError):
     """Raised when a scripted tool result cannot be delivered atomically."""
 
 
+class ResponseDispositionError(StoreError):
+    """Raised when one user response subject is consumed more than once."""
+
+
 @dataclass(frozen=True, slots=True)
 class PolicyEventDraft:
     """Operational event state carried from ingress to policy commit."""
@@ -53,6 +57,14 @@ class DispositionRecord:
     event_id: str
     state: Disposition
     by_action_event_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ResponseDispositionRecord:
+    """One response-scoped consumption which leaves other action provenance intact."""
+
+    event_id: str
+    by_action_event_id: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +194,11 @@ CREATE TABLE IF NOT EXISTS dispositions (
     event_id TEXT PRIMARY KEY,
     state TEXT NOT NULL CHECK (state IN ('open', 'handled', 'skipped', 'superseded')),
     by_action_event_id TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS response_dispositions (
+    event_id TEXT PRIMARY KEY,
+    by_action_event_id TEXT NOT NULL
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS timers (
@@ -1179,3 +1196,42 @@ class Store:
                     (target.value, by_action_event_id, event_id),
                 )
         return DispositionRecord(event_id, target, by_action_event_id)
+
+    def response_disposition(self, event_id: str) -> ResponseDispositionRecord | None:
+        """Return the one-shot ordinary-response disposition for a user event."""
+        row = self._connection.execute(
+            "SELECT by_action_event_id FROM response_dispositions WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return ResponseDispositionRecord(event_id, str(row[0]))
+
+    def response_dispositions(self) -> tuple[ResponseDispositionRecord, ...]:
+        """Return response-scoped dispositions in deterministic event-id order."""
+        rows = self._connection.execute(
+            "SELECT event_id, by_action_event_id FROM response_dispositions ORDER BY event_id"
+        ).fetchall()
+        return tuple(ResponseDispositionRecord(str(row[0]), str(row[1])) for row in rows)
+
+    def set_response_disposition(
+        self,
+        event_id: str,
+        *,
+        by_action_event_id: str,
+    ) -> ResponseDispositionRecord:
+        """Atomically consume one response warrant without consuming its other clauses."""
+        if not event_id or not by_action_event_id:
+            raise ValueError("response disposition ids must not be empty")
+        with self.transaction():
+            try:
+                self._connection.execute(
+                    """
+                    INSERT INTO response_dispositions(event_id, by_action_event_id)
+                    VALUES (?, ?)
+                    """,
+                    (event_id, by_action_event_id),
+                )
+            except sqlite3.IntegrityError as error:
+                raise ResponseDispositionError("response subject is already consumed") from error
+        return ResponseDispositionRecord(event_id, by_action_event_id)
