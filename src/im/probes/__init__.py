@@ -2,6 +2,7 @@
 
 from im.probes.catalog import BuiltProbeCatalog, build_probe_catalog
 from im.probes.model import (
+    ExpectedPosition,
     LicenseExpectation,
     LogicalProbe,
     NegativeClass,
@@ -12,6 +13,7 @@ from im.probes.runtime import RuntimeProbeBuilder, RuntimeProbeState
 
 __all__ = [
     "BuiltProbeCatalog",
+    "ExpectedPosition",
     "LicenseExpectation",
     "LogicalProbe",
     "NegativeClass",

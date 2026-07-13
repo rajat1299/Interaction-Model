@@ -27,6 +27,13 @@ class NegativeClass(StrEnum):
     INVARIANCE = "invariance"
 
 
+class ExpectedPosition(StrEnum):
+    """The caller-selected balanced position for a pairwise expected candidate."""
+
+    A = "a"
+    B = "b"
+
+
 class LicenseExpectation(_StrictModel):
     """Manifest assertion for one candidate under the production license."""
 
@@ -144,18 +151,29 @@ class LogicalProbe(_StrictModel):
                     raise ValueError("mechanical alternatives must be blocked")
         return self
 
-    def teacher_variant(self, variant_id: str) -> dict[str, object]:
-        """Return only the bytes and candidates WP15 may show to a teacher."""
+    def teacher_variant(
+        self,
+        variant_id: str,
+        *,
+        expected_position: ExpectedPosition | str,
+    ) -> dict[str, object]:
+        """Build one pairwise presentation with an explicit, caller-balanced ordering."""
         variant = next(
             (candidate for candidate in self.variants if candidate.variant_id == variant_id),
             None,
         )
         if variant is None:
             raise KeyError(f"unknown variant: {variant_id}")
+        position = ExpectedPosition(expected_position)
+        expected = variant.expected_action.model_dump(mode="json")
+        tempting = variant.tempting_alternative.model_dump(mode="json")
+        candidate_a, candidate_b = (
+            (expected, tempting) if position is ExpectedPosition.A else (tempting, expected)
+        )
         return {
             "policy_stream": variant.policy_stream,
-            "candidate_a": variant.expected_action.model_dump(mode="json"),
-            "candidate_b": variant.tempting_alternative.model_dump(mode="json"),
+            "candidate_a": candidate_a,
+            "candidate_b": candidate_b,
         }
 
 

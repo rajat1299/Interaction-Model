@@ -7,6 +7,7 @@ import pytest
 
 from im.config import RuntimeConfig
 from im.probes.model import (
+    ExpectedPosition,
     LicenseExpectation,
     LogicalProbe,
     NegativeClass,
@@ -114,11 +115,14 @@ def test_rendered_variant_never_exposes_manifest_metadata_to_teacher() -> None:
         variants=variants,
     )
 
-    teacher = probe.teacher_variant("v1")
+    expected_first = probe.teacher_variant("v1", expected_position=ExpectedPosition.A)
+    tempting_first = probe.teacher_variant("v1", expected_position=ExpectedPosition.B)
 
-    assert set(teacher) == {"policy_stream", "candidate_a", "candidate_b"}
-    assert teacher["candidate_a"] == idle.model_dump(mode="json")
-    assert teacher["candidate_b"] == alternative.model_dump(mode="json")
+    assert set(expected_first) == {"policy_stream", "candidate_a", "candidate_b"}
+    assert expected_first["candidate_a"] == idle.model_dump(mode="json")
+    assert expected_first["candidate_b"] == alternative.model_dump(mode="json")
+    assert tempting_first["candidate_a"] == alternative.model_dump(mode="json")
+    assert tempting_first["candidate_b"] == idle.model_dump(mode="json")
 
 
 @pytest.mark.asyncio
