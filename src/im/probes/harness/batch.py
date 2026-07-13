@@ -382,3 +382,26 @@ def decode_batch_completion(
         ),
         validation_error=validation_error,
     )
+
+
+def validation_error_from_completion(
+    item: BatchWorkItem,
+    completion: HarnessCompletion,
+) -> str | None:
+    """Rebuild retry eligibility from retained raw response bytes after a restart."""
+    if completion.outcome not in {"incomplete", "invalid"} or not completion.traces:
+        return None
+    try:
+        payload = json.loads(completion.traces[-1].response)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise BatchArtifactError("retained Batch response is not valid JSON") from error
+    if not isinstance(payload, dict):
+        raise BatchArtifactError("retained Batch response root is not an object")
+    if item.decoder is BatchDecoder.ACTION:
+        return decode_action_response(payload).validation_error
+    validator = {
+        BatchDecoder.PAIRWISE: PairwiseChoice.model_validate,
+        BatchDecoder.LISTWISE: ListwiseRanking.model_validate,
+        BatchDecoder.SEMANTIC: SemanticTextVerdict.model_validate,
+    }[item.decoder]
+    return decode_protocol_response(payload, validator).validation_error
