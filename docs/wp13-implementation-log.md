@@ -100,3 +100,38 @@
 - Repository suite: 376 tests passed; all 7 exit-gate tests passed; Ruff passed.
 - Dry-run guard was independently exercised with dotenv disabled and socket creation forbidden. No
   provider request was made.
+
+## 2026-07-12 — Live browser acceptance
+
+### Outcome
+
+- PASS: one real browser-harness session drove the production sampler, WebSocket server, prompted
+  Terra policy, license layer, timer ledger, and render sink through `mark → schedule → cancel`.
+- The browser rendered `Mark: cat`, then an active ten-minute `stretch` timer, then
+  `stretch · canceled`. The timer finished canceled with zero fires.
+- Twelve successful provider calls used 150,437 input tokens (129,580 cached), 2,070 output tokens,
+  and an estimated $0.12295 at the pinned 2026-07-12 rates. No corrective provider retry occurred.
+
+### Observed edge behavior
+
+- The active target snapshot's first mark attempt was mechanically blocked with `span_mismatch`
+  because the paused successor committed while Terra was decoding. The next decision targeted that
+  latest paused snapshot and executed the identical lexical mark. This is the specified freshness
+  recheck operating under real provider latency, not a hidden recovery path.
+- The mark continuation then proposed `idle(already_handled)` without a licensing disposition and
+  was blocked with `reason_mismatch`; the unchanged continuation correctly emitted
+  `idle(no_trigger)`. This is retained in the transcript as an observed frontier-policy error rather
+  than cleaned out of the acceptance record.
+- The client is served separately by Vite; Uvicorn exposes only the HTTP/WebSocket session API. The
+  README now records both required processes.
+
+### Reproducibility
+
+- Final independent Sol audit: PASS. It recomputed every action/span, provider-call digest, usage
+  total, charge, objective block, artifact digest, and terminal timer invariant from the ignored
+  closed SQLite archive with no P1/P2 or transcript correction.
+- The scrubbed committed transcript is
+  `probes/results/e2e/2026-07-12-terra-high.md`.
+- The exact SQLite database and content-addressed artifact preimages are retained locally under the
+  ignored `probes/results/raw/wp13-e2e-20260713T043841Z/` directory. Raw provider requests and
+  responses are not committed.

@@ -15,8 +15,17 @@ live request, validate the local key and print expected/conservative costs:
 uv run python scripts/wp13_dry_run.py
 ```
 
-The command never calls OpenAI and never prints the key. When the live WP13 run is approved, the
-browser server entrypoint is `uv run uvicorn im.entrypoint:app`.
+The command never calls OpenAI and never prints the key. A live browser run needs the API and Vite
+processes in separate terminals:
+
+```bash
+uv run uvicorn im.entrypoint:app --host 127.0.0.1 --port 8000
+cd client && npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Open `http://127.0.0.1:5173/`; Vite proxies the session HTTP and WebSocket routes to the API. The
+first recorded live run is in
+[`probes/results/e2e/2026-07-12-terra-high.md`](probes/results/e2e/2026-07-12-terra-high.md).
 
 ## Layout
 
