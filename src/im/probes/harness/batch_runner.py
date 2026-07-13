@@ -56,6 +56,12 @@ class BatchHarnessResult:
     submitted_this_invocation_usage: ProviderUsage
 
 
+@dataclass(frozen=True, slots=True)
+class BatchStageResult:
+    jobs: tuple[BatchJobRecord, ...]
+    submitted_this_invocation_usage: ProviderUsage
+
+
 class BatchProbeHarnessRunner:
     """Execute P0/P1/S0/S1 through Batch, then reuse the production grader."""
 
@@ -121,70 +127,16 @@ class BatchProbeHarnessRunner:
         stage: str,
         items: tuple[BatchWorkItem, ...],
     ) -> None:
-        shards = shard_work(
+        result = await materialize_batch_stage(
             stage,
             items,
-            max_enqueued_tokens=self.config.max_enqueued_tokens,
+            cache=self.cache,
+            gateway=self.gateway,
+            config=self.config,
         )
-        for shard in shards:
-            before = self.cache.get_batch_job(shard.input_sha256)
-            submitted_now = before is None or before.batch_id is None
-            record = await execute_batch_shard(
-                shard,
-                cache=self.cache,
-                gateway=self.gateway,
-                poll_seconds=self.config.poll_seconds,
-            )
+        for record in result.jobs:
             self._jobs[record.input_sha256] = record
-            artifacts = parse_batch_artifacts(
-                shard.items,
-                output_jsonl=record.output_jsonl,
-                error_jsonl=record.error_jsonl,
-            )
-            indeterminate: list[str] = []
-            for item in shard.items:
-                history = self.cache.history(item.identity)
-                if any(
-                    trace.execution_mode != "batch"
-                    for completion in history
-                    for trace in completion.traces
-                ):
-                    raise BatchLifecycleError(
-                        "the all-Batch run cannot consume synchronous completion provenance"
-                    )
-                if any(
-                    trace.batch_custom_id == item.custom_id
-                    for completion in history
-                    for trace in completion.traces
-                ):
-                    continue
-                prior_traces = (
-                    history[-1].traces if item.attempt_index == 2 and history else ()
-                )
-                decoded = decode_batch_completion(
-                    item,
-                    artifacts[item.custom_id],
-                    batch_id=record.batch_id or "",
-                    stage=stage,
-                    shard_index=shard.shard_index,
-                    prior_traces=prior_traces,
-                )
-                self.cache.put(item.identity, decoded.completion)
-                if submitted_now:
-                    self._submitted_usage += usage_from_traces(
-                        (decoded.completion.traces[-1],)
-                    )
-                if decoded.completion.outcome in {"batch_error", "http_error"}:
-                    indeterminate.append(item.identity.digest)
-            if record.status != "completed":
-                raise BatchLifecycleError(
-                    f"Batch {record.batch_id} ended in terminal status {record.status!r}"
-                )
-            if indeterminate:
-                raise BatchLifecycleError(
-                    "Batch contained indeterminate provider items: "
-                    + ", ".join(indeterminate)
-                )
+        self._submitted_usage += result.submitted_this_invocation_usage
 
     def _plan_corrections(
         self,
@@ -261,3 +213,79 @@ class _CacheOnlyBackend:
 
     async def aclose(self) -> None:
         return None
+
+
+async def materialize_batch_stage(
+    stage: str,
+    items: tuple[BatchWorkItem, ...],
+    *,
+    cache: HarnessCache,
+    gateway: BatchGateway,
+    config: BatchHarnessConfig,
+) -> BatchStageResult:
+    """Execute and decode one independently resumable stage, including pilot subsets."""
+    jobs: list[BatchJobRecord] = []
+    submitted_usage = ProviderUsage()
+    shards = shard_work(
+        stage,
+        items,
+        max_enqueued_tokens=config.max_enqueued_tokens,
+    )
+    for shard in shards:
+        before = cache.get_batch_job(shard.input_sha256)
+        submitted_now = before is None or before.batch_id is None
+        record = await execute_batch_shard(
+            shard,
+            cache=cache,
+            gateway=gateway,
+            poll_seconds=config.poll_seconds,
+        )
+        jobs.append(record)
+        artifacts = parse_batch_artifacts(
+            shard.items,
+            output_jsonl=record.output_jsonl,
+            error_jsonl=record.error_jsonl,
+        )
+        indeterminate: list[str] = []
+        for item in shard.items:
+            history = cache.history(item.identity)
+            if any(
+                trace.execution_mode != "batch"
+                for completion in history
+                for trace in completion.traces
+            ):
+                raise BatchLifecycleError(
+                    "the all-Batch run cannot consume synchronous completion provenance"
+                )
+            if any(
+                trace.batch_custom_id == item.custom_id
+                for completion in history
+                for trace in completion.traces
+            ):
+                continue
+            prior_traces = history[-1].traces if item.attempt_index == 2 and history else ()
+            decoded = decode_batch_completion(
+                item,
+                artifacts[item.custom_id],
+                batch_id=record.batch_id or "",
+                stage=stage,
+                shard_index=shard.shard_index,
+                prior_traces=prior_traces,
+            )
+            cache.put(item.identity, decoded.completion)
+            if submitted_now:
+                submitted_usage += usage_from_traces((decoded.completion.traces[-1],))
+            if decoded.completion.outcome in {"batch_error", "http_error"}:
+                indeterminate.append(item.identity.digest)
+        if record.status != "completed":
+            raise BatchLifecycleError(
+                f"Batch {record.batch_id} ended in terminal status {record.status!r}"
+            )
+        if indeterminate:
+            raise BatchLifecycleError(
+                "Batch contained indeterminate provider items: " + ", ".join(indeterminate)
+            )
+    return BatchStageResult(
+        jobs=tuple(jobs),
+        submitted_this_invocation_usage=submitted_usage,
+    )
