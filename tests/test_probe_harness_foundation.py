@@ -15,6 +15,7 @@ from im.probes.harness.artifacts import (
 )
 from im.probes.harness.cache import HarnessCache, IndeterminateCacheEntry
 from im.probes.harness.models import (
+    BatchJobRecord,
     CacheIdentity,
     HarnessCompletion,
     HarnessProtocol,
@@ -88,6 +89,14 @@ def test_cache_round_trips_raw_provider_traces_and_usage(tmp_path: Path) -> None
         latency_ms=12,
         http_status=200,
         outcome="completed",
+        execution_mode="batch",
+        batch_custom_id="p0.000001.a1",
+        batch_id="batch_123",
+        batch_stage="p0",
+        batch_shard=0,
+        batch_request_line=b'{"custom_id":"p0.000001.a1"}\n',
+        batch_output_line=b'{"custom_id":"p0.000001.a1","response":{}}\n',
+        provider_request_id="req_123",
     )
     completion = HarnessCompletion(
         value={"choice": "A"},
@@ -111,6 +120,107 @@ def test_cache_round_trips_raw_provider_traces_and_usage(tmp_path: Path) -> None
     assert restored.value == completion.value
     assert restored.traces == completion.traces
     assert restored.usage == completion.usage
+
+
+def test_legacy_trace_json_defaults_to_synchronous_provenance(tmp_path: Path) -> None:
+    path = tmp_path / "cache.sqlite"
+    identity = _identity()
+    with HarnessCache(path) as cache:
+        cache.put(
+            identity,
+            HarnessCompletion(
+                value={"choice": "A"},
+                outcome="completed",
+                traces=(
+                    PolicyCallTrace(
+                        attempt_index=1,
+                        model="gpt-5.6-terra",
+                        prompt_hash=identity.prompt_hash,
+                        request=b"request",
+                        response=b"response",
+                        latency_ms=1,
+                        http_status=200,
+                        outcome="completed",
+                    ),
+                ),
+            ),
+        )
+    with sqlite3.connect(path) as connection:
+        traces_json = connection.execute(
+            "SELECT traces_json FROM completions WHERE cache_key = ?",
+            (identity.digest,),
+        ).fetchone()[0]
+        import json
+
+        traces = json.loads(traces_json)
+        for key in tuple(traces[0]):
+            if key.startswith("batch_") or key in {
+                "execution_mode",
+                "provider_request_id",
+            }:
+                del traces[0][key]
+        legacy = json.dumps(traces, separators=(",", ":"), sort_keys=True)
+        connection.execute(
+            "UPDATE completions SET traces_json = ? WHERE cache_key = ?",
+            (legacy, identity.digest),
+        )
+
+    with HarnessCache(path) as cache:
+        restored = cache.get(identity)
+
+    assert restored is not None
+    assert restored.traces[0].execution_mode == "synchronous"
+    assert restored.traces[0].batch_request_line == b""
+
+
+def test_batch_job_ledger_is_resumable_and_append_only(tmp_path: Path) -> None:
+    planned = BatchJobRecord(
+        input_sha256="sha256:" + "3" * 64,
+        stage="p0",
+        shard_index=0,
+        input_jsonl=b'{"custom_id":"p0.000001.a1"}\n',
+        request_count=1,
+        estimated_input_tokens=20,
+    )
+    submitted = BatchJobRecord(
+        input_sha256=planned.input_sha256,
+        stage=planned.stage,
+        shard_index=planned.shard_index,
+        input_jsonl=planned.input_jsonl,
+        request_count=planned.request_count,
+        estimated_input_tokens=planned.estimated_input_tokens,
+        status="submitted",
+        input_file_id="file_123",
+        batch_id="batch_123",
+        latest_batch_json=b'{"id":"batch_123","status":"in_progress"}',
+    )
+    path = tmp_path / "cache.sqlite"
+    with HarnessCache(path) as cache:
+        cache.put_batch_job(planned, event_kind="planned", event_payload=b"plan")
+        cache.put_batch_job(
+            submitted,
+            event_kind="submitted",
+            event_payload=submitted.latest_batch_json,
+        )
+        assert cache.get_batch_job(planned.input_sha256) == submitted
+        assert cache.batch_events(planned.input_sha256) == (
+            ("planned", b"plan"),
+            ("submitted", submitted.latest_batch_json),
+        )
+
+    with HarnessCache(path) as cache:
+        assert cache.get_batch_job(planned.input_sha256) == submitted
+        with pytest.raises(ValueError, match="collides"):
+            cache.put_batch_job(
+                BatchJobRecord(
+                    input_sha256=planned.input_sha256,
+                    stage="p1",
+                    shard_index=0,
+                    input_jsonl=planned.input_jsonl,
+                    request_count=1,
+                    estimated_input_tokens=20,
+                )
+            )
 
 
 def test_cache_identity_separates_candidate_orderings(tmp_path: Path) -> None:

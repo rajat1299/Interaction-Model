@@ -123,6 +123,26 @@ class CacheIdentity:
         return sha256(encoded).hexdigest()
 
 
+@dataclass(frozen=True, slots=True)
+class BatchJobRecord:
+    """Durable lifecycle and exact artifacts for one deterministic Batch shard."""
+
+    input_sha256: Digest
+    stage: str
+    shard_index: int
+    input_jsonl: bytes
+    request_count: int
+    estimated_input_tokens: int
+    status: str = "planned"
+    input_file_id: str | None = None
+    batch_id: str | None = None
+    output_file_id: str | None = None
+    error_file_id: str | None = None
+    latest_batch_json: bytes = b""
+    output_jsonl: bytes = b""
+    error_jsonl: bytes = b""
+
+
 def traces_to_json(traces: tuple[PolicyCallTrace, ...]) -> str:
     return json.dumps(
         [
@@ -133,6 +153,21 @@ def traces_to_json(traces: tuple[PolicyCallTrace, ...]) -> str:
                 "model": trace.model,
                 "outcome": trace.outcome,
                 "prompt_hash": trace.prompt_hash,
+                "execution_mode": trace.execution_mode,
+                "batch_custom_id": trace.batch_custom_id,
+                "batch_id": trace.batch_id,
+                "batch_stage": trace.batch_stage,
+                "batch_shard": trace.batch_shard,
+                "batch_request_line_base64": base64.b64encode(
+                    trace.batch_request_line
+                ).decode("ascii"),
+                "batch_output_line_base64": base64.b64encode(
+                    trace.batch_output_line
+                ).decode("ascii"),
+                "batch_error_line_base64": base64.b64encode(
+                    trace.batch_error_line
+                ).decode("ascii"),
+                "provider_request_id": trace.provider_request_id,
                 "request_base64": base64.b64encode(trace.request).decode("ascii"),
                 "response_base64": base64.b64encode(trace.response).decode("ascii"),
             }
@@ -160,6 +195,33 @@ def traces_from_json(value: str) -> tuple[PolicyCallTrace, ...]:
                 None if item["http_status"] is None else int(item["http_status"])
             ),
             outcome=str(item["outcome"]),
+            execution_mode=str(item.get("execution_mode", "synchronous")),
+            batch_custom_id=(
+                None
+                if item.get("batch_custom_id") is None
+                else str(item["batch_custom_id"])
+            ),
+            batch_id=None if item.get("batch_id") is None else str(item["batch_id"]),
+            batch_stage=(
+                None if item.get("batch_stage") is None else str(item["batch_stage"])
+            ),
+            batch_shard=(
+                None if item.get("batch_shard") is None else int(item["batch_shard"])
+            ),
+            batch_request_line=base64.b64decode(
+                item.get("batch_request_line_base64", ""), validate=True
+            ),
+            batch_output_line=base64.b64decode(
+                item.get("batch_output_line_base64", ""), validate=True
+            ),
+            batch_error_line=base64.b64decode(
+                item.get("batch_error_line_base64", ""), validate=True
+            ),
+            provider_request_id=(
+                None
+                if item.get("provider_request_id") is None
+                else str(item["provider_request_id"])
+            ),
         )
         for item in parsed
     )

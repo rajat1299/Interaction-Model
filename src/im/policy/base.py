@@ -18,6 +18,15 @@ class PolicyCallTrace:
     latency_ms: int
     http_status: int | None
     outcome: str
+    execution_mode: str = "synchronous"
+    batch_custom_id: str | None = None
+    batch_id: str | None = None
+    batch_stage: str | None = None
+    batch_shard: int | None = None
+    batch_request_line: bytes = b""
+    batch_output_line: bytes = b""
+    batch_error_line: bytes = b""
+    provider_request_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
