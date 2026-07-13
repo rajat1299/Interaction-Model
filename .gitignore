@@ -11,6 +11,7 @@ venv/
 # Secrets / env
 .env
 .env.*
+!.env.example
 
 # ML artifacts (large, regenerable — keep out of git)
 checkpoints/
