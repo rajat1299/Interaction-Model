@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from im.probes.harness.batch import BatchShard
 from im.probes.harness.batch_api import (
     BatchApiObservation,
     BatchCreateUncertain,
+    OpenAIBatchGateway,
     adopt_uncertain_batch,
     execute_batch_shard,
 )
@@ -184,3 +186,45 @@ async def test_uncertain_create_never_auto_resubmits_and_requires_explicit_adopt
 
 async def _done() -> None:
     return None
+
+
+@pytest.mark.asyncio
+async def test_openai_gateway_uses_official_files_and_responses_batch_shapes() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/v1/files" and request.method == "POST":
+            assert b'name="purpose"' in request.content
+            assert b"batch" in request.content
+            assert b'application/jsonl' in request.content
+            return httpx.Response(200, json={"id": "file_input"})
+        if request.url.path == "/v1/batches" and request.method == "POST":
+            assert json.loads(request.content) == {
+                "completion_window": "24h",
+                "endpoint": "/v1/responses",
+                "input_file_id": "file_input",
+                "metadata": {"im_stage": "p0"},
+            }
+            return httpx.Response(200, json={"id": "batch_123", "status": "validating"})
+        if request.url.path == "/v1/batches/batch_123" and request.method == "GET":
+            return httpx.Response(200, json={"id": "batch_123", "status": "completed"})
+        if request.url.path == "/v1/files/file_output/content" and request.method == "GET":
+            return httpx.Response(200, content=b'{"custom_id":"p0.test.a1"}\n')
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openai.com/v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        gateway = OpenAIBatchGateway(api_key="test-key", client=client)
+        uploaded = await gateway.upload(b'{"custom_id":"p0.test.a1"}\n', "pilot.jsonl")
+        created = await gateway.create("file_input", {"im_stage": "p0"})
+        retrieved = await gateway.retrieve("batch_123")
+        downloaded = await gateway.download("file_output")
+
+    assert uploaded.payload["id"] == "file_input"
+    assert created.payload["id"] == "batch_123"
+    assert retrieved.payload["status"] == "completed"
+    assert downloaded == b'{"custom_id":"p0.test.a1"}\n'
+    assert len(requests) == 4
