@@ -25,6 +25,9 @@
   only the user wording changes. Scenario diversity belongs to the six twin pairs. An initial draft
   varied entities across `v1`–`v3`; raw-corpus inspection caught that substitution before review and
   it was regenerated as true paraphrases.
+- Each variant records every committed user snapshot in order, in addition to its primary review
+  text. The human review sheet exposes the complete sequence (including setup instructions and
+  later topic changes) rather than forcing reviewers to decode the compact manifest stream.
 - Manifest-only labels (`negative_class`, block codes, license diagnostics) never enter teacher
   prompt construction.
 

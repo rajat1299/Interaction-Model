@@ -93,6 +93,7 @@ def test_rendered_variant_never_exposes_manifest_metadata_to_teacher() -> None:
         RenderedVariant(
             variant_id=variant_id,
             user_text="text",
+            user_texts=("text",),
             policy_stream=stream,
             policy_stream_sha256=f"sha256:{sha256(stream.encode()).hexdigest()}",
             expected_action=idle,

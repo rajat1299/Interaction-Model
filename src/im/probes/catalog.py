@@ -34,6 +34,7 @@ from im.schema.actions import (
     Span,
 )
 from im.schema.common import Activity
+from im.schema.events import SnapshotEvent
 from im.schema.textspan import utf16_len
 from im.server import ArtifactPaths, load_session_artifacts
 from im.tools import ScriptedToolResult
@@ -99,6 +100,7 @@ class BuiltProbeCatalog:
 @dataclass(frozen=True, slots=True)
 class _BuiltState:
     user_text: str
+    user_texts: tuple[str, ...]
     state: RuntimeProbeState
     expected: Action
     tempting: Action
@@ -132,7 +134,7 @@ def _recurring_request(task: str, interval: str, variant: int) -> str:
     return (
         f"Remind me every {interval} to {task}.",
         f"Every {interval}, remind me to {task}.",
-        f"Set a repeating {interval} reminder to {task}.",
+        f"Set a reminder every {interval} to {task}.",
     )[variant]
 
 
@@ -174,9 +176,14 @@ class ProbeCatalogBuilder:
         expected: Action,
         tempting: Action,
     ) -> _BuiltState:
+        user_texts = tuple(
+            record.event.payload.text
+            for record in builder.store.policy_records()
+            if isinstance(record.event, SnapshotEvent)
+        )
         await builder.close()
         self._open_builders.remove(builder)
-        return _BuiltState(user_text, state, expected, tempting)
+        return _BuiltState(user_text, user_texts, state, expected, tempting)
 
     async def build(self) -> BuiltProbeCatalog:
         records: dict[tuple[str, str], _BuiltState] = {}
@@ -270,6 +277,7 @@ class ProbeCatalogBuilder:
         return RenderedVariant(
             variant_id=variant_id,
             user_text=built.user_text,
+            user_texts=built.user_texts,
             policy_stream=policy_stream,
             policy_stream_sha256=f"sha256:{sha256(built.state.policy_bytes).hexdigest()}",
             expected_action=built.expected,
@@ -450,7 +458,11 @@ class ProbeCatalogBuilder:
     ) -> tuple[_BuiltState, _BuiltState]:
         fact = _FACTS[case - 1]
         query_text = _lookup_request(fact, variant)
-        topics = ("Let's discuss lunch instead.", "Switch to the draft.", "Back to my notes.")
+        topics = (
+            "Let's discuss lunch instead.",
+            "Could we switch to lunch plans?",
+            "Back to planning lunch now.",
+        )
         topic = topics[variant]
         twin = f"f03-t{case:02d}"
 
@@ -886,25 +898,25 @@ class ProbeCatalogBuilder:
             (
                 (
                     "Paris is the capital of France.",
-                    "Water freezes at zero Celsius.",
-                    "Jupiter is a gas giant.",
+                    "France's capital is Paris.",
+                    "The capital city of France is Paris.",
                 ),
                 (
                     "Rome is the capital of Italy.",
-                    "Water boils at one hundred Celsius.",
-                    "Saturn is a gas giant.",
+                    "Italy's capital is Rome.",
+                    "The capital city of Italy is Rome.",
                 ),
             ),
             (
                 (
                     "The word cat appears here.",
-                    "The word dog appears here.",
-                    "The word otter appears here.",
+                    "Here is the word cat.",
+                    "This sentence contains cat.",
                 ),
                 (
                     "The word fox appears here.",
-                    "The word horse appears here.",
-                    "The word rabbit appears here.",
+                    "Here is the word fox.",
+                    "This sentence contains fox.",
                 ),
             ),
             (
@@ -965,7 +977,7 @@ class ProbeCatalogBuilder:
                     args=LookupArgs(query=text.rstrip(".")),
                 )
             elif case == 3:
-                target = text.split()[2]
+                target = "cat" if side_index == 0 else "fox"
                 tempting = MarkAction(
                     type="mark",
                     instruction=_span(event_id, text),

@@ -45,6 +45,7 @@ class RenderedVariant(_StrictModel):
 
     variant_id: Literal["v1", "v2", "v3"]
     user_text: str
+    user_texts: Annotated[tuple[str, ...], Field(min_length=1)]
     policy_stream: str
     policy_stream_sha256: Digest
     expected_action: Action
@@ -66,6 +67,15 @@ class RenderedVariant(_StrictModel):
                 value.encode("utf-8")
             except UnicodeEncodeError as error:
                 raise ValueError(f"{name} must be valid UTF-8") from error
+        if self.user_text not in self.user_texts:
+            raise ValueError("primary user_text must be one of the rendered user snapshots")
+        for value in self.user_texts:
+            if not value:
+                raise ValueError("rendered user snapshot text must not be empty")
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError as error:
+                raise ValueError("rendered user snapshot text must be valid UTF-8") from error
         return self
 
 

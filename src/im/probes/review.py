@@ -78,7 +78,7 @@ def render_review(
         lines.extend(
             [
                 "",
-                "| Variant | User-authored text | Expected action | Tempting action | "
+                "| Variant | User snapshots in order | Expected action | Tempting action | "
                 "Licenses | Stream |",
                 "|---|---|---|---|---|---|",
             ]
@@ -86,6 +86,7 @@ def render_review(
         for variant in probe.variants:
             expected = _action_json(variant.expected_action.model_dump(mode="json"))
             tempting = _action_json(variant.tempting_alternative.model_dump(mode="json"))
+            user_texts = "<br>→ ".join(_cell(text) for text in variant.user_texts)
             tempting_license = variant.tempting_license.outcome
             if variant.tempting_license.code is not None:
                 tempting_license += f":{variant.tempting_license.code.value}"
@@ -94,7 +95,7 @@ def render_review(
                 + " | ".join(
                     (
                         variant.variant_id,
-                        _cell(variant.user_text),
+                        user_texts,
                         f"`{_cell(expected)}`",
                         f"`{_cell(tempting)}`",
                         f"expected=allow; tempting={tempting_license}",
