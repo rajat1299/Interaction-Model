@@ -136,9 +136,11 @@ def test_cost_estimate_counts_retry_feedback_in_expected_and_ceiling() -> None:
     assert two_attempts.synchronous_no_cache.expected_usd > (
         one_attempt.synchronous_no_cache.expected_usd * 2
     )
-    assert two_attempts.synchronous_no_cache.ceiling_usd > (
-        one_attempt.synchronous_no_cache.ceiling_usd * 2
+    assert two_attempts.synchronous_no_cache.ceiling_usd == (
+        one_attempt.synchronous_no_cache.ceiling_usd
     )
+    assert one_attempt.expected_attempts_per_decision == 1
+    assert one_attempt.ceiling_attempts_per_decision == 2
 
 
 def test_cost_estimate_rejects_wrong_model_pricing() -> None:
@@ -299,6 +301,27 @@ async def test_prompted_policy_retries_incomplete_response() -> None:
     assert isinstance(decision, PolicyDecision)
     assert [call.outcome for call in decision.calls] == ["incomplete", "completed"]
     assert len(requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_prompted_policy_bounds_provider_controlled_incomplete_reason() -> None:
+    incomplete = {
+        "id": "resp_incomplete",
+        "object": "response",
+        "output": [],
+        "status": "incomplete",
+        "incomplete_details": {"reason": "x" * 5_000},
+    }
+    client, _requests = mock_client([incomplete, incomplete])
+    async with client:
+        decision = await PromptedPolicy(
+            builder(), api_key="test-key", client=client
+        ).decide(b'{"v":1}')
+
+    assert isinstance(decision, PolicyDecision)
+    assert decision.attempt == {"provider_incomplete": True}
+    assert [call.outcome for call in decision.calls] == ["incomplete", "incomplete"]
+    assert b"x" * 5_000 in decision.calls[-1].response
 
 
 @pytest.mark.asyncio

@@ -270,7 +270,8 @@ class RunCostEstimate:
     """Offline approximation; actual API usage remains authoritative."""
 
     decisions: int
-    attempts_per_decision: int
+    expected_attempts_per_decision: int
+    ceiling_attempts_per_decision: int
     fixed_input_tokens_per_attempt: int
     average_variable_input_tokens_per_attempt: int
     max_variable_input_tokens_per_attempt: int
@@ -284,8 +285,9 @@ class RunCostEstimate:
     def as_json(self) -> dict[str, object]:
         return {
             "assumptions": {
-                "attempts_per_decision": self.attempts_per_decision,
+                "ceiling_attempts_per_decision": self.ceiling_attempts_per_decision,
                 "decisions": self.decisions,
+                "expected_attempts_per_decision": self.expected_attempts_per_decision,
                 "expected_output_tokens_per_attempt": self.expected_output_tokens_per_attempt,
                 "fixed_input_tokens_per_attempt": self.fixed_input_tokens_per_attempt,
                 "max_output_tokens_per_attempt": self.max_output_tokens_per_attempt,
@@ -345,14 +347,22 @@ def estimate_run_cost(
     retry_feedback_tokens = estimate_tokens(
         b"x" * (_MAX_VALIDATION_ERROR_BYTES + _RETRY_MESSAGE_FIXED_BYTES)
     )
-    attempts = decisions * attempts_per_decision
-    retries = decisions * (attempts_per_decision - 1)
-    expected_variable_input = attempts * average_variable_tokens + retries * retry_feedback_tokens
-    max_variable_input = attempts * max_variable_tokens + retries * retry_feedback_tokens
-    expected_total_input = attempts * fixed_tokens + expected_variable_input
-    max_total_input = attempts * fixed_tokens + max_variable_input
-    total_expected_output = attempts * expected_output_tokens
-    total_max_output = attempts * builder.config.max_output_tokens
+    expected_attempts = decisions * attempts_per_decision
+    ceiling_attempts = decisions * builder.config.max_attempts
+    expected_retries = decisions * (attempts_per_decision - 1)
+    ceiling_retries = decisions * (builder.config.max_attempts - 1)
+    expected_variable_input = (
+        expected_attempts * average_variable_tokens
+        + expected_retries * retry_feedback_tokens
+    )
+    max_variable_input = (
+        ceiling_attempts * max_variable_tokens
+        + ceiling_retries * retry_feedback_tokens
+    )
+    expected_total_input = expected_attempts * fixed_tokens + expected_variable_input
+    max_total_input = ceiling_attempts * fixed_tokens + max_variable_input
+    total_expected_output = expected_attempts * expected_output_tokens
+    total_max_output = ceiling_attempts * builder.config.max_output_tokens
 
     def token_cost(tokens: int, rate: Decimal) -> Decimal:
         return Decimal(tokens) * rate / _MILLION
@@ -369,13 +379,17 @@ def estimate_run_cost(
     cache_write_rate = rates.input_per_million * rates.cache_write_multiplier
     fixed_write = token_cost(fixed_tokens, cache_write_rate)
     fixed_reads = token_cost(
-        max(0, attempts - 1) * fixed_tokens,
+        max(0, expected_attempts - 1) * fixed_tokens,
+        rates.cached_input_per_million,
+    )
+    max_fixed_reads = token_cost(
+        max(0, ceiling_attempts - 1) * fixed_tokens,
         rates.cached_input_per_million,
     )
     expected_variable_uncached = token_cost(expected_variable_input, rates.input_per_million)
     max_variable_uncached = token_cost(max_variable_input, rates.input_per_million)
     warm_expected_input = fixed_write + fixed_reads + expected_variable_uncached
-    warm_max_input = fixed_write + fixed_reads + max_variable_uncached
+    warm_max_input = fixed_write + max_fixed_reads + max_variable_uncached
     warm = CostScenario(
         expected_usd=warm_expected_input + expected_output_cost,
         ceiling_usd=warm_max_input + max_output_cost,
@@ -387,7 +401,8 @@ def estimate_run_cost(
     )
     return RunCostEstimate(
         decisions=decisions,
-        attempts_per_decision=attempts_per_decision,
+        expected_attempts_per_decision=attempts_per_decision,
+        ceiling_attempts_per_decision=builder.config.max_attempts,
         fixed_input_tokens_per_attempt=fixed_tokens,
         average_variable_input_tokens_per_attempt=average_variable_tokens,
         max_variable_input_tokens_per_attempt=max_variable_tokens,
@@ -445,7 +460,7 @@ def _decode_response(payload: dict[str, object]) -> _DecodedResponse:
         details = payload.get("incomplete_details")
         reason = details.get("reason") if isinstance(details, dict) else "unknown"
         return _DecodedResponse(
-            attempt={"provider_incomplete": str(reason)},
+            attempt={"provider_incomplete": True},
             outcome="incomplete",
             valid=False,
             validation_error=f"provider response incomplete: {reason}",

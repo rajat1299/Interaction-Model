@@ -589,16 +589,28 @@ class RuntimeSession:
             await asyncio.gather(runner, return_exceptions=True)
         socket = self._socket
         self._socket = None
+        cleanup_error: BaseException | None = None
         if socket is not None:
             try:
                 await socket.close(code=status.WS_1001_GOING_AWAY)
             except RuntimeError:
                 pass
+            except BaseException as error:
+                cleanup_error = error
         try:
             if isinstance(self.tick.policy, AsyncClosablePolicy):
                 await self.tick.policy.aclose()
+        except BaseException as error:
+            if cleanup_error is None:
+                cleanup_error = error
         finally:
-            self.store.close()
+            try:
+                self.store.close()
+            except BaseException as error:
+                if cleanup_error is None:
+                    cleanup_error = error
+        if cleanup_error is not None:
+            raise cleanup_error
 
 
 class SessionRegistry:

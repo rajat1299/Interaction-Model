@@ -71,6 +71,21 @@ class FailingClosePolicy(ScriptedPolicy):
         raise RuntimeError("close failed")
 
 
+class TrackingClosePolicy(ScriptedPolicy):
+    def __init__(self) -> None:
+        super().__init__([])
+        self.closed = False
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+class FailingSocket:
+    async def close(self, *, code: int) -> None:
+        del code
+        raise OSError("socket close failed")
+
+
 async def wait_for_ingress(
     session: RuntimeSession,
     source: str,
@@ -180,6 +195,29 @@ async def test_session_close_releases_store_when_policy_close_fails(tmp_path: Pa
     with pytest.raises(RuntimeError, match="close failed"):
         await session.close()
 
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        session.store._connection.execute("SELECT 1")
+
+
+@pytest.mark.asyncio
+async def test_session_close_finishes_cleanup_when_socket_close_fails(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    config = RuntimeConfig()
+    policy = TrackingClosePolicy()
+    session = RuntimeSession(
+        session_id="s_socket_close_failure",
+        directory=tmp_path / "s_socket_close_failure",
+        policy=policy,
+        clock=ManualClock(),
+        config=config,
+        artifacts=load_session_artifacts(ArtifactPaths.from_repository(repo), config),
+    )
+    session._socket = FailingSocket()  # type: ignore[assignment]
+
+    with pytest.raises(OSError, match="socket close failed"):
+        await session.close()
+
+    assert policy.closed is True
     with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
         session.store._connection.execute("SELECT 1")
 

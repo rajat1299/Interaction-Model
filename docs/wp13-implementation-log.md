@@ -81,3 +81,14 @@
 - The conservative estimate deliberately assumes every request reaches the supplied maximum policy
   size and every response consumes the full 8,192-token output budget. It is a funding bound under
   those inputs, not an expected invoice.
+
+### Review-loop follow-up
+
+- Provider-controlled incomplete-detail text is retained only in the exact response BLOB; the
+  action lane uses a bounded `provider_incomplete` sentinel, matching malformed and invalid output.
+- Expected cost uses the requested planning attempt count, while every reported ceiling always uses
+  the production maximum of two attempts. The default report can therefore be read literally even
+  when every first attempt needs correction.
+- Session teardown preserves the first socket, policy, or store cleanup error while still attempting
+  every later cleanup step. A transport-close failure cannot strand the policy client or SQLite
+  handle.
