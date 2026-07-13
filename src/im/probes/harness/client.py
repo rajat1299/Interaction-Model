@@ -37,7 +37,10 @@ def response_usage(payload: dict[str, object]) -> ProviderUsage:
     return ProviderUsage(
         input_tokens=integer(usage, "input_tokens"),
         cached_input_tokens=integer(input_details, "cached_tokens"),
-        cache_write_tokens=integer(input_details, "cache_write_tokens"),
+        cache_write_tokens=max(
+            integer(input_details, "cache_write_tokens"),
+            integer(input_details, "cache_creation_tokens"),
+        ),
         output_tokens=integer(usage, "output_tokens"),
         reasoning_tokens=integer(output_details, "reasoning_tokens"),
     )

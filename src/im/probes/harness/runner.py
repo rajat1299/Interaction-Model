@@ -30,6 +30,7 @@ from im.probes.harness.models import (
     ListwiseResult,
     PairwiseChoice,
     PairwiseResult,
+    ProviderUsage,
     SemanticTextVerdict,
 )
 from im.probes.harness.protocols import ProtocolPromptBuilder
@@ -196,6 +197,14 @@ class ProbeHarnessRunner:
                 if semantic_completion is None
                 else completion.usage + semantic_completion.usage
             ),
+            fresh_usage=(
+                (completion.usage if not completion.from_cache else ProviderUsage())
+                + (
+                    ProviderUsage()
+                    if semantic_completion is None or semantic_completion.from_cache
+                    else semantic_completion.usage
+                )
+            ),
         )
 
     async def _grade_semantic(
@@ -281,6 +290,7 @@ class ProbeHarnessRunner:
             correct=response_valid and choice == position.value.upper(),
             from_cache=completion.from_cache,
             usage=completion.usage,
+            fresh_usage=(completion.usage if not completion.from_cache else ProviderUsage()),
         )
 
     async def _run_listwise(self, probe) -> ListwiseResult:
@@ -342,6 +352,7 @@ class ProbeHarnessRunner:
             expected_above_tempting=response_valid and expected_index < tempting_index,
             from_cache=completion.from_cache,
             usage=completion.usage,
+            fresh_usage=(completion.usage if not completion.from_cache else ProviderUsage()),
         )
 
     async def _cached(

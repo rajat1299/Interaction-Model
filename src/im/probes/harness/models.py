@@ -186,6 +186,7 @@ class GenerationResult:
     intrusive_action: bool
     from_cache: bool
     usage: ProviderUsage
+    fresh_usage: ProviderUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +203,7 @@ class PairwiseResult:
     correct: bool
     from_cache: bool
     usage: ProviderUsage
+    fresh_usage: ProviderUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,6 +222,7 @@ class ListwiseResult:
     expected_above_tempting: bool
     from_cache: bool
     usage: ProviderUsage
+    fresh_usage: ProviderUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,4 +240,11 @@ class HarnessRun:
         total = ProviderUsage()
         for result in (*self.generation, *self.pairwise, *self.listwise):
             total += result.usage
+        return total
+
+    @property
+    def fresh_usage(self) -> ProviderUsage:
+        total = ProviderUsage()
+        for result in (*self.generation, *self.pairwise, *self.listwise):
+            total += result.fresh_usage
         return total

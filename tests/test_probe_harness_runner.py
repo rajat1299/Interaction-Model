@@ -14,7 +14,10 @@ from im.probes.harness.artifacts import load_approved_catalog
 from im.probes.harness.backend import OracleHarnessBackend
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.candidates import build_listwise_presentation
+from im.probes.harness.cost import estimate_harness_cost
+from im.probes.harness.metrics import compute_metrics
 from im.probes.harness.protocols import ProtocolPromptBuilder
+from im.probes.harness.report import render_report
 from im.probes.harness.runner import HarnessRunnerConfig, ProbeHarnessRunner
 from im.probes.validate import assert_reference_integrity
 
@@ -108,6 +111,26 @@ async def test_full_mocked_harness_runs_all_protocols_and_resumes(
     assert all(result.from_cache for result in second.generation)
     assert all(result.from_cache for result in second.pairwise)
     assert all(result.from_cache for result in second.listwise)
+    assert second.fresh_usage.input_tokens == 0
+    assert second.fresh_usage.output_tokens == 0
+
+    metrics = compute_metrics(first)
+    estimate = estimate_harness_cost(approved, generation_builder, prompts)
+    report = render_report(
+        first,
+        metrics,
+        estimate,
+        run_kind="mocked-oracle",
+        repository_commit="test",
+    )
+    assert metrics["all_gates_passed"]
+    assert estimate.generation_requests == 144
+    assert estimate.pairwise_requests == 864
+    assert estimate.listwise_requests == 144
+    assert estimate.semantic_requests == 22
+    assert estimate.total_requests == 1_174
+    assert "PASS. This verdict applies only" in report
+    assert "Protocol calls represented: 1152" in report
 
 
 def test_generation_and_pairwise_population_is_frozen(approved) -> None:
