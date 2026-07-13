@@ -380,7 +380,21 @@ Acceptance: mocked-transport unit tests (valid, invalid-then-retry, refusal); dr
 | 11 | identical state pre vs post rollover | rollover | same action both sides |
 | 12 | valid-but-unwanted + pure no-trigger idle | restraint | idle(no_trigger) ↔ any plausible action |
 
-Acceptance: manifest validates (every probe parses, expected and tempting both pass the license layer against the probe state — "correct-but-unwanted" must be *legal*, that is the point); twin coverage report (every family ≥5 twin pairs); user has reviewed all 144 + paraphrases.
+Acceptance: all 144 logical probes are constructed through production store/tick APIs and each has
+exactly three fully rebuilt peer variants (432 rendered states total); `v1` is the canonical
+generation/listwise state and `v1`–`v3` are the pairwise paraphrases. Every expected action is
+schema-valid, reference-valid, and license-allowed. Every tempting action is schema-valid and
+reference-valid, and every rendered state declares `negative_class ∈ {semantic_preference,
+mechanical_negative, invariance}`. Semantic-preference alternatives are license-allowed.
+Mechanical negatives are blocked by exactly their declared frozen code and become allowed when
+only their declared blocking variable is reversed. Family 7 uses legal `idle(no_trigger)` as its
+restraint inverse and verifies floor invariance. Family 11 is scored as rollover invariance, with
+any pairwise negative classified independently. Negative classes, block codes, license outcomes,
+and validator diagnostics are manifest-only and never shown to the teacher. Every variant is rebuilt
+from its scenario builder with fresh runtime IDs, recomputed UTF-16 spans, regenerated payloads, and
+full validation. Semantic, mechanical, and invariance metrics remain separate. Twin coverage report:
+every family has six twin pairs. Final human gate: user has reviewed all 144 logical probes and their
+three variants.
 
 ### WP15 — Probe harness + metrics (~2.5h)
 `probes/harness/`: three protocols against a configured model:
