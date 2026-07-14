@@ -1,4 +1,4 @@
-"""Regenerate deterministic WP1 JSON Schema artifacts and draft hashes."""
+"""Regenerate deterministic JSON Schema artifacts without touching the freeze manifest."""
 
 from pathlib import Path
 

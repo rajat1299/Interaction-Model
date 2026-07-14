@@ -1,4 +1,4 @@
-"""Deterministic JSON Schema export and draft freeze hashes."""
+"""Deterministic JSON Schema export and freeze-hash helpers."""
 
 import hashlib
 import json
@@ -51,19 +51,8 @@ def schema_hashes(event_schema: bytes, action_schema: bytes) -> SchemaHashes:
     )
 
 
-def freeze_draft_bytes(hashes: SchemaHashes) -> bytes:
-    """Build the WP1 draft header; WP17 completes and freezes this file."""
-    return (
-        "# Phase 0 Freeze — DRAFT\n\n"
-        f"- event_schema_sha256: `{hashes.event_schema}`\n"
-        f"- action_schema_sha256: `{hashes.action_schema}`\n"
-        f"- combined_schema_hash: `{hashes.combined_schema}`\n\n"
-        "These WP1 hashes are generated from compact, sorted-key schema export bytes. "
-        "WP17 adds the behavior-spec, prompt-template, and renderer records before freeze.\n"
-    ).encode()
-
-
 def export_schema_artifacts(project_root: Path) -> SchemaHashes:
+    """Export schemas without mutating the separately approved freeze manifest."""
     event_schema = event_schema_bytes()
     action_schema = action_schema_bytes()
     hashes = schema_hashes(event_schema, action_schema)
@@ -71,5 +60,4 @@ def export_schema_artifacts(project_root: Path) -> SchemaHashes:
     schema_dir.mkdir(parents=True, exist_ok=True)
     (schema_dir / EVENT_SCHEMA_FILENAME).write_bytes(event_schema)
     (schema_dir / ACTION_SCHEMA_FILENAME).write_bytes(action_schema)
-    (project_root / "spec" / "FREEZE.md").write_bytes(freeze_draft_bytes(hashes))
     return hashes

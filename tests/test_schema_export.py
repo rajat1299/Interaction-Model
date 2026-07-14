@@ -17,7 +17,7 @@ from im.schema.export import (
     action_schema_bytes,
     canonical_schema_bytes,
     event_schema_bytes,
-    freeze_draft_bytes,
+    export_schema_artifacts,
     schema_hashes,
 )
 from test_actions import VALID_ACTIONS
@@ -165,7 +165,7 @@ def test_exported_event_schema_rejects_recursive_non_tim_json_numbers(data: obje
         Draft202012Validator(load_export(EVENT_SCHEMA_FILENAME)).validate(payload)
 
 
-def test_freeze_draft_records_exact_individual_and_combined_hashes() -> None:
+def test_schema_hashes_record_exact_individual_and_combined_preimages() -> None:
     event_bytes = event_schema_bytes()
     action_bytes = action_schema_bytes()
     hashes = schema_hashes(event_bytes, action_bytes)
@@ -173,10 +173,27 @@ def test_freeze_draft_records_exact_individual_and_combined_hashes() -> None:
     direct_action = "sha256:" + hashlib.sha256(action_bytes).hexdigest()
     direct_combined = "sha256:" + hashlib.sha256(event_bytes + b"\n" + action_bytes).hexdigest()
 
-    assert (PROJECT_ROOT / "spec" / "FREEZE.md").read_bytes() == freeze_draft_bytes(hashes)
     assert hashes.event_schema == direct_event
     assert hashes.action_schema == direct_action
     assert hashes.combined_schema == direct_combined
     assert hashes.combined_schema != (
         "sha256:" + hashlib.sha256(action_bytes + b"\n" + event_bytes).hexdigest()
     )
+
+
+def test_schema_export_does_not_create_or_overwrite_freeze_manifest(tmp_path: Path) -> None:
+    freeze_path = tmp_path / "spec" / "FREEZE.md"
+    freeze_path.parent.mkdir(parents=True)
+    approved = b"human-approved freeze manifest\n"
+    freeze_path.write_bytes(approved)
+
+    hashes = export_schema_artifacts(tmp_path)
+
+    assert freeze_path.read_bytes() == approved
+    assert (tmp_path / "spec/schema" / EVENT_SCHEMA_FILENAME).read_bytes() == event_schema_bytes()
+    assert (tmp_path / "spec/schema" / ACTION_SCHEMA_FILENAME).read_bytes() == action_schema_bytes()
+    assert hashes == schema_hashes(event_schema_bytes(), action_schema_bytes())
+
+    fresh_root = tmp_path / "fresh"
+    export_schema_artifacts(fresh_root)
+    assert not (fresh_root / "spec/FREEZE.md").exists()
