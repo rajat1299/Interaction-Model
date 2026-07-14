@@ -104,6 +104,27 @@ class ProbeHarnessRunner:
             listwise=tuple(listwise),
         )
 
+    async def run_generation_only(
+        self,
+        *,
+        probe_ids: Collection[str],
+    ) -> HarnessRun:
+        """Run only policy generation; do not invoke recognition or semantic graders."""
+        probes = self._selected_probes(probe_ids)
+        generated = await _gather_phase(
+            *(self._run_generation(probe, grade_open_text=False) for probe in probes)
+        )
+        return HarnessRun(
+            manifest_sha256=self.catalog.manifest_sha256,
+            review_sha256=self.catalog.review_sha256,
+            model=self.generation_builder.config.model,
+            reasoning_effort=self.generation_builder.config.reasoning_effort,
+            generation=tuple(item[0] for item in generated),
+            semantic_text=(),
+            pairwise=(),
+            listwise=(),
+        )
+
     def _selected_probes(self, probe_ids: Collection[str] | None):
         if probe_ids is None:
             return self.catalog.manifest.probes
@@ -120,6 +141,8 @@ class ProbeHarnessRunner:
     async def _run_generation(
         self,
         probe,
+        *,
+        grade_open_text: bool = True,
     ) -> tuple[GenerationResult, SemanticTextResult | None]:
         variant = probe.variants[0]
         view = self.catalog.views[(probe.probe_id, "v1")]
@@ -160,7 +183,7 @@ class ProbeHarnessRunner:
                     block_code = license_result.code.value
                 structure = grade_generation_structure(variant.expected_action, actual)
                 structural_match = structure.structural_match
-                if structural_match and expected_rule is not None:
+                if structural_match and expected_rule is not None and grade_open_text:
                     semantic_result = await self._grade_semantic(
                         probe_id=probe.probe_id,
                         family_id=probe.family_id,
@@ -175,7 +198,7 @@ class ProbeHarnessRunner:
                         passed=semantic_result.passed,
                         rationale=semantic_result.rationale or "rubric response was invalid",
                     )
-        if expected_rule is not None and semantic_result is None:
+        if expected_rule is not None and semantic_result is None and grade_open_text:
             semantic_passed = False
             semantic_rationale = "not run because the generated action was structurally incorrect"
             semantic_result = SemanticTextResult(
