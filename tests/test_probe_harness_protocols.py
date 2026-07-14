@@ -180,3 +180,21 @@ def test_usage_parser_ignores_malformed_optional_counts() -> None:
     assert usage.cache_write_tokens == 0
     assert usage.output_tokens == 4
     assert usage.reasoning_tokens == 0
+
+
+def test_usage_parser_accepts_openai_compatible_aliases() -> None:
+    usage = response_usage(
+        {
+            "usage": {
+                "prompt_tokens": 120,
+                "prompt_tokens_details": {"cached_tokens": 80},
+                "completion_tokens": 11,
+                "completion_tokens_details": {"reasoning_tokens": 3},
+            }
+        }
+    )
+
+    assert usage.input_tokens == 120
+    assert usage.cached_input_tokens == 80
+    assert usage.output_tokens == 11
+    assert usage.reasoning_tokens == 3

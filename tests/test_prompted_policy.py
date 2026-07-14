@@ -12,12 +12,12 @@ import pytest
 from im.policy.base import PolicyCallCancelled, PolicyCallTrace, PolicyDecision
 from im.policy.prompted import (
     ModelPricing,
-    OpenAITransportError,
     PromptArtifacts,
     PromptedPolicy,
     PromptedPolicyConfig,
     PromptRenderer,
     ResponsesRequestBuilder,
+    ResponsesTransportError,
     estimate_run_cost,
 )
 from im.scheduler import ManualClock, TimerScheduler
@@ -350,7 +350,7 @@ async def test_prompted_policy_surfaces_http_error_with_exact_trace() -> None:
         base_url="https://api.openai.com/v1",
         transport=httpx.MockTransport(handler),
     ) as client:
-        with pytest.raises(OpenAITransportError) as caught:
+        with pytest.raises(ResponsesTransportError) as caught:
             await PromptedPolicy(builder(), api_key="test-key", client=client).decide(
                 b'{"v":1}'
             )
@@ -370,7 +370,7 @@ async def test_prompted_policy_surfaces_transport_error_with_trace() -> None:
         base_url="https://api.openai.com/v1",
         transport=httpx.MockTransport(handler),
     ) as client:
-        with pytest.raises(OpenAITransportError) as caught:
+        with pytest.raises(ResponsesTransportError) as caught:
             await PromptedPolicy(builder(), api_key="test-key", client=client).decide(
                 b'{"v":1}'
             )

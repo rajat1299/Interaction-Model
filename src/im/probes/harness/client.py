@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -13,7 +13,12 @@ import httpx
 
 from im.canonical_json import TimJsonError, parse_tim_json
 from im.policy.base import PolicyCallCancelled, PolicyCallTrace
-from im.policy.prompted import OpenAITransportError, PromptedPolicyConfig, response_content
+from im.policy.prompted import (
+    PromptedPolicyConfig,
+    ResponsesTransportError,
+    add_extra_headers,
+    response_content,
+)
 from im.probes.harness.models import HarnessCompletion, ProviderUsage
 from im.probes.harness.protocols import ProtocolRequest
 
@@ -30,12 +35,16 @@ class DecodedProtocolResponse:
 
 
 def response_usage(payload: dict[str, object]) -> ProviderUsage:
-    """Read current Responses usage while tolerating absent optional cache details."""
+    """Read normalized or OpenAI-compatible Responses usage fields."""
     usage = payload.get("usage")
     if not isinstance(usage, dict):
         return ProviderUsage()
     input_details = usage.get("input_tokens_details")
+    if not isinstance(input_details, dict):
+        input_details = usage.get("prompt_tokens_details")
     output_details = usage.get("output_tokens_details")
+    if not isinstance(output_details, dict):
+        output_details = usage.get("completion_tokens_details")
     input_details = input_details if isinstance(input_details, dict) else {}
     output_details = output_details if isinstance(output_details, dict) else {}
 
@@ -43,15 +52,21 @@ def response_usage(payload: dict[str, object]) -> ProviderUsage:
         value = mapping.get(key, 0)
         return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
+    input_tokens = max(integer(usage, "input_tokens"), integer(usage, "prompt_tokens"))
+    output_tokens = max(integer(usage, "output_tokens"), integer(usage, "completion_tokens"))
+
     return ProviderUsage(
-        input_tokens=integer(usage, "input_tokens"),
+        input_tokens=input_tokens,
         cached_input_tokens=integer(input_details, "cached_tokens"),
         cache_write_tokens=max(
             integer(input_details, "cache_write_tokens"),
             integer(input_details, "cache_creation_tokens"),
         ),
-        output_tokens=integer(usage, "output_tokens"),
-        reasoning_tokens=integer(output_details, "reasoning_tokens"),
+        output_tokens=output_tokens,
+        reasoning_tokens=max(
+            integer(output_details, "reasoning_tokens"),
+            integer(usage, "reasoning_tokens"),
+        ),
     )
 
 
@@ -116,6 +131,7 @@ class JsonResponsesClient:
         api_key: str,
         organization_id: str | None = None,
         project_id: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
@@ -131,6 +147,7 @@ class JsonResponsesClient:
             self._headers["OpenAI-Organization"] = organization_id
         if project_id:
             self._headers["OpenAI-Project"] = project_id
+        add_extra_headers(self._headers, extra_headers)
 
     async def aclose(self) -> None:
         if self._owns_client and self._client is not None:
@@ -190,7 +207,10 @@ class JsonResponsesClient:
                         outcome="transport_error",
                     )
                 )
-                raise OpenAITransportError("OpenAI transport failed", tuple(traces)) from error
+                raise ResponsesTransportError(
+                    "Responses transport failed",
+                    tuple(traces),
+                ) from error
 
             raw_response = response.content
             if not response.is_success:
@@ -206,8 +226,8 @@ class JsonResponsesClient:
                         outcome="http_error",
                     )
                 )
-                raise OpenAITransportError(
-                    f"OpenAI Responses API returned HTTP {response.status_code}",
+                raise ResponsesTransportError(
+                    f"Responses API returned HTTP {response.status_code}",
                     tuple(traces),
                 )
             try:

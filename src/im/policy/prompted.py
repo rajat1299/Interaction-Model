@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from hashlib import sha256
@@ -26,6 +27,7 @@ from im.policy.base import (
 from im.schema.actions import ACTION_ADAPTER
 
 ReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
+ResponsesProvider = Literal["openai", "openrouter"]
 
 _BEHAVIOR_PLACEHOLDER = "{{behavior_spec}}"
 _SCHEMA_PLACEHOLDER = "{{action_schema}}"
@@ -120,6 +122,35 @@ class RenderedPrompt:
     prompt_hash: str
 
 
+@dataclass(frozen=True, slots=True)
+class ResponsesRouting:
+    """Optional OpenRouter upstream constraints serialized into the request."""
+
+    only: tuple[str, ...]
+    allow_fallbacks: bool
+    require_parameters: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.only, tuple):
+            raise TypeError("Responses routing provider slugs must be a tuple")
+        if not self.only or any(not provider.strip() for provider in self.only):
+            raise ValueError("Responses routing requires non-empty provider slugs")
+        if len(self.only) != len(set(self.only)):
+            raise ValueError("Responses routing provider slugs must be unique")
+        if not isinstance(self.allow_fallbacks, bool) or not isinstance(
+            self.require_parameters,
+            bool,
+        ):
+            raise TypeError("Responses routing flags must be booleans")
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "allow_fallbacks": self.allow_fallbacks,
+            "only": list(self.only),
+            "require_parameters": self.require_parameters,
+        }
+
+
 class PromptRenderer:
     """Split the frozen template into cacheable system and variable user lanes."""
 
@@ -164,15 +195,19 @@ class PromptedPolicyConfig:
     """Provider settings kept separate from the frozen runtime config hash."""
 
     model: str = "gpt-5.6-terra"
+    provider: ResponsesProvider = "openai"
     reasoning_effort: ReasoningEffort = "high"
     max_output_tokens: int = 8_192
     timeout_seconds: int = 120
     max_attempts: int = 2
     base_url: str = "https://api.openai.com/v1"
+    routing: ResponsesRouting | None = None
 
     def __post_init__(self) -> None:
         if not self.model:
             raise ValueError("model must not be empty")
+        if self.provider not in {"openai", "openrouter"}:
+            raise ValueError("unsupported Responses provider")
         if self.reasoning_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
             raise ValueError("unsupported reasoning effort")
         for name, value in (
@@ -184,10 +219,12 @@ class PromptedPolicyConfig:
                 raise TypeError(f"{name} must be an integer")
             if value <= 0:
                 raise ValueError(f"{name} must be positive")
-        if self.max_attempts != 2:
-            raise ValueError("WP13 requires exactly one retry")
+        if self.max_attempts not in {1, 2}:
+            raise ValueError("Responses policies allow at most one local correction")
         if not self.base_url.startswith("https://"):
-            raise ValueError("OpenAI base_url must use HTTPS")
+            raise ValueError("Responses base_url must use HTTPS")
+        if self.routing is not None and self.provider != "openrouter":
+            raise ValueError("upstream provider routing is only supported by OpenRouter")
 
 
 class ResponsesRequestBuilder:
@@ -204,17 +241,16 @@ class ResponsesRequestBuilder:
 
     def build(self, policy_bytes: bytes) -> dict[str, object]:
         prompt = self.renderer.render(policy_bytes)
-        return {
+        system_content: dict[str, object] = {
+            "type": "input_text",
+            "text": prompt.system,
+        }
+        reasoning: dict[str, object] = {"effort": self.config.reasoning_effort}
+        body: dict[str, object] = {
             "input": [
                 {
                     "role": "system",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": prompt.system,
-                            "prompt_cache_breakpoint": {"mode": "explicit"},
-                        }
-                    ],
+                    "content": [system_content],
                 },
                 {
                     "role": "user",
@@ -223,12 +259,19 @@ class ResponsesRequestBuilder:
             ],
             "max_output_tokens": self.config.max_output_tokens,
             "model": self.config.model,
-            "prompt_cache_key": self.prompt_cache_key,
-            "prompt_cache_options": {"mode": "explicit", "ttl": "30m"},
-            "reasoning": {"effort": self.config.reasoning_effort},
+            "reasoning": reasoning,
             "store": False,
             "text": {"format": {"type": "json_object"}},
         }
+        if self.config.provider == "openai":
+            system_content["prompt_cache_breakpoint"] = {"mode": "explicit"}
+            body["prompt_cache_key"] = self.prompt_cache_key
+            body["prompt_cache_options"] = {"mode": "explicit", "ttl": "30m"}
+        else:
+            reasoning["exclude"] = True
+        if self.config.routing is not None:
+            body["provider"] = self.config.routing.as_json()
+        return body
 
     def build_batch_line(self, custom_id: str, policy_bytes: bytes) -> dict[str, object]:
         return build_batch_line(custom_id, self.build(policy_bytes))
@@ -420,8 +463,8 @@ def estimate_run_cost(
     )
 
 
-class OpenAITransportError(PolicyCallError):
-    """An HTTP or transport failure outside model action semantics."""
+class ResponsesTransportError(PolicyCallError):
+    """A Responses HTTP or transport failure outside model action semantics."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -527,7 +570,7 @@ def action_retry_body(body: dict[str, object], validation_error: str) -> dict[st
 
 
 class PromptedPolicy:
-    """Call OpenAI only from ``decide``; construction and costing are offline."""
+    """Call the configured Responses provider only from ``decide``."""
 
     def __init__(
         self,
@@ -536,6 +579,7 @@ class PromptedPolicy:
         api_key: str,
         organization_id: str | None = None,
         project_id: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
@@ -551,6 +595,7 @@ class PromptedPolicy:
             self._headers["OpenAI-Organization"] = organization_id
         if project_id:
             self._headers["OpenAI-Project"] = project_id
+        add_extra_headers(self._headers, extra_headers)
 
     async def aclose(self) -> None:
         if self._owns_client and self._client is not None:
@@ -612,7 +657,7 @@ class PromptedPolicy:
                         outcome="transport_error",
                     )
                 )
-                raise OpenAITransportError("OpenAI transport failed", tuple(calls)) from error
+                raise ResponsesTransportError("Responses transport failed", tuple(calls)) from error
 
             latency_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)
             raw_response = response.content
@@ -629,8 +674,8 @@ class PromptedPolicy:
                         outcome="http_error",
                     )
                 )
-                raise OpenAITransportError(
-                    f"OpenAI Responses API returned HTTP {response.status_code}",
+                raise ResponsesTransportError(
+                    f"Responses API returned HTTP {response.status_code}",
                     tuple(calls),
                 )
             try:
@@ -657,3 +702,17 @@ class PromptedPolicy:
             if attempt_index < self.builder.config.max_attempts:
                 body = action_retry_body(body, last.validation_error or "invalid action")
         return PolicyDecision(attempt=last.attempt, calls=tuple(calls))
+
+
+def add_extra_headers(
+    target: dict[str, str],
+    extra_headers: Mapping[str, str] | None,
+) -> None:
+    for name, value in (extra_headers or {}).items():
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("extra header names must be non-empty strings")
+        if not isinstance(value, str) or not value:
+            raise ValueError("extra header values must be non-empty strings")
+        if name.casefold() in {"authorization", "content-type"}:
+            raise ValueError(f"extra headers cannot override {name}")
+        target[name] = value

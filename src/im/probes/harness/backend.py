@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from hashlib import sha256
 from typing import Protocol, TypeVar
 
@@ -32,8 +32,8 @@ class HarnessBackend(Protocol):
     async def aclose(self) -> None: ...
 
 
-class OpenAIHarnessBackend:
-    """Use the WP13 policy for generation and JSON-mode calls for recognition."""
+class ResponsesHarnessBackend:
+    """Use one configured Responses provider for generation and rubric calls."""
 
     def __init__(
         self,
@@ -42,18 +42,21 @@ class OpenAIHarnessBackend:
         api_key: str,
         organization_id: str | None = None,
         project_id: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> None:
         self._policy = PromptedPolicy(
             generation_builder,
             api_key=api_key,
             organization_id=organization_id,
             project_id=project_id,
+            extra_headers=extra_headers,
         )
         self._json = JsonResponsesClient(
             generation_builder.config,
             api_key=api_key,
             organization_id=organization_id,
             project_id=project_id,
+            extra_headers=extra_headers,
         )
 
     async def generate(self, policy_bytes: bytes) -> HarnessCompletion:

@@ -24,7 +24,7 @@ from im.policy.prompted import (
     ResponsesRequestBuilder,
 )
 from im.probes.harness.artifacts import load_approved_catalog
-from im.probes.harness.backend import OpenAIHarnessBackend, OracleHarnessBackend
+from im.probes.harness.backend import OracleHarnessBackend, ResponsesHarnessBackend
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.cost import estimate_harness_cost
 from im.probes.harness.metrics import compute_metrics
@@ -156,7 +156,7 @@ async def _run(args: argparse.Namespace) -> None:
         api_key = os.getenv("OPENAI_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is required for --mode live")
-        backend = OpenAIHarnessBackend(
+        backend = ResponsesHarnessBackend(
             generation_builder,
             api_key=api_key,
             organization_id=os.getenv("OPENAI_ORG_ID", "").strip() or None,
