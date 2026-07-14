@@ -18,6 +18,7 @@ from im.schema.actions import (
     DelegateAction,
     IdleAction,
     IntegrateAction,
+    LookupArgs,
     MarkAction,
     NudgeAction,
     RespondAction,
@@ -52,6 +53,7 @@ def test_complete_catalog_is_runtime_built_and_validated(catalog: BuiltProbeCata
     assert catalog.validation.mechanical_states == 72
     assert catalog.validation.invariance_states == 36
     assert len(catalog.views) == 432
+    assert catalog.manifest.format_version == 3
     grading = catalog.manifest.generation_grading
     assert grading.contract_id == "wp14-free-generation-v1"
     assert grading.integrate_text == "faithful_to_result_semantic"
@@ -87,6 +89,24 @@ def test_floor_and_rollover_pairs_preserve_the_declared_invariance(
         assert [item.expected_action for item in floor_left.variants] == [
             item.expected_action for item in floor_right.variants
         ]
+
+        response_active = probes[f"f10-t{case:02d}-a"]
+        response_yielded = probes[f"f10-t{case:02d}-b"]
+        for active_variant, yielded_variant in zip(
+            response_active.variants,
+            response_yielded.variants,
+            strict=True,
+        ):
+            active_expected = active_variant.expected_action
+            active_tempting = active_variant.tempting_alternative
+            yielded_expected = yielded_variant.expected_action
+            assert isinstance(active_expected, IdleAction)
+            assert active_expected.reason == "awaiting_opening"
+            assert active_expected.related_event_id is not None
+            assert isinstance(active_tempting, RespondAction)
+            assert isinstance(yielded_expected, RespondAction)
+            assert active_expected.related_event_id == active_tempting.reply_to_event_id
+            assert active_expected.related_event_id == yielded_expected.reply_to_event_id
 
         pre = probes[f"f11-t{case:02d}-a"]
         post = probes[f"f11-t{case:02d}-b"]
@@ -241,6 +261,44 @@ def test_human_semantic_gate_regressions_are_fixed(catalog: BuiltProbeCatalog) -
     assert {probe.flip_variable for probe in family_two} == {
         "target_is_standalone_lexical_unit"
     }
+    family_two_texts = {
+        variant.user_text
+        for probe in family_two
+        for variant in probe.variants
+    }
+    assert any(text.endswith("cat ") for text in family_two_texts)
+    assert any(text.endswith("cat.") for text in family_two_texts)
+    assert any(text.endswith("cat-like") for text in family_two_texts)
+    assert any(text.endswith("cat's") for text in family_two_texts)
+    assert any(text.endswith("cat/dog") for text in family_two_texts)
+    cat_complete = probes["f02-t01-a"]
+    cat_continuing = probes["f02-t01-b"]
+    assert [variant.user_text.strip().rsplit(" ", 1)[-1] for variant in cat_complete.variants] == [
+        "cat",
+        "cat.",
+        "cat,",
+    ]
+    assert all(isinstance(variant.expected_action, MarkAction) for variant in cat_complete.variants)
+    assert [
+        variant.user_text.strip().rsplit(" ", 1)[-1]
+        for variant in cat_continuing.variants
+    ] == [
+        "cat-like",
+        "cat's",
+        "cat/dog",
+    ]
+    assert all(
+        isinstance(variant.expected_action, IdleAction)
+        for variant in cat_continuing.variants
+    )
+
+    for side in ("a", "b"):
+        probe = probes[f"f12-t02-{side}"]
+        for variant in probe.variants:
+            action = variant.tempting_alternative
+            assert isinstance(action, DelegateAction)
+            assert action.fact.text == action.args.query
+            assert not action.fact.text.endswith((".", "?", "!"))
 
     review = render_review(catalog.manifest, catalog.validation)
     assert '"result_disposition":"handled"' in review
@@ -268,6 +326,40 @@ def test_teacher_projection_contains_no_manifest_only_labels(catalog: BuiltProbe
                 assert "negative_class" not in serialized
                 assert "tempting_license" not in serialized
                 assert "mechanical_release_probe_id" not in serialized
+
+
+def test_manifest_validator_rejects_a_second_delegate_query_path(
+    catalog: BuiltProbeCatalog,
+) -> None:
+    target_probe = next(
+        probe for probe in catalog.manifest.probes if probe.probe_id == "f12-t02-a"
+    )
+    target_variant = target_probe.variants[0]
+    action = target_variant.tempting_alternative
+    assert isinstance(action, DelegateAction)
+    mutated_action = action.model_copy(
+        update={"args": LookupArgs(query=f"{action.fact.text} altered")}
+    )
+    mutated_variant = target_variant.model_copy(
+        update={"tempting_alternative": mutated_action}
+    )
+    mutated_probe = target_probe.model_copy(
+        update={"variants": (mutated_variant, *target_probe.variants[1:])}
+    )
+    mutated_manifest = catalog.manifest.model_copy(
+        update={
+            "probes": tuple(
+                mutated_probe if probe.probe_id == mutated_probe.probe_id else probe
+                for probe in catalog.manifest.probes
+            )
+        }
+    )
+
+    with pytest.raises(
+        ProbeValidationError,
+        match="delegate query must equal fact text byte-for-byte",
+    ):
+        validate_manifest(mutated_manifest, catalog.views)
 
 
 def test_generated_artifacts_match_the_validated_catalog(

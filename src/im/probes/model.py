@@ -219,7 +219,7 @@ class LogicalProbe(_StrictModel):
 class ProbeManifest(_StrictModel):
     """The complete deterministic WP14 catalog."""
 
-    format_version: Literal[2]
+    format_version: Literal[3]
     logical_probe_count: Literal[144]
     rendered_state_count: Literal[432]
     variants_per_probe: Literal[3]

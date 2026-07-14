@@ -56,14 +56,16 @@ def _state_facts(policy_stream: str) -> str:
                 prior.action_event_id: (
                     {
                         "kind": "schedule",
-                        "instruction_event_id": prior.instruction.event_id,
+                        "instruction": prior.instruction.model_dump(mode="json"),
+                        "current_span": prior.current_span.model_dump(mode="json"),
                         "timer_id": prior.timer_id,
                         "timer_status": prior.timer_status.value,
                     }
                     if prior.kind == "schedule"
                     else {
                         "kind": "delegate",
-                        "fact_event_id": prior.fact.event_id,
+                        "fact": prior.fact.model_dump(mode="json"),
+                        "current_span": prior.current_span.model_dump(mode="json"),
                         "request_id": prior.request_id,
                         "result_disposition": prior.result_disposition.value,
                         "result_event_id": prior.result_event_id,

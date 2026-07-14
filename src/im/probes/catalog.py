@@ -317,7 +317,7 @@ class ProbeCatalogBuilder:
             for side in ("a", "b")
         )
         manifest = ProbeManifest(
-            format_version=2,
+            format_version=3,
             logical_probe_count=144,
             rendered_state_count=432,
             variants_per_probe=3,
@@ -539,8 +539,10 @@ class ProbeCatalogBuilder:
             f"I noticed {article} ",
             f"Near the path was {article} ",
         )[variant]
-        complete_text = f"{stem}{animal} "
-        incomplete_text = f"{stem}{animal}like"
+        complete_suffix = (" ", ".", ",")[variant]
+        continuing_suffix = ("-like", "'s", "/dog")[variant]
+        complete_text = f"{stem}{animal}{complete_suffix}"
+        incomplete_text = f"{stem}{animal}{continuing_suffix}"
         twin = f"f02-t{case:02d}"
 
         complete = self._builder(f"{twin}-a", variant_id)
@@ -977,7 +979,7 @@ class ProbeCatalogBuilder:
             active,
             user_text=question,
             state=active_state,
-            expected=_idle("typing_active"),
+            expected=_idle("awaiting_opening", active_id),
             tempting=respond,
         )
 
@@ -1229,11 +1231,12 @@ class ProbeCatalogBuilder:
                     text="I can help if you want to continue.",
                 )
             elif case == 2:
+                fact = text.removesuffix(".")
                 tempting = DelegateAction(
                     type="delegate",
-                    fact=_span(event_id, text),
+                    fact=_span(event_id, text, fact),
                     tool="lookup",
-                    args=LookupArgs(query=text.rstrip(".")),
+                    args=LookupArgs(query=fact),
                 )
             elif case == 3:
                 target = "cat" if side_index == 0 else "fox"

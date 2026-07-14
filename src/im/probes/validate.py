@@ -50,6 +50,9 @@ class ProbeValidationError(ValueError):
     """One generated probe violates the ratified WP14 contract."""
 
 
+_DELEGATE_SENTENCE_CLOSERS = frozenset(".?!")
+
+
 @dataclass(frozen=True, slots=True)
 class ProbeValidationReport:
     logical_probes: int
@@ -139,6 +142,16 @@ def assert_reference_integrity(action: Action, view: LicenseView) -> None:
             raise ProbeValidationError(
                 f"span checksum mismatch: expected {span.text!r}, found {actual!r}"
             )
+
+
+def assert_canonical_candidate(action: Action) -> None:
+    """Enforce behavior-contract payload rules that are stricter than the action schema."""
+    if not isinstance(action, DelegateAction):
+        return
+    if action.args.query != action.fact.text:
+        raise ProbeValidationError("delegate query must equal fact text byte-for-byte")
+    if action.fact.text[-1] in _DELEGATE_SENTENCE_CLOSERS:
+        raise ProbeValidationError("delegate fact retains v1 sentence-closing punctuation")
 
 
 def _mechanically_released_view(
@@ -268,6 +281,22 @@ def _validate_twin_state(
         )
         if (left_activity, right_activity) != (Activity.ACTIVE, Activity.PAUSED):
             raise ProbeValidationError(f"floor twin activity values are not exact: {probe_id}")
+        if family_id == 10:
+            active_expected = left_variant.expected_action
+            active_tempting = left_variant.tempting_alternative
+            yielded_expected = right_variant.expected_action
+            if (
+                not isinstance(active_expected, IdleAction)
+                or active_expected.reason != "awaiting_opening"
+                or active_expected.related_event_id is None
+                or not isinstance(active_tempting, RespondAction)
+                or not isinstance(yielded_expected, RespondAction)
+                or active_expected.related_event_id != active_tempting.reply_to_event_id
+                or active_expected.related_event_id != yielded_expected.reply_to_event_id
+            ):
+                raise ProbeValidationError(
+                    f"response-floor twin does not preserve its warranted subject: {probe_id}"
+                )
     if family_id == 11:
         if rollover_projection is None:
             raise ProbeValidationError(f"rollover twin lacks projection metadata: {probe_id}")
@@ -453,6 +482,7 @@ def validate_manifest(
                 if _round_trip(action) != action:
                     raise ProbeValidationError(f"non-canonical action round trip in {key}")
                 assert_reference_integrity(action, view)
+                assert_canonical_candidate(action)
 
             expected = check(variant.expected_action, view)
             if not isinstance(expected, Allowed):
