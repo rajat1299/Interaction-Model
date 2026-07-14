@@ -45,7 +45,7 @@ from im.schema.common import (
     PositiveInt,
     TimerId,
 )
-from im.schema.events import SnapshotEvent
+from im.schema.events import AnnotationPayload, SnapshotEvent
 from im.serialize import RENDERER_ID
 from im.store import IdKind, PolicyEventDraft, Store, TimerLedgerRecord
 from im.tick import RenderCommand, RenderKind, TickRuntime, ToolScript
@@ -85,6 +85,17 @@ class ClientSnapshotFrame(_WireModel):
             selection_end_utf16=self.selection_end,
             is_composing=self.is_composing,
         )
+        return self
+
+
+class ClientAnnotationFrame(_WireModel):
+    """One reserved user annotation accepted by generation/replay callers."""
+
+    text: StrictStr
+
+    @model_validator(mode="after")
+    def validate_annotation(self) -> ClientAnnotationFrame:
+        AnnotationPayload(text=self.text)
         return self
 
 
@@ -250,9 +261,9 @@ class RuntimeSession:
         self._socket: WebSocket | None = None
         self._socket_lock = asyncio.Lock()
         self._tick_wake = asyncio.Event()
-        self._render_queue: asyncio.Queue[
-            tuple[WebSocket, dict[str, object]] | None
-        ] = asyncio.Queue()
+        self._render_queue: asyncio.Queue[tuple[WebSocket, dict[str, object]] | None] = (
+            asyncio.Queue()
+        )
         self._closed = False
         self._background_error: BaseException | None = None
         self._runner: asyncio.Task[None] | None = None
@@ -373,7 +384,7 @@ class RuntimeSession:
 
     def reject_raw_frame(self, raw: bytes, reason: str) -> str:
         """Retain unsupported transport bytes before recording their rejection."""
-        event_id, _now_mono_ns = self._append_raw_snapshot_ingress(raw)
+        event_id, _now_mono_ns = self._append_raw_user_ingress(raw, "snapshot")
         self.store.audit("ingress_rejected", {"event_id": event_id, "error": reason})
         return event_id
 
@@ -382,7 +393,7 @@ class RuntimeSession:
         self.assert_healthy()
         if not isinstance(raw, bytes):
             raise TypeError("raw client frame must be bytes")
-        event_id, now_mono_ns = self._append_raw_snapshot_ingress(raw)
+        event_id, now_mono_ns = self._append_raw_user_ingress(raw, "snapshot")
         try:
             parsed = parse_tim_json(raw, TimJsonLimits.from_config(self.config))
             frame = ClientSnapshotFrame.model_validate(parsed)
@@ -420,7 +431,37 @@ class RuntimeSession:
         self._tick_wake.set()
         return event_id
 
-    def _append_raw_snapshot_ingress(self, raw: bytes) -> tuple[str, int]:
+    def accept_annotation(self, raw: bytes) -> str:
+        """Retain and enqueue one reserved user annotation."""
+        self.assert_healthy()
+        if not isinstance(raw, bytes):
+            raise TypeError("raw annotation frame must be bytes")
+        event_id, now_mono_ns = self._append_raw_user_ingress(raw, "annotation")
+        try:
+            parsed = parse_tim_json(raw, TimJsonLimits.from_config(self.config))
+            frame = ClientAnnotationFrame.model_validate(parsed)
+        except (TimJsonError, ValidationError, TypeError, ValueError) as error:
+            self.store.audit(
+                "ingress_rejected",
+                {"event_id": event_id, "error": f"{type(error).__name__}: {error}"},
+            )
+            raise ClientFrameError("invalid annotation frame") from error
+
+        self.tick.enqueue_committed_ingress(
+            PolicyEventDraft(
+                id=event_id,
+                source="user",
+                kind="annotation",
+                payload={"text": frame.text},
+                occurred_mono_ns=now_mono_ns,
+            )
+        )
+        self._tick_wake.set()
+        return event_id
+
+    def _append_raw_user_ingress(
+        self, raw: bytes, kind: Literal["snapshot", "annotation"]
+    ) -> tuple[str, int]:
         self.assert_healthy()
         if not isinstance(raw, bytes):
             raise TypeError("raw client frame must be bytes")
@@ -433,7 +474,7 @@ class RuntimeSession:
                 received_utc=self._received_utc(),
                 received_mono_ns=now_mono_ns,
                 source="user",
-                kind="snapshot",
+                kind=kind,
                 payload=raw,
             )
         return event_id, now_mono_ns
@@ -471,9 +512,7 @@ class RuntimeSession:
     def _rollover_if_needed(self) -> None:
         if not self.tick.mark_quiescent:
             return
-        policy_tokens = estimate_tokens(
-            self.store.policy_bytes(), self.config.len_estimator_id
-        )
+        policy_tokens = estimate_tokens(self.store.policy_bytes(), self.config.len_estimator_id)
         if not should_rollover(policy_tokens, self.config):
             return
         result = rollover(

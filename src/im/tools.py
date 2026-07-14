@@ -158,8 +158,8 @@ def canonical_tool_key(tool: ToolName | str, args: object) -> str:
     ledger key.  Callers must import this helper rather than recreate it.
     """
     normalized_tool, normalized_args = _normalize_tool_request(tool, args)
-    preimage = normalized_tool.value.encode("utf-8") + b"\0" + canonicalize_tim_json(
-        normalized_args
+    preimage = (
+        normalized_tool.value.encode("utf-8") + b"\0" + canonicalize_tim_json(normalized_args)
     )
     return f"sha256:{sha256(preimage).hexdigest()}"
 
@@ -271,13 +271,14 @@ class ToolAdapter:
                 continue
             sleeper = asyncio.create_task(self._clock.sleep_until(next_due_mono_ns))
             changed = asyncio.create_task(self._changed.wait())
-            _done, pending = await asyncio.wait(
-                (sleeper, changed), return_when=asyncio.FIRST_COMPLETED
-            )
-            for task in pending:
-                task.cancel()
-            if pending:
-                await asyncio.gather(*pending, return_exceptions=True)
+            try:
+                await asyncio.wait((sleeper, changed), return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                pending = tuple(task for task in (sleeper, changed) if not task.done())
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
         return ()
 
     async def run(

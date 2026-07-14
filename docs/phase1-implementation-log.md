@@ -157,3 +157,62 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   has been fabricated. The deterministic foundations and comparison boundaries are present for C7.
 - G3 is approved at the C4 pilot-harness boundary. Later Phase 1 components C5 and beyond have not
   started.
+
+## 2026-07-14 — Scenario programs, counterfactuals, and oracle provenance
+
+### Scenario-oracle decisions
+
+- C5 is a catalog of concrete, finite programs over the production runtime, not a second policy or
+  a symbolic scenario DSL. The eleven family compilers select only review-approved, split-scoped
+  registry inputs and emit exact sampler frames, annotations, timings, actions, tool scripts,
+  semantic beats, stale-result declarations, and a closed perturbation set.
+- Reserved-family observations use a strict production-session annotation ingress. They remain
+  canonical events in the frozen union; an unknown event kind is never manufactured to create
+  reserved coverage.
+- Oracle facts are captured from the objective license view immediately before each action and
+  live in a physically separate canonical sidecar. Validation rebuilds timer, tool, pending,
+  cancellation, floor, and action facts from retained runtime boundaries; stale-result subsets
+  come from input-hash-bound program declarations and must identify results open at that boundary.
+  Family names, asset identities, beat metadata, and sidecar fields are absent from teacher-visible
+  segment bytes.
+- The runtime regeneration identity now optionally binds an exact generation-input digest. C5
+  supplies the complete scenario-program digest, which covers approved asset/template content,
+  seed, timing, frames, annotations, actions, tool world, configuration, beats, perturbations, and
+  sibling declaration. This prevents a program and sidecar from being coherently rewritten around
+  an already-generated stream.
+- Counterfactual builders are fixed compilers for eight closed one-axis contrasts. Validation
+  reconstructs both expected programs, requires exact member binding and a nonzero downstream
+  stream difference, and checks the family-specific causal effect. The lookup A/B/none triplet
+  shares frames and the first two decisions; A and B then integrate different nonce-bearing
+  results, while none remains honestly pending with no invented result.
+- Rollover continuity is exercised through actual automatic checkpointing: a live mark, active
+  timer, and pending lookup cross the checkpoint; a later topic change makes that lookup result
+  stale, the result is skipped, and a new lookup remains pending. Composite snapshots retain exact
+  causal spans for mark, timer, and lookup instructions.
+- Long-pending tool and timer scenarios exposed parent-cancellation leaks in both deadline waiters.
+  Each waiter now cancels and joins its child sleep/change tasks in `finally`, with regressions that
+  retain the children and prove shutdown completes without pending tasks.
+
+### Review adjudication
+
+- Independent thermo-nuclear review rejected the first catalog boundary because callers could
+  bypass approval, twins were not proven to be one-axis-local, detached sidecar facts could be
+  self-consistent, lookup-none semantics were incomplete, and several composite spans or recipes
+  did not express their claimed causal instruction. Public builders now have one approval-enforced
+  registry path, twin/triplet validators rebuild exact fixed programs, and sidecars bind to both
+  runtime capture and pre-action evidence.
+- Adversarial mutation checks now reject identical sibling substitution, invented integration,
+  seed or tool-world rewrites with matching sidecar rewrites, wrong boundary facts, incomplete
+  boundary evidence, and group-ID collisions between different axes. No module exceeds 1,000
+  lines; review found no simplification-preserving split that would improve this cohesive compiler
+  and validator boundary.
+
+### Gate status
+
+- The implemented C5 engineering boundary covers every family, all eight twin axes, the A/B/none
+  triplet, rollover state continuity, deterministic regeneration, and automated G-5 integrity.
+- The test-only real-seed checks create ephemeral approvals solely to exercise compilation. They do
+  not claim or persist heldout review, and the required human test/demo asset review remains
+  pending.
+- Manual inspection of 2–4 generated pilot streams remains a user review step. C6 packaging,
+  manifest/leak-lint enforcement, and corpus-yield measurement have not started.

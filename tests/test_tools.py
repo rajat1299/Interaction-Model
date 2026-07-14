@@ -251,3 +251,26 @@ async def test_delivery_worker_wakes_for_a_new_request_and_stops_cleanly(tmp_pat
         await asyncio.wait_for(task, timeout=1)
 
         assert observed == ["r_001"]
+
+
+@pytest.mark.asyncio
+async def test_wait_for_due_cleans_up_child_waiters_when_cancelled(tmp_path: Path) -> None:
+    from im.scheduler import ManualClock
+
+    clock = ManualClock()
+    with Store(tmp_path / "session.sqlite3") as store:
+        adapter = ToolAdapter(store, clock)
+        adapter.request(
+            "lookup",
+            {"query": "far future"},
+            scripted_result=ScriptedToolResult(latency_ms=1_000_000, data={"ok": True}),
+        )
+        waiter = asyncio.create_task(adapter.wait_for_due())
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+
+        assert not {task for task in asyncio.all_tasks() if task is not asyncio.current_task()}

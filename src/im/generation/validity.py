@@ -9,6 +9,7 @@ from im.generation.ingestion import (
     CapturedSegment,
     FinalLedgerSnapshot,
     GeneratedStream,
+    _annotation_schedule_hash,
     _attempt_bytes,
     _digest,
     _frame_schedule_hash,
@@ -183,6 +184,10 @@ def _validate_provenance(stream: GeneratedStream, store: Store) -> None:
         raise GeneratedStreamValidationError("regeneration identity digest is inconsistent")
     if provenance.frame_schedule_hash != _frame_schedule_hash(stream.frames):
         raise GeneratedStreamValidationError("regeneration identity does not match frame schedule")
+    if provenance.annotation_schedule_hash != _annotation_schedule_hash(stream.annotations):
+        raise GeneratedStreamValidationError(
+            "regeneration identity does not match annotation schedule"
+        )
     if provenance.scripted_attempt_hash != _scripted_attempt_hash(
         decision.attempt for decision in stream.decisions
     ):
@@ -209,6 +214,22 @@ def _validate_ingress(stream: GeneratedStream) -> None:
             raise GeneratedStreamValidationError("raw user ingress timestamp differs from schedule")
         if ingress.payload != frame.raw_bytes:
             raise GeneratedStreamValidationError("raw user ingress bytes differ from schedule")
+    annotation_ingress = tuple(
+        item for item in reopened if item.source == "user" and item.kind == "annotation"
+    )
+    if len(annotation_ingress) != len(stream.annotations):
+        raise GeneratedStreamValidationError(
+            "raw user annotation count differs from annotation schedule"
+        )
+    for annotation, ingress in zip(stream.annotations, annotation_ingress, strict=True):
+        if ingress.received_mono_ns != annotation.at_ms * 1_000_000:
+            raise GeneratedStreamValidationError(
+                "raw user annotation timestamp differs from annotation schedule"
+            )
+        if ingress.payload != annotation.raw_bytes:
+            raise GeneratedStreamValidationError(
+                "raw user annotation bytes differ from annotation schedule"
+            )
 
 
 def _validate_ledgers(store: Store, stream: GeneratedStream) -> None:

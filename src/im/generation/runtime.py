@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 from im.canonical_json import canonicalize_tim_json
 from im.config import RuntimeConfig
+from im.license import LicenseView
 from im.scheduler import ManualClock
 from im.server import (
     ArtifactPaths,
@@ -18,7 +19,7 @@ from im.server import (
     SessionArtifacts,
     load_session_artifacts,
 )
-from im.tick import TickPhase, ToolScript
+from im.tick import TickPhase, ToolScript, build_license_view
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +47,39 @@ class DecisionTiming:
         return (self.completed_mono_ns - self.started_mono_ns) // 1_000_000
 
 
+@dataclass(frozen=True, slots=True)
+class DecisionBoundary:
+    """The durable policy prefix and license projection immediately before one attempt."""
+
+    call_index: int
+    policy_bytes: bytes
+    license_view: LicenseView
+
+    def __post_init__(self) -> None:
+        if isinstance(self.call_index, bool) or not isinstance(self.call_index, int):
+            raise TypeError("call_index must be an integer")
+        if self.call_index < 1:
+            raise ValueError("call_index must be positive")
+        if not isinstance(self.policy_bytes, bytes) or not self.policy_bytes:
+            raise ValueError("policy_bytes must be non-empty bytes")
+        if not isinstance(self.license_view, LicenseView):
+            raise TypeError("license_view must be a LicenseView")
+
+
+type DecisionBoundaryObserver = Callable[[DecisionBoundary], None]
+type _DecisionBoundaryCapture = Callable[[int, bytes], None]
+
+
 class TimedScriptedPolicy:
     """Finite scripted policy that waits on the shared production clock."""
 
-    def __init__(self, clock: ManualClock, decisions: Iterable[TimedDecision]) -> None:
+    def __init__(
+        self,
+        clock: ManualClock,
+        decisions: Iterable[TimedDecision],
+        *,
+        decision_boundary_capture: _DecisionBoundaryCapture | None = None,
+    ) -> None:
         self.clock = clock
         self._decisions = deque(decisions)
         self._entered = [asyncio.Event() for _ in self._decisions]
@@ -57,6 +87,7 @@ class TimedScriptedPolicy:
         self.observed_policy_bytes: list[bytes] = []
         self.timings: list[DecisionTiming] = []
         self._active_deadline_ns: int | None = None
+        self._decision_boundary_capture = decision_boundary_capture
 
     @property
     def remaining_count(self) -> int:
@@ -92,6 +123,8 @@ class TimedScriptedPolicy:
         decision = self._decisions.popleft()
         self.call_count += 1
         self.observed_policy_bytes.append(policy_bytes)
+        if self._decision_boundary_capture is not None:
+            self._decision_boundary_capture(self.call_count, policy_bytes)
         started_mono_ns = self.clock.monotonic_ns()
         self._active_deadline_ns = started_mono_ns + decision.service_ms * 1_000_000
         self._entered[self.call_count - 1].set()
@@ -121,14 +154,31 @@ class RuntimeIngestionHarness:
         artifacts: SessionArtifacts | None = None,
         repository_root: Path | None = None,
         tool_script: ToolScript | None = None,
+        decision_boundary_observer: DecisionBoundaryObserver | None = None,
     ) -> None:
+        if decision_boundary_observer is not None and not callable(decision_boundary_observer):
+            raise TypeError("decision_boundary_observer must be callable or None")
         self.config = config or RuntimeConfig()
         root = repository_root or Path(__file__).resolve().parents[3]
         session_artifacts = artifacts or load_session_artifacts(
             ArtifactPaths.from_repository(root), self.config
         )
         self.clock = ManualClock()
-        self.policy = TimedScriptedPolicy(self.clock, decisions)
+        self.policy = TimedScriptedPolicy(
+            self.clock,
+            decisions,
+            decision_boundary_capture=(
+                None
+                if decision_boundary_observer is None
+                else lambda call_index, policy_bytes: decision_boundary_observer(
+                    DecisionBoundary(
+                        call_index=call_index,
+                        policy_bytes=policy_bytes,
+                        license_view=build_license_view(self.session.store, self.config),
+                    )
+                )
+            ),
+        )
         self.session = RuntimeSession(
             session_id=session_id,
             directory=directory,
@@ -165,6 +215,14 @@ class RuntimeIngestionHarness:
             validated = ClientSnapshotFrame.model_validate(frame)
             raw = canonicalize_tim_json(validated.model_dump(mode="json"))
         return self.session.accept_snapshot(raw)
+
+    def accept_annotation(self, raw: bytes) -> str:
+        """Route one raw user annotation through the production session ingress API."""
+        if not self._started:
+            raise RuntimeError("runtime ingestion harness is not started")
+        if not isinstance(raw, bytes):
+            raise TypeError("raw annotation must be bytes")
+        return self.session.accept_annotation(raw)
 
     async def advance_ms(self, duration_ms: int) -> None:
         if isinstance(duration_ms, bool) or not isinstance(duration_ms, int):

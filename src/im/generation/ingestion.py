@@ -14,7 +14,12 @@ from pydantic import BaseModel
 
 from im.canonical_json import TimJsonError, canonicalize_tim_json
 from im.config import RuntimeConfig
-from im.generation.runtime import DecisionTiming, RuntimeIngestionHarness, TimedDecision
+from im.generation.runtime import (
+    DecisionBoundaryObserver,
+    DecisionTiming,
+    RuntimeIngestionHarness,
+    TimedDecision,
+)
 from im.generation.timing import TimingPlan, TimingPopulation
 from im.license import LicenseView
 from im.policy.base import PolicyDecision
@@ -24,7 +29,7 @@ from im.server import ArtifactPaths, SessionArtifacts, load_session_artifacts
 from im.store import Store
 from im.tick import ToolScript, build_license_view
 
-GENERATION_ENGINE_VERSION = "phase1-c4-runtime-ingestion-v1"
+GENERATION_ENGINE_VERSION = "phase1-c4-runtime-ingestion-v2"
 _ASSET_ID = re.compile(r"a_[a-z0-9][a-z0-9_-]{2,63}")
 _TEMPLATE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{2,127}")
 _DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
@@ -93,8 +98,34 @@ class ScheduledSamplerFrame:
         return _framed_bytes("scheduled-sampler-frame", (str(self.at_ms).encode(), self.raw_bytes))
 
 
+@dataclass(frozen=True, slots=True)
+class ScheduledAnnotation:
+    """One raw production annotation ingress at a virtual stream timestamp."""
+
+    at_ms: int
+    raw_bytes: bytes
+
+    def __post_init__(self) -> None:
+        if isinstance(self.at_ms, bool) or not isinstance(self.at_ms, int):
+            raise TypeError("at_ms must be an integer")
+        if self.at_ms < 0:
+            raise ValueError("at_ms must be non-negative")
+        if not isinstance(self.raw_bytes, bytes):
+            raise TypeError("raw_bytes must be bytes")
+
+    @property
+    def canonical_bytes(self) -> bytes:
+        return _framed_bytes("scheduled-annotation", (str(self.at_ms).encode(), self.raw_bytes))
+
+
 def _frame_schedule_hash(frames: Iterable[ScheduledSamplerFrame]) -> str:
     return _digest(_framed_bytes("raw-frame-schedule", (frame.canonical_bytes for frame in frames)))
+
+
+def _annotation_schedule_hash(annotations: Iterable[ScheduledAnnotation]) -> str:
+    return _digest(
+        _framed_bytes("raw-annotation-schedule", (item.canonical_bytes for item in annotations))
+    )
 
 
 def _scripted_attempt_hash(attempts: Iterable[object]) -> str:
@@ -117,7 +148,9 @@ class RegenerationIdentity:
     runtime_config_hash: str
     artifact_hashes: tuple[tuple[str, str], ...]
     frame_schedule_hash: str
+    annotation_schedule_hash: str
     scripted_attempt_hash: str
+    generation_input_hash: str | None
     engine_version: str = field(default=GENERATION_ENGINE_VERSION, init=False)
     identity: str = field(init=False)
 
@@ -168,11 +201,17 @@ class RegenerationIdentity:
             self.timing_seed_id,
             self.runtime_config_hash,
             self.frame_schedule_hash,
+            self.annotation_schedule_hash,
             self.scripted_attempt_hash,
             *(digest for _name, digest in self.artifact_hashes),
         )
         if any(_DIGEST.fullmatch(digest) is None for digest in digests):
             raise ValueError("regeneration hashes must be sha256 digests")
+        if self.generation_input_hash is not None and (
+            not isinstance(self.generation_input_hash, str)
+            or _DIGEST.fullmatch(self.generation_input_hash) is None
+        ):
+            raise ValueError("generation_input_hash must be a sha256 digest or None")
         if dict(self.artifact_hashes)["config"] != self.runtime_config_hash:
             raise ValueError("runtime_config_hash must match the actual config artifact")
         object.__setattr__(self, "identity", _digest(self.canonical_bytes))
@@ -187,7 +226,9 @@ class RegenerationIdentity:
         timing_plan: TimingPlan,
         artifacts: SessionArtifacts,
         frames: tuple[ScheduledSamplerFrame, ...],
+        annotations: tuple[ScheduledAnnotation, ...],
         attempts: tuple[object, ...],
+        generation_input_hash: str | None = None,
     ) -> RegenerationIdentity:
         if not isinstance(timing_plan, TimingPlan):
             raise TypeError("timing_plan must be a TimingPlan")
@@ -206,7 +247,9 @@ class RegenerationIdentity:
             runtime_config_hash=artifacts.hashes["config"],
             artifact_hashes=tuple(sorted(artifacts.hashes.items())),
             frame_schedule_hash=_frame_schedule_hash(frames),
+            annotation_schedule_hash=_annotation_schedule_hash(annotations),
             scripted_attempt_hash=_scripted_attempt_hash(map(_raw_attempt, attempts)),
+            generation_input_hash=generation_input_hash,
         )
 
     @property
@@ -226,7 +269,9 @@ class RegenerationIdentity:
                 "runtime_config_hash": self.runtime_config_hash,
                 "artifact_hashes": dict(self.artifact_hashes),
                 "frame_schedule_hash": self.frame_schedule_hash,
+                "annotation_schedule_hash": self.annotation_schedule_hash,
                 "scripted_attempt_hash": self.scripted_attempt_hash,
+                "generation_input_hash": self.generation_input_hash,
             }
         )
 
@@ -371,6 +416,7 @@ class GeneratedStream:
     provenance: RegenerationIdentity
     timing_plan: TimingPlan
     frames: tuple[ScheduledSamplerFrame, ...]
+    annotations: tuple[ScheduledAnnotation, ...]
     ingress: tuple[CapturedIngress, ...]
     decisions: tuple[CapturedDecision, ...]
     segments: tuple[CapturedSegment, ...]
@@ -395,6 +441,7 @@ class GeneratedStream:
                 raise TypeError(f"{name} must be {expected.__name__}")
         tuple_types = (
             (self.frames, ScheduledSamplerFrame, "frames"),
+            (self.annotations, ScheduledAnnotation, "annotations"),
             (self.ingress, CapturedIngress, "ingress"),
             (self.decisions, CapturedDecision, "decisions"),
             (self.segments, CapturedSegment, "segments"),
@@ -420,6 +467,7 @@ class GeneratedStream:
             (
                 self.provenance.canonical_bytes,
                 _framed_bytes("frames", (frame.canonical_bytes for frame in self.frames)),
+                _framed_bytes("annotations", (item.canonical_bytes for item in self.annotations)),
                 _framed_bytes("ingress", (item.canonical_bytes for item in self.ingress)),
                 _framed_bytes("decisions", (item.canonical_bytes for item in self.decisions)),
                 self.final_ledger.canonical_bytes,
@@ -482,6 +530,8 @@ class RuntimeIngestionRunner:
         config: RuntimeConfig | None = None,
         repository_root: Path | None = None,
         tool_script: ToolScript | None = None,
+        decision_boundary_observer: DecisionBoundaryObserver | None = None,
+        generation_input_hash: str | None = None,
     ) -> None:
         if not isinstance(session_id, str) or not session_id:
             raise ValueError("session_id must be a non-empty string")
@@ -491,6 +541,11 @@ class RuntimeIngestionRunner:
             raise TypeError("timing_plan must be a TimingPlan")
         if not isinstance(config, RuntimeConfig | type(None)):
             raise TypeError("config must be a RuntimeConfig or None")
+        if generation_input_hash is not None and (
+            not isinstance(generation_input_hash, str)
+            or _DIGEST.fullmatch(generation_input_hash) is None
+        ):
+            raise ValueError("generation_input_hash must be a sha256 digest or None")
         attempts = tuple(scripted_attempts)
         if len(attempts) != len(timing_plan.service_ms):
             raise ValueError("scripted_attempts must exactly match timing_plan service times")
@@ -510,10 +565,17 @@ class RuntimeIngestionRunner:
             ArtifactPaths.from_repository(self.repository_root), self.config
         )
         self.tool_script = tool_script
+        self.decision_boundary_observer = decision_boundary_observer
+        self.generation_input_hash = generation_input_hash
 
-    async def run(self, frames: Iterable[ScheduledSamplerFrame]) -> GeneratedStream:
-        """Ingest frames in supplied order; equal timestamps deliberately retain that order."""
+    async def run(
+        self,
+        frames: Iterable[ScheduledSamplerFrame],
+        annotations: Iterable[ScheduledAnnotation] = (),
+    ) -> GeneratedStream:
+        """Ingest raw user channels chronologically, preserving each supplied channel order."""
         scheduled = self._validated_schedule(frames)
+        scheduled_annotations = self._validated_annotation_schedule(annotations)
         if (self.directory / "session.sqlite3").exists():
             raise GenerationError("generation directory already contains a runtime session")
         decisions = tuple(
@@ -528,19 +590,23 @@ class RuntimeIngestionRunner:
             artifacts=self.artifacts,
             repository_root=self.repository_root,
             tool_script=self.tool_script,
+            decision_boundary_observer=self.decision_boundary_observer,
         )
         generated: GeneratedStream | None = None
         try:
             harness.start()
             current_at_ms = 0
-            for frame in scheduled:
-                await harness.advance_ms(frame.at_ms - current_at_ms)
-                harness.accept_snapshot(frame.raw_bytes)
+            for at_ms, kind, raw_bytes in self._merged_schedule(scheduled, scheduled_annotations):
+                await harness.advance_ms(at_ms - current_at_ms)
+                if kind == "snapshot":
+                    harness.accept_snapshot(raw_bytes)
+                else:
+                    harness.accept_annotation(raw_bytes)
                 await harness.progress_at_current_time()
-                current_at_ms = frame.at_ms
+                current_at_ms = at_ms
             await harness.drive_until_decisions(len(decisions))
             await harness.wait_until_idle()
-            generated = self._capture(harness, scheduled)
+            generated = self._capture(harness, scheduled, scheduled_annotations)
         finally:
             await harness.close()
         if generated is None:  # pragma: no cover - defensive narrowing for exceptional paths.
@@ -562,10 +628,41 @@ class RuntimeIngestionRunner:
                 raise ValueError("scheduled sampler frames must be nondecreasing by at_ms")
         return scheduled
 
+    @staticmethod
+    def _validated_annotation_schedule(
+        annotations: Iterable[ScheduledAnnotation],
+    ) -> tuple[ScheduledAnnotation, ...]:
+        scheduled = tuple(annotations)
+        if not all(isinstance(item, ScheduledAnnotation) for item in scheduled):
+            raise TypeError("annotations must contain ScheduledAnnotation values")
+        for previous, current in zip(scheduled, scheduled[1:], strict=False):
+            if current.at_ms < previous.at_ms:
+                raise ValueError("scheduled annotations must be nondecreasing by at_ms")
+        return scheduled
+
+    @staticmethod
+    def _merged_schedule(
+        frames: tuple[ScheduledSamplerFrame, ...],
+        annotations: tuple[ScheduledAnnotation, ...],
+    ) -> tuple[tuple[int, str, bytes], ...]:
+        """Frames precede annotations at a shared timestamp; each input sequence stays stable."""
+        combined = [
+            (frame.at_ms, 0, index, "snapshot", frame.raw_bytes)
+            for index, frame in enumerate(frames)
+        ] + [
+            (item.at_ms, 1, index, "annotation", item.raw_bytes)
+            for index, item in enumerate(annotations)
+        ]
+        return tuple(
+            (at_ms, kind, raw_bytes)
+            for at_ms, _channel, _index, kind, raw_bytes in sorted(combined)
+        )
+
     def _capture(
         self,
         harness: RuntimeIngestionHarness,
         frames: tuple[ScheduledSamplerFrame, ...],
+        annotations: tuple[ScheduledAnnotation, ...],
     ) -> GeneratedStream:
         if harness.policy.remaining_count:
             raise GenerationError("runtime left scripted oracle decisions unconsumed")
@@ -603,12 +700,15 @@ class RuntimeIngestionRunner:
             timing_plan=self.timing_plan,
             artifacts=self.artifacts,
             frames=frames,
+            annotations=annotations,
             attempts=self.attempts,
+            generation_input_hash=self.generation_input_hash,
         )
         return GeneratedStream(
             provenance=provenance,
             timing_plan=self.timing_plan,
             frames=frames,
+            annotations=annotations,
             ingress=_read_ingress(database_path),
             decisions=captured_decisions,
             segments=segments,

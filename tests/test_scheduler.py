@@ -364,3 +364,30 @@ async def test_scheduler_enqueues_only_after_the_due_fire_commit(tmp_path: Path)
     finally:
         scheduler.close()
         store.close()
+
+
+@pytest.mark.asyncio
+async def test_wait_for_due_cleans_up_child_waiters_when_cancelled(tmp_path: Path) -> None:
+    store, _clock, scheduler = make_scheduler(tmp_path)
+    try:
+        scheduler.schedule(
+            instruction_id="i_001",
+            instruction=instruction(),
+            interval_ms=1_000,
+            message="breathe",
+        )
+        baseline = set(asyncio.all_tasks())
+        waiter = asyncio.create_task(scheduler.wait_for_due())
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        children = set(asyncio.all_tasks()) - baseline - {waiter}
+        assert len(children) == 2
+
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+
+        assert all(task.done() for task in children)
+    finally:
+        scheduler.close()
+        store.close()
