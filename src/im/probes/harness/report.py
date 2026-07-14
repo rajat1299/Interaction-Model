@@ -80,8 +80,9 @@ def render_report(
             "## Generate versus recognize",
             "",
             "| Family | Generation schema | Generation structural | Generation overall | "
-            "Pairwise | Paraphrase spread | Listwise top-1 | Expected > tempting |",
-            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "Pairwise | Family paraphrase spread | Max probe sensitivity | Listwise top-1 | "
+            "Expected > tempting |",
+            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for family_id, family in metrics["families"].items():
@@ -89,7 +90,9 @@ def render_report(
             f"| {family_id} | {_rate(family['generation_schema'])} | "
             f"{_rate(family['generation_structural'])} | "
             f"{_rate(family['generation_pass'])} | {_rate(family['pairwise_accuracy'])} | "
-            f"{_percent(family['paraphrase_spread'])} | {_rate(family['listwise_top1'])} | "
+            f"{_percent(family['family_paraphrase_spread'])} | "
+            f"{_percent(family['max_probe_paraphrase_sensitivity'])} | "
+            f"{_rate(family['listwise_top1'])} | "
             f"{_rate(family['listwise_expected_above_tempting'])} |"
         )
     generation = metrics["generation"]
@@ -105,6 +108,8 @@ def render_report(
             f"- Raw license allowance: {_rate(generation['raw_license_allowance'])}",
             f"- Structural match: {_rate(generation['structural_match'])}",
             f"- Open-text semantic grade: {_rate(generation['semantic_text'])}",
+            f"- Open-text rubric records not run after structural mismatch: "
+            f"{generation['semantic_text_not_run']}",
             "- Open-text rubric outcomes: "
             + ", ".join(
                 f"{outcome}={sum(item.provider_outcome == outcome for item in run.semantic_text)}"
@@ -122,6 +127,10 @@ def render_report(
             f"{_rate(pairwise['mechanical_constraint_recognition'])}",
             f"- Rollover invariance recognition: {_rate(pairwise['rollover_invariance'])}",
             f"- Position bias: {_percent(pairwise['position_bias'])}",
+            f"- Maximum family paraphrase spread: "
+            f"{_percent(pairwise['max_family_paraphrase_spread'])}",
+            f"- Maximum per-probe paraphrase sensitivity: "
+            f"{_percent(pairwise['max_probe_paraphrase_sensitivity'])}",
             f"- Listwise top-1: {_rate(listwise['top1'])}",
             f"- Listwise expected above tempting: "
             f"{_rate(listwise['expected_above_tempting'])}",

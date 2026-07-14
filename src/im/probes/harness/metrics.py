@@ -30,7 +30,9 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
     reference = _rate([result.reference_valid for result in generation])
     licensed = _rate([result.license_allowed for result in generation])
     structural = _rate([result.structural_match for result in generation])
-    semantic = _rate([result.passed for result in run.semantic_text])
+    executed_semantic = [result for result in run.semantic_text if result.executed]
+    semantic = _rate([result.passed for result in executed_semantic])
+    semantic_not_run = len(run.semantic_text) - len(executed_semantic)
     generation_passed = _rate([result.generation_passed for result in generation])
     intrusive = _rate(
         [result.intrusive_action for result in generation if result.expected_type == "idle"]
@@ -74,6 +76,7 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
 
     by_family: dict[str, object] = {}
     family_spreads: dict[int, float] = {}
+    max_probe_sensitivities: dict[int, float] = {}
     for family_id in range(1, 13):
         family_generation = [result for result in generation if result.family_id == family_id]
         family_pairwise = [result for result in pairwise if result.family_id == family_id]
@@ -98,8 +101,11 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             ]
             rates = [float(rate["rate"] or 0) for rate in per_variant]
             probe_spreads[probe_id] = max(rates) - min(rates)
-        spread = max(probe_spreads.values())
-        family_spreads[family_id] = spread
+        variant_accuracy = [float(rate["rate"] or 0) for rate in variant_rates.values()]
+        family_spread = max(variant_accuracy) - min(variant_accuracy)
+        max_probe_sensitivity = max(probe_spreads.values())
+        family_spreads[family_id] = family_spread
+        max_probe_sensitivities[family_id] = max_probe_sensitivity
         by_family[str(family_id)] = {
             "generation_schema": _rate(
                 [result.schema_valid for result in family_generation]
@@ -115,7 +121,8 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             ),
             "pairwise_variant_accuracy": variant_rates,
             "per_probe_paraphrase_spread": probe_spreads,
-            "paraphrase_spread": spread,
+            "family_paraphrase_spread": family_spread,
+            "max_probe_paraphrase_sensitivity": max_probe_sensitivity,
             "listwise_top1": _rate(
                 [result.top1_correct for result in family_listwise]
             ),
@@ -124,7 +131,8 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             ),
         }
 
-    max_spread = max(family_spreads.values())
+    max_family_spread = max(family_spreads.values())
+    max_probe_sensitivity = max(max_probe_sensitivities.values())
     gates = {
         "unconstrained_schema_validity": _gate(
             observed=float(schema["rate"] or 0), threshold=0.98, comparison=">="
@@ -136,7 +144,7 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             observed=position_bias, threshold=0.05, comparison="<"
         ),
         "paraphrase_collapse": _gate(
-            observed=max_spread, threshold=0.10, comparison="<="
+            observed=max_family_spread, threshold=0.10, comparison="<="
         ),
         "mechanical_positive_exactness": _gate(
             observed=float(mechanical_positive["rate"] or 0),
@@ -155,6 +163,7 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             "raw_license_allowance": licensed,
             "structural_match": structural,
             "semantic_text": semantic,
+            "semantic_text_not_run": semantic_not_run,
             "overall": generation_passed,
             "invented_argument_rate": invented,
             "intrusive_action_rate_on_idle_expected": intrusive,
@@ -169,7 +178,8 @@ def compute_metrics(run: HarnessRun) -> dict[str, object]:
             "expected_a_accuracy": expected_a,
             "expected_b_accuracy": expected_b,
             "position_bias": position_bias,
-            "max_family_paraphrase_spread": max_spread,
+            "max_family_paraphrase_spread": max_family_spread,
+            "max_probe_paraphrase_sensitivity": max_probe_sensitivity,
         },
         "listwise": {
             "top1": listwise_top1,

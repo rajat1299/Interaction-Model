@@ -208,16 +208,48 @@ async def test_full_mocked_harness_runs_all_protocols_and_resumes(
     assert "Open-text rubric records: 22 (22 provider calls executed)" in report
     assert "self-grading, not independent human adjudication" in report
 
-    mutated_pairs = tuple(
+    one_probe_pairs = tuple(
         replace(result, correct=False)
-        if (result.probe_id, result.variant_id)
-        in {("f01-t01-a", "v1"), ("f01-t02-a", "v2")}
+        if (result.probe_id, result.variant_id) == ("f01-t01-a", "v1")
         else result
         for result in first.pairwise
     )
-    collapse_metrics = compute_metrics(replace(first, pairwise=mutated_pairs))
-    assert collapse_metrics["pairwise"]["max_family_paraphrase_spread"] == 1.0
+    sensitivity_metrics = compute_metrics(replace(first, pairwise=one_probe_pairs))
+    assert sensitivity_metrics["pairwise"]["max_family_paraphrase_spread"] == pytest.approx(
+        1 / 12
+    )
+    assert sensitivity_metrics["pairwise"]["max_probe_paraphrase_sensitivity"] == 1.0
+    assert sensitivity_metrics["gates"]["paraphrase_collapse"]["passed"]
+
+    two_probe_pairs = tuple(
+        replace(result, correct=False)
+        if (result.probe_id, result.variant_id)
+        in {("f01-t01-a", "v1"), ("f01-t02-a", "v1")}
+        else result
+        for result in first.pairwise
+    )
+    collapse_metrics = compute_metrics(replace(first, pairwise=two_probe_pairs))
+    assert collapse_metrics["pairwise"]["max_family_paraphrase_spread"] == pytest.approx(
+        1 / 6
+    )
     assert not collapse_metrics["gates"]["paraphrase_collapse"]["passed"]
+
+    skipped_semantic = replace(
+        first.semantic_text[0],
+        executed=False,
+        provider_outcome="not_run_structural_mismatch",
+        response_valid=False,
+        passed=False,
+    )
+    semantic_metrics = compute_metrics(
+        replace(first, semantic_text=(skipped_semantic, *first.semantic_text[1:]))
+    )
+    assert semantic_metrics["generation"]["semantic_text"] == {
+        "passed": 21,
+        "total": 21,
+        "rate": 1.0,
+    }
+    assert semantic_metrics["generation"]["semantic_text_not_run"] == 1
 
 
 def test_generation_and_pairwise_population_is_frozen(approved) -> None:
