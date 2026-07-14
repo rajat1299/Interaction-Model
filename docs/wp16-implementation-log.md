@@ -83,3 +83,39 @@
 - Repinning changes the WP16 run identity and requires a new spec hash, but avoids weakening privacy
   settings or silently allowing provider fallback. A verified fixed upstream remains more important
   than preserving an endpoint that the account cannot route to.
+
+## 2026-07-14 — Live Qwen sanity result
+
+### Result
+
+- The generation-only run completed all 30 frozen states from repository commit `d93b2e8`. Every
+  request returned HTTP 200 from the pinned AkashML endpoint, with 30 distinct request identities,
+  one retained trace per state, and no fallback provider.
+- Thinking-disable evidence is complete: all 30 request bodies carry
+  `reasoning={effort:none,exclude:true}`, every response reports a reasoning-token field, the total
+  is zero, and no response contains a reasoning item or visible `<think>` payload.
+- Provider usage was 432,893 input tokens and 948 output tokens. The provider-reported charge was
+  `$0.061553`; independent pinned-rate arithmetic gives `$0.061553020`.
+- Observed base rates are 26/30 schema-valid, 26/30 reference-valid, 24/30 license-allowed, and
+  20/30 exact structural matches. The run is deliberately non-promotional and has no pass threshold
+  for model quality.
+
+### Adjudication
+
+- Four schema failures are genuine model payload errors: incorrect UTF-16 spans, terminal
+  punctuation retained in delegate/schedule extraction, and an illegal idle referent.
+- Two additional schema-valid actions are objectively blocked: one result-opening idle points at the
+  active snapshot instead of the result, and one response takes the active floor.
+- Four remaining mismatches are behavior errors: wrong non-direct idle reason, a missed complete mark,
+  missed canceled-fire disposal before and after rollover, and an unwarranted checkpoint response.
+- No miss is attributable to serialization, routing, cache identity, reasoning leakage, or the
+  grader. WP16 therefore fulfills its stated configuration/serialization sanity purpose. Its
+  30-state observations do not qualify Qwen as an unreviewed teacher; WP16 is not a teacher bakeoff
+  and makes no stronger suitability claim.
+
+### Evidence binding
+
+- The committed report is bound to its ignored raw summary and SQLite ledger by
+  `probes/results/wp16-qwen3.6-35b-a3b-openrouter-akashml.provenance.json`.
+- SQLite integrity is `ok`; the ledger contains exactly 30 distinct cache keys and 30 distinct
+  request hashes. A secret scan found no OpenRouter key bytes outside the ignored `.env`.
