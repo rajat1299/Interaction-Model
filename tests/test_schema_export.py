@@ -197,3 +197,31 @@ def test_schema_export_does_not_create_or_overwrite_freeze_manifest(tmp_path: Pa
     fresh_root = tmp_path / "fresh"
     export_schema_artifacts(fresh_root)
     assert not (fresh_root / "spec/FREEZE.md").exists()
+
+
+def test_phase_zero_freeze_manifest_binds_current_artifacts_and_versions() -> None:
+    freeze = (PROJECT_ROOT / "spec/FREEZE.md").read_text(encoding="utf-8")
+    approvals = (PROJECT_ROOT / "spec/APPROVALS.md").read_bytes()
+    behavior = (PROJECT_ROOT / "spec/behavior-spec.md").read_bytes()
+    prompt = (PROJECT_ROOT / "spec/prompt-template-v1.txt").read_bytes()
+    renderer = (PROJECT_ROOT / "src/im/serialize.py").read_bytes()
+    hashes = schema_hashes(event_schema_bytes(), action_schema_bytes())
+
+    assert "Phase 0 Freeze — DRAFT" not in freeze
+    assert "Status: **frozen**" in freeze
+    assert "`phase0-freeze`" in freeze
+    for identity in (
+        "schema_version: `1`",
+        "tool_registry_version: `1`",
+        "renderer_id: `serialize-v1`",
+        "canonicalizer_id: `tim-json-v1`",
+        "hash_algorithm: `sha256`",
+        hashes.event_schema,
+        hashes.action_schema,
+        hashes.combined_schema,
+        "sha256:" + hashlib.sha256(behavior).hexdigest(),
+        "sha256:" + hashlib.sha256(prompt).hexdigest(),
+        "sha256:" + hashlib.sha256(renderer).hexdigest(),
+        "sha256:" + hashlib.sha256(approvals).hexdigest(),
+    ):
+        assert identity in freeze
