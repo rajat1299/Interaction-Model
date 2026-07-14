@@ -449,3 +449,46 @@
 - Under the observed 900,000-token queue limit, the 144 primary calls deterministically shard as
   60, 61, and 23 requests at 890,004, 893,288, and 342,533 estimated tokens. No API call occurred
   while producing this plan.
+
+## 2026-07-14 — Active-floor diagnostic result
+
+### Execution and provenance
+
+- The detached Batch run completed all 150 pre-registered calls at repository commit
+  `c91b55397274d57cbc05c8c874eb7f0d5f1be3dd`: 144 primary requests in three shards and six
+  semantic-text graders in one shard. All four jobs completed, the provider produced no error
+  artifact, and the orchestrator exited successfully.
+- Provider usage was 1,936,801 input tokens, including 1,769,097 cached input tokens and 85,437
+  cache-write tokens, plus 15,572 output tokens and 12,783 reasoning tokens. Applying the pinned
+  prices and the Batch multiplier gives `$0.5742561875`; provider billing remains authoritative.
+- The committed report is bound to the ignored raw summary, SQLite ledger, stdout/stderr logs, and
+  all four provider input/output artifacts by
+  `probes/results/wp15-gpt-5.6-terra-high-batch-diagnostic.provenance.json`.
+
+### Result
+
+- The pre-registered verdict is **FAIL**. Active-floor generation passed 4/6 and active-floor
+  pairwise recognition passed 34/36. Both pairwise misses were Family 10 paraphrase `v2`; candidate
+  position was balanced, so measured position bias remained zero. Active-floor listwise was 6/6.
+- The two generation failures (`f10-t01-a` and `f10-t05-a`) were schema-valid, reference-valid
+  `respond` actions blocked only by the objective `floor_owned` license check. They are therefore
+  raw-policy restraint failures, not malformed outputs or grading artifacts.
+- Aggregate position bias is zero because one `v2` miss stuck to candidate B under both swaps and
+  the other stuck to candidate A under both swaps. The separately frozen expected-A and expected-B
+  gates correctly fail both cases. A future diagnostic should add paired swap consistency rather
+  than treating the difference between aggregate position accuracies as sufficient on its own.
+- Every yielded twin passed generation, pairwise, listwise, and semantic-text grading. Every active
+  nudge control passed generation, pairwise, and listwise. Those matched counterfactuals rule out an
+  overbroad interpretation that all actions should stop while activity is active.
+
+### Decision
+
+- The amended prompt improved the boundary materially relative to the original full run, but Terra
+  still does not meet the exact active-floor promotion gate as a sole free-generation teacher. A
+  second full paid rerun would not resolve that demonstrated capability gap and is not authorized.
+- Carry the build-plan fallback forward: use Terra's recognition judgments only where the relevant
+  probe class clears review, and manually adjudicate active-floor response labels. The runtime
+  license remains an objective safety boundary, never a way to count intrusive raw policy outputs
+  as correct.
+- WP17 may proceed only through its explicit documented-exception/fallback precondition; this
+  diagnostic does not silently turn the failed WP15 promotion gate green.

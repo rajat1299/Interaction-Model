@@ -1,0 +1,89 @@
+{
+  "artifact_hashes": {
+    "batch_stderr_log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "batch_stdout_log": "sha256:57ed13dd284abdce98adc60f4150a39782417d760f780445a69461439ad18d42",
+    "raw_sqlite": "sha256:7d1d7b59c0a7d3622d4571aac062c5a2b2d7715fe3d72614a29dd7eeb077d4d2",
+    "raw_summary": "sha256:e4b3e423e134737e81a293fb30b39757c6f06efec6a54da2b7a8f0bb54c58d4d",
+    "report": "sha256:42749c68c1a4beb0ad7e5bfe92cccda16f60e1cdcd4c8a436de8d52f869003b0"
+  },
+  "batch_jobs": [
+    {
+      "batch_id": "batch_6a55d3d34dec8190837abb16dcba75cf",
+      "error_sha256": null,
+      "executed_requests": 60,
+      "input_sha256": "sha256:93084a2be2ac11dc0b48e7e07fe301f268141394196f9a235448667096cd20cf",
+      "output_sha256": "sha256:fa8da3044ecb2557cb23d71f457efb4ff5e52e1050bb78f7a872feeb6be2ccf6",
+      "request_count": 60,
+      "shard_index": 0,
+      "stage": "p0",
+      "status": "completed"
+    },
+    {
+      "batch_id": "batch_6a55d47ea7208190986cf659a3491cc3",
+      "error_sha256": null,
+      "executed_requests": 61,
+      "input_sha256": "sha256:ff8ccd1b6d2ce5fe67bd5227fe79ab47be2000e8bf15def9fa893ba8409d1102",
+      "output_sha256": "sha256:d6aec7859d6d8f7e85eb71ad23977a22e3ef3e4784e8ad4225c40aa0525c7d3f",
+      "request_count": 61,
+      "shard_index": 1,
+      "stage": "p0",
+      "status": "completed"
+    },
+    {
+      "batch_id": "batch_6a55d52961188190a3c274eec1f55e4c",
+      "error_sha256": null,
+      "executed_requests": 23,
+      "input_sha256": "sha256:8f60544be954acbd49040842ea88ade896cec4954ead0ea76822da7b4577df18",
+      "output_sha256": "sha256:11d40ae2f4ec1596c2970ce8d726c50c9f1040bed7def71fd27cc7234755a022",
+      "request_count": 23,
+      "shard_index": 2,
+      "stage": "p0",
+      "status": "completed"
+    },
+    {
+      "batch_id": "batch_6a55d5955e548190a4c6311e2e90e4fd",
+      "error_sha256": null,
+      "executed_requests": 6,
+      "input_sha256": "sha256:d28b5ccf92b03cb4363a6ecc8799a335292990892070372ca1bf1a78f050da06",
+      "output_sha256": "sha256:39c90e6db8e0f4f23f8a4da493a04a28ff2ce2c243c84e6a11193fb05443a853",
+      "request_count": 6,
+      "shard_index": 0,
+      "stage": "s0",
+      "status": "completed"
+    }
+  ],
+  "diagnostic_spec_sha256": "sha256:c1a960f570b63a62d6bb4fcaf1e40581ae2fcc9f2deeb97f60e580a3349b288d",
+  "failure_indices": {
+    "generation": [
+      "f10-t01-a/v1",
+      "f10-t05-a/v1"
+    ],
+    "pairwise": [
+      "f10-t02-a/v2/A",
+      "f10-t05-a/v2/B"
+    ]
+  },
+  "format_version": 1,
+  "logical_results": {
+    "completed_requests": 150,
+    "generation": 18,
+    "listwise": 18,
+    "pairwise": 108,
+    "semantic": 6
+  },
+  "model": "gpt-5.6-terra",
+  "provider": "openai-batch-responses",
+  "reasoning_effort": "high",
+  "repository_commit": "c91b55397274d57cbc05c8c874eb7f0d5f1be3dd",
+  "usage": {
+    "cache_write_tokens": 85437,
+    "cached_input_tokens": 1769097,
+    "estimated_batch_charge_usd": "0.5742561875",
+    "input_tokens": 1936801,
+    "output_tokens": 15572,
+    "reasoning_tokens": 12783
+  },
+  "verdict": "fail",
+  "wp14_manifest_sha256": "sha256:87c824a2dad3c24fa05f7bd474dd8ef66a87532d3131dd9feb6932a4afee63b5",
+  "wp14_review_sha256": "sha256:761cb4a5f8c2f6755863741ad1d3c69fd1522073c5b29f3c0efc9bfed184a9e9"
+}
