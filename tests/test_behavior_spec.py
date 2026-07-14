@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import cast
 
 from im.schema.actions import ACTION_ADAPTER
-from im.schema.events import StateCheckpointEvent
+from im.schema.events import ActionExecutedEvent, SnapshotEvent, StateCheckpointEvent
+from im.schema.textspan import utf16_slice
 from im.serialize import parse_event
 
 
@@ -56,6 +57,34 @@ def test_behavior_spec_contains_production_parseable_boundary_examples() -> None
     assert checkpoints[0].payload.prior_uses[0].result_disposition == "open"
     assert checkpoints[1].payload.prior_uses[0].result_disposition == "handled"
     assert all(event.kind != "action_rejected" for event in events)
+    snapshot_text = {
+        event.id: event.payload.text for event in events if isinstance(event, SnapshotEvent)
+    }
+    delegates = [
+        event.payload.action
+        for event in events
+        if isinstance(event, ActionExecutedEvent) and event.payload.action.type == "delegate"
+    ]
+    assert delegates
+    for delegate in delegates:
+        assert delegate.fact.text == delegate.args.query
+        assert utf16_slice(
+            snapshot_text[delegate.fact.event_id],
+            delegate.fact.start_utf16,
+            delegate.fact.end_utf16,
+        ) == delegate.fact.text
+    for checkpoint in checkpoints:
+        for prior_use in checkpoint.payload.prior_uses:
+            assert prior_use.current_span.event_id == checkpoint.payload.snapshot.event_id
+            assert utf16_slice(
+                checkpoint.payload.snapshot.text,
+                prior_use.current_span.start_utf16,
+                prior_use.current_span.end_utf16,
+            ) == prior_use.current_span.text
+            if prior_use.kind == "delegate":
+                assert prior_use.fact.text == prior_use.args.query
+        for result in checkpoint.payload.open_tool_results:
+            assert result.fact_text == result.args.query
     handled_checkpoint = next(
         checkpoint for checkpoint in checkpoints if checkpoint.payload.dispositions
     )
@@ -78,3 +107,15 @@ def test_prompt_template_has_each_frozen_placeholder_once() -> None:
     assert template.count("{{action_schema}}") == 1
     assert template.count("{{policy_stream}}") == 1
     assert template.endswith("{{policy_stream}}\n")
+
+
+def test_prompt_eliminates_objective_invalidity_before_behavioral_preference() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    template = (project_root / "spec/prompt-template-v1.txt").read_text(encoding="utf-8")
+
+    objective = template.index("invalid payload, reference, or span")
+    license_check = template.index("mechanical\nlicense would reject")
+    behavioral = template.index("behavioral preconditions and forbidden cases")
+    conflict_order = template.index("frozen nine-action conflict order")
+    no_reordering = template.index("never reorders surviving candidates")
+    assert objective < license_check < behavioral < conflict_order < no_reordering

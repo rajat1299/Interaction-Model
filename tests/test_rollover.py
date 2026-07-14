@@ -832,6 +832,23 @@ def test_canceled_schedule_prior_use_remains_visible_across_rollover(tmp_path: P
             message=action.message,
         )
         scheduler.cancel((timer.timer_id,))
+        revised_text = f"Draft: {text}"
+        revised_snapshot_id = commit_event(
+            store,
+            clock,
+            source="user",
+            kind="snapshot",
+            activity="paused",
+            payload={
+                "text": revised_text,
+                "selection_start_utf16": len(revised_text),
+                "selection_end_utf16": len(revised_text),
+                "is_composing": False,
+                "edit_kind": "insert",
+            },
+        )
+        current_instruction = event_span(revised_snapshot_id, revised_text, text)
+        current_action = action.model_copy(update={"instruction": current_instruction})
         set_hashes(store)
 
         first = rollover(store, checkpoint_mono_ns=clock.monotonic_ns(), config=config)
@@ -843,9 +860,10 @@ def test_canceled_schedule_prior_use_remains_visible_across_rollover(tmp_path: P
             prior_use = payload.prior_uses[0]
             assert prior_use.kind == "schedule"
             assert prior_use.instruction == action.instruction
+            assert prior_use.current_span == current_instruction
             assert prior_use.timer_id == timer.timer_id
             assert prior_use.timer_status == "canceled"
-        assert check(action, build_license_view(store, config)) == Blocked(
+        assert check(current_action, build_license_view(store, config)) == Blocked(
             LicenseBlockCode.DUPLICATE_SCHEDULE
         )
         newer_text = "a genuinely new request"
@@ -865,9 +883,78 @@ def test_canceled_schedule_prior_use_remains_visible_across_rollover(tmp_path: P
         )
         third = rollover(store, checkpoint_mono_ns=clock.monotonic_ns(), config=config)
         assert third.payload.prior_uses == []
-        assert check(action, build_license_view(store, config)) == Blocked(
+        assert check(current_action, build_license_view(store, config)) == Blocked(
             LicenseBlockCode.UNKNOWN_REFERENCE
         )
+    finally:
+        store.close()
+
+
+def test_prior_use_drops_when_revision_inserts_indistinguishable_occurrence(
+    tmp_path: Path,
+) -> None:
+    config = RuntimeConfig(checkpoint_reserved_tokens=4_000)
+    store = Store(tmp_path / "ambiguous-schedule-prior-use.sqlite3")
+    clock = ManualClock()
+    scheduler = TimerScheduler(store, clock, config)
+    try:
+        snapshot_id = commit_event(
+            store,
+            clock,
+            source="user",
+            kind="snapshot",
+            activity="paused",
+            payload={
+                "text": "cat",
+                "selection_start_utf16": 3,
+                "selection_end_utf16": 3,
+                "is_composing": False,
+                "edit_kind": "insert",
+            },
+        )
+        original = ScheduleAction(
+            type="schedule",
+            instruction=event_span(snapshot_id, "cat", "cat"),
+            interval_ms=1_000,
+            message="cat",
+        )
+        commit_event(
+            store,
+            clock,
+            source="model",
+            kind="action_executed",
+            payload=action_payload(original),
+        )
+        timer = scheduler.schedule(
+            instruction_id=store.allocate_id("instruction"),
+            instruction=original.instruction,
+            interval_ms=original.interval_ms,
+            message=original.message,
+        )
+        scheduler.cancel((timer.timer_id,))
+        revised_snapshot_id = commit_event(
+            store,
+            clock,
+            source="user",
+            kind="snapshot",
+            activity="paused",
+            payload={
+                "text": "cat cat",
+                "selection_start_utf16": 7,
+                "selection_end_utf16": 7,
+                "is_composing": False,
+                "edit_kind": "insert",
+            },
+        )
+        candidate = original.model_copy(
+            update={"instruction": event_span(revised_snapshot_id, "cat cat", "cat")}
+        )
+        set_hashes(store)
+
+        checkpoint = rollover(store, checkpoint_mono_ns=clock.monotonic_ns(), config=config)
+
+        assert checkpoint.payload.prior_uses == []
+        assert isinstance(check(candidate, build_license_view(store, config)), Allowed)
     finally:
         store.close()
 
@@ -898,7 +985,7 @@ def test_completed_lookup_prior_use_is_mandatory_without_recent_events(tmp_path:
         )
         delegate = DelegateAction(
             type="delegate",
-            fact=event_span(snapshot_id, text, text),
+            fact=event_span(snapshot_id, text, "nonce"),
             tool="lookup",
             args={"query": "nonce"},
         )
@@ -942,6 +1029,23 @@ def test_completed_lookup_prior_use_is_mandatory_without_recent_events(tmp_path:
             Disposition.HANDLED,
             by_action_event_id=integrate_event_id,
         )
+        revised_text = f"Please {text}"
+        revised_snapshot_id = commit_event(
+            store,
+            clock,
+            source="user",
+            kind="snapshot",
+            activity="paused",
+            payload={
+                "text": revised_text,
+                "selection_start_utf16": len(revised_text),
+                "selection_end_utf16": len(revised_text),
+                "is_composing": False,
+                "edit_kind": "insert",
+            },
+        )
+        current_fact = event_span(revised_snapshot_id, revised_text, "nonce")
+        current_delegate = delegate.model_copy(update={"fact": current_fact})
         set_hashes(store)
 
         first = rollover(store, checkpoint_mono_ns=clock.monotonic_ns(), config=config)
@@ -954,6 +1058,7 @@ def test_completed_lookup_prior_use_is_mandatory_without_recent_events(tmp_path:
             prior_use = payload.prior_uses[0]
             assert prior_use.kind == "delegate"
             assert prior_use.fact == delegate.fact
+            assert prior_use.current_span == current_fact
             assert prior_use.request_id == request_id
             assert prior_use.args == delegate.args
             assert prior_use.result_event_id == delivery.event_id
@@ -966,6 +1071,7 @@ def test_completed_lookup_prior_use_is_mandatory_without_recent_events(tmp_path:
             related_event_id=delivery.event_id,
         )
         assert isinstance(check(already_handled, build_license_view(store, config)), Allowed)
+        assert isinstance(check(current_delegate, build_license_view(store, config)), Allowed)
 
         newer_text = "new topic"
         commit_event(
@@ -984,7 +1090,7 @@ def test_completed_lookup_prior_use_is_mandatory_without_recent_events(tmp_path:
         )
         third = rollover(store, checkpoint_mono_ns=clock.monotonic_ns(), config=config)
         assert third.payload.prior_uses == []
-        assert check(delegate, build_license_view(store, config)) == Blocked(
+        assert check(current_delegate, build_license_view(store, config)) == Blocked(
             LicenseBlockCode.UNKNOWN_REFERENCE
         )
     finally:
@@ -1071,7 +1177,7 @@ async def test_double_rollover_continuity(tmp_path: Path) -> None:
 
         pending_action = DelegateAction(
             type="delegate",
-            fact=event_span(snapshot_id, text, "lookup pending"),
+            fact=event_span(snapshot_id, text, "pending"),
             tool="lookup",
             args={"query": "pending"},
         )
@@ -1102,7 +1208,7 @@ async def test_double_rollover_continuity(tmp_path: Path) -> None:
 
         ready_action = DelegateAction(
             type="delegate",
-            fact=event_span(snapshot_id, text, "lookup ready"),
+            fact=event_span(snapshot_id, text, "ready"),
             tool="lookup",
             args={"query": "ready"},
         )
@@ -1221,12 +1327,12 @@ async def test_double_rollover_continuity(tmp_path: Path) -> None:
         ]
         ready_result = second.payload.open_tool_results[0]
         assert ready_result.fact_event_id == snapshot_id
-        assert ready_result.fact_text == "lookup ready"
+        assert ready_result.fact_text == "ready"
         assert ready_result.args.query == "ready"
         assert [
             (item.request_id, item.policy_seq, item.fact_event_id, item.fact_text)
             for item in second.payload.pending_tools
-        ] == [(pending_request_id, 5, snapshot_id, "lookup pending")]
+        ] == [(pending_request_id, 5, snapshot_id, "pending")]
         assert [item.mark_event_id for item in second.payload.applied_marks] == [mark_event_id]
         assert [item.event_id for item in second.payload.recent_events] == [historical_integrate_id]
         assert [

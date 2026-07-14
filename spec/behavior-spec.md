@@ -1,6 +1,6 @@
 # Interaction Model Behavior Specification
 
-Status: **WP12 review candidate — user sign-off pending.**
+Status: **WP12 amendment candidate — renewed user sign-off pending.**
 
 This document is the behavioral contract read by the prompted teacher and policy. It tells the
 policy which licensed action is appropriate. The runtime remains the authority for schema
@@ -124,12 +124,15 @@ When more than one idle reason applies, choose the first applicable reason:
 6. `already_handled` — a retained visible subject is already consumed;
 7. `no_trigger` — fallback when no more specific reason applies.
 
-Use `typing_active` when the request itself is still incomplete. Use `ambiguous` when enough text
-exists to identify the intended action but a required semantic field remains unresolved, even if
-activity is still `active`. Thus a complete bare “stop” with two live timers is ambiguous, while
-“remind me ev…” is incomplete typing. Once the user yields and the same ambiguity still blocks an
-explicit request, emit one concise `respond` clarification, then await newer user input. A direct
-negation such as “do not start a timer” is user control, not `instruction_not_direct`.
+Use `typing_active` when the request itself is still incomplete. A complete question or request may
+establish a response warrant while activity remains `active`; when floor ownership is its only
+blocker, use `idle(awaiting_opening)` and reference the user event that would be answered. Use
+`ambiguous` when enough text exists to identify the intended action but a required semantic field
+remains unresolved, even if activity is still `active`. Thus a complete bare “stop” with two live
+timers is ambiguous, while “remind me ev…” is incomplete typing. Once the user yields and the same
+ambiguity still blocks an explicit request, emit one concise `respond` clarification, then await
+newer user input. A direct negation such as “do not start a timer” is user control, not
+`instruction_not_direct`.
 
 After rollover, a pending lookup's held subject is its checkpoint `fact_event_id`, copied from the
 original `delegate.fact.event_id`. The accompanying `fact_text` is a readable integrity copy, not
@@ -163,11 +166,19 @@ replacement that is absent from visible verbatim context. Indefinite hidden pers
 require an explicit activation lifecycle and is outside v1.
 
 A target is a complete lexical unit or instructed multiword unit. Exclude surrounding whitespace
-and punctuation unless they belong to the requested unit. Among several unmarked eligible targets
-in the latest snapshot, choose the leftmost; among candidates starting there, choose the longest.
-Never mark a substring of a longer unfinished token. Do not re-mark a surviving target when the
-visible stream or checkpoint unambiguously shows it was already annotated. If revision makes that
-identity ambiguous, use `idle(ambiguous)` rather than guessing. A checkpoint preserves that
+and punctuation unless they belong to the requested unit. While activity is `active`, the end of
+the latest snapshot alone is not a right lexical boundary because later input may extend the token.
+Whitespace or one of the closed v1 boundary-forming delimiters may establish the right boundary:
+`. , ; : ! ? ) ] } "` or the corresponding closing curly quote `”`. Apostrophes (straight or
+curly), hyphens, underscores, slashes, combining marks, variation selectors, and zero-width joiners
+do not establish a boundary by themselves. If punctuation's role is unresolved, use
+`idle(typing_active)`. When activity is `paused`, the snapshot end may establish the boundary.
+`is_composing=false` closes IME composition only; it does not make an active trailing token
+complete. Among several unmarked eligible targets in the latest snapshot, choose the leftmost;
+among candidates starting there, choose the longest. Never
+mark a substring of a longer unfinished token. Do not re-mark a surviving target when the visible
+stream or checkpoint unambiguously shows it was already annotated. If revision makes that identity
+ambiguous, use `idle(ambiguous)` rather than guessing. A checkpoint preserves that
 uncertainty in `ambiguous_marks`; each entry contains only the candidate occurrence or candidate
 span set mechanically descended from the old target, and is evidence of unresolved old annotation
 identity rather than an active instruction. Continuity is occurrence-level: deterministic revision
@@ -187,11 +198,15 @@ freezing rollover forever or checkpointing an unproven baseline.
 ### `delegate`
 
 Payload: `{type,fact,tool,args}`. In v1 the only tool is `lookup` with
-`args={query:string}`. Delegate once for a sufficiently specified unresolved fact. If an
-equivalent canonical tool-and-args request is pending, use `idle(awaiting_tool)` and name the held
-subject; do not create a semantically duplicate request through rewording. V1 never retries a
-failed lookup automatically. A later direct user request may authorize a fresh delegation; merely
-observing failure does not.
+`args={query:string}`. `fact` is the minimal exact source span that names the sufficiently specified
+unresolved factual subject. Exclude lookup/politeness framing and the closed v1 sentence-closing set
+U+002E (`.`), U+003F (`?`), and U+0021 (`!`) from that span. Set `args.query` to `fact.text`
+byte-for-byte; do not paraphrase it, remove articles, or apply another semantic normalization path.
+Delegate once for that unresolved fact. If an equivalent
+canonical tool-and-args request is pending, use `idle(awaiting_tool)` and name the held subject; do
+not create a semantically duplicate request through rewording. V1 never retries a failed lookup
+automatically. A later direct user request may authorize a fresh delegation; merely observing
+failure does not.
 
 ### `integrate`
 
@@ -238,7 +253,9 @@ Payload: `{type,reply_to_event_id,text}`. An ordinary response requires both:
    conversational content for which silence would clearly fail the user's request; and
 2. an open floor.
 
-Yield alone is not a response warrant. Do not respond to mere narration, drafting,
+Yield alone is not a response warrant. Conversely, a complete question may establish a warrant
+while activity remains `active`, but it still cannot be answered until the floor opens; hold it with
+`idle(awaiting_opening)`, not `idle(typing_active)`. Do not respond to mere narration, drafting,
 self-correction, acknowledgements, or silence unless a reply is actually requested or needed. If
 `delegate` is the appropriate next action, delegate rather than emitting a placeholder such as
 “let me look that up.” If a succeeded live result is ready, prefer `integrate` over restating it
@@ -274,11 +291,13 @@ the user yields, emit one concise limitation or clarification for an unsupported
 approximate it with a different schedule.
 
 `message` is the minimal standalone reminder content derived from the user's wording. Remove only
-recurrence/reminder framing and outer whitespace. Preserve the user's material wording, case, and
-internal punctuation; do not add facts, politeness, pronouns, or explanatory language. If two
-materially different messages are equally plausible, use `idle(ambiguous)` while composing and
-clarify after yield rather than choosing arbitrarily. The runtime trims outer whitespace only and
-otherwise stores the accepted message verbatim.
+recurrence/reminder framing and outer whitespace. If the extracted reminder phrase ends with the
+ASCII full stop U+002E that also closes the instruction span, remove exactly that one framing full
+stop. Preserve all other material wording, case, and punctuation, including a terminal `?` or `!`;
+do not add facts, politeness, pronouns, or explanatory language. If two materially different
+messages are equally plausible, use `idle(ambiguous)` while composing and clarify after yield
+rather than choosing arbitrarily. The runtime trims outer whitespace only and otherwise stores the
+accepted message verbatim.
 
 Repeated snapshots or paraphrases of the same unresolved instruction are semantic duplicates. The
 runtime separately blocks reusing the identical instruction span, even if parameters change or its
@@ -398,14 +417,23 @@ a retained executed action, or a typed `prior_uses` tombstone sufficient to iden
 provenance and objective block. Hidden terminal state may be omitted only when no model-visible
 span, event, or entity can relicense the blocked action.
 
-`prior_uses` is a mandatory closed union sorted by `action_event_id`. A schedule tombstone retains
-the executed action ID/sequence, original instruction `Span`, timer ID/status, and age. A delegate
-tombstone retains the executed action ID/sequence, original fact `Span`, request/tool/args,
-result ID/status/disposition, and age. Retain these tombstones exactly while their instruction or
-fact source event is the checkpoint snapshot's event. This keeps a used schedule visible after its
-timer is canceled and keeps a completed lookup visible after its result is consumed, even when the
-optional `recent_events` tail omits their executed actions. `prior_uses` is mandatory state and is
-never evicted to satisfy the recent-events budget.
+`prior_uses` is a mandatory closed union sorted by `action_event_id`. Both variants retain the
+immutable original provenance span plus `current_span`, the same occurrence mapped into the
+checkpoint snapshot. A schedule tombstone also retains the executed action ID/sequence, timer
+ID/status, and age. A delegate tombstone also retains the executed action ID/sequence,
+request/tool/args, result ID/status/disposition, and age.
+
+Retain a tombstone while its original instruction or fact occurrence maps continuously and
+unambiguously through every committed full-snapshot revision into the checkpoint snapshot. Source
+event-ID equality is sufficient but not required. `current_span` must reference the checkpoint
+snapshot, preserve the original span text exactly, and checksum against that snapshot's UTF-16
+slice. Equal text elsewhere is never a substitute; disappearance, a touched/ambiguous mapping, or
+an explicitly represented causal supersession ends retention. V1 has no typed schedule/delegate
+provenance-supersession relation, so the projector does not infer one from topic semantics and
+conservatively retains every safely mapped occurrence. This keeps a used schedule visible after its
+timer is canceled and keeps a completed lookup visible after its result is consumed, even when a
+later snapshot preserved the source text and the optional `recent_events` tail omits the executed
+action. `prior_uses` is mandatory state and is never evicted to satisfy the recent-events budget.
 
 Every terminal delegate tombstone carries a matching generic checkpoint disposition for its result
 event, including that result's original `policy_seq`. The pair is the complete visible evidence for
@@ -461,7 +489,7 @@ examples because it has no v1 selection semantics. Do not edit generated lines b
 
 ```jsonl
 {"v":1,"id":"e_000201","seq":200,"dt_ms":0,"source":"user","kind":"snapshot","activity":"paused","payload":{"text":"lookup nonce","selection_start_utf16":12,"selection_end_utf16":12,"is_composing":false,"edit_kind":"insert"}}
-{"v":1,"id":"e_000202","seq":201,"dt_ms":40,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_000201","start_utf16":0,"end_utf16":12,"text":"lookup nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
+{"v":1,"id":"e_000202","seq":201,"dt_ms":40,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_000201","start_utf16":7,"end_utf16":12,"text":"nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
 {"v":1,"id":"e_000203","seq":202,"dt_ms":0,"source":"runtime","kind":"tool_requested","payload":{"request_id":"r_001","tool":"lookup","args":{"query":"nonce"}}}
 {"v":1,"id":"e_000204","seq":203,"dt_ms":700,"source":"tool","kind":"result","payload":{"request_id":"r_001","status":"succeeded","data":{"nonce":"n-42"}}}
 {"v":1,"id":"e_000205","seq":204,"dt_ms":300,"source":"model","kind":"action_executed","payload":{"action":{"type":"integrate","result_event_id":"e_000204","text":"n-42"}}}
@@ -498,7 +526,7 @@ Observed policy stream:
 
 ```jsonl
 {"v":1,"id":"e_000501","seq":500,"dt_ms":0,"source":"user","kind":"snapshot","activity":"paused","payload":{"text":"look up nonce","selection_start_utf16":13,"selection_end_utf16":13,"is_composing":false,"edit_kind":"insert"}}
-{"v":1,"id":"e_000502","seq":501,"dt_ms":20,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_000501","start_utf16":0,"end_utf16":13,"text":"look up nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
+{"v":1,"id":"e_000502","seq":501,"dt_ms":20,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_000501","start_utf16":8,"end_utf16":13,"text":"nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
 {"v":1,"id":"e_000503","seq":502,"dt_ms":0,"source":"runtime","kind":"tool_requested","payload":{"request_id":"r_005","tool":"lookup","args":{"query":"nonce"}}}
 {"v":1,"id":"e_000504","seq":503,"dt_ms":700,"source":"tool","kind":"result","payload":{"request_id":"r_005","status":"succeeded","data":{"nonce":"n-42"}}}
 {"v":1,"id":"e_000505","seq":504,"dt_ms":0,"source":"user","kind":"snapshot","activity":"active","payload":{"text":"look up nonce and I am still typ","selection_start_utf16":32,"selection_end_utf16":32,"is_composing":false,"edit_kind":"insert"}}
@@ -582,7 +610,7 @@ Expected next policy output:
 Observed policy stream:
 
 ```jsonl
-{"v":1,"id":"e_001001","seq":1000,"dt_ms":0,"source":"runtime","kind":"state_checkpoint","payload":{"segment":{"segment_index":1,"covers_through_policy_seq":999,"previous_segment_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"},"capabilities":{"min_timer_interval_ms":1000,"max_timer_interval_ms":86400000,"max_active_timers":16,"max_timer_message_bytes":512},"snapshot":{"event_id":"e_000990","activity":"paused","text":"look up nonce","selection_start_utf16":13,"selection_end_utf16":13,"is_composing":false,"edit_kind":"none","age_ms":0},"timers":[],"open_timer_fires":[],"open_tool_results":[{"event_id":"e_000995","policy_seq":995,"request_id":"r_010","fact_event_id":"e_000990","fact_text":"look up nonce","tool":"lookup","args":{"query":"nonce"},"status":"succeeded","data":{"nonce":"n-99"},"age_ms":10}],"pending_tools":[],"prior_uses":[{"kind":"delegate","action_event_id":"e_000993","policy_seq":993,"fact":{"event_id":"e_000990","start_utf16":0,"end_utf16":13,"text":"look up nonce"},"request_id":"r_010","tool":"lookup","args":{"query":"nonce"},"result_event_id":"e_000995","result_status":"succeeded","result_disposition":"open","age_ms":20}],"applied_marks":[],"ambiguous_marks":[],"recent_events":[],"dispositions":[],"hashes":{"schema_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","spec_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","prompt_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","config_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","renderer_id":"serialize-v1","canonicalizer_id":"tim-json-v1"}}}
+{"v":1,"id":"e_001001","seq":1000,"dt_ms":0,"source":"runtime","kind":"state_checkpoint","payload":{"segment":{"segment_index":1,"covers_through_policy_seq":999,"previous_segment_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"},"capabilities":{"min_timer_interval_ms":1000,"max_timer_interval_ms":86400000,"max_active_timers":16,"max_timer_message_bytes":512},"snapshot":{"event_id":"e_000990","activity":"paused","text":"Please look up nonce","selection_start_utf16":20,"selection_end_utf16":20,"is_composing":false,"edit_kind":"none","age_ms":0},"timers":[],"open_timer_fires":[],"open_tool_results":[{"event_id":"e_000995","policy_seq":995,"request_id":"r_010","fact_event_id":"e_000980","fact_text":"nonce","tool":"lookup","args":{"query":"nonce"},"status":"succeeded","data":{"nonce":"n-99"},"age_ms":10}],"pending_tools":[],"prior_uses":[{"kind":"delegate","action_event_id":"e_000993","policy_seq":993,"fact":{"event_id":"e_000980","start_utf16":8,"end_utf16":13,"text":"nonce"},"current_span":{"event_id":"e_000990","start_utf16":15,"end_utf16":20,"text":"nonce"},"request_id":"r_010","tool":"lookup","args":{"query":"nonce"},"result_event_id":"e_000995","result_status":"succeeded","result_disposition":"open","age_ms":20}],"applied_marks":[],"ambiguous_marks":[],"recent_events":[],"dispositions":[],"hashes":{"schema_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","spec_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","prompt_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","config_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","renderer_id":"serialize-v1","canonicalizer_id":"tim-json-v1"}}}
 ```
 
 Expected next policy output:
@@ -596,7 +624,7 @@ Expected next policy output:
 Observed policy stream:
 
 ```jsonl
-{"v":1,"id":"e_001101","seq":1100,"dt_ms":0,"source":"runtime","kind":"state_checkpoint","payload":{"segment":{"segment_index":1,"covers_through_policy_seq":1099,"previous_segment_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"},"capabilities":{"min_timer_interval_ms":1000,"max_timer_interval_ms":86400000,"max_active_timers":16,"max_timer_message_bytes":512},"snapshot":{"event_id":"e_001090","activity":"paused","text":"look up nonce","selection_start_utf16":13,"selection_end_utf16":13,"is_composing":false,"edit_kind":"none","age_ms":0},"timers":[],"open_timer_fires":[],"open_tool_results":[],"pending_tools":[],"prior_uses":[{"kind":"delegate","action_event_id":"e_001093","policy_seq":1093,"fact":{"event_id":"e_001090","start_utf16":0,"end_utf16":13,"text":"look up nonce"},"request_id":"r_011","tool":"lookup","args":{"query":"nonce"},"result_event_id":"e_001095","result_status":"succeeded","result_disposition":"handled","age_ms":20}],"applied_marks":[],"ambiguous_marks":[],"recent_events":[{"event_id":"e_001099","rendered":"{\"v\":1,\"id\":\"e_001099\",\"seq\":1099,\"dt_ms\":0,\"source\":\"model\",\"kind\":\"action_executed\",\"payload\":{\"action\":{\"type\":\"integrate\",\"result_event_id\":\"e_001095\",\"text\":\"n-88\"}}}"}],"dispositions":[{"event_id":"e_001095","policy_seq":1095,"relation":"event","state":"handled"}],"hashes":{"schema_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","spec_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","prompt_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","config_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","renderer_id":"serialize-v1","canonicalizer_id":"tim-json-v1"}}}
+{"v":1,"id":"e_001101","seq":1100,"dt_ms":0,"source":"runtime","kind":"state_checkpoint","payload":{"segment":{"segment_index":1,"covers_through_policy_seq":1099,"previous_segment_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"},"capabilities":{"min_timer_interval_ms":1000,"max_timer_interval_ms":86400000,"max_active_timers":16,"max_timer_message_bytes":512},"snapshot":{"event_id":"e_001090","activity":"paused","text":"Please look up nonce","selection_start_utf16":20,"selection_end_utf16":20,"is_composing":false,"edit_kind":"none","age_ms":0},"timers":[],"open_timer_fires":[],"open_tool_results":[],"pending_tools":[],"prior_uses":[{"kind":"delegate","action_event_id":"e_001093","policy_seq":1093,"fact":{"event_id":"e_001080","start_utf16":8,"end_utf16":13,"text":"nonce"},"current_span":{"event_id":"e_001090","start_utf16":15,"end_utf16":20,"text":"nonce"},"request_id":"r_011","tool":"lookup","args":{"query":"nonce"},"result_event_id":"e_001095","result_status":"succeeded","result_disposition":"handled","age_ms":20}],"applied_marks":[],"ambiguous_marks":[],"recent_events":[{"event_id":"e_001099","rendered":"{\"v\":1,\"id\":\"e_001099\",\"seq\":1099,\"dt_ms\":0,\"source\":\"model\",\"kind\":\"action_executed\",\"payload\":{\"action\":{\"type\":\"integrate\",\"result_event_id\":\"e_001095\",\"text\":\"n-88\"}}}"}],"dispositions":[{"event_id":"e_001095","policy_seq":1095,"relation":"event","state":"handled"}],"hashes":{"schema_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","spec_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","prompt_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","config_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","renderer_id":"serialize-v1","canonicalizer_id":"tim-json-v1"}}}
 ```
 
 Expected next policy output:
@@ -611,7 +639,7 @@ Observed policy stream:
 
 ```jsonl
 {"v":1,"id":"e_001201","seq":1200,"dt_ms":0,"source":"user","kind":"snapshot","activity":"paused","payload":{"text":"look up nonce","selection_start_utf16":13,"selection_end_utf16":13,"is_composing":false,"edit_kind":"insert"}}
-{"v":1,"id":"e_001202","seq":1201,"dt_ms":20,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_001201","start_utf16":0,"end_utf16":13,"text":"look up nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
+{"v":1,"id":"e_001202","seq":1201,"dt_ms":20,"source":"model","kind":"action_executed","payload":{"action":{"type":"delegate","fact":{"event_id":"e_001201","start_utf16":8,"end_utf16":13,"text":"nonce"},"tool":"lookup","args":{"query":"nonce"}}}}
 {"v":1,"id":"e_001203","seq":1202,"dt_ms":0,"source":"runtime","kind":"tool_requested","payload":{"request_id":"r_012","tool":"lookup","args":{"query":"nonce"}}}
 {"v":1,"id":"e_001204","seq":1203,"dt_ms":700,"source":"tool","kind":"result","payload":{"request_id":"r_012","status":"failed","data":{"code":"lookup_failed","message":"lookup failed"}}}
 ```

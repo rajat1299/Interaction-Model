@@ -1,4 +1,4 @@
-"""Deterministic projection of stateless mark targets through snapshot revisions."""
+"""Deterministic occurrence projection through full-snapshot revisions."""
 
 from collections.abc import Iterable
 from difflib import SequenceMatcher
@@ -21,19 +21,65 @@ def _project_python_range(
     start: int,
     end: int,
 ) -> tuple[int, int] | None:
-    for tag, previous_start, previous_end, current_start, _current_end in _revision_opcodes(
-        previous, current
-    ):
-        if tag == "equal" and start >= previous_start and end <= previous_end:
-            return current_start + start - previous_start, current_start + end - previous_start
+    block = _equal_block_for_range(previous, current, start, end)
+    if block is not None:
+        previous_start, _previous_end, current_start, _current_end = block
+        return current_start + start - previous_start, current_start + end - previous_start
     return None
 
 
-def project_mark_target(
-    target: Span,
+def _equal_block_for_range(
+    previous: str,
+    current: str,
+    start: int,
+    end: int,
+) -> tuple[int, int, int, int] | None:
+    for tag, previous_start, previous_end, current_start, current_end in _revision_opcodes(
+        previous, current
+    ):
+        if tag == "equal" and start >= previous_start and end <= previous_end:
+            return previous_start, previous_end, current_start, current_end
+    return None
+
+
+def _occurrences(text: str, fragment: str) -> tuple[int, ...]:
+    matches: list[int] = []
+    start = 0
+    while True:
+        index = text.find(fragment, start)
+        if index < 0:
+            return tuple(matches)
+        matches.append(index)
+        start = index + 1
+
+
+def _project_unique_python_range(
+    previous: str,
+    current: str,
+    start: int,
+    end: int,
+) -> tuple[int, int] | None:
+    """Map only through an unchanged context block unique on both sides.
+
+    SequenceMatcher supplies a deterministic alignment, but repeated equal blocks can admit another
+    equally plausible occurrence identity. Requiring the containing maximal equal block to occur
+    exactly once in each snapshot turns the alignment into a conservative identity proof.
+    """
+    block = _equal_block_for_range(previous, current, start, end)
+    if block is None:
+        return None
+    previous_start, previous_end, current_start, _current_end = block
+    context = previous[previous_start:previous_end]
+    if len(_occurrences(previous, context)) != 1 or len(_occurrences(current, context)) != 1:
+        return None
+    return current_start + start - previous_start, current_start + end - previous_start
+
+
+def project_span(
+    source_span: Span,
     snapshots: Iterable[SnapshotEvent],
 ) -> Span | None:
-    """Carry a target only through text regions unchanged by every revision.
+    """Carry one source occurrence only through regions unchanged by every revision.
 
     Prefix/suffix preservation is deliberately conservative. A target touched by a revision's
     changed middle has ambiguous identity and is dropped instead of being guessed from matching
@@ -41,7 +87,7 @@ def project_mark_target(
     """
     ordered = tuple(snapshots)
     source_index = next(
-        (index for index, snapshot in enumerate(ordered) if snapshot.id == target.event_id),
+        (index for index, snapshot in enumerate(ordered) if snapshot.id == source_span.event_id),
         None,
     )
     if source_index is None:
@@ -51,32 +97,37 @@ def project_mark_target(
     try:
         if utf16_slice(
             source.payload.text,
-            target.start_utf16,
-            target.end_utf16,
-        ) != target.text:
+            source_span.start_utf16,
+            source_span.end_utf16,
+        ) != source_span.text:
             return None
-        start = py_index(source.payload.text, target.start_utf16)
-        end = py_index(source.payload.text, target.end_utf16)
+        start = py_index(source.payload.text, source_span.start_utf16)
+        end = py_index(source.payload.text, source_span.end_utf16)
     except (TypeError, ValueError):
         return None
 
     previous_text = source.payload.text
     latest_event_id = source.id
     for snapshot in ordered[source_index + 1 :]:
-        projected = _project_python_range(previous_text, snapshot.payload.text, start, end)
+        projected = _project_unique_python_range(
+            previous_text,
+            snapshot.payload.text,
+            start,
+            end,
+        )
         if projected is None:
             return None
         start, end = projected
         previous_text = snapshot.payload.text
         latest_event_id = snapshot.id
 
-    if previous_text[start:end] != target.text:
+    if previous_text[start:end] != source_span.text:
         return None
     return Span(
         event_id=latest_event_id,
         start_utf16=utf16_len(previous_text[:start]),
         end_utf16=utf16_len(previous_text[:end]),
-        text=target.text,
+        text=source_span.text,
     )
 
 
@@ -148,11 +199,25 @@ def project_ambiguous_mark_targets(
         opcodes = _revision_opcodes(previous_text, current_text)
         mapped: set[tuple[int, int]] = set()
         for start, end in candidates:
-            exact = _project_python_range(previous_text, current_text, start, end)
+            exact = _project_unique_python_range(previous_text, current_text, start, end)
             if exact is not None:
                 mapped.add(exact)
                 continue
             touched = True
+            repeated_block = _equal_block_for_range(previous_text, current_text, start, end)
+            if repeated_block is not None:
+                previous_start, previous_end, _current_start, _current_end = repeated_block
+                context = previous_text[previous_start:previous_end]
+                relative_start = start - previous_start
+                relative_end = end - previous_start
+                for context_start in _occurrences(current_text, context):
+                    candidate = (
+                        context_start + relative_start,
+                        context_start + relative_end,
+                    )
+                    if current_text[candidate[0] : candidate[1]] == target.text:
+                        mapped.add(candidate)
+                continue
             affected = [
                 (current_start, current_end)
                 for _tag, previous_start, previous_end, current_start, current_end in opcodes

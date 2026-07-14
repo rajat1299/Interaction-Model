@@ -37,7 +37,7 @@ from im.schema.common import (
     ToolName,
     ToolResultStatus,
 )
-from im.schema.textspan import utf16_len
+from im.schema.textspan import utf16_len, utf16_slice
 
 _CONFIG = RuntimeConfig()
 Digest = Annotated[
@@ -281,6 +281,7 @@ class CheckpointSchedulePriorUse(_StrictModel):
     action_event_id: EventId
     policy_seq: NonNegativeInt
     instruction: Span
+    current_span: Span
     timer_id: TimerId
     timer_status: Literal[
         TimerStatus.ACTIVE,
@@ -290,12 +291,19 @@ class CheckpointSchedulePriorUse(_StrictModel):
     ]
     age_ms: NonNegativeInt
 
+    @model_validator(mode="after")
+    def validate_occurrence_continuity(self) -> "CheckpointSchedulePriorUse":
+        if self.current_span.text != self.instruction.text:
+            raise ValueError("schedule prior-use current span must preserve instruction text")
+        return self
+
 
 class CheckpointDelegatePriorUse(_StrictModel):
     kind: Literal["delegate"]
     action_event_id: EventId
     policy_seq: NonNegativeInt
     fact: Span
+    current_span: Span
     request_id: RequestId
     tool: Literal[ToolName.LOOKUP]
     args: LookupArgs
@@ -303,6 +311,14 @@ class CheckpointDelegatePriorUse(_StrictModel):
     result_status: ToolResultStatus
     result_disposition: Disposition
     age_ms: NonNegativeInt
+
+    @model_validator(mode="after")
+    def validate_occurrence_continuity(self) -> "CheckpointDelegatePriorUse":
+        if self.current_span.text != self.fact.text:
+            raise ValueError("delegate prior-use current span must preserve fact text")
+        if self.args.query != self.fact.text:
+            raise ValueError("delegate prior-use query must equal fact text")
+        return self
 
 
 CheckpointPriorUse = Annotated[
@@ -398,6 +414,22 @@ class StateCheckpointPayload(_StrictModel):
         ]
         for name, values in arrays:
             _validate_sorted_unique(values, name)
+        for prior_use in self.prior_uses:
+            current_span = prior_use.current_span
+            if current_span.event_id != self.snapshot.event_id:
+                raise ValueError("prior-use current span must reference the checkpoint snapshot")
+            try:
+                rendered = utf16_slice(
+                    self.snapshot.text,
+                    current_span.start_utf16,
+                    current_span.end_utf16,
+                )
+            except (TypeError, ValueError) as error:
+                raise ValueError(
+                    "prior-use current span is invalid for checkpoint snapshot"
+                ) from error
+            if rendered != current_span.text:
+                raise ValueError("prior-use current span does not match checkpoint snapshot")
         if sum(timer.status is TimerStatus.ACTIVE for timer in self.timers) > (
             self.capabilities.max_active_timers
         ):

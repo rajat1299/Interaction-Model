@@ -29,7 +29,7 @@ from im.license import (
     ToolResultView,
     check,
 )
-from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
+from im.mark_projection import project_ambiguous_mark_targets, project_span
 from im.policy.base import (
     Policy,
     PolicyCallCancelled,
@@ -328,7 +328,7 @@ def build_license_view(
                 )
             )
         if isinstance(event, ActionExecutedEvent) and isinstance(event.payload.action, MarkAction):
-            target = project_mark_target(event.payload.action.target, snapshots)
+            target = project_span(event.payload.action.target, snapshots)
             if target is not None:
                 applied_marks.append(
                     AppliedMarkView(
@@ -354,21 +354,25 @@ def build_license_view(
             elif isinstance(target, CancelTimersTarget):
                 visible_timer_ids.update(target.timer_ids)
 
-    timers = tuple(
-        TimerView(
-            timer_id=timer.timer_id,
-            status=timer.status,
-            instruction=Span(
-                event_id=timer.instruction_event_id,
-                start_utf16=timer.instruction_start_utf16,
-                end_utf16=timer.instruction_end_utf16,
-                text=timer.instruction_text,
-            ),
-            interval_ms=timer.interval_ms,
-            message=timer.message,
+    timer_views: list[TimerView] = []
+    for timer in store.timers():
+        instruction = Span(
+            event_id=timer.instruction_event_id,
+            start_utf16=timer.instruction_start_utf16,
+            end_utf16=timer.instruction_end_utf16,
+            text=timer.instruction_text,
         )
-        for timer in store.timers()
-    )
+        timer_views.append(
+            TimerView(
+                timer_id=timer.timer_id,
+                status=timer.status,
+                instruction=instruction,
+                current_instruction=project_span(instruction, snapshots),
+                interval_ms=timer.interval_ms,
+                message=timer.message,
+            )
+        )
+    timers = tuple(timer_views)
     pending_tools = tuple(
         PendingToolRequestView(
             request_id=request.request_id,

@@ -351,6 +351,7 @@ def test_checkpoint_prior_uses_are_a_closed_sorted_union() -> None:
         "action_event_id": "e_000010",
         "policy_seq": 10,
         "instruction": SPAN,
+        "current_span": SPAN,
         "timer_id": "t_002",
         "timer_status": "canceled",
         "age_ms": 5,
@@ -360,6 +361,7 @@ def test_checkpoint_prior_uses_are_a_closed_sorted_union() -> None:
         "action_event_id": "e_000009",
         "policy_seq": 9,
         "fact": SPAN,
+        "current_span": SPAN,
         "request_id": "r_002",
         "tool": "lookup",
         "args": {"query": "test"},
@@ -379,6 +381,20 @@ def test_checkpoint_prior_uses_are_a_closed_sorted_union() -> None:
         [delegate_use, delegate_use],
         [{**schedule_use, "kind": "unknown"}],
         [{key: value for key, value in schedule_use.items() if key != "timer_status"}],
+        [{key: value for key, value in schedule_use.items() if key != "current_span"}],
+        [
+            {
+                **schedule_use,
+                "current_span": {**SPAN, "event_id": "e_000002"},
+            }
+        ],
+        [
+            {
+                **delegate_use,
+                "current_span": {**SPAN, "start_utf16": 1, "end_utf16": 4, "text": "est"},
+            }
+        ],
+        [{**delegate_use, "args": {"query": "other"}}],
     ):
         with pytest.raises(ValidationError):
             EVENT_ADAPTER.validate_python(

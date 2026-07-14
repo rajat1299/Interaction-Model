@@ -121,13 +121,15 @@ pending_tools:      [{request_id, policy_seq, fact_event_id, fact_text, tool, ar
                                                      # integrity
 prior_uses:         [SchedulePriorUse | DelegatePriorUse]
   SchedulePriorUse: {kind: "schedule", action_event_id, policy_seq, instruction: Span,
-                     timer_id, timer_status, age_ms}
+                     current_span: Span, timer_id, timer_status, age_ms}
   DelegatePriorUse: {kind: "delegate", action_event_id, policy_seq, fact: Span,
-                     request_id, tool, args, result_event_id, result_status,
+                     current_span: Span, request_id, tool, args, result_event_id, result_status,
                      result_disposition, age_ms}
                                                      # mandatory model-visible rejection closure, sorted by
-                                                     # action_event_id. Retained exactly while instruction/fact
-                                                     # source event_id equals the checkpoint snapshot event_id;
+                                                     # action_event_id. Retained while the original occurrence
+                                                     # maps continuously and unambiguously through committed
+                                                     # revisions; current_span is its exact checkpoint-snapshot
+                                                     # occurrence, so source event-id equality is not required;
                                                      # never evicted with the optional recent-events tail
 applied_marks:      [{mark_event_id, instruction_text, target: Span, age_ms}]
                                                      # mark_event_id = the action_executed event that applied
@@ -376,7 +378,7 @@ Acceptance: mocked-transport unit tests (valid, invalid-then-retry, refusal); dr
 | 7 | fire with timer active: typing vs paused | floor independence | nudge ↔ (nothing tempting; restraint inverse) |
 | 8 | fire after cancel | timer state | skip(canceled_timer) ↔ nudge |
 | 9 | "stop" with one vs two active timers | ambiguity | cancel ↔ idle(ambiguous) |
-| 10 | respond: active floor vs explicit yield | floor | idle(typing_active) ↔ respond |
+| 10 | respond: active floor vs explicit yield | floor | idle(awaiting_opening) ↔ respond |
 | 11 | six actionable projections pre vs post rollover | rollover representation | same action both sides |
 | 12 | valid-but-unwanted + pure no-trigger idle | restraint | idle(no_trigger) ↔ any plausible action |
 

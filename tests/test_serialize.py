@@ -69,6 +69,7 @@ FULL_CHECKPOINT_PAYLOAD = {
             "action_event_id": "e_000009",
             "policy_seq": 9,
             "fact": SPAN,
+            "current_span": SPAN,
             "request_id": "r_003",
             "tool": "lookup",
             "args": {"query": "test"},
@@ -82,6 +83,7 @@ FULL_CHECKPOINT_PAYLOAD = {
             "action_event_id": "e_000010",
             "policy_seq": 10,
             "instruction": SPAN,
+            "current_span": SPAN,
             "timer_id": "t_002",
             "timer_status": "canceled",
             "age_ms": 4,
@@ -400,6 +402,16 @@ def generated_snapshot_payload(draw) -> dict[str, object]:
 @st.composite
 def generated_checkpoint_payload(draw) -> dict[str, object]:
     snapshot = draw(generated_snapshot_payload())
+    snapshot_text = str(snapshot["text"])
+    prior_text = snapshot_text.strip()
+    prior_prefix = snapshot_text[: len(snapshot_text) - len(snapshot_text.lstrip())]
+    prior_start = utf16_len(prior_prefix)
+    current_span = {
+        "event_id": "e_000001",
+        "start_utf16": prior_start,
+        "end_utf16": prior_start + utf16_len(prior_text),
+        "text": prior_text,
+    }
     timer_id = draw(timer_ids)
     request_id = draw(request_ids)
     timer_status = draw(st.sampled_from(["active", "canceled"]))
@@ -458,36 +470,40 @@ def generated_checkpoint_payload(draw) -> dict[str, object]:
         "targets": [draw(generated_span())],
         "age_ms": draw(small_ints),
     }
-    prior_use = draw(
-        st.one_of(
-            st.just(
-                {
-                    "kind": "schedule",
-                    "action_event_id": "e_000009",
-                    "policy_seq": 9,
-                    "instruction": SPAN,
-                    "timer_id": "t_002",
-                    "timer_status": "canceled",
-                    "age_ms": 5,
-                }
-            ),
-            st.just(
-                {
-                    "kind": "delegate",
-                    "action_event_id": "e_000010",
-                    "policy_seq": 10,
-                    "fact": SPAN,
-                    "request_id": "r_003",
-                    "tool": "lookup",
-                    "args": {"query": "test"},
-                    "result_event_id": "e_000011",
-                    "result_status": "succeeded",
-                    "result_disposition": "handled",
-                    "age_ms": 4,
-                }
-            ),
+    prior_use = None
+    if prior_text:
+        prior_use = draw(
+            st.one_of(
+                st.just(
+                    {
+                        "kind": "schedule",
+                        "action_event_id": "e_000009",
+                        "policy_seq": 9,
+                        "instruction": current_span,
+                        "current_span": current_span,
+                        "timer_id": "t_002",
+                        "timer_status": "canceled",
+                        "age_ms": 5,
+                    }
+                ),
+                st.just(
+                    {
+                        "kind": "delegate",
+                        "action_event_id": "e_000010",
+                        "policy_seq": 10,
+                        "fact": current_span,
+                        "current_span": current_span,
+                        "request_id": "r_003",
+                        "tool": "lookup",
+                        "args": {"query": prior_text},
+                        "result_event_id": "e_000011",
+                        "result_status": "succeeded",
+                        "result_disposition": "handled",
+                        "age_ms": 4,
+                    }
+                ),
+            )
         )
-    )
     disposition_relation = draw(st.sampled_from(["event", "responded_to"]))
     disposition_state = (
         "handled"
@@ -511,7 +527,7 @@ def generated_checkpoint_payload(draw) -> dict[str, object]:
         "open_timer_fires": [open_fire] if draw(st.booleans()) else [],
         "open_tool_results": [open_result] if draw(st.booleans()) else [],
         "pending_tools": [pending] if draw(st.booleans()) else [],
-        "prior_uses": [prior_use] if draw(st.booleans()) else [],
+        "prior_uses": [prior_use] if prior_use is not None and draw(st.booleans()) else [],
         "applied_marks": [applied_mark] if draw(st.booleans()) else [],
         "ambiguous_marks": [ambiguous_mark] if draw(st.booleans()) else [],
         "recent_events": (

@@ -150,13 +150,14 @@ def generated_examples() -> str:
         ]
     )
 
-    fact = "lookup nonce"
+    lookup_request = "lookup nonce"
+    fact = "nonce"
     delegate = {
         "type": "delegate",
         "fact": {
             "event_id": "e_000201",
-            "start_utf16": 0,
-            "end_utf16": len(fact),
+            "start_utf16": utf16_len("lookup "),
+            "end_utf16": utf16_len(lookup_request),
             "text": fact,
         },
         "tool": "lookup",
@@ -165,7 +166,7 @@ def generated_examples() -> str:
     integrate = {"type": "integrate", "result_event_id": "e_000204", "text": "n-42"}
     tool_stream = _stream(
         [
-            _snapshot("e_000201", 200, fact, activity="paused"),
+            _snapshot("e_000201", 200, lookup_request, activity="paused"),
             {
                 "v": 1,
                 "id": "e_000202",
@@ -275,13 +276,14 @@ def generated_examples() -> str:
     non_direct_text = 'She said, "remind me every minute to stretch."'
     non_direct_stream = _stream([_snapshot("e_000401", 400, non_direct_text, activity="paused")])
 
-    typing_fact = "look up nonce"
+    typing_request = "look up nonce"
+    typing_fact = "nonce"
     typing_delegate = {
         "type": "delegate",
         "fact": {
             "event_id": "e_000501",
-            "start_utf16": 0,
-            "end_utf16": utf16_len(typing_fact),
+            "start_utf16": utf16_len("look up "),
+            "end_utf16": utf16_len(typing_request),
             "text": typing_fact,
         },
         "tool": "lookup",
@@ -289,7 +291,7 @@ def generated_examples() -> str:
     }
     result_while_typing_stream = _stream(
         [
-            _snapshot("e_000501", 500, typing_fact, activity="paused"),
+            _snapshot("e_000501", 500, typing_request, activity="paused"),
             {
                 "v": 1,
                 "id": "e_000502",
@@ -466,14 +468,14 @@ def generated_examples() -> str:
                 "payload": _checkpoint_payload(
                     covers_through_policy_seq=999,
                     snapshot_event_id="e_000990",
-                    snapshot_text="look up nonce",
+                    snapshot_text="Please look up nonce",
                     open_tool_results=[
                         {
                             "event_id": "e_000995",
                             "policy_seq": 995,
                             "request_id": "r_010",
-                            "fact_event_id": "e_000990",
-                            "fact_text": "look up nonce",
+                            "fact_event_id": "e_000980",
+                            "fact_text": "nonce",
                             "tool": "lookup",
                             "args": {"query": "nonce"},
                             "status": "succeeded",
@@ -487,10 +489,16 @@ def generated_examples() -> str:
                             "action_event_id": "e_000993",
                             "policy_seq": 993,
                             "fact": {
-                                "event_id": "e_000990",
-                                "start_utf16": 0,
+                                "event_id": "e_000980",
+                                "start_utf16": 8,
                                 "end_utf16": 13,
-                                "text": "look up nonce",
+                                "text": "nonce",
+                            },
+                            "current_span": {
+                                "event_id": "e_000990",
+                                "start_utf16": 15,
+                                "end_utf16": 20,
+                                "text": "nonce",
                             },
                             "request_id": "r_010",
                             "tool": "lookup",
@@ -533,17 +541,23 @@ def generated_examples() -> str:
                 "payload": _checkpoint_payload(
                     covers_through_policy_seq=1_099,
                     snapshot_event_id="e_001090",
-                    snapshot_text="look up nonce",
+                    snapshot_text="Please look up nonce",
                     prior_uses=[
                         {
                             "kind": "delegate",
                             "action_event_id": "e_001093",
                             "policy_seq": 1_093,
                             "fact": {
-                                "event_id": "e_001090",
-                                "start_utf16": 0,
+                                "event_id": "e_001080",
+                                "start_utf16": 8,
                                 "end_utf16": 13,
-                                "text": "look up nonce",
+                                "text": "nonce",
+                            },
+                            "current_span": {
+                                "event_id": "e_001090",
+                                "start_utf16": 15,
+                                "end_utf16": 20,
+                                "text": "nonce",
                             },
                             "request_id": "r_011",
                             "tool": "lookup",
@@ -588,9 +602,9 @@ def generated_examples() -> str:
                         "type": "delegate",
                         "fact": {
                             "event_id": "e_001201",
-                            "start_utf16": 0,
+                            "start_utf16": 8,
                             "end_utf16": utf16_len("look up nonce"),
-                            "text": "look up nonce",
+                            "text": "nonce",
                         },
                         "tool": "lookup",
                         "args": {"query": "nonce"},

@@ -119,12 +119,13 @@ class TimerView:
     timer_id: str
     status: TimerStatus
     instruction: Span | None = None
+    current_instruction: Span | None = None
     interval_ms: int | None = None
     message: str | None = None
 
     def matches_schedule(self, action: ScheduleAction) -> bool:
         """Whether this timer already consumed the action's originating instruction."""
-        return self.instruction == action.instruction
+        return action.instruction in (self.instruction, self.current_instruction)
 
 
 @dataclass(frozen=True, slots=True)

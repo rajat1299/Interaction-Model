@@ -8,7 +8,7 @@ from hashlib import sha256
 from pydantic import ValidationError
 
 from im.config import RuntimeConfig, estimate_tokens
-from im.mark_projection import project_ambiguous_mark_targets, project_mark_target
+from im.mark_projection import project_ambiguous_mark_targets, project_span
 from im.schema.actions import (
     DelegateAction,
     IntegrateAction,
@@ -293,6 +293,9 @@ def project(
             }
         )
 
+    snapshots = tuple(
+        record.event for record in records if isinstance(record.event, SnapshotEvent)
+    )
     schedule_actions: dict[tuple[str, int, int, str], PolicyRecord] = {}
     for record in records:
         event = record.event
@@ -315,8 +318,6 @@ def project(
     prior_use_items: list[dict[str, object]] = []
     mandatory_disposition_ids: set[str] = set()
     for timer in store.timers():
-        if timer.instruction_event_id != snapshot_event.id:
-            continue
         key = (
             timer.instruction_event_id,
             timer.instruction_start_utf16,
@@ -332,12 +333,16 @@ def project(
             end_utf16=timer.instruction_end_utf16,
             text=timer.instruction_text,
         )
+        current_span = project_span(instruction, snapshots)
+        if current_span is None or current_span.event_id != snapshot_event.id:
+            continue
         prior_use_items.append(
             {
                 "kind": "schedule",
                 "action_event_id": action_record.event.id,
                 "policy_seq": action_record.seq,
                 "instruction": instruction.model_dump(mode="python"),
+                "current_span": current_span.model_dump(mode="python"),
                 "timer_id": timer.timer_id,
                 "timer_status": timer.status.value,
                 "age_ms": _age_ms(
@@ -359,7 +364,8 @@ def project(
         provenance = facts_by_request.get(request.request_id)
         if provenance is None:
             raise ProjectionError("completed tool request lacks delegate provenance")
-        if provenance.fact.event_id != snapshot_event.id:
+        current_span = project_span(provenance.fact, snapshots)
+        if current_span is None or current_span.event_id != snapshot_event.id:
             continue
         if request.fact_event_id != provenance.fact.event_id:
             raise ProjectionError(
@@ -387,6 +393,7 @@ def project(
                 "action_event_id": provenance.action_event_id,
                 "policy_seq": provenance.action_policy_seq,
                 "fact": provenance.fact.model_dump(mode="python"),
+                "current_span": current_span.model_dump(mode="python"),
                 "request_id": request.request_id,
                 "tool": request.tool,
                 "args": request.args,
@@ -401,9 +408,6 @@ def project(
             }
         )
 
-    snapshots = tuple(
-        record.event for record in records if isinstance(record.event, SnapshotEvent)
-    )
     applied_mark_items: list[dict[str, object]] = []
     ambiguous_mark_items: list[dict[str, object]] = []
     for record in records:
@@ -413,7 +417,7 @@ def project(
             and isinstance(event.payload.action, MarkAction)
         ):
             continue
-        target = project_mark_target(event.payload.action.target, snapshots)
+        target = project_span(event.payload.action.target, snapshots)
         if target is None:
             candidates = project_ambiguous_mark_targets(event.payload.action.target, snapshots)
             if candidates:

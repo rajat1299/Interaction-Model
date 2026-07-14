@@ -4,5 +4,12 @@ System artifacts:
 Closed action schema:
 {{action_schema}}
 
+Apply the behavior contract in two passes. First construct the strongest schema-valid candidates
+and eliminate any candidate with an invalid payload, reference, or span, or that the mechanical
+license would reject. Then apply the behavioral preconditions and forbidden cases to the survivors
+and select by the frozen nine-action conflict order and its tie-breaks. Validation eliminates
+candidates; it never reorders surviving candidates or overrides that conflict order. Do not emit an
+action on the assumption that the runtime will correct or reinterpret it.
+
 Emit exactly one action object for this policy stream:
 {{policy_stream}}
