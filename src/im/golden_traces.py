@@ -11,7 +11,8 @@ from im.config import RuntimeConfig
 from im.policy.base import ScriptedPolicy
 from im.rollover import rollover
 from im.scheduler import ManualClock
-from im.schema.actions import DelegateAction
+from im.schema.actions import ACTION_ADAPTER, DelegateAction, ScheduleAction, Span
+from im.schema.textspan import utf16_len
 from im.server import ArtifactPaths, RuntimeSession, load_session_artifacts
 from im.store import Store
 from im.tools import ScriptedToolResult
@@ -88,6 +89,41 @@ def _idle() -> dict[str, object]:
     return {"type": "idle", "reason": "no_trigger", "related_event_id": None}
 
 
+def _span(event_id: str, source_text: str, selected_text: str | None = None) -> Span:
+    """Build one unambiguous UTF-16 fixture span from its source text."""
+    selected = source_text if selected_text is None else selected_text
+    start_index = source_text.index(selected)
+    if source_text.find(selected, start_index + 1) >= 0:
+        raise ValueError("golden fixture span text must identify one source occurrence")
+    start_utf16 = utf16_len(source_text[:start_index])
+    return Span(
+        event_id=event_id,
+        start_utf16=start_utf16,
+        end_utf16=start_utf16 + utf16_len(selected),
+        text=selected,
+    )
+
+
+def _lookup_delegate_attempt(event_id: str, source_text: str, fact_text: str) -> DelegateAction:
+    """Construct a golden lookup with one shared fact/query value."""
+    if fact_text.endswith((".", "?", "!")):
+        raise ValueError("golden delegate fact retains sentence-closing punctuation")
+    return DelegateAction(
+        type="delegate",
+        fact=_span(event_id, source_text, fact_text),
+        tool="lookup",
+        args={"query": fact_text},
+    )
+
+
+def _validated_attempts(actions: list[object]) -> list[dict[str, object]]:
+    """Round every scripted fixture action through the closed production adapter."""
+    return [
+        ACTION_ADAPTER.validate_python(action).model_dump(mode="json")
+        for action in actions
+    ]
+
+
 def manifest_for(name: str) -> dict[str, object]:
     """Return the reviewed control fixture for one trace, separate from all lanes."""
     config = RuntimeConfig()
@@ -109,18 +145,14 @@ def manifest_for(name: str) -> dict[str, object]:
         ]
         tool_scripts: list[dict[str, object]] = []
     elif name == "timer_cancel_race":
+        schedule_text = "remind me every second to breathe"
         policy_attempts = [
-            {
-                "type": "schedule",
-                "instruction": {
-                    "event_id": "e_000002",
-                    "start_utf16": 0,
-                    "end_utf16": 20,
-                    "text": "remind me to breathe",
-                },
-                "interval_ms": 1_000,
-                "message": "breathe",
-            },
+            ScheduleAction(
+                type="schedule",
+                instruction=_span("e_000002", schedule_text),
+                interval_ms=1_000,
+                message="breathe",
+            ),
             {"type": "idle", "reason": "no_trigger", "related_event_id": None},
             {
                 "type": "cancel",
@@ -139,7 +171,7 @@ def manifest_for(name: str) -> dict[str, object]:
             {"op": "bootstrap"},
             _snapshot_step(
                 "e_000002",
-                _frame("remind me to breathe", activity="paused", client_ts=1),
+                _frame(schedule_text, activity="paused", client_ts=1),
             ),
             {"op": "drain"},
             {"op": "advance_ms", "ms": 1_000},
@@ -149,23 +181,14 @@ def manifest_for(name: str) -> dict[str, object]:
         ]
         tool_scripts = []
     elif name == "tool_integrate":
+        lookup_text = "lookup nonce"
         policy_attempts = [
-            {
-                "type": "delegate",
-                "fact": {
-                    "event_id": "e_000002",
-                    "start_utf16": 0,
-                    "end_utf16": 12,
-                    "text": "lookup nonce",
-                },
-                "tool": "lookup",
-                "args": {"query": "nonce"},
-            },
+            _lookup_delegate_attempt("e_000002", lookup_text, "nonce"),
             {"type": "integrate", "result_event_id": "e_000005", "text": "nonce n-42"},
         ]
         steps = [
             {"op": "bootstrap"},
-            _snapshot_step("e_000002", _frame("lookup nonce", activity="paused", client_ts=1)),
+            _snapshot_step("e_000002", _frame(lookup_text, activity="paused", client_ts=1)),
             {"op": "drain"},
             {"op": "advance_ms", "ms": 100},
             {"op": "deliver_due", "expect_ingress_ids": ["e_000005"]},
@@ -193,7 +216,7 @@ def manifest_for(name: str) -> dict[str, object]:
         "format": TRACE_FORMAT,
         "name": name,
         "config": config.as_json_object(),
-        "policy_attempts": policy_attempts,
+        "policy_attempts": _validated_attempts(policy_attempts),
         "tool_scripts": tool_scripts,
         "steps": steps,
     }

@@ -22,10 +22,10 @@
   "policy_attempts": [
     {
       "instruction": {
-        "end_utf16": 20,
+        "end_utf16": 33,
         "event_id": "e_000002",
         "start_utf16": 0,
-        "text": "remind me to breathe"
+        "text": "remind me every second to breathe"
       },
       "interval_ms": 1000,
       "message": "breathe",
@@ -67,7 +67,7 @@
     {
       "expect_ingress_id": "e_000002",
       "op": "snapshot",
-      "payload_b64": "eyJ0ZXh0IjoicmVtaW5kIG1lIHRvIGJyZWF0aGUiLCJzZWxlY3Rpb25fc3RhcnQiOjIwLCJzZWxlY3Rpb25fZW5kIjoyMCwiaXNfY29tcG9zaW5nIjpmYWxzZSwiaW5wdXRfdHlwZSI6Imluc2VydFRleHQiLCJhY3Rpdml0eSI6InBhdXNlZCIsImNsaWVudF90cyI6MX0="
+      "payload_b64": "eyJ0ZXh0IjoicmVtaW5kIG1lIGV2ZXJ5IHNlY29uZCB0byBicmVhdGhlIiwic2VsZWN0aW9uX3N0YXJ0IjozMywic2VsZWN0aW9uX2VuZCI6MzMsImlzX2NvbXBvc2luZyI6ZmFsc2UsImlucHV0X3R5cGUiOiJpbnNlcnRUZXh0IiwiYWN0aXZpdHkiOiJwYXVzZWQiLCJjbGllbnRfdHMiOjF9"
     },
     {
       "op": "drain"

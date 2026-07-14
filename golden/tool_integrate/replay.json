@@ -27,8 +27,8 @@
       "fact": {
         "end_utf16": 12,
         "event_id": "e_000002",
-        "start_utf16": 0,
-        "text": "lookup nonce"
+        "start_utf16": 7,
+        "text": "nonce"
       },
       "tool": "lookup",
       "type": "delegate"
