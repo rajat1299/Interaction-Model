@@ -1,5 +1,6 @@
 """Phase 1 split-safe atomic asset registry."""
 
+from im.assets.expansion import AssetExpansionError, ExpansionRequest, import_expanded_asset
 from im.assets.model import (
     AssetKind,
     AssetProvenance,
@@ -25,14 +26,24 @@ from im.assets.registry import (
     load_registry_jsonl,
     render_registry_jsonl,
 )
+from im.assets.seeds import (
+    SeedPools,
+    build_seed_pools,
+    build_seed_registry,
+)
 from im.assets.validate import (
     AssetValidationError,
     create_split_seal,
+    load_split_seal_json,
+    load_verified_registry_seals,
+    render_split_seal_json,
+    select_template_review_assets,
     verify_split_seal,
 )
 
 __all__ = [
     "AssetBundle",
+    "AssetExpansionError",
     "AssetKind",
     "AssetProvenance",
     "AssetRecord",
@@ -40,10 +51,12 @@ __all__ = [
     "AssetRegistryError",
     "AssetValidationError",
     "CorpusFamily",
+    "ExpansionRequest",
     "LookupAssetPayload",
     "ReviewDecision",
     "ReviewFlag",
     "ReviewRecord",
+    "SeedPools",
     "Split",
     "SplitPool",
     "SplitSeal",
@@ -52,8 +65,15 @@ __all__ = [
     "TextForm",
     "TimerAssetPayload",
     "TimerForm",
+    "import_expanded_asset",
+    "build_seed_pools",
+    "build_seed_registry",
     "create_split_seal",
     "load_registry_jsonl",
+    "load_split_seal_json",
+    "load_verified_registry_seals",
     "render_registry_jsonl",
+    "render_split_seal_json",
+    "select_template_review_assets",
     "verify_split_seal",
 ]

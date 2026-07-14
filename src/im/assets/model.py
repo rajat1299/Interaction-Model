@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
 from typing import Annotated, Literal
@@ -17,6 +18,11 @@ from pydantic import (
 
 Digest = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
 AssetId = Annotated[str, StringConstraints(pattern=r"^a_[a-z0-9][a-z0-9_-]{2,63}$")]
+ReviewerId = Annotated[str, StringConstraints(min_length=1, max_length=256)]
+ReviewTimestamp = Annotated[
+    str,
+    StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"),
+]
 
 
 class _StrictModel(BaseModel):
@@ -253,12 +259,20 @@ class AssetRecord(_StrictModel):
 class ReviewRecord(_StrictModel):
     asset_id: AssetId
     content_sha256: Digest
+    reviewer_id: ReviewerId
+    reviewed_at_utc: ReviewTimestamp
     decision: ReviewDecision
     flags: tuple[ReviewFlag, ...] = ()
     note: str = ""
 
     @model_validator(mode="after")
     def validate_decision(self) -> ReviewRecord:
+        if self.reviewer_id.strip() != self.reviewer_id:
+            raise ValueError("reviewer_id must be trimmed")
+        try:
+            datetime.strptime(self.reviewed_at_utc, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError as error:
+            raise ValueError("reviewed_at_utc must be a valid UTC timestamp") from error
         if tuple(sorted(set(self.flags), key=str)) != self.flags:
             raise ValueError("review flags must be sorted and unique")
         if (self.decision is ReviewDecision.APPROVED) == bool(self.flags):

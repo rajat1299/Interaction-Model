@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from pydantic import ValidationError
 
 from im.assets import (
@@ -53,8 +54,24 @@ def approved(value: AssetRecord) -> ReviewRecord:
     return ReviewRecord(
         asset_id=value.asset_id,
         content_sha256=value.content_sha256,
+        reviewer_id="user:phase1-reviewer",
+        reviewed_at_utc="2026-07-14T18:00:00Z",
         decision=ReviewDecision.APPROVED,
     )
+
+
+def test_review_records_require_persisted_reviewer_attribution() -> None:
+    value = asset("a_test_review_identity", Split.TEST, "reviewed text")
+    record = approved(value)
+    payload = record.model_dump(mode="json")
+
+    without_reviewer = {**payload}
+    without_reviewer.pop("reviewer_id")
+    with pytest.raises(ValidationError):
+        ReviewRecord.model_validate(without_reviewer)
+
+    with pytest.raises(ValidationError, match="valid UTC timestamp"):
+        ReviewRecord.model_validate({**payload, "reviewed_at_utc": "2026-02-30T18:00:00Z"})
 
 
 def test_corpus_families_are_the_exact_build_plan_eleven() -> None:
@@ -119,6 +136,8 @@ def test_stale_review_does_not_approve_changed_content() -> None:
     stale = ReviewRecord(
         asset_id=value.asset_id,
         content_sha256="sha256:" + "b" * 64,
+        reviewer_id="user:phase1-reviewer",
+        reviewed_at_utc="2026-07-14T18:00:00Z",
         decision=ReviewDecision.APPROVED,
     )
     registry = AssetRegistry(assets=(value,), reviews=(stale,))

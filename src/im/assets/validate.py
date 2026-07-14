@@ -6,9 +6,13 @@ import math
 import re
 import unicodedata
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from enum import StrEnum
 from hashlib import sha256
+
+from pydantic import ValidationError
 
 from im.assets.model import (
     AssetProvenance,
@@ -25,8 +29,9 @@ from im.assets.model import (
     TimerAssetPayload,
     TimerForm,
     artifact_digest,
+    canonical_artifact_bytes,
 )
-from im.assets.registry import AssetRegistry
+from im.assets.registry import AssetRegistry, AssetRegistryError, load_registry_jsonl
 
 _WHITESPACE = re.compile(r"\s+")
 _DIRECTIVE = re.compile(
@@ -40,6 +45,8 @@ _UNSUPPORTED_TIMER = re.compile(
     re.IGNORECASE,
 )
 _QUOTE_PAIRS = (('"', '"'), ("“", "”"))
+_TEMPLATE_SLOT = re.compile(r"\{[a-z_][a-z0-9_]*\}", re.IGNORECASE)
+_TEMPLATE_TOKEN = re.compile(r"\{seed\}|\w+")
 
 
 class IssueSeverity(StrEnum):
@@ -53,6 +60,7 @@ class IssueCode(StrEnum):
     CROSS_SPLIT_NORMALIZED = "cross_split_normalized_duplicate"
     CROSS_SPLIT_PROTECTED = "cross_split_protected_value"
     CROSS_SPLIT_TEMPLATE = "cross_split_template_duplicate"
+    CROSS_SPLIT_TEMPLATE_SKELETON = "cross_split_template_skeleton"
     NEAR_DUPLICATE = "near_duplicate"
     ACCIDENTAL_INSTRUCTION = "accidental_instruction"
     MALFORMED_QUOTATION = "malformed_quotation"
@@ -167,6 +175,19 @@ def _ngrams(value: str, size: int = 5) -> frozenset[str]:
     )
 
 
+def _template_skeleton(value: str) -> str:
+    """Keep a grammar's structure while ignoring its named seed placeholder."""
+    return _TEMPLATE_SLOT.sub("{seed}", _normalize(value))
+
+
+def _contains_normalized_phrase(text: str, phrase: str) -> bool:
+    return bool(re.search(rf"(?<!\w){re.escape(_normalize(phrase))}(?!\w)", _normalize(text)))
+
+
+def _template_structure(value: str) -> tuple[str, ...]:
+    return tuple(_TEMPLATE_TOKEN.findall(_template_skeleton(value)))
+
+
 def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
     union = left | right
     return len(left & right) / len(union) if union else 1.0
@@ -221,9 +242,12 @@ def validate_registry(
     exact: dict[str, list[AssetRecord]] = defaultdict(list)
     normalized: dict[str, list[AssetRecord]] = defaultdict(list)
     protected: dict[str, list[AssetRecord]] = defaultdict(list)
+    protected_claims: list[tuple[AssetRecord, str]] = []
+    text_values: list[tuple[AssetRecord, str]] = []
     long_texts: list[tuple[AssetRecord, str, frozenset[str]]] = []
     for asset in registry.assets:
         for field, value in _text_fields(asset):
+            text_values.append((asset, value))
             exact[value].append(asset)
             normalized[_normalize(value)].append(asset)
             if len(_normalize(value)) >= near_duplicate_min_chars:
@@ -248,6 +272,7 @@ def validate_registry(
                 )
         for value in asset.protected_values:
             protected[_normalize(value)].append(asset)
+            protected_claims.append((asset, value))
 
         payload = asset.payload
         if isinstance(payload, TextAssetPayload):
@@ -339,6 +364,19 @@ def validate_registry(
                     )
                 )
 
+    for owner, phrase in protected_claims:
+        for other, text in text_values:
+            if owner.split is other.split or not _contains_normalized_phrase(text, phrase):
+                continue
+            issues.add(
+                _issue(
+                    IssueSeverity.ERROR,
+                    IssueCode.CROSS_SPLIT_PROTECTED,
+                    (owner, other),
+                    f"protected phrase appears in another split: {_normalize(phrase)[:80]!r}",
+                )
+            )
+
     grammar_groups: dict[str, list[AssetRecord]] = defaultdict(list)
     for template in registry.assets:
         if isinstance(template.payload, TemplateAssetPayload):
@@ -353,6 +391,35 @@ def validate_registry(
                     f"cross-split normalized template grammar: {grammar[:80]!r}",
                 )
             )
+
+    templates = [
+        asset for asset in registry.assets if isinstance(asset.payload, TemplateAssetPayload)
+    ]
+    for index, left in enumerate(templates):
+        for right in templates[index + 1 :]:
+            if left.split is right.split:
+                continue
+            left_structure = _template_structure(left.payload.grammar)
+            right_structure = _template_structure(right.payload.grammar)
+            shorter, longer = sorted((left_structure, right_structure), key=len)
+            contained = any(
+                longer[offset : offset + len(shorter)] == shorter
+                for offset in range(len(longer) - len(shorter) + 1)
+            )
+            shared_run = (
+                SequenceMatcher(None, left_structure, right_structure, autojunk=False)
+                .find_longest_match()
+                .size
+            )
+            if contained or shared_run >= 5:
+                issues.add(
+                    _issue(
+                        IssueSeverity.ERROR,
+                        IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON,
+                        (left, right),
+                        f"cross-split template shared structural run: {shared_run}",
+                    )
+                )
 
     # Phase 1 pools are intentionally small. Replace this quadratic comparison
     # only if measured corpus scale makes a real index necessary.
@@ -411,11 +478,61 @@ def verify_split_seal(registry: AssetRegistry, seal: SplitSeal) -> None:
         )
 
 
-def _review_stratum(asset: AssetRecord) -> tuple[object, ...]:
+def render_split_seal_json(seal: SplitSeal) -> bytes:
+    """Render the canonical persisted form of a reviewed split seal."""
+    return canonical_artifact_bytes(seal.model_dump(mode="json"))
+
+
+def load_split_seal_json(data: bytes) -> SplitSeal:
+    """Load only a canonical persisted split seal."""
+    if not isinstance(data, bytes):
+        raise TypeError("split seal JSON must be bytes")
+    try:
+        seal = SplitSeal.model_validate_json(data)
+    except (ValidationError, ValueError) as error:
+        raise AssetValidationError("invalid split seal JSON") from error
+    if render_split_seal_json(seal) != data:
+        raise AssetValidationError("split seal JSON is not canonical")
+    return seal
+
+
+def load_verified_registry_seals(
+    registry_jsonl: bytes,
+    seal_jsons: Iterable[bytes],
+) -> tuple[AssetRegistry, tuple[SplitSeal, ...]]:
+    """Load canonical external review evidence and verify every supplied seal."""
+    try:
+        registry = load_registry_jsonl(registry_jsonl)
+    except AssetRegistryError as error:
+        raise AssetValidationError("invalid reviewed registry JSONL") from error
+    seals = tuple(load_split_seal_json(data) for data in seal_jsons)
+    if len({seal.split for seal in seals}) != len(seals):
+        raise AssetValidationError("duplicate split seal")
+    if {seal.split for seal in seals} != {Split.TEST, Split.DEMO}:
+        raise AssetValidationError("persisted seals do not match the required splits")
+    for seal in seals:
+        verify_split_seal(registry, seal)
+    return registry, seals
+
+
+def _atomic_review_strata(asset: AssetRecord) -> frozenset[tuple[str, str, str]]:
+    """Return actual atomic `(family, kind, form)` strata for train review."""
     payload = asset.payload
-    form = payload.form if isinstance(payload, (TextAssetPayload, TimerAssetPayload)) else None
-    expands_kind = payload.expands_kind if isinstance(payload, TemplateAssetPayload) else None
-    return (asset.payload.kind, form, expands_kind, asset.coverage)
+    if isinstance(payload, TemplateAssetPayload):
+        return frozenset()
+    form = "none"
+    if isinstance(payload, (TextAssetPayload, TimerAssetPayload)):
+        form = str(payload.form)
+    return frozenset((str(family), str(payload.kind), form) for family in asset.coverage)
+
+
+def select_template_review_assets(registry: AssetRegistry) -> tuple[str, ...]:
+    """Return the independent deterministic template-review population."""
+    return tuple(
+        asset.asset_id
+        for asset in registry.assets
+        if isinstance(asset.payload, TemplateAssetPayload)
+    )
 
 
 def select_review_assets(
@@ -427,15 +544,18 @@ def select_review_assets(
     """Select the ratified tiered review population deterministically."""
     if not 0.10 <= train_fraction <= 0.20:
         raise ValueError("train review fraction must stay inside the ratified 10-20% band")
-    corpus_records = tuple(
-        asset for asset in registry.assets if asset.provenance is not AssetProvenance.RECORDED
+    atomic_records = tuple(
+        asset
+        for asset in registry.assets
+        if asset.provenance is not AssetProvenance.RECORDED
+        and not isinstance(asset.payload, TemplateAssetPayload)
     )
     selected = {
-        asset.asset_id for asset in corpus_records if asset.split in {Split.TEST, Split.DEMO}
+        asset.asset_id for asset in atomic_records if asset.split in {Split.TEST, Split.DEMO}
     }
     selected.update(
         asset.asset_id
-        for asset in corpus_records
+        for asset in atomic_records
         if asset.split is Split.DEV
         and (
             asset.asset_id in report.flagged_asset_ids
@@ -445,35 +565,38 @@ def select_review_assets(
             )
         )
     )
-    train = [asset for asset in corpus_records if asset.split is Split.TRAIN]
-    strata: dict[tuple[object, ...], list[AssetRecord]] = defaultdict(list)
-    for asset in train:
-        strata[_review_stratum(asset)].append(asset)
+    train = [asset for asset in atomic_records if asset.split is Split.TRAIN]
     minimum_count = math.ceil(len(train) * 0.10)
     maximum_count = math.floor(len(train) * 0.20)
     if minimum_count > maximum_count:
         raise AssetValidationError("train pool has no integer review sample inside the 10-20% band")
-    if len(strata) > maximum_count:
-        raise AssetValidationError(
-            "train pool is too small to cover every semantic review stratum inside 20%"
-        )
     preferred_count = math.floor(len(train) * train_fraction + 0.5)
-    sample_count = max(
-        min(max(preferred_count, minimum_count), maximum_count),
-        len(strata),
-    )
     ranked = sorted(
         train,
         key=lambda asset: sha256(f"phase1-review-v1\0{asset.asset_id}".encode()).digest(),
     )
-    stratum_winners = {
-        min(
-            assets,
-            key=lambda asset: sha256(f"phase1-review-v1\0{asset.asset_id}".encode()).digest(),
-        ).asset_id
-        for assets in strata.values()
-    }
-    train_selected = set(stratum_winners)
+    rank_by_id = {asset.asset_id: index for index, asset in enumerate(ranked)}
+    labels_by_id = {asset.asset_id: _atomic_review_strata(asset) for asset in train}
+    uncovered = set().union(*labels_by_id.values()) if labels_by_id else set()
+    train_selected: set[str] = set()
+    while uncovered:
+        candidate = min(
+            (asset for asset in ranked if asset.asset_id not in train_selected),
+            key=lambda asset: (
+                -len(labels_by_id[asset.asset_id] & uncovered),
+                rank_by_id[asset.asset_id],
+            ),
+        )
+        train_selected.add(candidate.asset_id)
+        uncovered -= labels_by_id[candidate.asset_id]
+    sample_count = max(
+        min(max(preferred_count, minimum_count), maximum_count),
+        len(train_selected),
+    )
+    if sample_count > maximum_count:
+        raise AssetValidationError(
+            "train pool is too small to cover every semantic review stratum inside 20%"
+        )
     for asset in ranked:
         if len(train_selected) == sample_count:
             break

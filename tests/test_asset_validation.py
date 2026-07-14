@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from im.assets import (
+    AssetKind,
     AssetProvenance,
     AssetRecord,
     AssetRegistry,
@@ -9,6 +10,7 @@ from im.assets import (
     ReviewFlag,
     ReviewRecord,
     Split,
+    TemplateAssetPayload,
     TextAssetPayload,
     TextForm,
     TimerAssetPayload,
@@ -79,6 +81,36 @@ def test_exact_normalized_and_protected_cross_split_reuse_are_hard_errors() -> N
 
     assert IssueCode.CROSS_SPLIT_NORMALIZED in {issue.code for issue in report.errors}
     assert IssueCode.CROSS_SPLIT_PROTECTED in {issue.code for issue in report.errors}
+
+
+def test_protected_phrase_scan_checks_other_split_content_at_token_boundaries() -> None:
+    test = text_asset(
+        "a_test_protected_phrase",
+        Split.TEST,
+        "A silver bookmark shifted beside the atlas.",
+        protected=("silver bookmark",),
+    )
+    reused = text_asset(
+        "a_train_hidden_reuse",
+        Split.TRAIN,
+        "The revision moves the SILVER   BOOKMARK into a new sentence.",
+    )
+    substring = text_asset(
+        "a_dev_non_boundary",
+        Split.DEV,
+        "The silvers bookmarker entry is unrelated.",
+    )
+
+    report = validate_registry(
+        AssetRegistry(assets=(test, reused, substring)),
+        require_all_families=False,
+    )
+    protected_issues = tuple(
+        issue for issue in report.errors if issue.code is IssueCode.CROSS_SPLIT_PROTECTED
+    )
+
+    assert any(reused.asset_id in issue.asset_ids for issue in protected_issues)
+    assert all(substring.asset_id not in issue.asset_ids for issue in protected_issues)
 
 
 def test_near_duplicates_are_deterministic_review_signals() -> None:
@@ -208,6 +240,8 @@ def test_review_selection_is_all_test_demo_flagged_dev_and_stable_15_percent_tra
     dev_review = ReviewRecord(
         asset_id=dev.asset_id,
         content_sha256=dev.content_sha256,
+        reviewer_id="phase1-human-reviewer",
+        reviewed_at_utc="2026-07-14T12:00:00Z",
         decision=ReviewDecision.FLAGGED,
         flags=(ReviewFlag.MANUAL,),
     )
@@ -251,3 +285,131 @@ def test_train_review_selection_never_rounds_past_twenty_percent() -> None:
     report = validate_registry(registry, require_all_families=False)
 
     assert len(select_review_assets(registry, report)) == 1
+
+
+def test_train_review_selection_covers_every_family_without_cross_product_bloat() -> None:
+    train = tuple(
+        text_asset(
+            f"a_train_family_{family_index:02d}_{example_index}",
+            Split.TRAIN,
+            f"family {family_index} example {example_index}",
+            coverage=(family,),
+        )
+        for family_index, family in enumerate(CorpusFamily)
+        for example_index in range(5)
+    )
+    registry = AssetRegistry(assets=train)
+    report = validate_registry(registry)
+    selected_ids = set(select_review_assets(registry, report))
+    selected = [asset for asset in train if asset.asset_id in selected_ids]
+
+    assert len(selected) == 11
+    assert {family for asset in selected for family in asset.coverage} == set(CorpusFamily)
+
+
+def test_template_skeletons_reject_shared_stem_with_split_specific_suffixes() -> None:
+    train_seed = text_asset("a_train_template_seed", Split.TRAIN, "train seed")
+    dev_seed = text_asset("a_dev_template_seed", Split.DEV, "dev seed")
+    train_template = AssetRecord.build(
+        asset_id="a_train_template_skeleton",
+        split=Split.TRAIN,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TEXT,
+            grammar="Use {seed} in the shared grammar. Train lexical branch.",
+            seed_asset_ids=(train_seed.asset_id,),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.NEUTRAL_TYPING,),
+    )
+    dev_template = AssetRecord.build(
+        asset_id="a_dev_template_skeleton",
+        split=Split.DEV,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TEXT,
+            grammar="Use {seed} in the shared grammar. Development lexical branch.",
+            seed_asset_ids=(dev_seed.asset_id,),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.NEUTRAL_TYPING,),
+    )
+
+    assert IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON in issue_codes(
+        AssetRegistry(assets=(train_seed, dev_seed, train_template, dev_template))
+    )
+
+
+def test_template_skeletons_compare_different_families_and_payload_kinds() -> None:
+    train_seed = text_asset("a_train_cross_family_seed", Split.TRAIN, "train seed")
+    dev_seed = text_asset(
+        "a_dev_cross_family_seed",
+        Split.DEV,
+        "dev seed",
+        coverage=(CorpusFamily.MARK_POSITIVE,),
+    )
+    demo_seed = AssetRecord.build(
+        asset_id="a_demo_cross_kind_seed",
+        split=Split.DEMO,
+        payload=TimerAssetPayload(
+            instruction="Remind me every eleven minutes to check the violet compass.",
+            form=TimerForm.SUPPORTED,
+            interval_ms=660_000,
+            message="check the violet compass",
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.TIMER_NORMAL,),
+    )
+    train_template = AssetRecord.build(
+        asset_id="a_train_cross_scope_template",
+        split=Split.TRAIN,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TEXT,
+            grammar="Use {seed} in this shared structural stem. Train suffix.",
+            seed_asset_ids=(train_seed.asset_id,),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.NEUTRAL_TYPING,),
+    )
+    dev_template = AssetRecord.build(
+        asset_id="a_dev_cross_family_template",
+        split=Split.DEV,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TEXT,
+            grammar="Use {seed} in this shared structural stem. Development suffix.",
+            seed_asset_ids=(dev_seed.asset_id,),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.MARK_POSITIVE,),
+    )
+    demo_template = AssetRecord.build(
+        asset_id="a_demo_cross_kind_template",
+        split=Split.DEMO,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TIMER,
+            grammar="Use {seed} in this shared structural stem. Demo suffix.",
+            seed_asset_ids=(demo_seed.asset_id,),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.TIMER_NORMAL,),
+    )
+
+    report = validate_registry(
+        AssetRegistry(
+            assets=(
+                train_seed,
+                dev_seed,
+                demo_seed,
+                train_template,
+                dev_template,
+                demo_template,
+            )
+        ),
+        require_all_families=False,
+    )
+    skeleton_pairs = {
+        issue.asset_ids
+        for issue in report.errors
+        if issue.code is IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON
+    }
+
+    assert tuple(sorted((train_template.asset_id, dev_template.asset_id))) in skeleton_pairs
+    assert tuple(sorted((train_template.asset_id, demo_template.asset_id))) in skeleton_pairs
