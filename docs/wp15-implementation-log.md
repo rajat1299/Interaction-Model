@@ -239,6 +239,58 @@
   cache. A pilot must include at least three requests and deterministically covers generation,
   pairwise, and listwise request shapes.
 
+## 2026-07-13 — Completed Batch run and independent adjudication
+
+### Empirical outcome
+
+- The provider completed all 1,152 primary protocol requests and all 22 derived semantic-rubric
+  requests. No validation-correction stage was required. One historical 72-request P0 job failed
+  before executing any item; every one of its logical requests was subsequently completed exactly
+  once after resharding.
+- The generated frozen-gate report is a failure: schema validity and position bias pass; restraint,
+  per-probe paraphrase spread, and frozen-gold mechanical exactness fail. The original report remains
+  unchanged so its claims can be audited against the exact run that produced them.
+- The decisive behavior failure is narrow and repeated. On all six active-floor family-10 probes,
+  Terra generated a `respond` blocked by `floor_owned`, chose that response in all 36 pairwise
+  presentations, and ranked it first in all six listwise presentations. Every yielded twin was
+  correct, isolating floor ownership as the failed distinction.
+
+### Independent review findings
+
+- Independent Sol and Claude reviews reconciled every denominator, request identity, usage total,
+  artifact hash, and representative raw output. Claude also verified SQLite integrity and a broader
+  62-test harness filter. No evidence suggests a provider-join, reference, license, or report-input
+  corruption.
+- The approved schedule-message rule is underspecified at terminal punctuation. Five Terra
+  schedules retained the source sentence's final period while the gold removed it. The historical
+  18/24 mechanical score is preserved; treating those five outputs as non-errors yields an
+  adjudicated 22/24 (91.67%), which passes that gate.
+- The per-probe paraphrase metric is faithful to the approved implementation but too coarsely
+  sampled for a “50% collapse” interpretation: two candidate orders quantize each variant to 0%,
+  50%, or 100%. Family-level spread still fails honestly at 12.5 percentage points for family 5.
+- Exact delegate query construction is not defined in the behavior spec even though the WP14 gold
+  grades it exactly. The next candidate must define one canonical fact-span/query extraction rule;
+  runtime query rewriting would create the prohibited second semantic path.
+- Two latent harness defects did not affect this corpus: identical request bytes under different
+  logical presentations are not shared, and non-executed semantic assessments enter the semantic
+  denominator. Both require ordinary code corrections before the next run.
+
+### Provenance and next experiment
+
+- `wp15-gpt-5.6-terra-high-batch.provenance.json` binds the committed report to the ignored local
+  raw summary, SQLite ledger, launch logs, all 23 Batch jobs, the execution commit, the approved
+  WP14 hashes, exact provider usage, and the zero-execution recovery lineage.
+- Before another full run: amend the behavior contract, regenerate the hash-dependent WP14
+  artifacts without silently changing gold meaning, obtain renewed human sign-off, and fix the
+  metrics/harness defects. Then run a small pre-registered active-floor diagnostic with yielded and
+  non-floor controls. No further paid call is authorized merely by this log entry.
+
+### Open questions
+
+- Whether Terra can clear the active-floor diagnostic under a general prompt correction. If not,
+  the principled fallback is a documented narrower recognition role plus human-labeled floor
+  boundaries, not a license shim or post-hoc reinterpretation of `activity=active`.
+
 ### Review outcome
 
 - The first Batch-focused Sol pass found cap-change resubmission, unrecoverable per-item provider
