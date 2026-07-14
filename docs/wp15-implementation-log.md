@@ -405,3 +405,47 @@
 - Partial, charged, artifact-bearing, differently coded, or otherwise failed Batches do not satisfy
   this exception and continue to stop the run. An adversarial regression covers the zero-execution
   recovery and successful smaller-cap continuation.
+
+## 2026-07-14 — Pre-registered active-floor diagnostic
+
+### Population and hypothesis separation
+
+- Diagnostic spec identity:
+  `sha256:c1a960f570b63a62d6bb4fcaf1e40581ae2fcc9f2deeb97f60e580a3349b288d`.
+- The target stratum is every Family 10 active-floor state (`f10-t01-a` through `f10-t06-a`).
+  The matched release stratum is every yielded twin (`f10-t01-b` through `f10-t06-b`).
+- The non-floor control stratum is every Family 7 active-typing nudge state (`f07-t01-a` through
+  `f07-t06-a`). These controls distinguish correct response restraint from an overbroad rule that
+  suppresses every action while activity is active. All six controls are included to avoid
+  selecting favorable examples.
+- Every probe uses the signed WP15 presentation shape: one v1 generation, all three pairwise
+  paraphrases in both candidate positions, and one v1 listwise ranking. That is 144 primary calls;
+  six structurally eligible yielded responses add six semantic graders, for 150 passing-path calls.
+  The existing one-correction rule gives an absolute 300-call ceiling. Diagnostic mode forbids
+  explicit provider retries; any indeterminate Batch state stops for adjudication instead of
+  adding an unbounded `.rN` path.
+- Model configuration is frozen as `gpt-5.6-terra`, high reasoning, and 8,192 maximum output tokens.
+  Changing any of those values fails locally before request planning.
+
+### Frozen gates
+
+- Each of the three strata must pass generation `6/6`, pairwise `36/36`, and listwise top-1 plus
+  expected-above-tempting `6/6` independently. The six yielded semantic graders must pass `6/6`.
+- All 18 generations must be schema-valid, reference-valid, and license-allowed. Pairwise expected
+  A and expected B must each pass `54/54`; each Family 10 paraphrase variant necessarily passes
+  `24/24`. The gates are conjunctive and are never replaced by a pooled headline rate.
+- Results use a new isolated diagnostic cache. Historical synchronous, pilot, and full-Batch caches
+  are ineligible. The report binds the diagnostic-spec hash, signed manifest/review hashes,
+  repository commit, input/output/error artifact hashes, Batch IDs, total and final-invocation
+  provider usage, and pinned-pricing charge.
+
+### Offline plan and cost
+
+- The approved manifest produces exactly 18 generation, 108 pairwise, 18 listwise, and six expected
+  semantic requests. Estimated billed input is 2,040,049 tokens and expected output is 35,700.
+- Pinned no-cache Batch cost is `$2.817811250`; the exact execution-consent threshold is twice that
+  estimate (`$5.635622500`), and the launch acknowledgement rounds safely upward to `$5.64`. This
+  is an acknowledgement bound, not a provider-enforced spending cap.
+- Under the observed 900,000-token queue limit, the 144 primary calls deterministically shard as
+  60, 61, and 23 requests at 890,004, 893,288, and 342,533 estimated tokens. No API call occurred
+  while producing this plan.
