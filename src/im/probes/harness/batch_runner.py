@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Collection
 from dataclasses import dataclass, replace
 
 from pydantic import ValidationError
@@ -13,6 +14,7 @@ from im.probes.grading import grade_generation_structure
 from im.probes.harness.artifacts import ApprovedProbeCatalog
 from im.probes.harness.batch import (
     BatchArtifactError,
+    BatchDecoder,
     BatchShard,
     BatchWorkItem,
     decode_batch_completion,
@@ -20,6 +22,7 @@ from im.probes.harness.batch import (
     plan_correction,
     plan_primary_work,
     plan_semantic_work,
+    select_primary_work,
     shard_work,
     validation_error_from_completion,
 )
@@ -91,12 +94,14 @@ class BatchProbeHarnessRunner:
         self._jobs: dict[str, BatchJobRecord] = {}
         self._submitted_usage = ProviderUsage()
 
-    async def run(self) -> BatchHarnessResult:
+    async def run(self, *, probe_ids: Collection[str] | None = None) -> BatchHarnessResult:
         primary = plan_primary_work(
             self.catalog,
             self.generation_builder,
             self.prompts,
         )
+        if probe_ids is not None:
+            primary = select_primary_work(primary, probe_ids)
         await self._execute_stage("p0", primary)
         primary_corrections = self._plan_corrections(primary)
         await self._execute_stage("p1", primary_corrections)
@@ -112,7 +117,7 @@ class BatchProbeHarnessRunner:
             prompts=self.prompts,
             backend=_CacheOnlyBackend(),
             cache=self.cache,
-        ).run()
+        ).run(probe_ids=probe_ids)
         return BatchHarnessResult(
             run=run,
             jobs=tuple(
@@ -180,9 +185,15 @@ class BatchProbeHarnessRunner:
         self,
         primary: tuple[BatchWorkItem, ...],
     ) -> tuple[BatchWorkItem, ...]:
-        generation = {item.identity.probe_id: item for item in primary[:144]}
+        generation = {
+            item.identity.probe_id: item
+            for item in primary
+            if item.decoder is BatchDecoder.ACTION
+        }
         semantic: list[BatchWorkItem] = []
         for probe in self.catalog.manifest.probes:
+            if probe.probe_id not in generation:
+                continue
             variant = probe.variants[0]
             expected = grade_generation_structure(
                 variant.expected_action,

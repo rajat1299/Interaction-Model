@@ -33,6 +33,10 @@ from im.probes.harness.batch_runner import (
     materialize_batch_stage,
 )
 from im.probes.harness.cache import HarnessCache
+from im.probes.harness.diagnostic import (
+    DIAGNOSTIC_PROBE_IDS,
+    compute_diagnostic_metrics,
+)
 from im.probes.harness.metrics import compute_metrics
 from im.probes.harness.models import HarnessCompletion
 from im.probes.harness.protocols import ProtocolPromptBuilder
@@ -247,6 +251,44 @@ async def test_full_batch_oracle_matches_shared_wp15_grading_and_resumes(
     assert second.run == first.run
     assert second.jobs == first.jobs
     assert second.submitted_this_invocation_usage.input_tokens == 0
+
+
+@pytest.mark.asyncio
+async def test_targeted_batch_diagnostic_uses_shared_execution_and_grading(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    catalog = await load_approved_catalog(repository)
+    artifacts = PromptArtifacts.from_repository(repository)
+    config = PromptedPolicyConfig()
+    builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
+    prompts = ProtocolPromptBuilder(artifacts, config)
+    gateway = _OracleBatchGateway(
+        {
+            (probe.probe_id, variant.variant_id): variant.expected_action.model_dump(
+                mode="json"
+            )
+            for probe in catalog.manifest.probes
+            for variant in probe.variants
+        }
+    )
+    with HarnessCache(tmp_path / "diagnostic.sqlite") as cache:
+        result = await BatchProbeHarnessRunner(
+            catalog,
+            generation_builder=builder,
+            prompts=prompts,
+            gateway=gateway,
+            cache=cache,
+            config=BatchHarnessConfig(max_enqueued_tokens=100_000_000),
+        ).run(probe_ids=DIAGNOSTIC_PROBE_IDS)
+
+    assert len(result.run.generation) == 18
+    assert len(result.run.pairwise) == 108
+    assert len(result.run.listwise) == 18
+    assert len(result.run.semantic_text) == 6
+    assert len(result.jobs) == 2
+    assert gateway.upload_count == 2
+    assert compute_diagnostic_metrics(result.run)["all_gates_passed"] is True
 
 
 @pytest.mark.asyncio

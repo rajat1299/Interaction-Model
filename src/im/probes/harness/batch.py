@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -155,6 +156,38 @@ def plan_primary_work(
     if len(items) != 1_152 or len({item.custom_id for item in items}) != len(items):
         raise AssertionError("WP15 primary Batch plan must contain 1,152 unique calls")
     return tuple(items)
+
+
+def select_primary_work(
+    primary: tuple[BatchWorkItem, ...],
+    probe_ids: Collection[str],
+) -> tuple[BatchWorkItem, ...]:
+    """Select complete eight-presentation probe groups from the signed primary plan."""
+    requested = frozenset(probe_ids)
+    if not requested:
+        raise ValueError("primary-work probe selection cannot be empty")
+    selected = tuple(item for item in primary if item.identity.probe_id in requested)
+    if {item.identity.probe_id for item in selected} != requested:
+        raise KeyError("primary-work selection contains an unknown probe id")
+    expected_counts = {
+        BatchDecoder.ACTION: 1,
+        BatchDecoder.PAIRWISE: 6,
+        BatchDecoder.LISTWISE: 1,
+        BatchDecoder.SEMANTIC: 0,
+    }
+    for probe_id in requested:
+        counts = {
+            decoder: sum(
+                item.identity.probe_id == probe_id and item.decoder is decoder
+                for item in selected
+            )
+            for decoder in BatchDecoder
+        }
+        if counts != expected_counts:
+            raise ValueError(
+                f"primary-work presentation counts changed for {probe_id}: {counts}"
+            )
+    return selected
 
 
 def plan_semantic_work(

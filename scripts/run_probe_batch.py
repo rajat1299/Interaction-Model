@@ -35,7 +35,15 @@ from im.probes.harness.batch_runner import (
     materialize_batch_stage,
 )
 from im.probes.harness.cache import HarnessCache
-from im.probes.harness.cost import estimate_harness_cost
+from im.probes.harness.cost import estimate_harness_cost, usage_cost
+from im.probes.harness.diagnostic import (
+    DIAGNOSTIC_PROBE_IDS,
+    DIAGNOSTIC_SPEC,
+    compute_diagnostic_metrics,
+    diagnostic_spec_sha256,
+    render_diagnostic_report,
+    select_diagnostic_work,
+)
 from im.probes.harness.identity import digest
 from im.probes.harness.metrics import compute_metrics
 from im.probes.harness.models import BatchJobRecord
@@ -77,6 +85,11 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--batch-max-enqueued-tokens", type=_positive_int)
     parser.add_argument("--batch-pilot-requests", type=_positive_int)
     parser.add_argument("--batch-poll-seconds", type=_positive_float, default=15)
+    parser.add_argument(
+        "--diagnostic",
+        action="store_true",
+        help="run the pre-registered 150-call active-floor diagnostic",
+    )
     parser.add_argument("--approve-live-estimate-usd", type=_nonnegative_decimal)
     parser.add_argument(
         "--retry-indeterminate-cache-key",
@@ -102,17 +115,41 @@ async def _run(args: argparse.Namespace) -> None:
         ),
         max_output_tokens=int(os.getenv("IM_TEACHER_MAX_OUTPUT_TOKENS", "8192")),
     )
+    if args.diagnostic and args.mode == "pilot":
+        raise RuntimeError("the pre-registered diagnostic cannot be combined with pilot mode")
+    if args.diagnostic and args.retry_indeterminate_cache_key:
+        raise RuntimeError(
+            "the pre-registered diagnostic forbids provider retries; indeterminate state must "
+            "stop for adjudication"
+        )
+    if args.diagnostic and (
+        config.model != DIAGNOSTIC_SPEC["model"]
+        or config.reasoning_effort != DIAGNOSTIC_SPEC["reasoning_effort"]
+        or config.max_output_tokens != DIAGNOSTIC_SPEC["max_output_tokens"]
+    ):
+        raise RuntimeError(
+            "the pre-registered diagnostic requires gpt-5.6-terra, high reasoning, and "
+            "8192 max output tokens"
+        )
+    probe_ids = DIAGNOSTIC_PROBE_IDS if args.diagnostic else None
     catalog = await load_approved_catalog(repository)
     artifacts = PromptArtifacts.from_repository(repository)
     builder = ResponsesRequestBuilder(PromptRenderer(artifacts), config)
     prompts = ProtocolPromptBuilder(artifacts, config)
-    estimate = estimate_harness_cost(catalog, builder, prompts)
+    estimate = estimate_harness_cost(
+        catalog,
+        builder,
+        prompts,
+        probe_ids=probe_ids,
+    )
+    run_suffix = "-diagnostic" if args.diagnostic else ""
     cache_path = _resolve(
         repository,
         args.cache,
         Path(
             f"probes/results/raw/wp15-{config.model.replace('/', '-')}-"
             f"{config.reasoning_effort}-batch"
+            f"{run_suffix}"
             f"{'-pilot' if args.mode == 'pilot' else ''}.sqlite"
         ),
     )
@@ -123,6 +160,9 @@ async def _run(args: argparse.Namespace) -> None:
                 "batch_cache": str(cache_path),
                 "estimate": estimate.as_json(),
                 "manifest_sha256": catalog.manifest_sha256,
+                "diagnostic_spec_sha256": (
+                    diagnostic_spec_sha256() if args.diagnostic else None
+                ),
                 "mode": args.mode,
                 "model": config.model,
                 "reasoning_effort": config.reasoning_effort,
@@ -155,6 +195,8 @@ async def _run(args: argparse.Namespace) -> None:
             f"--mode {args.mode} requires an explicit --batch-max-enqueued-tokens"
         )
     primary = plan_primary_work(catalog, builder, prompts)
+    if args.diagnostic:
+        primary = select_diagnostic_work(primary)
     if args.mode == "plan":
         shards = shard_work(
             "p0",
@@ -211,7 +253,7 @@ async def _run(args: argparse.Namespace) -> None:
     ):
         raise RuntimeError(
             "Batch execution requires --approve-live-estimate-usd at least "
-            f"{approval_ceiling:.6f}; this acknowledges an estimate, not a provider cap"
+            f"{approval_ceiling:.9f}; this acknowledges an estimate, not a provider cap"
         )
 
     _require_clean_tracked_tree(repository)
@@ -280,17 +322,21 @@ async def _run(args: argparse.Namespace) -> None:
                     gateway=gateway,
                     cache=cache,
                     config=batch_config,
-                ).run()
+                ).run(probe_ids=probe_ids)
     finally:
         await gateway.aclose()
 
-    metrics = compute_metrics(result.run)
+    metrics = (
+        compute_diagnostic_metrics(result.run)
+        if args.diagnostic
+        else compute_metrics(result.run)
+    )
     report_path = _resolve(
         repository,
         args.report,
         Path(
             f"probes/results/wp15-{config.model.replace('/', '-')}-"
-            f"{config.reasoning_effort}-batch.md"
+            f"{config.reasoning_effort}-batch{run_suffix}.md"
         ),
     )
     raw_summary_path = _resolve(
@@ -298,25 +344,47 @@ async def _run(args: argparse.Namespace) -> None:
         args.raw_summary,
         Path(
             f"probes/results/raw/wp15-{config.model.replace('/', '-')}-"
-            f"{config.reasoning_effort}-batch-summary.json"
+            f"{config.reasoning_effort}-batch{run_suffix}-summary.json"
         ),
     )
-    report = render_report(
-        result.run,
-        metrics,
-        estimate,
-        run_kind="live-openai-batch",
-        repository_commit=run_commit,
-        billing_multiplier=ModelPricing(model=config.model).batch_multiplier,
-        fresh_usage_override=result.submitted_this_invocation_usage,
-        execution_details=(
-            "- Provider path: OpenAI Batch API targeting `/v1/responses`; no synchronous "
-            "completion is included.",
-            f"- Batch jobs: {len(result.jobs)}.",
-            "- Batch input artifacts: "
-            + ", ".join(job.input_sha256 for job in result.jobs),
-        ),
-    )
+    pricing = ModelPricing(model=config.model)
+    job_summaries = [_job_summary(job) for job in result.jobs]
+    if args.diagnostic:
+        actual_cost = usage_cost(
+            result.run.usage,
+            pricing,
+            billing_multiplier=pricing.batch_multiplier,
+        )
+        report = render_diagnostic_report(
+            metrics=metrics,
+            cost_estimate=estimate.as_json(),
+            actual_cost_usd=f"{actual_cost:.6f}",
+            repository_commit=run_commit,
+            manifest_sha256=catalog.manifest_sha256,
+            review_sha256=catalog.review_sha256,
+            model=config.model,
+            reasoning_effort=config.reasoning_effort,
+            jobs=job_summaries,
+            total_usage=result.run.usage.as_json(),
+            submitted_usage=result.submitted_this_invocation_usage.as_json(),
+        )
+    else:
+        report = render_report(
+            result.run,
+            metrics,
+            estimate,
+            run_kind="live-openai-batch",
+            repository_commit=run_commit,
+            billing_multiplier=pricing.batch_multiplier,
+            fresh_usage_override=result.submitted_this_invocation_usage,
+            execution_details=(
+                "- Provider path: OpenAI Batch API targeting `/v1/responses`; no synchronous "
+                "completion is included.",
+                f"- Batch jobs: {len(result.jobs)}.",
+                "- Batch input artifacts: "
+                + ", ".join(job.input_sha256 for job in result.jobs),
+            ),
+        )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report, encoding="utf-8")
     raw_summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -324,13 +392,18 @@ async def _run(args: argparse.Namespace) -> None:
         json.dumps(
             {
                 "cost_estimate": estimate.as_json(),
-                "jobs": [_job_summary(job) for job in result.jobs],
+                "diagnostic_spec": DIAGNOSTIC_SPEC if args.diagnostic else None,
+                "diagnostic_spec_sha256": (
+                    diagnostic_spec_sha256() if args.diagnostic else None
+                ),
+                "jobs": job_summaries,
                 "metrics": metrics,
                 "repository_commit": run_commit,
                 "run": _jsonable(result.run),
                 "submitted_this_invocation_usage": (
                     result.submitted_this_invocation_usage.as_json()
                 ),
+                "total_provider_usage": result.run.usage.as_json(),
             },
             ensure_ascii=False,
             indent=2,
@@ -345,7 +418,10 @@ async def _run(args: argparse.Namespace) -> None:
                 "all_gates_passed": metrics["all_gates_passed"],
                 "api_call_performed": True,
                 "batch_cache": str(cache_path),
-                "jobs": [_job_summary(job) for job in result.jobs],
+                "diagnostic_spec_sha256": (
+                    diagnostic_spec_sha256() if args.diagnostic else None
+                ),
+                "jobs": job_summaries,
                 "raw_summary": str(raw_summary_path),
                 "report": str(report_path),
                 "submitted_usage": result.submitted_this_invocation_usage.as_json(),

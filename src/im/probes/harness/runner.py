@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
 
 from pydantic import ValidationError
@@ -75,22 +75,23 @@ class ProbeHarnessRunner:
         self.config = config or HarnessRunnerConfig()
         self._semaphore = asyncio.Semaphore(self.config.concurrency)
 
-    async def run(self) -> HarnessRun:
+    async def run(self, *, probe_ids: Collection[str] | None = None) -> HarnessRun:
+        probes = self._selected_probes(probe_ids)
         generated = await _gather_phase(
-            *(self._run_generation(probe) for probe in self.catalog.manifest.probes)
+            *(self._run_generation(probe) for probe in probes)
         )
         generation = tuple(item[0] for item in generated)
         semantic_text = tuple(item[1] for item in generated if item[1] is not None)
         pairwise = await _gather_phase(
             *(
                 self._run_pairwise(probe, variant.variant_id, position)
-                for probe in self.catalog.manifest.probes
+                for probe in probes
                 for variant in probe.variants
                 for position in (ExpectedPosition.A, ExpectedPosition.B)
             )
         )
         listwise = await _gather_phase(
-            *(self._run_listwise(probe) for probe in self.catalog.manifest.probes)
+            *(self._run_listwise(probe) for probe in probes)
         )
         return HarnessRun(
             manifest_sha256=self.catalog.manifest_sha256,
@@ -102,6 +103,19 @@ class ProbeHarnessRunner:
             pairwise=tuple(pairwise),
             listwise=tuple(listwise),
         )
+
+    def _selected_probes(self, probe_ids: Collection[str] | None):
+        if probe_ids is None:
+            return self.catalog.manifest.probes
+        requested = frozenset(probe_ids)
+        if not requested:
+            raise ValueError("probe selection cannot be empty")
+        probes = tuple(
+            probe for probe in self.catalog.manifest.probes if probe.probe_id in requested
+        )
+        if {probe.probe_id for probe in probes} != requested:
+            raise KeyError("probe selection contains an unknown probe id")
+        return probes
 
     async def _run_generation(
         self,

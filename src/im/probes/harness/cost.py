@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -80,11 +81,20 @@ def estimate_harness_cost(
     prompts: ProtocolPromptBuilder,
     *,
     pricing: ModelPricing | None = None,
+    probe_ids: Collection[str] | None = None,
 ) -> HarnessCostEstimate:
     """Price the exact signed task population without making a provider call."""
+    probes = catalog.manifest.probes
+    if probe_ids is not None:
+        requested = frozenset(probe_ids)
+        if not requested:
+            raise ValueError("cost probe selection cannot be empty")
+        probes = tuple(probe for probe in probes if probe.probe_id in requested)
+        if {probe.probe_id for probe in probes} != requested:
+            raise KeyError("cost probe selection contains an unknown probe id")
     requests: list[_EstimatedRequest] = []
     generation_count = pairwise_count = listwise_count = semantic_count = 0
-    for probe in catalog.manifest.probes:
+    for probe in probes:
         variant = probe.variants[0]
         generation_body = generation_builder.build(variant.policy_stream.encode())
         requests.append(_estimate_request(generation_body, expected_output_tokens=300))
