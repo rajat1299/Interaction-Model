@@ -12,8 +12,8 @@ from im.license import LicenseView
 from im.probes.catalog import build_probe_catalog
 from im.probes.model import ProbeManifest
 
-APPROVED_MANIFEST_SHA256 = "9430f7385f804d93f4b9f7c3f0750ce3735731fbea5dbc4a8bf444f80866900a"
-APPROVED_REVIEW_SHA256 = "290d06d6ff895da4489a3ad1277c3e53cf6a1206dd658c50817f39de4e9ca67e"
+APPROVED_MANIFEST_SHA256 = "87c824a2dad3c24fa05f7bd474dd8ef66a87532d3131dd9feb6932a4afee63b5"
+APPROVED_REVIEW_SHA256 = "761cb4a5f8c2f6755863741ad1d3c69fd1522073c5b29f3c0efc9bfed184a9e9"
 
 
 class ApprovedArtifactError(ValueError):

@@ -291,6 +291,45 @@
   the principled fallback is a documented narrower recognition role plus human-labeled floor
   boundaries, not a license shim or post-hoc reinterpretation of `activity=active`.
 
+## 2026-07-13 — Second amendment review boundary
+
+- External review approved the active-floor label, timer-period rule, and primary exact lookup
+  extraction, then found a remaining noncanonical Family 12 candidate, an open punctuation class,
+  event-ID-bound prior-use retention, and an incomplete attachment bundle.
+- These findings are fixed at their source: the candidate validator now enforces exact delegate
+  extraction; lexical boundaries are closed; prior uses survive deterministic occurrence mapping;
+  and the next review handoff binds every regenerated input and golden artifact.
+- The completed WP15 run and its failure verdict are not rescored or mutated. No diagnostic or paid
+  rerun occurs until the replacement WP12/WP14 inputs receive renewed sign-off.
+
+## 2026-07-14 — Golden repair remains outside paid evidence
+
+- The corrected golden delegate and recurring-timer controls affect only local contract/replay
+  evidence. They do not alter, reinterpret, or delete the completed WP15 provider ledger or report.
+- No API request was submitted. The next paid diagnostic remains blocked on the checksum-bound
+  replacement bundle receiving renewed WP12/WP14 sign-off.
+
+## 2026-07-14 — Renewed input gate approved
+
+- The user approved renewed WP12/WP14 sign-off for the complete checksum-bound replacement bundle.
+  The harness now anchors the reviewed v3 manifest and review bytes.
+- The input-approval blocker is closed. A new paid diagnostic remains a separate external action
+  and was not submitted as part of recording this approval.
+
+## 2026-07-13 — Adjudicated amendment implementation
+
+### Decisions carried forward
+
+- The user resolved Family 10's active-side label as `idle(awaiting_opening)` rather than
+  `idle(typing_active)`: the complete question supplies a warrant, while `activity=active` withholds
+  permission to answer. This changes the hold reason but not the historical WP15 conclusion because
+  Terra emitted `respond` in every active-floor presentation.
+- Terminal schedule punctuation and delegate fact/query construction are now closed in the behavior
+  contract instead of normalized by the runtime or grader. The completed WP15 report remains the
+  immutable historical score; its adjudicated mechanical score remains separately documented.
+- The next paid experiment is still a small pre-registered diagnostic, not a full rerun. It remains
+  blocked on renewed WP12/WP14 sign-off and explicit user authorization.
+
 ### Review outcome
 
 - The first Batch-focused Sol pass found cap-change resubmission, unrecoverable per-item provider

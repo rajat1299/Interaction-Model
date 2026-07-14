@@ -491,3 +491,91 @@ Running record for the continuous WP3–WP11 implementation pass begun after WP2
 - Prefer Terra `high` for the first direct-API teacher run. This six-case pilot is intentionally
   small, so retain the reasoning effort as an experiment field and confirm the choice on the first
   stratified API calibration batch before treating it as permanent.
+
+## 2026-07-13 — WP15 remediation candidate
+
+- Preserved the completed, hash-bound WP15 evidence and amended the source behavior contract rather
+  than grading around its ambiguities.
+- Ratified Family 10 semantics are now represented directly: a complete active question warrants a
+  future response, so closed-floor restraint is `idle(awaiting_opening)` with causal subject
+  identity. No runtime shim or license exception was added.
+- Regenerated the deterministic WP14 v3 candidate from production store/tick/renderer paths. Its
+  approved harness anchors remain unchanged pending renewed human review.
+- No paid request was submitted. The next external boundary is renewed WP12/WP14 sign-off followed
+  by explicit approval for the small pre-registered diagnostic.
+
+## 2026-07-13 — Occurrence-closed prior-use projection
+
+### Design decisions
+
+- Schedule and delegate `prior_uses` now retain immutable causal provenance plus a required
+  `current_span` that is an exact UTF-16 slice of the checkpoint snapshot. Source event-ID equality
+  remains sufficient but is no longer required.
+- One shared deterministic span projector carries marks and prior uses only through unchanged
+  regions of every committed full-snapshot revision. A mapping is authoritative only when its
+  containing maximal unchanged context block occurs exactly once on both sides of each revision;
+  repeated equal text otherwise becomes mark-ambiguity evidence or drops a prior-use mapping. The
+  license derives a timer's current instruction through the same projector, so a surviving
+  canceled-schedule occurrence is still blocked as `duplicate_schedule` without a second semantic
+  path.
+- V1 has no typed causal supersession relation for schedule/delegate provenance. The projector does
+  not infer supersession from topic semantics; it retains every safely mapped occurrence and drops
+  it only when continuity is lost. A future typed supersession relation may narrow retention, but
+  hidden semantic inference may not.
+
+### Tradeoffs and deviations
+
+- Checkpoints grow by one span per retained prior use. That deterministic mandatory-state cost is
+  preferable to silently resurrecting actions after rollover. Reserve exhaustion remains an
+  explicit projection failure rather than an eviction rule.
+- Delegate terminal history remains behaviorally, not mechanically, consuming: the checkpoint
+  exposes the prior use and terminal disposition, while the license does not invent a new duplicate
+  rule for completed requests.
+
+### Verification boundary
+
+- Added cross-revision and double-rollover regressions for a canceled schedule and a completed
+  lookup, including removal after the originating occurrence disappears. A separate production
+  regression inserts an indistinguishable second occurrence and proves that neither the checkpoint
+  nor the hidden license ledger assigns it the old identity.
+- The event schema, schema export hash, behavior-spec hash, probe streams, and golden session hashes
+  necessarily change. Their final candidate identities are recorded with the regenerated WP14
+  bundle, and approval anchors remain unchanged until renewed sign-off.
+
+## 2026-07-14 — Golden behavior-contract closure
+
+### Findings and repairs
+
+- External review correctly found two source-fixture defects: `tool_integrate` delegated the whole
+  request while querying only `nonce`, and `timer_cancel_race` invented a one-second recurrence from
+  text with no interval. Both defects originated in `manifest_for()`, not in archived-byte drift.
+- The lookup trace now derives its minimal UTF-16 fact span and byte-identical query from one
+  golden-local constructor. The timer trace now starts from the explicit instruction
+  `remind me every second to breathe`; interval and message remain 1,000ms and `breathe`.
+- Every scripted attempt is round-tripped through the closed production action adapter. The golden
+  gate also proves exact source-manifest-to-`replay.json` binding, span integrity, canonical
+  delegate extraction, explicit recurrence evidence, absence of `action_rejected`, byte-exact
+  ingress/policy replay, and reopen stability.
+
+### Design decisions and tradeoffs
+
+- No runtime fact extractor, timer parser, query normalizer, or license semantic rule was added.
+  These are reviewed scenario semantics, so their construction/validation stays in the golden
+  fixture layer while execution still crosses the real action adapter, license, scheduler, tool,
+  store, and renderer paths.
+- Importing WP14's private span helper would invert the phase dependency. A tiny golden-local UTF-16
+  helper is the clean boundary; an astral-scalar regression proves it is not ASCII-only.
+- Review packaging is now deterministic. A generated root `BUNDLE-SHA256SUMS` covers every payload
+  file and a reproducible ZIP digest binds that checksum manifest itself.
+
+### Open questions
+
+- None in implementation. Renewed WP12/WP14 human sign-off remains required before approval anchors
+  or any paid diagnostic may move.
+
+## 2026-07-14 — Renewed WP12/WP14 approval
+
+- The user approved the complete checksum-bound replacement bundle with ZIP identity
+  `sha256:ef6d6dd36b2d02b89ddff659dde5c10b6d2dbf0cd4eaa7fffa33c5fbb435acb6`.
+- The approved WP14 manifest/review anchors advance to the reviewed v3 corpus. No signed artifact
+  was regenerated after approval, and no paid API request was made.

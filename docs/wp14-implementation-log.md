@@ -179,3 +179,120 @@
   remains open.
 - WP14 is complete. The signed `manifest.json` and `REVIEW.md` bytes remain unchanged; WP15 consumes
   them by their recorded SHA-256 identities.
+
+## 2026-07-13 — Post-WP15 amendment candidate
+
+### Design decisions
+
+- Family 10 now treats a complete active question as a real response warrant whose only blocker is
+  floor ownership. Its active-side gold is therefore `idle(awaiting_opening)` referencing the same
+  user event that the yielded twin answers. `typing_active` remains reserved for text that is not
+  yet a complete request.
+- The behavior contract now makes three previously implicit canonical choices explicit: an active
+  snapshot end is not by itself a lexical boundary; a delegate query is byte-for-byte its minimal
+  factual source span; and one sentence-closing ASCII full stop is removed from an extracted timer
+  message while other terminal punctuation is preserved.
+- The prompt adds one general candidate-elimination pass. It does not mention a probe family or
+  special-case active-floor responses.
+- The manifest format advances to v3 because expected Family 10 payloads and every embedded
+  spec/prompt hash changed. The action/event schemas and free-generation grading contract remain
+  unchanged.
+
+### Generated candidate identity
+
+- Behavior spec: `sha256:ffd0b5ef17e097eb06fcbc532cc71f7032a97ed08ccca0056860dbce10406339`.
+- Prompt template: `sha256:659dfe5402f61c7621c5565f1c75fa55e1ae0d2ee32b235c941dbab022bc4266`.
+- `manifest.json`: `sha256:7b0ec302a9b2a2aa958e2012e7c320f33f49dfd44406076c8bafd0ab60c04500`.
+- `REVIEW.md`: `sha256:9d873a58594a01d3986e9c711d959e2a3d85319a0fc2bb9dabfeba8a4c8e06e8`.
+
+### Tradeoffs and open questions
+
+- The old signed WP14 pair and completed WP15 evidence stay preserved in history. The harness's
+  approved-hash anchors intentionally remain on that pair until the user reviews and signs this
+  candidate; changing the anchors during regeneration would silently manufacture approval.
+- Renewed WP12 and WP14 sign-off is required before updating those anchors or submitting the
+  pre-registered paid diagnostic. No API call is authorized by this regeneration.
+
+## 2026-07-13 — Second human-gate repair candidate
+
+### Closed findings
+
+- All six Family 12 declarative-fact alternatives now use a punctuation-free minimal fact span,
+  with `args.query == fact.text` byte-for-byte. The manifest validator applies that invariant to
+  every expected and tempting delegate, so a noncanonical candidate cannot contaminate a semantic
+  restraint probe.
+- Family 2 now explicitly covers both closed right boundaries (`cat ` and `cat.`) and continuing
+  punctuation (`cat-like`, `cat's`, and `cat/dog`). The behavior contract freezes the delimiter set
+  and treats apostrophes, hyphens, underscores, slashes, combining marks, variation selectors, and
+  zero-width joiners as non-boundaries by themselves.
+- Rollover prior-use evidence is occurrence-mapped across full-snapshot revisions and rendered with
+  both original and current spans. The review sheet exposes both identities, and the production
+  schema validates the current span against checkpoint snapshot bytes. Repeated equal text is not
+  resolved by diff tie-breaking: the shared projector requires a unique unchanged context anchor or
+  declines authoritative identity.
+
+### Artifact contract
+
+- The complete review boundary consists of the behavior spec, teacher prompt, event/action schema
+  exports, `manifest.json`, `REVIEW.md`, `SHA256SUMS`, regenerated golden traces, and implementation
+  logs. The old signed corpus and historical WP15 evidence remain immutable in Git history.
+- The harness approval anchors deliberately remain on the previously signed corpus until the user
+  approves this complete regenerated bundle. No live API request is authorized by this candidate.
+
+### Open questions
+
+- Renewed WP12/WP14 sign-off remains required. There is no unresolved implementation judgment call.
+
+### Final candidate identity and independent review
+
+- Behavior spec: `sha256:a31d19e1982f63ee154a7c8cf5f18e9ed68dbfd3ad731b78ecd263f34cf506c9`.
+- Prompt template: `sha256:f130c1927f72a073d9a6c9397a65acb9c915d8919c9536aec9cda8d7fd771fa9`.
+- Event schema: `sha256:75fc9635d41e60b83089587d1216608fcbcedff22243a82e2f4dcd38883c02e5`.
+- Action schema: `sha256:09b64516ba1612d269f33397ffe291cb3cc26ca0ae3e621b319e539fd2f725f3`.
+- Combined schema: `sha256:77327b087f7e182ded920df88fa14a9a8c858c6f83e33d72351393f4ff900b09`.
+- `manifest.json`: `sha256:87c824a2dad3c24fa05f7bd474dd8ef66a87532d3131dd9feb6932a4afee63b5`.
+- `REVIEW.md`: `sha256:761cb4a5f8c2f6755863741ad1d3c69fd1522073c5b29f3c0efc9bfed184a9e9`.
+- `SHA256SUMS`: `sha256:d000b20cb060d51225a89ffbc3007e0af5a4cacab65b4dd271d75d584cbca98b`.
+- A clean-context GPT-5.6 Sol reviewer used domain/general review skills, found one repeated-text
+  occurrence-identity bug, and cleared the candidate after the shared-projector fix and production
+  regression. Its focused re-review reports no remaining P0–P3 findings.
+- Deterministic regeneration is byte-exact; 144 logical probes produce 432 rendered states and 432
+  unique policy-stream hashes. No API call was made.
+
+## 2026-07-14 — Golden-only review repair
+
+- A subsequent human review found two behaviorally obsolete Phase-0a golden controls. Their source
+  fixtures and all derived replay/ingress/policy bytes were repaired through production replay.
+- The WP14 `manifest.json`, `REVIEW.md`, and their hashes remain byte-identical: the probe corpus did
+  not require semantic or structural changes.
+- The replacement review ZIP is generated deterministically with a root checksum manifest covering
+  the behavior spec, prompt, schemas, WP14 pair, every golden payload, phase plan, and implementation
+  logs. The ZIP digest is the complete approval identity.
+- Renewed sign-off is still pending; approved-hash anchors remain intentionally unchanged.
+
+### Repaired golden identities and review closure
+
+- `tool_integrate/replay.json`:
+  `sha256:4b2686d391df10313ab96586abcc249a6f7f65941036b6df3574f2a444269929`.
+- `tool_integrate/ingress.jsonl`:
+  `sha256:fe42293e1d83482fb430cf3fd0921e92c57fe1f0ef5033e25cc38c47f9dd2a4c`.
+- `tool_integrate/policy/segment-000.bin`:
+  `sha256:5419d7929a473ed378ff6a225f064756bcab047d692ecdce2e8dd254e9cab109`.
+- `timer_cancel_race/replay.json`:
+  `sha256:c92679e856b55f0e6c0d6f0318f13834fa389f2feff4b58c8dadb91086b7fae9`.
+- `timer_cancel_race/ingress.jsonl`:
+  `sha256:11dbecbf608605276dec115f42f5ab44614d7a56da3f4f365b5f8f80676624c8`.
+- `timer_cancel_race/policy/segment-000.bin`:
+  `sha256:380f4155485a8355ac2603403e3ce1d0c17160580418aa236bb05a3a2f1f76af`.
+- The final independent GPT-5.6 Sol code review found and then cleared three packaging/test
+  hardening issues: outputs inside the golden input tree are rejected, fixed review inputs cannot
+  be overwritten, the exact `nonce` span is pinned, and bundle completeness is asserted from an
+  independent closed file list. Its final re-review reports no P0–P3 findings.
+
+## 2026-07-14 — Renewed human gate approved
+
+- The user explicitly approved renewed WP12 and WP14 sign-off for review ZIP
+  `sha256:ef6d6dd36b2d02b89ddff659dde5c10b6d2dbf0cd4eaa7fffa33c5fbb435acb6`.
+- Harness approval anchors now bind the approved v3 `manifest.json` and `REVIEW.md` identities
+  recorded above. The signed behavior spec, prompt, corpus, and golden bytes remain unchanged.
+- This approval closes the human gate only. It does not itself authorize a new paid diagnostic.
