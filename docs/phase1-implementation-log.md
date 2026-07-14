@@ -216,3 +216,16 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   pending.
 - Manual inspection of 2–4 generated pilot streams remains a user review step. C6 packaging,
   manifest/leak-lint enforcement, and corpus-yield measurement have not started.
+
+## 2026-07-14 — User-gate review packet
+
+- The heldout packet renders the exact 44 current test/demo corpus records, including templates,
+  into a compact human review plus a canonical inventory and checksums. It contains no review
+  records, timestamps, reviewer identity, approvals, or seals.
+- The prepared C5 pilot generator accepts only a canonical reviewed registry accompanied by both
+  test and demo seals that pass the existing full verification path. It cannot generate against
+  unreviewed seed assets and does not create approval evidence itself.
+- Once the asset gate passes, four test-split pilots cover live lookup, timer/mark contention,
+  mark restraint, and rollover continuity. Exact teacher segments stay physically separate from
+  reviewer-only sidecars and ledgers; the review summary exposes action and objective state facts.
+- Heldout asset decisions and all four pilot decisions remain pending user sign-off.
