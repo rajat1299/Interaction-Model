@@ -110,8 +110,8 @@
   missed canceled-fire disposal before and after rollover, and an unwarranted checkpoint response.
 - No miss is attributable to serialization, routing, cache identity, reasoning leakage, or the
   grader. WP16 therefore fulfills its stated configuration/serialization sanity purpose. Its
-  30-state observations do not qualify Qwen as an unreviewed teacher; WP16 is not a teacher bakeoff
-  and makes no stronger suitability claim.
+  30-state observations are the pre-training base-rate diagnostics for Qwen, the base checkpoint
+  that will be trained into the Interaction Model; they make no training or promotion claim.
 
 ### Evidence binding
 
