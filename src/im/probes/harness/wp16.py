@@ -17,8 +17,8 @@ from im.probes.harness.models import HarnessCompletion, HarnessRun
 from im.probes.harness.planning import plan_generation
 
 QWEN_MODEL = "qwen/qwen3.6-35b-a3b"
-QWEN_UPSTREAM_PROVIDER = "parasail"
-QWEN_INPUT_USD_PER_MILLION = Decimal("0.15")
+QWEN_UPSTREAM_PROVIDER = "akashml"
+QWEN_INPUT_USD_PER_MILLION = Decimal("0.14")
 QWEN_OUTPUT_USD_PER_MILLION = Decimal("1.00")
 QWEN_PRICING_SOURCE_DATE = "2026-07-14"
 _EXPECTED_OUTPUT_TOKENS = 200
@@ -285,7 +285,7 @@ def render_qwen_report(
             f"- Response models: `{json.dumps(metrics['response_models'])}`",
             f"- Response providers: `{json.dumps(metrics['response_providers'])}`",
             f"- Routing metadata: `{metrics['routing_metadata_records']}/30`",
-            f"- Parasail pin verification: "
+            f"- Upstream pin verification: "
             f"`{'PASS' if metrics['upstream_pin_verified'] else 'FAIL'}`",
             "",
             "## Thinking-disabled verification",

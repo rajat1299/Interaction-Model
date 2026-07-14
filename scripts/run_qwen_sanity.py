@@ -132,7 +132,7 @@ async def _run(args: argparse.Namespace) -> None:
         Path(
             "probes/results/raw/wp16-qwen3.6-35b-a3b-mocked.sqlite"
             if args.mode == "mock"
-            else "probes/results/raw/wp16-qwen3.6-35b-a3b-openrouter.sqlite"
+            else "probes/results/raw/wp16-qwen3.6-35b-a3b-openrouter-akashml.sqlite"
         ),
     )
     report_path = _resolve(
@@ -141,7 +141,7 @@ async def _run(args: argparse.Namespace) -> None:
         Path(
             "probes/results/wp16-qwen3.6-35b-a3b-mocked.md"
             if args.mode == "mock"
-            else "probes/results/wp16-qwen3.6-35b-a3b-openrouter.md"
+            else "probes/results/wp16-qwen3.6-35b-a3b-openrouter-akashml.md"
         ),
     )
     raw_summary_path = _resolve(
@@ -150,7 +150,7 @@ async def _run(args: argparse.Namespace) -> None:
         Path(
             "probes/results/raw/wp16-qwen3.6-35b-a3b-mocked-summary.json"
             if args.mode == "mock"
-            else "probes/results/raw/wp16-qwen3.6-35b-a3b-openrouter-summary.json"
+            else "probes/results/raw/wp16-qwen3.6-35b-a3b-openrouter-akashml-summary.json"
         ),
     )
     if args.mode == "mock":

@@ -79,7 +79,7 @@ def test_population_is_thirty_symmetric_states_covering_the_contract(catalog) ->
     probes = selected_probes(catalog)
 
     assert wp16_spec_sha256() == (
-        "sha256:6eda3dc573dbf78144b678b09705301b2636377acb49fdc329d8922c56826ab2"
+        "sha256:722cdfe6b2759d441bfae7387fcff6ed7e053f02c422112df2d423718371e4bc"
     )
     assert len(QWEN_SANITY_PROBE_IDS) == 30
     assert len(set(QWEN_SANITY_PROBE_IDS)) == 30
@@ -250,7 +250,7 @@ async def test_live_audit_requires_one_complete_trace_and_zero_reasoning_evidenc
         "openrouter_metadata": {
             "endpoints": {
                 "available": [
-                    {"provider": "Parasail", "model": QWEN_MODEL, "selected": True}
+                    {"provider": "AkashML", "model": QWEN_MODEL, "selected": True}
                 ]
             }
         },
