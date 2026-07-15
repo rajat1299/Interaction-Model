@@ -1,11 +1,11 @@
 # Phase 1 user review gates
 
-1. Read the localized correction in [`assets/RESUBMISSION.md`](assets/RESUBMISSION.md), then review
-   only the two changed rows in [`assets/REVIEW.md`](assets/REVIEW.md). The other 51 records and all
-   rendered expansions retain approval. Reply `approve both changed rows`, or list a still-flagged
-   asset ID with a reason.
-2. After that scoped approval, apply all decisions and verify the test/demo seals. The prepared
-   `scripts/generate_c5_pilot_review.py` command will generate four runtime-backed streams for
-   your manual sign-off. It intentionally refuses to generate them before that trust boundary.
+1. The 53 asset decisions are applied in [`approved/registry.jsonl`](approved/registry.jsonl), and
+   the canonical [`test`](approved/test-seal.json) and [`demo`](approved/demo-seal.json) seals
+   verify against it.
+2. Review the four runtime-backed streams in [`pilots/REVIEW.md`](pilots/REVIEW.md). Exact
+   teacher-visible segments and separate reviewer sidecars are checksum-bound in that directory.
+   Reply `approve all four`, or list a pilot and decision with the reason it should be flagged or
+   rejected.
 
-No review decision, split seal, pilot acceptance, or teacher approval is claimed here.
+Asset approval and split sealing are complete. No pilot acceptance or teacher approval is claimed.

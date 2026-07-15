@@ -269,3 +269,16 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
 - The rebound packet binds all 53 records and all rendered examples but displays only the two
   changed rows for renewed review. Apply, sealing, and C5 pilot generation remain deferred until
   those rows are approved.
+
+## 2026-07-14 — Heldout seals and C5 pilot packet
+
+- The user approved both corrected category-mark rows. The apply step verified the reviewed
+  inventory against the current registry, persisted 53 digest-bound approvals under reviewer
+  identity `user:phase1-reviewer`, created the 24-entry test and 29-entry demo seals, and reloaded
+  the registry and both seals through the canonical verification boundary.
+- Four runtime-backed C5 pilots were generated strictly from that reviewed registry: live lookup,
+  timer contention, mark restraint, and rollover continuity. Every generated scenario passed the
+  existing sidecar/state-fact validator; teacher-visible segments remain physically separate from
+  reviewer sidecars and ledgers, and the complete packet is checksum-bound.
+- Asset review is closed. Manual approval of all four pilot streams remains the active user gate;
+  no pilot acceptance or teacher approval is inferred.

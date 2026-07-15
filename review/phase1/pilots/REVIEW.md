@@ -1,0 +1,24 @@
+# C5 pilot review
+
+**Awaiting user sign-off.** This packet claims no asset approvals or pilot approval.
+The `teacher/` files are the exact teacher-visible segments; `reviewer/` is review-only.
+Reply `approve all four`, or list a pilot and decision with the reason it should be flagged or rejected. A non-equivalent decision issue rejects the whole stream.
+
+| Pilot | Call / beat / observed seq | Scripted action | Open event facts | Pending | Timers | Floor owned |
+|---|---|---|---|---|---|---|
+| `c5-lookup-live` | 1 / `b0` / 1 | `{"args":{"query":"Fable Station platform"},"fact":{"end_utf16":22,"event_id":"e_000002","start_utf16":0,"text":"Fable Station platform"},"tool":"lookup","type":"delegate"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-lookup-live` | 2 / `b1` / 4 | `{"reason":"awaiting_tool","related_event_id":"e_000002","type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `('r_001',)` | `{'active': (), 'canceled': ()}` | False |
+| `c5-lookup-live` | 3 / `b2` / 5 | `{"result_event_id":"e_000006","text":"Fable Station uses platform 3.","type":"integrate"}` | `{'fires': (), 'results': ('e_000006',), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-timer-contention` | 1 / `b0` / 1 | `{"instruction":{"end_utf16":62,"event_id":"e_000002","start_utf16":0,"text":"Remind me every seventy-one minutes to seal the mint envelope."},"interval_ms":4260000,"message":"seal the mint envelope","type":"schedule"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-timer-contention` | 2 / `b1` / 3 | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-timer-contention` | 3 / `b2` / 4 | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-timer-contention` | 4 / `b3` / 5 | `{"fire_event_id":"e_000006","type":"nudge"}` | `{'fires': ('e_000006',), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-timer-contention` | 5 / `b4` / 6 | `{"instruction":{"end_utf16":104,"event_id":"e_000005","start_utf16":63,"text":"Mark saffron tern in the shoreline notes."},"target":{"end_utf16":80,"event_id":"e_000005","start_utf16":68,"text":"saffron tern"},"type":"mark"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-timer-contention` | 6 / `b5` / 7 | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-mark-negative` | 1 / `b0` / 1 | `{"reason":"instruction_not_direct","related_event_id":null,"type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-rollover` | 1 / `b0` / 1 | `{"instruction":{"end_utf16":41,"event_id":"e_000002","start_utf16":0,"text":"Mark saffron tern in the shoreline notes."},"target":{"end_utf16":17,"event_id":"e_000002","start_utf16":5,"text":"saffron tern"},"type":"mark"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-rollover` | 2 / `b1` / 2 | `{"instruction":{"end_utf16":104,"event_id":"e_000002","start_utf16":42,"text":"Remind me every twenty-three minutes to open the amber blinds."},"interval_ms":1380000,"message":"open the amber blinds","type":"schedule"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': (), 'canceled': ()}` | False |
+| `c5-rollover` | 3 / `b2` / 4 | `{"args":{"query":"Alder Loop registry"},"fact":{"end_utf16":124,"event_id":"e_000002","start_utf16":105,"text":"Alder Loop registry"},"tool":"lookup","type":"delegate"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-rollover` | 4 / `b3` / 8 | `{"reason":"no_trigger","related_event_id":null,"type":"idle"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `('r_001',)` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-rollover` | 5 / `b4` / 9 | `{"reason":"stale_tool_result","target_event_id":"e_000010","type":"skip"}` | `{'fires': (), 'results': ('e_000010',), 'stale_results': ('e_000010',)}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
+| `c5-rollover` | 6 / `b5` / 10 | `{"args":{"query":"Alder Loop registry followup"},"fact":{"end_utf16":28,"event_id":"e_000009","start_utf16":0,"text":"Alder Loop registry followup"},"tool":"lookup","type":"delegate"}` | `{'fires': (), 'results': (), 'stale_results': ()}` | `()` | `{'active': ('t_001',), 'canceled': ()}` | False |
