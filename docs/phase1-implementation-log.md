@@ -229,3 +229,29 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   mark restraint, and rollover continuity. Exact teacher segments stay physically separate from
   reviewer-only sidecars and ledgers; the review summary exposes action and objective state facts.
 - Heldout asset decisions and all four pilot decisions remain pending user sign-off.
+
+## 2026-07-14 — Heldout asset resubmission
+
+- The first packet was rejected before any approval or seal because every test/demo template
+  grammar leaked its split purpose into content. The root cause was a split-keyed expansion prompt,
+  not isolated wording. The replacement uses one split-neutral scenario-operation grammar and the
+  same control vocabulary across all splits; split identity remains registry metadata only.
+- A policy-text linter now rejects evaluation/demo/scoring/replay language in both template
+  grammars and model-expanded atomic payloads. The packet also hash-binds one complete, seed-
+  grounded neutral-model expansion for every template, so human review is no longer limited to
+  prompt source. These review examples are not silently admitted as corpus members. Exact and
+  normalized template duplication remain errors; the generic near-duplicate n-gram signal no
+  longer treats the deliberately shared neutral prompt scaffold as split leakage.
+- Lookup A/B validation now requires a single protected-value token flip. The Umber Lake, Morrow
+  Glen, and Glass Orchard pairs were rewritten accordingly, and the unsupported sun-clock timer is
+  fully specified so it isolates the one-shot capability boundary.
+- Explicit quoted mark and timer atoms now exist in both test and demo. Demo-only hero ingredients
+  now include the five-second breathe timer, filler-category marking, and explicit abandonment
+  wording; Phase 6 owns their multi-step script composition and must prove disjointness before
+  recording.
+- This reviewed asset set is the first lexical tranche, not the later sealed 400-state final set.
+  Lookup values remain immutable per asset; scenario assembly does not randomize them. New
+  nonce/value depth must enter as newly split-assigned, reviewed assets before the final set is
+  assembled.
+- The resubmission creates fresh packet hashes only. It creates no approval, split seal, C5 pilot,
+  or final-evaluation claim; renewed human review remains the next gate.

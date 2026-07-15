@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import pytest
+
 from im.assets import (
     AssetKind,
     AssetProvenance,
     AssetRecord,
     AssetRegistry,
     CorpusFamily,
+    LookupAssetPayload,
     ReviewDecision,
     ReviewFlag,
     ReviewRecord,
@@ -55,6 +58,47 @@ def timer_asset(asset_id: str, split: Split, instruction: str, form: TimerForm) 
         provenance=AssetProvenance.SEED_AUTHORED,
         coverage=(CorpusFamily.TIMER_CANCEL,),
     )
+
+
+def lookup_asset(
+    asset_id: str,
+    result_a: str,
+    result_b: str,
+    *,
+    protected: tuple[str, ...],
+) -> AssetRecord:
+    return AssetRecord.build(
+        asset_id=asset_id,
+        split=Split.TRAIN,
+        payload=LookupAssetPayload(
+            query="Harbor signal",
+            result_a=result_a,
+            result_b=result_b,
+            no_result_code="harbor_signal_absent",
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        protected_values=protected,
+        coverage=(CorpusFamily.LOOKUP_LIVE,),
+    )
+
+
+def template_asset(grammar: str) -> AssetRecord:
+    return AssetRecord.build(
+        asset_id="a_train_meta_template",
+        split=Split.TRAIN,
+        payload=TemplateAssetPayload(
+            expands_kind=AssetKind.TEXT,
+            grammar=grammar,
+            seed_asset_ids=("a_train_meta_seed",),
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        coverage=(CorpusFamily.NEUTRAL_TYPING,),
+    )
+
+
+def template_registry(grammar: str) -> AssetRegistry:
+    seed = text_asset("a_train_meta_seed", Split.TRAIN, "quiet source phrase")
+    return AssetRegistry(assets=(seed, template_asset(grammar)))
 
 
 def issue_codes(registry: AssetRegistry) -> set[IssueCode]:
@@ -217,6 +261,69 @@ def test_supported_timer_rejects_unsupported_time_forms() -> None:
     assert IssueCode.FORM_MISMATCH in issue_codes(AssetRegistry(assets=(value,)))
 
 
+@pytest.mark.parametrize(
+    "forbidden",
+    (
+        "EVALUATION",
+        "held-out",
+        "held out",
+        "test set",
+        "test-set",
+        "demo",
+        "score",
+        "scoring",
+        "public replay",
+        "audience",
+        "prepared for",
+        "final evaluation",
+    ),
+)
+def test_template_policy_meta_language_is_rejected_case_insensitively(forbidden: str) -> None:
+    registry = template_registry(f"Use {{seed}} as {forbidden} context.")
+
+    assert IssueCode.POLICY_VISIBLE_META_LANGUAGE in issue_codes(registry)
+
+
+def test_lookup_results_require_a_value_only_protected_contrast() -> None:
+    valid = lookup_asset(
+        "a_train_lookup_value_only",
+        "Umber Lake bell rings two chimes.",
+        "Umber Lake bell rings seven chimes.",
+        protected=("Umber Lake", "two chimes", "seven chimes"),
+    )
+    old_umber = lookup_asset(
+        "a_train_lookup_old_umber",
+        "Umber Lake bell rings two chimes.",
+        "Umber Lake bell rings seven times.",
+        protected=("Umber Lake", "two chimes", "seven times"),
+    )
+    mismatched_length = lookup_asset(
+        "a_train_lookup_length",
+        "Harbor signal is blue lantern.",
+        "Harbor signal is green.",
+        protected=("blue lantern", "green"),
+    )
+    unprotected = lookup_asset(
+        "a_train_lookup_unprotected",
+        "Harbor signal is blue lantern.",
+        "Harbor signal is green lantern.",
+        protected=("Harbor signal",),
+    )
+    report = validate_registry(
+        AssetRegistry(assets=(valid, old_umber, mismatched_length, unprotected)),
+        require_all_families=False,
+    )
+    invalid_ids = {
+        asset_id
+        for issue in report.errors
+        if issue.code is IssueCode.LOOKUP_AB_CONTRAST
+        for asset_id in issue.asset_ids
+    }
+
+    assert valid.asset_id not in invalid_ids
+    assert {old_umber.asset_id, mismatched_length.asset_id, unprotected.asset_id} <= invalid_ids
+
+
 def test_all_eleven_families_are_required_for_complete_pool_validation() -> None:
     value = text_asset(
         "a_train_all",
@@ -307,7 +414,7 @@ def test_train_review_selection_covers_every_family_without_cross_product_bloat(
     assert {family for asset in selected for family in asset.coverage} == set(CorpusFamily)
 
 
-def test_template_skeletons_reject_shared_stem_with_split_specific_suffixes() -> None:
+def test_template_shared_scaffold_is_not_cross_split_leakage() -> None:
     train_seed = text_asset("a_train_template_seed", Split.TRAIN, "train seed")
     dev_seed = text_asset("a_dev_template_seed", Split.DEV, "dev seed")
     train_template = AssetRecord.build(
@@ -315,7 +422,10 @@ def test_template_skeletons_reject_shared_stem_with_split_specific_suffixes() ->
         split=Split.TRAIN,
         payload=TemplateAssetPayload(
             expands_kind=AssetKind.TEXT,
-            grammar="Use {seed} in the shared grammar. Train lexical branch.",
+            grammar=(
+                "Use {seed} as the factual subject; construct a natural drafting scenario in "
+                "which an ordinary revision continues beside the page."
+            ),
             seed_asset_ids=(train_seed.asset_id,),
         ),
         provenance=AssetProvenance.SEED_AUTHORED,
@@ -326,90 +436,55 @@ def test_template_skeletons_reject_shared_stem_with_split_specific_suffixes() ->
         split=Split.DEV,
         payload=TemplateAssetPayload(
             expands_kind=AssetKind.TEXT,
-            grammar="Use {seed} in the shared grammar. Development lexical branch.",
+            grammar=(
+                "Use {seed} as the factual subject; construct a natural drafting scenario in "
+                "which an ordinary revision continues near a window."
+            ),
             seed_asset_ids=(dev_seed.asset_id,),
         ),
         provenance=AssetProvenance.SEED_AUTHORED,
         coverage=(CorpusFamily.NEUTRAL_TYPING,),
-    )
-
-    assert IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON in issue_codes(
-        AssetRegistry(assets=(train_seed, dev_seed, train_template, dev_template))
-    )
-
-
-def test_template_skeletons_compare_different_families_and_payload_kinds() -> None:
-    train_seed = text_asset("a_train_cross_family_seed", Split.TRAIN, "train seed")
-    dev_seed = text_asset(
-        "a_dev_cross_family_seed",
-        Split.DEV,
-        "dev seed",
-        coverage=(CorpusFamily.MARK_POSITIVE,),
-    )
-    demo_seed = AssetRecord.build(
-        asset_id="a_demo_cross_kind_seed",
-        split=Split.DEMO,
-        payload=TimerAssetPayload(
-            instruction="Remind me every eleven minutes to check the violet compass.",
-            form=TimerForm.SUPPORTED,
-            interval_ms=660_000,
-            message="check the violet compass",
-        ),
-        provenance=AssetProvenance.SEED_AUTHORED,
-        coverage=(CorpusFamily.TIMER_NORMAL,),
-    )
-    train_template = AssetRecord.build(
-        asset_id="a_train_cross_scope_template",
-        split=Split.TRAIN,
-        payload=TemplateAssetPayload(
-            expands_kind=AssetKind.TEXT,
-            grammar="Use {seed} in this shared structural stem. Train suffix.",
-            seed_asset_ids=(train_seed.asset_id,),
-        ),
-        provenance=AssetProvenance.SEED_AUTHORED,
-        coverage=(CorpusFamily.NEUTRAL_TYPING,),
-    )
-    dev_template = AssetRecord.build(
-        asset_id="a_dev_cross_family_template",
-        split=Split.DEV,
-        payload=TemplateAssetPayload(
-            expands_kind=AssetKind.TEXT,
-            grammar="Use {seed} in this shared structural stem. Development suffix.",
-            seed_asset_ids=(dev_seed.asset_id,),
-        ),
-        provenance=AssetProvenance.SEED_AUTHORED,
-        coverage=(CorpusFamily.MARK_POSITIVE,),
-    )
-    demo_template = AssetRecord.build(
-        asset_id="a_demo_cross_kind_template",
-        split=Split.DEMO,
-        payload=TemplateAssetPayload(
-            expands_kind=AssetKind.TIMER,
-            grammar="Use {seed} in this shared structural stem. Demo suffix.",
-            seed_asset_ids=(demo_seed.asset_id,),
-        ),
-        provenance=AssetProvenance.SEED_AUTHORED,
-        coverage=(CorpusFamily.TIMER_NORMAL,),
     )
 
     report = validate_registry(
-        AssetRegistry(
-            assets=(
-                train_seed,
-                dev_seed,
-                demo_seed,
-                train_template,
-                dev_template,
-                demo_template,
-            )
-        ),
+        AssetRegistry(assets=(train_seed, dev_seed, train_template, dev_template)),
         require_all_families=False,
     )
-    skeleton_pairs = {
-        issue.asset_ids
-        for issue in report.errors
-        if issue.code is IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON
-    }
 
-    assert tuple(sorted((train_template.asset_id, dev_template.asset_id))) in skeleton_pairs
-    assert tuple(sorted((train_template.asset_id, demo_template.asset_id))) in skeleton_pairs
+    assert not report.issues
+
+
+def test_cross_split_normalized_template_duplicates_remain_errors() -> None:
+    train_seed = text_asset("a_train_duplicate_template_seed", Split.TRAIN, "train seed")
+    dev_seed = text_asset("a_dev_duplicate_template_seed", Split.DEV, "dev seed")
+    templates = tuple(
+        AssetRecord.build(
+            asset_id=asset_id,
+            split=split,
+            payload=TemplateAssetPayload(
+                expands_kind=AssetKind.TEXT,
+                grammar=grammar,
+                seed_asset_ids=(seed.asset_id,),
+            ),
+            provenance=AssetProvenance.SEED_AUTHORED,
+            coverage=(CorpusFamily.NEUTRAL_TYPING,),
+        )
+        for asset_id, split, seed, grammar in (
+            (
+                "a_train_duplicate_template",
+                Split.TRAIN,
+                train_seed,
+                "Use {seed} beside the page.",
+            ),
+            (
+                "a_dev_duplicate_template",
+                Split.DEV,
+                dev_seed,
+                "  use {seed} beside the page.  ",
+            ),
+        )
+    )
+
+    assert IssueCode.CROSS_SPLIT_TEMPLATE in issue_codes(
+        AssetRegistry(assets=(train_seed, dev_seed, *templates))
+    )

@@ -51,6 +51,13 @@ def _approved_heldout_reviews(registry: AssetRegistry) -> tuple[ReviewRecord, ..
 def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templates() -> None:
     registry = build_seed_pools().registry
     records_by_id = {asset.asset_id: asset for asset in registry.assets}
+    contexts = {
+        "during a sentence revision",
+        "inside revised margin notes",
+        "after a writer returns to the page",
+        "inside a revised notebook entry",
+    }
+    contexts_by_split = {split: set() for split in Split}
 
     for family in CorpusFamily:
         atomic = tuple(
@@ -58,7 +65,12 @@ def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templa
             for asset in registry.assets
             if asset.coverage == (family,) and not isinstance(asset.payload, TemplateAssetPayload)
         )
-        assert len(atomic) == 10
+        counts = {split: sum(asset.split is split for asset in atomic) for split in Split}
+        assert len(atomic) >= 10
+        assert counts[Split.TRAIN] == 7
+        assert counts[Split.DEV] == 1
+        assert counts[Split.TEST] >= 1
+        assert counts[Split.DEMO] >= 1
         assert all(asset.provenance.value == "seed_authored" for asset in atomic)
 
         templates = tuple(
@@ -67,6 +79,7 @@ def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templa
             if asset.coverage == (family,) and isinstance(asset.payload, TemplateAssetPayload)
         )
         assert all(asset.coverage == (family,) for asset in templates)
+        grammars_by_kind: dict[AssetKind, list[str]] = {}
         for split in Split:
             split_atomic = tuple(asset for asset in atomic if asset.split is split)
             split_templates = tuple(asset for asset in templates if asset.split is split)
@@ -75,12 +88,51 @@ def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templa
             }
             for template in split_templates:
                 assert template.payload.seed_asset_ids
+                assert template.payload.seed_asset_ids == tuple(
+                    sorted(
+                        asset.asset_id
+                        for asset in split_atomic
+                        if asset.payload.kind is template.payload.expands_kind
+                    )
+                )
                 assert all(
                     records_by_id[seed_id].split is split
                     and records_by_id[seed_id].coverage == (family,)
                     and records_by_id[seed_id].payload.kind is template.payload.expands_kind
                     for seed_id in template.payload.seed_asset_ids
                 )
+                grammars_by_kind.setdefault(template.payload.expands_kind, []).append(
+                    template.payload.grammar
+                )
+                contexts_by_split[split].update(
+                    context for context in contexts if context in template.payload.grammar
+                )
+        for grammars in grammars_by_kind.values():
+            assert all(
+                grammar.startswith(
+                    "Use {seed} as the factual subject; construct a natural drafting scenario"
+                )
+                for grammar in grammars
+            )
+            assert len(grammars) == len(set(grammars))
+            assert not any(
+                term in grammar.casefold()
+                for grammar in grammars
+                for term in (
+                    "evaluation",
+                    "held-out",
+                    "held out",
+                    "test set",
+                    "demo",
+                    "score",
+                    "public replay",
+                    "audience",
+                    "prepared for",
+                    "final evaluation",
+                )
+            )
+
+    assert all(found == contexts for found in contexts_by_split.values())
 
 
 def test_seed_payloads_have_real_mark_and_timer_depth() -> None:
@@ -136,7 +188,7 @@ def test_seed_payloads_have_real_mark_and_timer_depth() -> None:
         Split.TRAIN: {AssetKind.TEXT, AssetKind.TIMER},
         Split.DEV: {AssetKind.TEXT},
         Split.TEST: {AssetKind.TIMER},
-        Split.DEMO: {AssetKind.TEXT},
+        Split.DEMO: {AssetKind.TEXT, AssetKind.TIMER},
     }
     assert {
         asset.payload.form
@@ -144,6 +196,120 @@ def test_seed_payloads_have_real_mark_and_timer_depth() -> None:
         if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
         and isinstance(asset.payload, TimerAssetPayload)
     } == {TimerForm.QUOTED}
+
+    for split in (Split.TEST, Split.DEMO):
+        timer_cancel = tuple(
+            asset
+            for asset in registry.pool(split).assets
+            if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        )
+        mark_negative = tuple(
+            asset
+            for asset in registry.pool(split).assets
+            if asset.coverage == (CorpusFamily.MARK_NEGATIVE,)
+        )
+        assert any(
+            isinstance(asset.payload, TimerAssetPayload)
+            and asset.payload.form is TimerForm.QUOTED
+            and '"' in asset.payload.instruction
+            for asset in timer_cancel
+        )
+        assert any(
+            isinstance(asset.payload, TextAssetPayload)
+            and asset.payload.form is TextForm.QUOTED
+            and '"' in asset.payload.text
+            for asset in mark_negative
+        )
+
+
+def test_heldout_seed_corrections_keep_exact_counterfactuals_and_demo_ingredients() -> None:
+    registry = build_seed_pools().registry
+
+    unsupported = next(
+        asset
+        for asset in registry.pool(Split.TEST).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.UNSUPPORTED
+    )
+    assert unsupported.payload.instruction == (
+        "Remind me once in twenty-three minutes to tune the sun clock."
+    )
+    assert unsupported.protected_values == ("sun clock",)
+    quoted_schedule = next(
+        asset
+        for asset in registry.pool(Split.TEST).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.QUOTED
+    )
+    assert quoted_schedule.payload.instruction == (
+        'Nia wrote, "remind me every thirty-one minutes to polish the copper ribbon."'
+    )
+    assert quoted_schedule.payload.interval_ms is None
+    assert quoted_schedule.payload.message is None
+    assert quoted_schedule.protected_values == ("copper ribbon",)
+
+    expected_lookups = {
+        (Split.TEST, CorpusFamily.LOOKUP_DUPLICATE): (
+            "Morrow Glen cistern fill percentage",
+            "Morrow Glen cistern is 38 percent full.",
+            "Morrow Glen cistern is 64 percent full.",
+        ),
+        (Split.DEMO, CorpusFamily.LOOKUP_LIVE): (
+            "Glass Orchard harvest flag direction",
+            "Glass Orchard harvest flag points north.",
+            "Glass Orchard harvest flag points south.",
+        ),
+        (Split.DEMO, CorpusFamily.LOOKUP_STALE): (
+            "Umber Lake ferry bell",
+            "Umber Lake ferry bell sounds two chimes.",
+            "Umber Lake ferry bell sounds seven chimes.",
+        ),
+    }
+    for (split, family), expected in expected_lookups.items():
+        lookup = next(
+            asset.payload
+            for asset in registry.pool(split).assets
+            if asset.coverage == (family,) and isinstance(asset.payload, LookupAssetPayload)
+        )
+        assert (lookup.query, lookup.result_a, lookup.result_b) == expected
+
+    demo_normal = tuple(
+        asset.payload
+        for asset in registry.pool(Split.DEMO).assets
+        if asset.coverage == (CorpusFamily.TIMER_NORMAL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+    )
+    assert any(
+        timer.instruction == "Remind me every five seconds to breathe."
+        and timer.form is TimerForm.SUPPORTED
+        and timer.interval_ms == 5_000
+        and timer.message == "breathe"
+        for timer in demo_normal
+    )
+    assert any(
+        isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.QUOTED
+        and asset.payload.instruction
+        == 'Someone told me, "remind me every five seconds to breathe".'
+        for asset in registry.pool(Split.DEMO).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+    )
+    demo_texts = tuple(
+        asset.payload
+        for asset in registry.pool(Split.DEMO).assets
+        if isinstance(asset.payload, TextAssetPayload)
+    )
+    assert any(
+        text.form is TextForm.DIRECT
+        and text.text == "Mark the filler words uh and er in the rehearsal notes."
+        for text in demo_texts
+    )
+    assert any(
+        text.form is TextForm.DIRECT and text.text == "Never mind, that’s not relevant anymore."
+        for text in demo_texts
+    )
 
 
 def test_seed_pool_is_validation_clean_and_train_review_is_within_the_ratified_band() -> None:
@@ -169,7 +335,7 @@ def test_seed_pool_is_validation_clean_and_train_review_is_within_the_ratified_b
     assert ceil(len(train_atomic) * 0.10) <= len(train_selected) <= floor(len(train_atomic) * 0.20)
     assert selected_timer_cancel_kinds == {AssetKind.TEXT, AssetKind.TIMER}
     assert not selected & template_ids
-    assert len(template_ids) == 45
+    assert len(template_ids) == 47
 
 
 def test_seed_pools_await_external_heldout_reviews_before_sealing() -> None:

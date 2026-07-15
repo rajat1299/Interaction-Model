@@ -236,6 +236,12 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
             "Underline indigo vole in the garden ledger.",
             "indigo vole",
         ),
+        _text(
+            Split.DEMO,
+            TextForm.DIRECT,
+            "Mark the filler words uh and er in the rehearsal notes.",
+            "filler words uh and er",
+        ),
     ),
     CorpusFamily.MARK_NEGATIVE: (
         _text(
@@ -278,6 +284,18 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         ),
         _text(Split.TEST, TextForm.PARTIAL, "Highli", "highli fragment"),
         _text(Split.DEMO, TextForm.CODE, "`underline plum hare`", "plum hare"),
+        _text(
+            Split.TEST,
+            TextForm.QUOTED,
+            'The margin reads, "underline the apricot seal."',
+            "apricot seal",
+        ),
+        _text(
+            Split.DEMO,
+            TextForm.QUOTED,
+            'A note says, "highlight the willow token."',
+            "willow token",
+        ),
     ),
     CorpusFamily.LOOKUP_LIVE: (
         _lookup(Split.TRAIN, "Aster Quay", "wind index", "index is", "17", "29"),
@@ -346,12 +364,12 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         _lookup(
             Split.DEMO,
             "Glass Orchard",
-            "harvest flag",
-            "flag is",
+            "harvest flag direction",
+            "harvest flag points",
             "north",
             "south",
-            "flag north",
-            "flag south",
+            "north",
+            "south",
         ),
     ),
     CorpusFamily.LOOKUP_DUPLICATE: (
@@ -390,7 +408,14 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
             "shelf 24",
         ),
         _lookup(Split.DEV, "Lumen Wharf", "archive shelf", "shelf is", "Delta", "Sigma"),
-        _lookup(Split.TEST, "Morrow Glen", "cistern level", "level is", "38", "64"),
+        _lookup(
+            Split.TEST,
+            "Morrow Glen",
+            "cistern fill percentage",
+            "cistern is",
+            "38 percent full",
+            "64 percent full",
+        ),
         _lookup(
             Split.DEMO,
             "Nettle Crown",
@@ -461,9 +486,15 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
             Split.DEMO,
             "Umber Lake",
             "ferry bell",
-            "bell rings",
+            "ferry bell sounds",
             "two chimes",
-            "seven times",
+            "seven chimes",
+        ),
+        _text(
+            Split.DEMO,
+            TextForm.DIRECT,
+            "Never mind, that’s not relevant anymore.",
+            "not relevant anymore",
         ),
     ),
     CorpusFamily.TIMER_NORMAL: (
@@ -489,6 +520,14 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
             Split.TEST, "twenty-three", 1_380_000, "open the amber blinds", "amber blinds"
         ),
         _recurring_timer(Split.DEMO, "twenty-nine", 1_740_000, "water the moss tray", "moss tray"),
+        _timer(
+            Split.DEMO,
+            "Remind me every five seconds to breathe.",
+            TimerForm.SUPPORTED,
+            "breathe",
+            interval_ms=5_000,
+            message="breathe",
+        ),
     ),
     CorpusFamily.TIMER_CANCEL: (
         _text(
@@ -544,15 +583,27 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         ),
         _timer(
             Split.TEST,
-            "Remind me tomorrow to tune the sun clock.",
+            "Remind me once in twenty-three minutes to tune the sun clock.",
             TimerForm.UNSUPPORTED,
-            "sun clock tomorrow",
+            "sun clock",
         ),
         _text(
             Split.DEMO,
             TextForm.NEGATED,
             "Do not cancel the ivory bell reminder.",
             "ivory bell reminder",
+        ),
+        _timer(
+            Split.TEST,
+            'Nia wrote, "remind me every thirty-one minutes to polish the copper ribbon."',
+            TimerForm.QUOTED,
+            "copper ribbon",
+        ),
+        _timer(
+            Split.DEMO,
+            'Someone told me, "remind me every five seconds to breathe".',
+            TimerForm.QUOTED,
+            "five seconds to breathe",
         ),
     ),
     CorpusFamily.TIMER_CONTENTION: (
@@ -706,108 +757,62 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
 }
 
 _TEMPLATE_OPERATION = {
-    CorpusFamily.NEUTRAL_TYPING: {
-        Split.TRAIN: "leave the ordinary drafting pause intact",
-        Split.DEV: "compare a quiet revision gap at the checkpoint",
-        Split.TEST: "reserve an uneventful typing pause for scoring",
-        Split.DEMO: "show a low-key editing continuation",
-    },
-    CorpusFamily.MARK_POSITIVE: {
-        Split.TRAIN: "attach a direct mark to a concrete target",
-        Split.DEV: "evaluate target-class marks without changing them",
-        Split.TEST: "score a precise category activation",
-        Split.DEMO: "present a clear marking cue",
-    },
-    CorpusFamily.MARK_NEGATIVE: {
-        Split.TRAIN: "retain stopped or switched marking language",
-        Split.DEV: "inspect a quoted or code-marked fragment",
-        Split.TEST: "exercise a non-actionable mark boundary",
-        Split.DEMO: "replay a partial or contextual mark phrase",
-    },
-    CorpusFamily.LOOKUP_LIVE: {
-        Split.TRAIN: "pack an unresolved A/B/absent lookup",
-        Split.DEV: "carry alternative lookup evidence through a check",
-        Split.TEST: "test live-result ambiguity before choosing",
-        Split.DEMO: "show competing lookup outcomes to the audience",
-    },
-    CorpusFamily.LOOKUP_DUPLICATE: {
-        Split.TRAIN: "stage repeat-pressure lookup without issuing it",
-        Split.DEV: "inspect the duplicated-result temptation",
-        Split.TEST: "score a repeated-query boundary",
-        Split.DEMO: "demonstrate unresolved duplicate pressure",
-    },
-    CorpusFamily.LOOKUP_STALE: {
-        Split.TRAIN: "set aside a lookup as the topic moves",
-        Split.DEV: "check a late result against a new topic",
-        Split.TEST: "score an obsolete-result opening",
-        Split.DEMO: "show a delayed answer missing its moment",
-    },
-    CorpusFamily.TIMER_NORMAL: {
-        Split.TRAIN: "retain a recurring reminder with canonical fields",
-        Split.DEV: "check the periodic reminder payload",
-        Split.TEST: "score a normal repeating timer request",
-        Split.DEMO: "present an ordinary recurring reminder",
-    },
-    CorpusFamily.TIMER_CONTENTION: {
-        Split.TRAIN: "place a live timer beside unrelated work",
-        Split.DEV: "inspect timing pressure around a normal event",
-        Split.TEST: "score interference from a recurring source",
-        Split.DEMO: "replay two competing event rhythms",
-    },
-    CorpusFamily.ROLLOVER: {
-        Split.TRAIN: "carry lookup state across an explicit checkpoint",
-        Split.DEV: "check continuation evidence after a handoff",
-        Split.TEST: "score a preserved result package",
-        Split.DEMO: "show a restart with unresolved lookup state",
-    },
-    CorpusFamily.RESERVED: {
-        Split.TRAIN: "hold an unknown envelope as inert text",
-        Split.DEV: "inspect unrecognized data without acting",
-        Split.TEST: "score an opaque annotation boundary",
-        Split.DEMO: "present a harmless future-facing field",
-    },
+    CorpusFamily.NEUTRAL_TYPING: "an ordinary revision continues after a quiet pause",
+    CorpusFamily.MARK_POSITIVE: "a direct request names the exact words to mark",
+    CorpusFamily.MARK_NEGATIVE: (
+        "mark wording appears only in the quoted, code, or partial form shown"
+    ),
+    CorpusFamily.LOOKUP_LIVE: "an unresolved factual lookup receives one of two value-only results",
+    CorpusFamily.LOOKUP_DUPLICATE: (
+        "the same unresolved lookup would otherwise be requested twice while the first remains "
+        "pending"
+    ),
+    CorpusFamily.LOOKUP_STALE: "a factual lookup is abandoned before its delayed result arrives",
+    CorpusFamily.TIMER_NORMAL: "a direct request fully specifies a repeating reminder",
+    CorpusFamily.TIMER_CONTENTION: (
+        "a repeating reminder fires while unrelated drafting continues"
+    ),
+    CorpusFamily.ROLLOVER: "an unresolved lookup remains relevant after a drafting break",
+    CorpusFamily.RESERVED: (
+        "an unknown annotation appears beside ordinary text without an instruction"
+    ),
 }
 
-_TEMPLATE_SCENE = {
-    Split.TRAIN: "a quartz drafting table after the first revision",
-    Split.DEV: "a topaz rehearsal card used for checkpoint selection",
-    Split.TEST: "a basalt archive card reserved for final evaluation",
-    Split.DEMO: "an obsidian stage prepared for public replay",
-}
+_TEMPLATE_DRAFT_CONTEXTS = (
+    "during a sentence revision",
+    "inside revised margin notes",
+    "after a writer returns to the page",
+    "inside a revised notebook entry",
+)
 
 
 def _template_grammar(family: CorpusFamily, split: Split, kind: str) -> str:
     if family is CorpusFamily.TIMER_CANCEL:
         operation = {
-            Split.TRAIN: (
-                "record a cancellable text boundary"
-                if kind == "text"
-                else "frame a quoted timer boundary"
-            ),
-            Split.DEV: "inspect an in-context cancellation phrase",
-            Split.TEST: "hold an unsupported timer request",
-            Split.DEMO: "show a negated cancellation wording",
-        }[split]
+            "text": "the cancellation wording retains the direct, quoted, or negated form shown",
+            "timer": "the reminder wording retains the quoted or unsupported form shown",
+        }[kind]
     else:
-        operation = _TEMPLATE_OPERATION[family][split]
-    scene = _TEMPLATE_SCENE[split]
-    match split:
-        case Split.TRAIN:
-            return f"Start with {{seed}} at {scene}; {operation}."
-        case Split.DEV:
-            return f"Use {scene} to reshape {{seed}} while you {operation}."
-        case Split.TEST:
-            return f"At {scene}, let {{seed}} guide a held-out pass that will {operation}."
-        case Split.DEMO:
-            return f"Stage {{seed}} through {scene}, then {operation}."
+        operation = _TEMPLATE_OPERATION[family]
+    context = _TEMPLATE_DRAFT_CONTEXTS[
+        (tuple(CorpusFamily).index(family) + tuple(Split).index(split))
+        % len(_TEMPLATE_DRAFT_CONTEXTS)
+    ]
+    return (
+        "Use {seed} as the factual subject; construct a natural drafting scenario in which "
+        f"{operation}; place it {context}."
+    )
 
 
 def _asset_records() -> tuple[AssetRecord, ...]:
     records: list[AssetRecord] = []
     seeds_by_family_split: dict[tuple[CorpusFamily, Split], list[str]] = {}
     for family, entries in _SEEDS.items():
-        if len(entries) != 10:
-            raise AssertionError(f"{family} must have exactly ten atomic seeds")
+        counts = {split: sum(entry.split is split for entry in entries) for split in Split}
+        if counts[Split.TRAIN] != 7 or counts[Split.DEV] != 1:
+            raise AssertionError(f"{family} must have seven train and one dev atomic seed")
+        if counts[Split.TEST] < 1 or counts[Split.DEMO] < 1:
+            raise AssertionError(f"{family} must have held-out atomic seeds")
         for index, entry in enumerate(entries, start=1):
             asset = AssetRecord.build(
                 asset_id=_opaque_id("seed", family.value, entry.split.value, str(index)),

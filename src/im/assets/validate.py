@@ -8,7 +8,6 @@ import unicodedata
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from difflib import SequenceMatcher
 from enum import StrEnum
 from hashlib import sha256
 
@@ -45,8 +44,12 @@ _UNSUPPORTED_TIMER = re.compile(
     re.IGNORECASE,
 )
 _QUOTE_PAIRS = (('"', '"'), ("“", "”"))
-_TEMPLATE_SLOT = re.compile(r"\{[a-z_][a-z0-9_]*\}", re.IGNORECASE)
-_TEMPLATE_TOKEN = re.compile(r"\{seed\}|\w+")
+_WORD_TOKEN = re.compile(r"\w+(?:[-\u2010-\u2015']\w+)*")
+_FORBIDDEN_POLICY_META_LANGUAGE = re.compile(
+    r"\b(?:final\s+evaluation|public\s+replay|prepared\s+for|test[-\s]+set|"
+    r"held(?:[-\s]+)out|evaluation|scoring|score|demo|audience)\b",
+    re.IGNORECASE,
+)
 
 
 class IssueSeverity(StrEnum):
@@ -60,12 +63,13 @@ class IssueCode(StrEnum):
     CROSS_SPLIT_NORMALIZED = "cross_split_normalized_duplicate"
     CROSS_SPLIT_PROTECTED = "cross_split_protected_value"
     CROSS_SPLIT_TEMPLATE = "cross_split_template_duplicate"
-    CROSS_SPLIT_TEMPLATE_SKELETON = "cross_split_template_skeleton"
     NEAR_DUPLICATE = "near_duplicate"
     ACCIDENTAL_INSTRUCTION = "accidental_instruction"
     MALFORMED_QUOTATION = "malformed_quotation"
     FORM_MISMATCH = "form_mismatch"
     UNUSUAL_UNICODE = "unusual_unicode"
+    POLICY_VISIBLE_META_LANGUAGE = "policy_visible_meta_language"
+    LOOKUP_AB_CONTRAST = "lookup_ab_contrast"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -126,6 +130,16 @@ def _text_fields(asset: AssetRecord) -> tuple[tuple[str, str], ...]:
     raise AssertionError(f"unhandled asset payload: {type(payload).__name__}")
 
 
+def find_forbidden_policy_meta_language(value: str) -> str | None:
+    """Return the first banned phrase in independently rendered policy-visible text."""
+    match = _FORBIDDEN_POLICY_META_LANGUAGE.search(value)
+    return match.group() if match else None
+
+
+def _word_tokens(value: str) -> tuple[str, ...]:
+    return tuple(_WORD_TOKEN.findall(_normalize(value)))
+
+
 def _balanced_quotes(value: str) -> bool:
     for opening, closing in _QUOTE_PAIRS:
         if opening == closing:
@@ -175,17 +189,8 @@ def _ngrams(value: str, size: int = 5) -> frozenset[str]:
     )
 
 
-def _template_skeleton(value: str) -> str:
-    """Keep a grammar's structure while ignoring its named seed placeholder."""
-    return _TEMPLATE_SLOT.sub("{seed}", _normalize(value))
-
-
 def _contains_normalized_phrase(text: str, phrase: str) -> bool:
     return bool(re.search(rf"(?<!\w){re.escape(_normalize(phrase))}(?!\w)", _normalize(text)))
-
-
-def _template_structure(value: str) -> tuple[str, ...]:
-    return tuple(_TEMPLATE_TOKEN.findall(_template_skeleton(value)))
 
 
 def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
@@ -246,11 +251,19 @@ def validate_registry(
     text_values: list[tuple[AssetRecord, str]] = []
     long_texts: list[tuple[AssetRecord, str, frozenset[str]]] = []
     for asset in registry.assets:
+        payload = asset.payload
+        is_policy_visible = (
+            isinstance(payload, TemplateAssetPayload)
+            or asset.provenance is AssetProvenance.MODEL_EXPANDED
+        )
         for field, value in _text_fields(asset):
             text_values.append((asset, value))
             exact[value].append(asset)
             normalized[_normalize(value)].append(asset)
-            if len(_normalize(value)) >= near_duplicate_min_chars:
+            if (
+                not isinstance(payload, TemplateAssetPayload)
+                and len(_normalize(value)) >= near_duplicate_min_chars
+            ):
                 long_texts.append((asset, value, _ngrams(value)))
             if not _balanced_quotes(value):
                 issues.add(
@@ -270,11 +283,19 @@ def validate_registry(
                         f"{field} contains control or surrogate code points",
                     )
                 )
+            if is_policy_visible and (phrase := find_forbidden_policy_meta_language(value)):
+                issues.add(
+                    _issue(
+                        IssueSeverity.ERROR,
+                        IssueCode.POLICY_VISIBLE_META_LANGUAGE,
+                        (asset,),
+                        f"{field} contains forbidden policy-visible meta-language: {phrase!r}",
+                    )
+                )
         for value in asset.protected_values:
             protected[_normalize(value)].append(asset)
             protected_claims.append((asset, value))
 
-        payload = asset.payload
         if isinstance(payload, TextAssetPayload):
             if payload.form in {TextForm.NEUTRAL, TextForm.OBSERVATIONAL} and _DIRECTIVE.search(
                 payload.text
@@ -346,6 +367,33 @@ def validate_registry(
                         "supported timer asset contains an unsupported form",
                     )
                 )
+        elif isinstance(payload, LookupAssetPayload):
+            result_a = _word_tokens(payload.result_a)
+            result_b = _word_tokens(payload.result_b)
+            if len(result_a) != len(result_b):
+                detail = "lookup results must have the same word-token length"
+            else:
+                changed = tuple(
+                    (left, right) for left, right in zip(result_a, result_b) if left != right
+                )
+                protected_tokens = {
+                    token for value in asset.protected_values for token in _word_tokens(value)
+                }
+                if len(changed) != 1:
+                    detail = "lookup results must differ in exactly one word token"
+                elif any(token not in protected_tokens for pair in changed for token in pair):
+                    detail = "lookup result difference is not grounded in protected values"
+                else:
+                    detail = None
+            if detail:
+                issues.add(
+                    _issue(
+                        IssueSeverity.ERROR,
+                        IssueCode.LOOKUP_AB_CONTRAST,
+                        (asset,),
+                        detail,
+                    )
+                )
 
     for values, code in (
         (exact, IssueCode.CROSS_SPLIT_EXACT),
@@ -391,35 +439,6 @@ def validate_registry(
                     f"cross-split normalized template grammar: {grammar[:80]!r}",
                 )
             )
-
-    templates = [
-        asset for asset in registry.assets if isinstance(asset.payload, TemplateAssetPayload)
-    ]
-    for index, left in enumerate(templates):
-        for right in templates[index + 1 :]:
-            if left.split is right.split:
-                continue
-            left_structure = _template_structure(left.payload.grammar)
-            right_structure = _template_structure(right.payload.grammar)
-            shorter, longer = sorted((left_structure, right_structure), key=len)
-            contained = any(
-                longer[offset : offset + len(shorter)] == shorter
-                for offset in range(len(longer) - len(shorter) + 1)
-            )
-            shared_run = (
-                SequenceMatcher(None, left_structure, right_structure, autojunk=False)
-                .find_longest_match()
-                .size
-            )
-            if contained or shared_run >= 5:
-                issues.add(
-                    _issue(
-                        IssueSeverity.ERROR,
-                        IssueCode.CROSS_SPLIT_TEMPLATE_SKELETON,
-                        (left, right),
-                        f"cross-split template shared structural run: {shared_run}",
-                    )
-                )
 
     # Phase 1 pools are intentionally small. Replace this quadratic comparison
     # only if measured corpus scale makes a real index necessary.

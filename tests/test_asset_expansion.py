@@ -7,6 +7,7 @@ import pytest
 from im.assets import (
     AssetKind,
     AssetRecord,
+    LookupAssetPayload,
     ReviewDecision,
     ReviewRecord,
     Split,
@@ -31,7 +32,7 @@ def _request(
     template: AssetRecord,
     *,
     asset_id: str,
-    payload: TextAssetPayload | TimerAssetPayload,
+    payload: TextAssetPayload | LookupAssetPayload | TimerAssetPayload,
 ) -> ExpansionRequest:
     return ExpansionRequest(
         asset_id=asset_id,
@@ -135,6 +136,49 @@ def test_expansion_cannot_reword_a_heldout_protected_phrase_without_declaring_it
     assert "silver bookmark" not in request.protected_values
     with pytest.raises(AssetExpansionError, match="fails registry validation"):
         import_expanded_asset(registry, request)
+
+
+def test_expansion_rejects_policy_visible_meta_language_and_accepts_neutral_text() -> None:
+    registry = build_seed_pools().registry
+    template = _template(registry, Split.TRAIN, AssetKind.TEXT)
+    lookup_template = _template(registry, Split.TRAIN, AssetKind.LOOKUP)
+    forbidden = _request(
+        template,
+        asset_id="a_train_meta_language",
+        payload=TextAssetPayload(
+            text="This ordinary paragraph is prepared for public replay.",
+            form=TextForm.NEUTRAL,
+        ),
+    )
+    neutral = _request(
+        template,
+        asset_id="a_train_neutral_language",
+        payload=TextAssetPayload(
+            text="This ordinary paragraph records a quiet revision.",
+            form=TextForm.NEUTRAL,
+        ),
+    )
+    lookup = ExpansionRequest(
+        asset_id="a_train_lookup_meta_language",
+        template_asset_id=lookup_template.asset_id,
+        seed_asset_ids=(lookup_template.payload.seed_asset_ids[0],),
+        payload=LookupAssetPayload(
+            query="Harbor score",
+            result_a="Harbor signal is blue.",
+            result_b="Harbor signal is green.",
+            no_result_code="harbor_signal_absent",
+        ),
+        generation_model="neutral-model/revision",
+        source_bytes=b"lookup meta-language import",
+        protected_values=("blue", "green"),
+    )
+
+    with pytest.raises(AssetExpansionError, match="fails registry validation"):
+        import_expanded_asset(registry, forbidden)
+    with pytest.raises(AssetExpansionError, match="fails registry validation"):
+        import_expanded_asset(registry, lookup)
+    updated = import_expanded_asset(registry, neutral)
+    assert any(asset.asset_id == neutral.asset_id for asset in updated.assets)
 
 
 def test_expansion_refuses_a_valid_frozen_split() -> None:
