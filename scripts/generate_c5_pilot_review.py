@@ -62,18 +62,40 @@ def _cell(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", "<br>")
 
 
-def _review_bytes(decisions: list[dict[str, object]]) -> bytes:
+def _review_bytes(
+    decisions: list[dict[str, object]], review_pilot_ids: tuple[str, ...] | None
+) -> bytes:
+    scoped = review_pilot_ids is not None
+    review_label = ", ".join(f"`{pilot_id}`" for pilot_id in review_pilot_ids or ())
     lines = [
         "# C5 pilot review",
         "",
-        "**Awaiting user sign-off.** This packet claims no asset approvals or pilot approval.",
+        (
+            f"**Awaiting user sign-off on {review_label} only.**"
+            if scoped
+            else (
+                "**Awaiting user sign-off.** This packet claims no asset approvals or pilot "
+                "approval."
+            )
+        ),
         "The `teacher/` files are the exact teacher-visible segments; `reviewer/` is review-only.",
-        "Reply `approve all four`, or list a pilot and decision with the reason it should be "
-        "flagged or rejected. A non-equivalent decision issue rejects the whole stream.",
+        (
+            "These streams were regenerated after oracle-continuation defects; other manifest "
+            "pilots retain their prior approval and are out of scope unless their bytes changed."
+            if scoped
+            else "Reply `approve all four`, or list a pilot and decision with the reason it should "
+            "be flagged or rejected. A non-equivalent decision issue rejects the whole stream."
+        ),
+        (
+            "Confirm prospective mark timing, conflict ordering, pending-tool idle reasons, and "
+            "the topic-change snapshot before any stale-result skip."
+            if scoped
+            else ""
+        ),
         "",
         "| Pilot | Call / beat / observed seq | Scripted action | Open event facts | Pending | "
-        "Timers | Floor owned |",
-        "|---|---|---|---|---|---|---|",
+        "Timers | Floor owned | Stale basis snapshot |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     lines.extend(
         "| "
@@ -86,6 +108,7 @@ def _review_bytes(decisions: list[dict[str, object]]) -> bytes:
                 f"`{_cell(row['pending'])}`",
                 f"`{_cell(row['timers'])}`",
                 str(row["floor_owned"]),
+                f"`{_cell(row['stale_basis'])}`",
             )
         )
         + " |"
@@ -100,6 +123,7 @@ async def generate_pilot_review(
     output: Path,
     registry_jsonl: bytes,
     seal_jsons: tuple[bytes, ...],
+    review_pilot_ids: tuple[str, ...] | None = None,
 ) -> None:
     """Generate only from canonical externally reviewed registry and TEST/DEMO seals."""
     registry, seals = load_verified_registry_seals(registry_jsonl, seal_jsons)
@@ -119,6 +143,13 @@ async def generate_pilot_review(
         )
         for pilot_id, family, template_id, asset_ids, master_seed in _PILOTS
     )
+    known_pilot_ids = tuple(pilot_id for pilot_id, _program in programs)
+    if review_pilot_ids is not None and (
+        not review_pilot_ids
+        or len(set(review_pilot_ids)) != len(review_pilot_ids)
+        or any(pilot_id not in known_pilot_ids for pilot_id in review_pilot_ids)
+    ):
+        raise ValueError("review_pilot_ids must be unique known pilot ids")
     if output.exists():
         raise FileExistsError(f"pilot output already exists: {output}")
 
@@ -172,6 +203,8 @@ async def generate_pilot_review(
                 }
             )
             for decision in generated.sidecar.decisions:
+                if review_pilot_ids is not None and pilot_id not in review_pilot_ids:
+                    continue
                 review_decisions.append(
                     {
                         "pilot_id": pilot_id,
@@ -195,10 +228,18 @@ async def generate_pilot_review(
                             "canceled": decision.canceled_timer_ids,
                         },
                         "floor_owned": decision.floor_owned,
+                        "stale_basis": (
+                            None
+                            if decision.stale_snapshot_event_id is None
+                            else {
+                                "event_id": decision.stale_snapshot_event_id,
+                                "text": decision.stale_snapshot_text,
+                            }
+                        ),
                     }
                 )
 
-    files["REVIEW.md"] = _review_bytes(review_decisions)
+    files["REVIEW.md"] = _review_bytes(review_decisions, review_pilot_ids)
     files["manifest.json"] = canonical_artifact_bytes(
         {
             "format_version": 1,
@@ -236,6 +277,12 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--registry", type=Path, required=True)
     parser.add_argument("--test-seal", type=Path, required=True)
     parser.add_argument("--demo-seal", type=Path, required=True)
+    parser.add_argument(
+        "--review-pilot",
+        action="append",
+        choices=tuple(pilot_id for pilot_id, *_rest in _PILOTS),
+        dest="review_pilot_ids",
+    )
     return parser.parse_args()
 
 
@@ -247,6 +294,9 @@ def main() -> None:
             output=args.output,
             registry_jsonl=args.registry.read_bytes(),
             seal_jsons=(args.test_seal.read_bytes(), args.demo_seal.read_bytes()),
+            review_pilot_ids=(
+                None if args.review_pilot_ids is None else tuple(args.review_pilot_ids)
+            ),
         )
     )
 

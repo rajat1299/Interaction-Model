@@ -24,8 +24,23 @@ from im.assets.registry import AssetRegistry, AssetRegistryError
 from im.assets.seeds import build_seed_registry
 from im.generation.scenario_catalog import build_family_program
 from im.generation.scenarios import execute_scenario, validate_generated_scenario
-from im.schema.actions import MarkAction
-from im.schema.events import StateCheckpointEvent
+from im.license import Allowed, check
+from im.schema.actions import (
+    DelegateAction,
+    IdleAction,
+    IdleReason,
+    MarkAction,
+    NudgeAction,
+    ScheduleAction,
+    SkipAction,
+)
+from im.schema.events import (
+    ActionExecutedEvent,
+    SnapshotEvent,
+    StateCheckpointEvent,
+    ToolResultEvent,
+)
+from im.schema.textspan import utf16_len
 from im.serialize import parse_event
 
 
@@ -196,17 +211,117 @@ def test_public_family_builder_rejects_review_detached_inputs(
 
 @pytest.mark.parametrize(
     "family",
-    (CorpusFamily.TIMER_CONTENTION, CorpusFamily.ROLLOVER),
+    (CorpusFamily.MARK_POSITIVE, CorpusFamily.TIMER_CONTENTION, CorpusFamily.ROLLOVER),
 )
-def test_composite_scenarios_keep_mark_instruction_spans_causal(
+def test_mark_scenarios_select_a_later_target_occurrence(
     approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]],
     family: CorpusFamily,
 ) -> None:
     program = _program(approved_inputs, family, f"mark-span-{family.value}")
     mark = next(action for action in program.actions if isinstance(action, MarkAction))
+    target_source = next(
+        json.loads(frame.raw_bytes)["text"]
+        for frame in program.frames
+        if json.loads(frame.raw_bytes)["text"].endswith(mark.target.text)
+    )
 
     assert mark.instruction.text == "Underline amber kiwi in the notebook."
     assert mark.target.text == "amber kiwi"
+    assert mark.instruction.event_id != mark.target.event_id
+    assert target_source.endswith(mark.target.text)
+    assert not target_source.endswith(f"{mark.target.text}.")
+    assert target_source.count(mark.target.text) == 2
+    assert mark.target.start_utf16 == utf16_len(
+        target_source[: target_source.rindex(mark.target.text)]
+    )
+
+
+def test_timer_contention_paused_recipe_orders_control_fire_and_mark(
+    approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]],
+) -> None:
+    program = _program(approved_inputs, CorpusFamily.TIMER_CONTENTION, "timer-order")
+
+    assert tuple(type(action) for action in program.actions) == (
+        ScheduleAction,
+        IdleAction,
+        IdleAction,
+        NudgeAction,
+        MarkAction,
+        IdleAction,
+    )
+    assert program.frames[2].at_ms - program.frames[1].at_ms == 100
+    assert isinstance(program.actions[3], NudgeAction)
+    assert program.actions[3].fire_event_id == "e_000007"
+    assert isinstance(program.actions[4], MarkAction)
+    assert program.actions[4].instruction.event_id == "e_000005"
+    assert program.actions[4].target.event_id == "e_000006"
+
+
+def test_rollover_recipe_preserves_the_causal_action_order(
+    approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]],
+) -> None:
+    program = _program(approved_inputs, CorpusFamily.ROLLOVER, "rollover-order")
+    initial = json.loads(program.frames[0].raw_bytes)["text"]
+    topic = json.loads(program.frames[-1].raw_bytes)["text"]
+
+    assert tuple(type(action) for action in program.actions) == (
+        IdleAction,
+        ScheduleAction,
+        MarkAction,
+        DelegateAction,
+        IdleAction,
+        NudgeAction,
+        SkipAction,
+        DelegateAction,
+    )
+    assert initial == "Underline amber kiwi in the notebook."
+    assert "followup" not in initial
+    later_text = json.loads(program.frames[1].raw_bytes)["text"]
+    assert "Remind me every ten seconds to stretch." in later_text
+    assert "Aster Quay wind index" in later_text
+    assert topic.startswith("Never mind, Aster Quay wind index is not relevant anymore.")
+    assert isinstance(program.actions[4], IdleAction)
+    assert program.actions[4].reason is IdleReason.AWAITING_TOOL
+    assert program.actions[4].related_event_id == "e_000004"
+    assert program.tool_results[0].latency_ms == (
+        10_000 - program.timing_plan.service_ms[2] - program.timing_plan.service_ms[3] - 1
+    )
+
+
+def test_rollover_rejects_an_approved_timer_too_short_for_the_seeded_choreography() -> None:
+    seed_registry = build_seed_registry()
+    template_id = "a_46293d1f4f54b6744f01d445"
+    asset_ids = (
+        "a_99dd2012f97541c5b2d058ce",
+        "a_c73776390335a02c99de39e5",
+        "a_e3a7e416f1da66ab46723a66",
+    )
+    selected_ids = {template_id, *asset_ids}
+    selected = tuple(asset for asset in seed_registry.assets if asset.asset_id in selected_ids)
+    registry = AssetRegistry(
+        assets=seed_registry.assets,
+        reviews=tuple(_approved(asset) for asset in selected),
+    )
+
+    with pytest.raises(ValueError, match="timer interval of at least 5368 ms"):
+        build_family_program(
+            CorpusFamily.ROLLOVER,
+            registry,
+            split=Split.DEMO,
+            template_id=template_id,
+            asset_ids=asset_ids,
+            master_seed="x4",
+        )
+
+
+def test_stale_lookup_awaits_the_original_pending_fact(
+    approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]],
+) -> None:
+    program = _program(approved_inputs, CorpusFamily.LOOKUP_STALE, "stale-await")
+
+    assert isinstance(program.actions[1], IdleAction)
+    assert program.actions[1].reason is IdleReason.AWAITING_TOOL
+    assert program.actions[1].related_event_id == "e_000002"
 
 
 @pytest.mark.parametrize("family", tuple(CorpusFamily))
@@ -270,16 +385,19 @@ async def test_every_family_runs_through_the_production_runtime(
 
 
 @pytest.mark.asyncio
-async def test_same_seed_regenerates_the_same_runtime_stream(
-    tmp_path: Path, approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]]
+@pytest.mark.parametrize("family", (CorpusFamily.TIMER_CONTENTION, CorpusFamily.ROLLOVER))
+async def test_repaired_scenarios_regenerate_the_same_runtime_stream(
+    tmp_path: Path,
+    approved_inputs: tuple[AssetRegistry, AssetRecord, tuple[str, ...]],
+    family: CorpusFamily,
 ) -> None:
     first = await execute_scenario(
-        _program(approved_inputs, CorpusFamily.TIMER_NORMAL, "same-seed"),
+        _program(approved_inputs, family, "same-seed"),
         session_id="s_same_one",
         directory=tmp_path / "one",
     )
     second = await execute_scenario(
-        _program(approved_inputs, CorpusFamily.TIMER_NORMAL, "same-seed"),
+        _program(approved_inputs, family, "same-seed"),
         session_id="s_same_two",
         directory=tmp_path / "two",
     )
@@ -305,16 +423,64 @@ async def test_rollover_carries_live_mark_timer_and_tool_into_a_stale_post_check
         for line in segment.policy_bytes.splitlines()
         if isinstance((event := parse_event(line)), StateCheckpointEvent)
     ]
+    events = [
+        parse_event(line)
+        for segment in generated.stream.segments
+        for line in segment.policy_bytes.splitlines()
+    ]
+    executed = [event for event in events if isinstance(event, ActionExecutedEvent)]
+    actions = [event.payload.action for event in executed]
+    topic = next(
+        event
+        for event in events
+        if isinstance(event, SnapshotEvent)
+        and event.payload.text.startswith("Never mind, Aster Quay wind index")
+    )
+    result = next(event for event in events if isinstance(event, ToolResultEvent))
+    skip_event = next(event for event in executed if isinstance(event.payload.action, SkipAction))
 
     assert len(generated.stream.segments) >= 2
     assert checkpoints
-    assert checkpoints[0].payload.pending_tools
-    assert any(timer.status.value == "active" for timer in checkpoints[0].payload.timers)
-    assert checkpoints[0].payload.applied_marks
+    live_checkpoint = next(
+        checkpoint
+        for checkpoint in checkpoints
+        if checkpoint.payload.pending_tools
+        and any(timer.status.value == "active" for timer in checkpoint.payload.timers)
+    )
+    assert checkpoints[0].payload.snapshot.text.startswith("Underline amber kiwi")
+    assert not checkpoints[0].payload.applied_marks
+    assert live_checkpoint.payload.applied_marks
     assert any(item["status"] == "active" for item in ledger["timers"])
     assert any(item["status"] == "pending" for item in ledger["tool_requests"])
-    assert any(decision.stale_tool_result_event_ids for decision in generated.sidecar.decisions)
-    assert any(decision.action.type == "mark" for decision in generated.sidecar.decisions)
+    assert generated.sidecar.decisions[5].stale_tool_result_event_ids == (result.id,)
+    assert generated.sidecar.decisions[6].stale_tool_result_event_ids == (result.id,)
+    assert tuple(type(action) for action in actions) == (
+        ScheduleAction,
+        MarkAction,
+        DelegateAction,
+        NudgeAction,
+        SkipAction,
+        DelegateAction,
+    )
+    schedule_index = next(
+        index
+        for index, action in enumerate(generated.program.actions)
+        if isinstance(action, ScheduleAction)
+    )
+    future_mark = next(
+        action
+        for action in generated.program.actions[schedule_index + 1 :]
+        if isinstance(action, MarkAction)
+    )
+    schedule_boundary = generated.decision_boundaries[schedule_index]
+    assert isinstance(check(future_mark, schedule_boundary.license_view), Allowed)
+    awaiting = generated.sidecar.decisions[4].action
+    assert isinstance(awaiting, IdleAction)
+    assert awaiting.reason is IdleReason.AWAITING_TOOL
+    assert awaiting.related_event_id == actions[2].fact.event_id
+    assert events.index(topic) < events.index(result) < events.index(skip_event)
+    assert skip_event.payload.action.target_event_id == result.id
+    assert actions[-1].fact.event_id == topic.id
 
 
 @pytest.mark.asyncio

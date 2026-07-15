@@ -40,6 +40,7 @@ from im.schema.actions import (
     SkipAction,
 )
 from im.schema.events import ActionExecutedEvent, ToolResultEvent
+from im.schema.textspan import utf16_len
 from im.serialize import parse_event
 
 _GROUP_VERSION = "phase1-c5-counterfactual-groups-v1"
@@ -386,12 +387,21 @@ def _validate_axis_effect(axis: TwinAxis, members: tuple[TwinMember, TwinMember]
     left_program, right_program = left.generated.program, right.generated.program
     left_facts = left.generated.sidecar.decisions
     right_facts = right.generated.sidecar.decisions
-    if axis in (TwinAxis.DIRECTNESS, TwinAxis.LEXICAL_BOUNDARY):
+    if axis is TwinAxis.DIRECTNESS:
         _require(
-            isinstance(left_program.actions[0], MarkAction)
-            and isinstance(right_program.actions[0], IdleAction)
-            and right_program.actions[0].reason is IdleReason.INSTRUCTION_NOT_DIRECT,
-            f"{axis.value} does not produce the required mark/restraint contrast",
+            any(isinstance(action, MarkAction) for action in left_program.actions)
+            and not any(isinstance(action, MarkAction) for action in right_program.actions)
+            and isinstance(right_program.actions[-1], IdleAction)
+            and right_program.actions[-1].reason is IdleReason.INSTRUCTION_NOT_DIRECT,
+            "directness does not produce the required mark/restraint contrast",
+        )
+    elif axis is TwinAxis.LEXICAL_BOUNDARY:
+        _require(
+            any(isinstance(action, MarkAction) for action in left_program.actions)
+            and not any(isinstance(action, MarkAction) for action in right_program.actions)
+            and isinstance(right_program.actions[-1], IdleAction)
+            and right_program.actions[-1].reason is IdleReason.TYPING_ACTIVE,
+            "lexical-boundary does not produce the required mark/restraint contrast",
         )
     elif axis is TwinAxis.TOOL_LATENCY:
         _require(
@@ -421,16 +431,42 @@ def _validate_axis_effect(axis: TwinAxis, members: tuple[TwinMember, TwinMember]
             "timer-status twin does not expose active versus canceled handling",
         )
     elif axis is TwinAxis.FLOOR_STATE:
-        _require(
-            any(
-                decision.floor_owned and isinstance(decision.action, IdleAction)
-                for decision in left_facts
-            )
-            and any(
-                not decision.floor_owned and isinstance(decision.action, NudgeAction)
-                for decision in right_facts
+        typing_nudge_index = next(
+            (
+                index
+                for index, decision in enumerate(left_facts)
+                if decision.floor_owned and isinstance(decision.action, NudgeAction)
             ),
+            None,
+        )
+        paused_mark = next(
+            (
+                decision.action
+                for decision in right_facts
+                if not decision.floor_owned and isinstance(decision.action, MarkAction)
+            ),
+            None,
+        )
+        typing_target_text = json.loads(left_program.frames[-1].raw_bytes)["text"]
+        paused_target_text = json.loads(right_program.frames[-1].raw_bytes)["text"]
+        _require(
+            typing_nudge_index is not None
+            and typing_nudge_index + 1 < len(left_facts)
+            and isinstance(left_facts[typing_nudge_index + 1].action, IdleAction)
+            and left_facts[typing_nudge_index + 1].action.reason is IdleReason.TYPING_ACTIVE
+            and isinstance(paused_mark, MarkAction),
             "floor-state twin does not expose typing versus paused handling",
+        )
+        _require(
+            not any(isinstance(decision.action, MarkAction) for decision in left_facts),
+            "floor-state typing member must not mark",
+        )
+        assert isinstance(paused_mark, MarkAction)  # narrowed by the axis contract above.
+        _require(
+            typing_target_text == paused_target_text
+            and paused_target_text.endswith(paused_mark.target.text)
+            and paused_mark.target.end_utf16 == utf16_len(paused_target_text),
+            "floor-state twins must share a bare snapshot-end mark target",
         )
     elif axis is TwinAxis.TOPIC_FRESHNESS:
         _require(

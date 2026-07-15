@@ -22,6 +22,7 @@ from im.generation.ingestion import (
     _digest,
     _framed_bytes,
 )
+from im.generation.oracle import ScenarioValidationError, validate_oracle_action
 from im.generation.runtime import DecisionBoundary
 from im.generation.timing import TimingPlan
 from im.generation.validity import validate_generated_stream
@@ -37,6 +38,7 @@ from im.schema.actions import (
     RespondAction,
     ScheduleAction,
     SkipAction,
+    SkipReason,
 )
 from im.schema.common import Disposition, TimerStatus
 from im.tools import ScriptedToolResult
@@ -55,12 +57,6 @@ _ACTION_TYPES = (
 _BEAT_ID = r"[a-z][a-z0-9_-]{0,63}"
 _GROUP_ID = r"[a-z][a-z0-9_-]{2,127}"
 _EVENT_ID = r"e_[0-9]{6}"
-
-
-class ScenarioValidationError(ValueError):
-    """A frozen scenario or its sidecar violates C5's closed contract."""
-
-
 class ScenarioExecutionError(RuntimeError):
     """A runtime execution diverged from its finite scenario program."""
 
@@ -411,6 +407,8 @@ class OracleDecision:
     active_timer_ids: tuple[str, ...]
     canceled_timer_ids: tuple[str, ...]
     floor_owned: bool
+    stale_snapshot_event_id: str | None = None
+    stale_snapshot_text: str | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.call_index, bool) or not isinstance(self.call_index, int):
@@ -438,9 +436,28 @@ class OracleDecision:
             raise TypeError("floor_owned must be a bool")
         if not set(self.stale_tool_result_event_ids).issubset(self.open_tool_result_event_ids):
             raise ScenarioValidationError("stale results must be a subset of open tool results")
+        stale_skip = isinstance(self.action, SkipAction) and (
+            self.action.reason is SkipReason.STALE_TOOL_RESULT
+        )
+        evidence_present = (
+            self.stale_snapshot_event_id is not None and self.stale_snapshot_text is not None
+        )
+        if stale_skip != evidence_present:
+            raise ScenarioValidationError(
+                "stale skip snapshot evidence is required exactly for stale skips"
+            )
+        if self.stale_snapshot_event_id is not None:
+            _require_id(self.stale_snapshot_event_id, _EVENT_ID, "stale snapshot event id")
+        if self.stale_snapshot_text is not None:
+            if not isinstance(self.stale_snapshot_text, str):
+                raise TypeError("stale snapshot text must be a string")
+            try:
+                self.stale_snapshot_text.encode("utf-8")
+            except UnicodeEncodeError as error:
+                raise ScenarioValidationError("stale snapshot text must be valid UTF-8") from error
 
     def as_json_object(self) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "call_index": self.call_index,
             "observed_policy_seq": self.observed_policy_seq,
             "action": self.action.model_dump(mode="json"),
@@ -453,6 +470,10 @@ class OracleDecision:
             "canceled_timer_ids": list(self.canceled_timer_ids),
             "floor_owned": self.floor_owned,
         }
+        if self.stale_snapshot_event_id is not None:
+            result["stale_snapshot_event_id"] = self.stale_snapshot_event_id
+            result["stale_snapshot_text"] = self.stale_snapshot_text
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -642,13 +663,15 @@ def validate_generated_scenario(generated: GeneratedScenario) -> OracleSidecar:
     stale_by_beat = {
         item.beat_id: item.tool_result_event_ids for item in generated.program.stale_results_by_beat
     }
-    for boundary, decision, captured, action, beat_id in zip(
-        generated.decision_boundaries,
-        sidecar.decisions,
-        generated.stream.decisions,
-        generated.program.actions,
-        generated.program.beat_ids,
-        strict=True,
+    for index, (boundary, decision, captured, action, beat_id) in enumerate(
+        zip(
+            generated.decision_boundaries,
+            sidecar.decisions,
+            generated.stream.decisions,
+            generated.program.actions,
+            generated.program.beat_ids,
+            strict=True,
+        )
     ):
         _validate_decision_against_boundary(
             boundary,
@@ -657,6 +680,7 @@ def validate_generated_scenario(generated: GeneratedScenario) -> OracleSidecar:
             action=action,
             beat_id=beat_id,
             stale_tool_result_event_ids=stale_by_beat[beat_id],
+            future_actions=generated.program.actions[index + 1 :],
         )
     return sidecar
 
@@ -676,6 +700,7 @@ def _build_sidecar(
             action=program.actions[index],
             beat_id=program.beat_ids[index],
             stale_tool_result_event_ids=stale_by_beat[program.beat_ids[index]],
+            future_actions=program.actions[index + 1 :],
         )
         for index, boundary in enumerate(boundaries)
     )
@@ -704,6 +729,7 @@ def _decision_from_boundary(
     action: Action,
     beat_id: str,
     stale_tool_result_event_ids: tuple[str, ...],
+    future_actions: tuple[Action, ...],
 ) -> OracleDecision:
     if boundary.call_index != captured.call_index or boundary.policy_bytes != captured.prefix_bytes:
         raise ScenarioExecutionError("captured runtime boundary differs from durable decision")
@@ -726,6 +752,7 @@ def _decision_from_boundary(
         action=action,
         beat_id=beat_id,
         stale_tool_result_event_ids=stale_tool_result_event_ids,
+        future_actions=future_actions,
     )
     return decision
 
@@ -780,6 +807,7 @@ def _validate_decision_against_boundary(
     action: Action,
     beat_id: str,
     stale_tool_result_event_ids: tuple[str, ...],
+    future_actions: tuple[Action, ...],
 ) -> None:
     expected = _decision_from_view(
         boundary=boundary,
@@ -796,6 +824,12 @@ def _validate_decision_against_boundary(
         raise ScenarioValidationError("sidecar facts differ from the captured license view")
     if not isinstance(check(decision.action, boundary.license_view), Allowed):
         raise ScenarioValidationError("sidecar action is not allowed at its captured boundary")
+    validate_oracle_action(
+        boundary,
+        decision.action,
+        future_actions=future_actions,
+        stale_tool_result_event_ids=stale_tool_result_event_ids,
+    )
 
 
 def _decision_from_view(
@@ -807,6 +841,14 @@ def _decision_from_view(
     observed_policy_seq: int,
 ) -> OracleDecision:
     view = boundary.license_view
+    stale_snapshot = (
+        view.latest_snapshot
+        if isinstance(action, SkipAction) and action.reason is SkipReason.STALE_TOOL_RESULT
+        else None
+    )
+    if isinstance(action, SkipAction) and action.reason is SkipReason.STALE_TOOL_RESULT:
+        if stale_snapshot is None:
+            raise ScenarioValidationError("stale skip lacks latest snapshot evidence")
     return OracleDecision(
         call_index=boundary.call_index,
         observed_policy_seq=observed_policy_seq,
@@ -831,6 +873,8 @@ def _decision_from_view(
             timer.timer_id for timer in view.timers if timer.status is TimerStatus.CANCELED
         ),
         floor_owned=view.floor_owned,
+        stale_snapshot_event_id=(None if stale_snapshot is None else stale_snapshot.event_id),
+        stale_snapshot_text=None if stale_snapshot is None else stale_snapshot.text,
     )
 
 

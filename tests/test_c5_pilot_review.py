@@ -91,6 +91,7 @@ async def test_c5_pilot_review_requires_seals_and_writes_deterministic_four_pilo
             output=output,
             registry_jsonl=registry_jsonl,
             seal_jsons=reviewed_seals,
+            review_pilot_ids=("c5-timer-contention", "c5-rollover"),
         )
 
     first_files = _files(first_output)
@@ -105,10 +106,14 @@ async def test_c5_pilot_review_requires_seals_and_writes_deterministic_four_pilo
     assert all(path.startswith(("teacher/", "reviewer/")) for path in first_files if "/" in path)
     assert "Awaiting user sign-off" in first_files["REVIEW.md"].decode("utf-8")
     review = first_files["REVIEW.md"].decode("utf-8")
-    assert "approve all four" in review
-    assert "rejects the whole stream" in review
+    assert "c5-timer-contention" in review
+    assert "c5-rollover" in review
+    assert "c5-lookup-live" not in review
+    assert "c5-mark-negative" not in review
+    assert "Stale basis snapshot" in review
+    assert "not relevant anymore" in review
     assert "stale_results" in review
-    assert '"type":"integrate"' in review
+    assert '"type":"integrate"' not in review
     expected_checksums = "".join(
         f"{sha256(data).hexdigest()}  {path}\n"
         for path, data in sorted(first_files.items())

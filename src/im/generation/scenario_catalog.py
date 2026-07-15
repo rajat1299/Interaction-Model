@@ -102,6 +102,20 @@ def _span(event_id: str, text: str, selected: str | None = None) -> Span:
     )
 
 
+def _later_span(event_id: str, text: str, selected: str) -> Span:
+    try:
+        start = text.rindex(selected)
+    except ValueError as error:
+        raise ValueError("scenario target is absent from its later source text") from error
+    start_utf16 = utf16_len(text[:start])
+    return Span(
+        event_id=event_id,
+        start_utf16=start_utf16,
+        end_utf16=start_utf16 + utf16_len(selected),
+        text=selected,
+    )
+
+
 def _idle(
     reason: IdleReason = IdleReason.NO_TRIGGER, related_event_id: str | None = None
 ) -> IdleAction:
@@ -114,11 +128,17 @@ def _mark(
     target: str,
     *,
     instruction: str | None = None,
+    target_event_id: str | None = None,
+    target_text: str | None = None,
 ) -> MarkAction:
     return MarkAction(
         type="mark",
         instruction=_span(event_id, text, instruction),
-        target=_span(event_id, text, target),
+        target=(
+            _later_span(target_event_id or event_id, target_text, target)
+            if target_text is not None
+            else _span(event_id, text, target)
+        ),
     )
 
 
@@ -170,6 +190,10 @@ def _mark_target(asset: AssetRecord, text: str) -> str:
     return text.split(maxsplit=1)[0]
 
 
+def _prospective_target_text(control: str, target: str) -> str:
+    return f"{control}\nA later line in that document mentions {target}"
+
+
 def _selected_text_asset(
     bundle: AssetBundle,
     family: CorpusFamily | None,
@@ -192,17 +216,33 @@ def _selected_text_asset(
     return asset
 
 
-def _supported_timer(bundle: AssetBundle) -> TimerAssetPayload:
+def _supported_timer(
+    bundle: AssetBundle,
+    *,
+    minimum_interval_ms: int | None = None,
+) -> TimerAssetPayload:
     timer = next(
         (
             item.payload
             for item in bundle.assets
             if isinstance(item.payload, TimerAssetPayload)
             and item.payload.form is TimerForm.SUPPORTED
+            and (
+                minimum_interval_ms is None
+                or (
+                    item.payload.interval_ms is not None
+                    and item.payload.interval_ms >= minimum_interval_ms
+                )
+            )
         ),
         None,
     )
     if timer is None:
+        if minimum_interval_ms is not None:
+            raise ValueError(
+                "scenario requires an approved supported timer interval of at least "
+                f"{minimum_interval_ms} ms"
+            )
         raise ValueError("scenario requires an approved supported timer asset")
     return timer
 
@@ -250,7 +290,7 @@ def _decision_count(
             if variant
             and variant[0] in {"directness", "lexical_boundary"}
             and variant[1] in {"quoted", "embedded"}
-            else 2
+            else 3
         )
     if family is CorpusFamily.MARK_NEGATIVE:
         return 1
@@ -279,9 +319,9 @@ def _decision_count(
             return 1
         return 4 if _variant_value(variant, "timer_status", "canceled") == "active" else 5
     if family is CorpusFamily.TIMER_CONTENTION:
-        return 4 if _variant_value(variant, "floor_state", "paused") == "typing" else 6
+        return 5 if _variant_value(variant, "floor_state", "paused") == "typing" else 6
     if family is CorpusFamily.ROLLOVER:
-        return 6
+        return 8
     assert family is CorpusFamily.RESERVED
     return 1
 
@@ -332,12 +372,43 @@ def _compile(
         source = text.text if mode == "direct" else f'The note quotes "{text.text}".'
         if boundary == "embedded":
             source = source.replace(target, f"{target}field", 1)
-        actions: tuple[object, ...] = (
-            (_idle(IdleReason.INSTRUCTION_NOT_DIRECT),)
-            if mode == "quoted" or boundary == "embedded"
-            else (_mark("e_000002", source, target), _idle())
+        if mode == "quoted":
+            return (
+                (_frame(0, source),),
+                (),
+                (_idle(IdleReason.INSTRUCTION_NOT_DIRECT),),
+                (),
+                config,
+                stale,
+            )
+        if boundary == "embedded":
+            return (
+                (_frame(0, source),),
+                (),
+                (_idle(IdleReason.TYPING_ACTIVE),),
+                (),
+                config,
+                stale,
+            )
+        target_text = _prospective_target_text(text.text, target)
+        return (
+            (_frame(0, text.text), _frame(service[0] + 1, target_text)),
+            (),
+            (
+                _idle(),
+                _mark(
+                    "e_000002",
+                    text.text,
+                    target,
+                    target_event_id="e_000003",
+                    target_text=target_text,
+                ),
+                _idle(),
+            ),
+            (),
+            config,
+            stale,
         )
-        return ((_frame(0, source),), (), actions, (), config, stale)
     if family is CorpusFamily.MARK_NEGATIVE:
         text = _selected_payload(bundle, family, TextAssetPayload)
         assert isinstance(text, TextAssetPayload)
@@ -430,9 +501,18 @@ def _compile(
         )
         stale = (("b2", ("e_000006",)),) if freshness == "changed" else ()
         actions = (
-            (_delegate("e_000002", lookup.query, lookup.query), _idle(), final)
+            (
+                _delegate("e_000002", lookup.query, lookup.query),
+                _idle(IdleReason.AWAITING_TOOL, "e_000002"),
+                final,
+            )
             if freshness == "current"
-            else (_delegate("e_000002", lookup.query, lookup.query), _idle(), final, _idle())
+            else (
+                _delegate("e_000002", lookup.query, lookup.query),
+                _idle(IdleReason.AWAITING_TOOL, "e_000002"),
+                final,
+                _idle(),
+            )
         )
         return (
             (_frame(0, lookup.query), _frame(service[0] + 300, topic)),
@@ -530,31 +610,40 @@ def _compile(
         assert isinstance(mark_text, TextAssetPayload)
         floor = _variant_value(variant, "floor_state", "paused")
         at_ms = service[0] + timer.interval_ms - 100
-        if at_ms <= service[0] + service[1]:
+        control_at = at_ms - 100
+        if control_at <= service[0] + service[1]:
             raise ValueError("timer contention family requires a long timer interval")
-        source = f"{timer.instruction}\n{mark_text.text}"
         mark_target = _mark_target(mark_asset, mark_text.text)
+        target_text = _prospective_target_text(mark_text.text, mark_target)
         actions: tuple[object, ...]
         if floor == "typing":
             actions = (
-                _schedule("e_000002", timer, source),
+                _schedule("e_000002", timer),
                 _idle(),
-                _idle(IdleReason.TYPING_ACTIVE),
+                _idle(),
+                NudgeAction(type="nudge", fire_event_id="e_000007"),
                 _idle(IdleReason.TYPING_ACTIVE),
             )
         else:
             actions = (
-                _schedule("e_000002", timer, source),
+                _schedule("e_000002", timer),
                 _idle(),
                 _idle(),
-                NudgeAction(type="nudge", fire_event_id="e_000006"),
-                _mark("e_000005", source, mark_target, instruction=mark_text.text),
+                NudgeAction(type="nudge", fire_event_id="e_000007"),
+                _mark(
+                    "e_000005",
+                    mark_text.text,
+                    mark_target,
+                    target_event_id="e_000006",
+                    target_text=target_text,
+                ),
                 _idle(),
             )
         return (
             (
-                _frame(0, source),
-                _frame(at_ms, source, activity="active" if floor == "typing" else "paused"),
+                _frame(0, timer.instruction),
+                _frame(control_at, mark_text.text),
+                _frame(at_ms, target_text, activity="active" if floor == "typing" else "paused"),
             ),
             (),
             actions,
@@ -564,40 +653,68 @@ def _compile(
         )
     if family is CorpusFamily.ROLLOVER:
         lookup = _selected_payload(bundle, family, LookupAssetPayload)
-        timer = _supported_timer(bundle)
+        minimum_timer_interval_ms = service[2] + service[3] + 1
+        timer = _supported_timer(bundle, minimum_interval_ms=minimum_timer_interval_ms)
         mark_asset = _selected_text_asset(bundle, CorpusFamily.MARK_POSITIVE, form=TextForm.DIRECT)
         mark_text = mark_asset.payload
         assert isinstance(lookup, LookupAssetPayload)
         assert isinstance(mark_text, TextAssetPayload)
         followup_query = f"{lookup.query} followup"
-        source = "\n".join((mark_text.text, timer.instruction, lookup.query, followup_query))
         target = _mark_target(mark_asset, mark_text.text)
+        target_text = _prospective_target_text(
+            "\n".join((mark_text.text, timer.instruction, lookup.query)), target
+        )
+        topic_text = f"Never mind, {lookup.query} is not relevant anymore. {followup_query}"
         boundary = _variant_value(variant, "rollover_boundary", "post")
         rollover_config = RuntimeConfig(context_budget_tokens=12_000 if boundary == "pre" else 100)
-        topic_changed_at = sum(service[:3]) + 699
-        topic_event_id = "e_000009" if boundary == "post" else "e_000008"
-        result_event_id = "e_000010" if boundary == "post" else "e_000009"
+        target_at = service[0] + 1
+        timer_due_at = target_at + service[1] + timer.interval_ms
+        awaiting_at = timer_due_at - 3
+        topic_changed_at = awaiting_at + 1
+        target_event_id = "e_000004" if boundary == "post" else "e_000003"
+        topic_event_id = "e_000012" if boundary == "post" else "e_000010"
+        result_event_id = "e_000013" if boundary == "post" else "e_000011"
+        fire_event_id = "e_000014" if boundary == "post" else "e_000012"
         return (
-            (_frame(0, source), _frame(topic_changed_at, followup_query)),
+            (
+                _frame(0, mark_text.text),
+                _frame(target_at, target_text),
+                _frame(awaiting_at, target_text),
+                _frame(topic_changed_at, topic_text),
+            ),
             (),
             (
-                _mark("e_000002", source, target, instruction=mark_text.text),
-                _schedule("e_000002", timer, source),
-                _delegate("e_000002", source, lookup.query),
                 _idle(),
+                _schedule(target_event_id, timer, target_text),
+                _mark(
+                    "e_000002",
+                    mark_text.text,
+                    target,
+                    target_event_id=target_event_id,
+                    target_text=target_text,
+                ),
+                _delegate(target_event_id, target_text, lookup.query),
+                _idle(IdleReason.AWAITING_TOOL, target_event_id),
+                NudgeAction(type="nudge", fire_event_id=fire_event_id),
                 SkipAction(
                     type="skip",
                     target_event_id=result_event_id,
                     reason=SkipReason.STALE_TOOL_RESULT,
                 ),
-                _delegate(topic_event_id, followup_query, followup_query),
+                _delegate(topic_event_id, topic_text, followup_query),
             ),
             (
-                ScriptedToolResult(latency_ms=700, data={"nonce": lookup.result_a}),
+                ScriptedToolResult(
+                    latency_ms=timer.interval_ms - minimum_timer_interval_ms,
+                    data={"nonce": lookup.result_a},
+                ),
                 ScriptedToolResult(latency_ms=_LONG_PENDING_MS, data={"nonce": lookup.result_b}),
             ),
             rollover_config,
-            (("b4", (result_event_id,)),),
+            (
+                ("b5", (result_event_id,)),
+                ("b6", (result_event_id,)),
+            ),
         )
     assert family is CorpusFamily.RESERVED
     text = next(
