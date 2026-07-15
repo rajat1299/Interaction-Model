@@ -27,6 +27,10 @@ _FILES = ("REVIEW.md", "RESUBMISSION.md", "inventory.json")
 _SPLITS = (Split.TEST, Split.DEMO)
 _EXPECTED_COUNTS = {Split.TEST: 24, Split.DEMO: 29}
 _EXPECTED_TEMPLATE_COUNT = 24
+_REREVIEW_IDS = (
+    "a_dc4a358d6789972f41342d6f",
+    "a_2dd9d975375a37bd54d0bdaf",
+)
 _EXAMPLES_SOURCE = (
     Path(__file__).resolve().parents[1] / "src" / "im" / "assets" / "heldout_review_examples.json"
 )
@@ -203,24 +207,27 @@ def _render_review(
     examples: tuple[dict[str, object], ...],
 ) -> bytes:
     counts = {split: sum(record.split is split for record in records) for split in _SPLITS}
+    by_id = {asset.asset_id: asset for asset in records}
+    review_records = tuple(by_id[asset_id] for asset_id in _REREVIEW_IDS)
     example_by_template = {
         str(item["review_example"]["template_asset_id"]): item for item in examples
     }
     lines = [
         "# Heldout asset review packet",
         "",
-        f"Scope: {len(records)} current heldout corpus records "
-        f"({counts[Split.TEST]} test, {counts[Split.DEMO]} demo), including atomic assets "
-        "and template grammars. Every template row includes one complete, seed-grounded neutral-"
-        "model expansion payload.",
+        f"Binding scope: {len(records)} heldout corpus records "
+        f"({counts[Split.TEST]} test, {counts[Split.DEMO]} demo) and all "
+        f"{_EXPECTED_TEMPLATE_COUNT} rendered expansions. Renewed human-review scope: only the "
+        f"{len(review_records)} changed rows below. The other 51 records and all rendered "
+        "expansions were approved unchanged.",
         "Automated validation: 0 findings across exact/normalized cross-split duplicates, "
         "policy-text leakage, and lookup A/B protected-value contrast.",
         "",
         "## Reply",
         "",
-        "Reply `approve all`, or list `flagged`/`rejected` asset IDs with a reason. Reviewer "
-        "identity and UTC timestamp are collected only by a later apply step; this rendering "
-        "applies no decision.",
+        "Reply `approve both changed rows`, or list a still-flagged asset ID with a reason. "
+        "Reviewer identity and UTC timestamp are collected only by the later apply step; this "
+        "rendering applies no decision.",
         "",
         "## Inventory",
         "",
@@ -228,7 +235,7 @@ def _render_review(
         "rendered policy-visible example | content digest |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for asset in records:
+    for asset in review_records:
         kind_form, facts, protected_or_seeds, example = _details(asset, example_by_template)
         lines.append(
             f"| {asset.split} | {asset.coverage[0]} | {_cell(asset.asset_id)} | "
@@ -258,11 +265,14 @@ def _render_resubmission(records: tuple[AssetRecord, ...]) -> bytes:
     )
     return (
         "# Heldout asset resubmission\n\n"
-        "This packet replaces the rejected grammars at their source. Template prompts now use one "
-        "split-neutral construction and control vocabulary; split identity remains metadata only. "
-        "One fresh neutral-model expansion per template is scanned and hash-bound below; those "
-        "review examples are not corpus members. The Umber Lake, Morrow Glen, Glass Orchard, and "
-        "sun-clock atoms were corrected as requested.\n\n"
+        "This scoped rebound preserves the 51 approved records and all 24 approved rendered "
+        "expansions unchanged. `a_dc4a358d6789972f41342d6f` now gives an explicit filler-word "
+        "category instruction with protected category/member values. "
+        "`a_2dd9d975375a37bd54d0bdaf` now references only the exact-target indigo-vole seed; a "
+        "separate category template remains deferred until more category assets exist.\n\n"
+        "## Non-blocking bulk-generation follow-ups\n\n"
+        "- Require lookup results to restate the query's full subject.\n"
+        "- Add a review nudge for cross-split recycling of ordinary entity nouns.\n\n"
         "## Freeze questions\n\n"
         "1. **Quoted instructions.** Explicit quoted mark and timer atoms now live in both "
         "heldout "

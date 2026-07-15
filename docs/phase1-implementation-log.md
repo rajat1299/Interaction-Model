@@ -255,3 +255,17 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   assembled.
 - The resubmission creates fresh packet hashes only. It creates no approval, split seal, C5 pilot,
   or final-evaluation claim; renewed human review remains the next gate.
+
+## 2026-07-14 — Category-mark scoped rebound
+
+- Human review approved 51 records and every rendered expansion, with one linked flag on the demo
+  filler-category atom and its exact-target template. The atom now directly licenses every filler
+  word while naming `uh` and `er` as examples; its protected values distinguish the category from
+  those members. The exact-target template now references only the indigo-vole seed.
+- No category template is added for one asset. Before future bulk expansion, the prompt should
+  require lookup results to repeat the query's full subject, and entity lint should flag recycled
+  ordinary nouns across splits for review. Those non-blocking changes are deliberately outside
+  this two-row digest scope.
+- The rebound packet binds all 53 records and all rendered examples but displays only the two
+  changed rows for renewed review. Apply, sealing, and C5 pilot generation remain deferred until
+  those rows are approved.

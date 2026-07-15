@@ -1,6 +1,11 @@
 # Heldout asset resubmission
 
-This packet replaces the rejected grammars at their source. Template prompts now use one split-neutral construction and control vocabulary; split identity remains metadata only. One fresh neutral-model expansion per template is scanned and hash-bound below; those review examples are not corpus members. The Umber Lake, Morrow Glen, Glass Orchard, and sun-clock atoms were corrected as requested.
+This scoped rebound preserves the 51 approved records and all 24 approved rendered expansions unchanged. `a_dc4a358d6789972f41342d6f` now gives an explicit filler-word category instruction with protected category/member values. `a_2dd9d975375a37bd54d0bdaf` now references only the exact-target indigo-vole seed; a separate category template remains deferred until more category assets exist.
+
+## Non-blocking bulk-generation follow-ups
+
+- Require lookup results to restate the query's full subject.
+- Add a review nudge for cross-split recycling of ordinary entity nouns.
 
 ## Freeze questions
 

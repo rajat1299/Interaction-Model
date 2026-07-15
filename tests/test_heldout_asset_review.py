@@ -91,14 +91,22 @@ def test_heldout_asset_packet_is_complete_reproducible_and_decision_free(tmp_pat
     assert '"pool_sha256"' not in inventory_bytes.decode()
 
     review = (first / "REVIEW.md").read_text(encoding="utf-8")
-    assert "Reply `approve all`, or list `flagged`/`rejected` asset IDs with a reason." in review
-    assert "Reviewer identity and UTC timestamp are collected only by a later apply step" in review
-    assert review.count("<code>sha256:") == 53
-    assert review.count("source seed=") == 24
+    assert "Reply `approve both changed rows`" in review
+    assert (
+        "Reviewer identity and UTC timestamp are collected only by the later apply step" in review
+    )
+    assert "The other 51 records and all rendered expansions were approved unchanged." in review
+    assert review.count("<code>sha256:") == 2
+    assert review.count("source seed=") == 1
+    assert "a_dc4a358d6789972f41342d6f" in review
+    assert "a_2dd9d975375a37bd54d0bdaf" in review
     assert "split seal" not in review.casefold()
 
     resubmission = (first / "RESUBMISSION.md").read_text(encoding="utf-8")
     assert "Explicit quoted mark and timer atoms now live in both heldout pools" in resubmission
+    assert "preserves the 51 approved records" in resubmission
+    assert "full subject" in resubmission
+    assert "entity nouns" in resubmission
     assert "tranche one" in resubmission
     assert "never randomized during scenario assembly" in resubmission
 

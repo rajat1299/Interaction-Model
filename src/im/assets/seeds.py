@@ -38,6 +38,7 @@ class _SeedSpec:
     split: Split
     payload: TextAssetPayload | LookupAssetPayload | TimerAssetPayload
     protected_values: tuple[str, ...]
+    template_seed: bool = True
 
 
 def _opaque_id(*parts: str) -> str:
@@ -46,8 +47,19 @@ def _opaque_id(*parts: str) -> str:
     return f"a_{sha256(preimage).hexdigest()[:24]}"
 
 
-def _text(split: Split, form: TextForm, text: str, protected: str) -> _SeedSpec:
-    return _SeedSpec(split, TextAssetPayload(text=text, form=form), (protected,))
+def _text(
+    split: Split,
+    form: TextForm,
+    text: str,
+    *protected: str,
+    template_seed: bool = True,
+) -> _SeedSpec:
+    return _SeedSpec(
+        split,
+        TextAssetPayload(text=text, form=form),
+        protected,
+        template_seed,
+    )
 
 
 def _lookup(
@@ -239,8 +251,11 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         _text(
             Split.DEMO,
             TextForm.DIRECT,
-            "Mark the filler words uh and er in the rehearsal notes.",
-            "filler words uh and er",
+            "Mark every filler word in the rehearsal notes, including uh and er.",
+            "filler word category",
+            "uh",
+            "er",
+            template_seed=False,
         ),
     ),
     CorpusFamily.MARK_NEGATIVE: (
@@ -824,7 +839,8 @@ def _asset_records() -> tuple[AssetRecord, ...]:
                 rollover_eligible=family is CorpusFamily.ROLLOVER,
             )
             records.append(asset)
-            seeds_by_family_split.setdefault((family, entry.split), []).append(asset.asset_id)
+            if entry.template_seed:
+                seeds_by_family_split.setdefault((family, entry.split), []).append(asset.asset_id)
 
     for family in CorpusFamily:
         for split in Split:

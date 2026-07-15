@@ -88,13 +88,16 @@ def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templa
             }
             for template in split_templates:
                 assert template.payload.seed_asset_ids
-                assert template.payload.seed_asset_ids == tuple(
+                expected_seed_ids = tuple(
                     sorted(
                         asset.asset_id
                         for asset in split_atomic
                         if asset.payload.kind is template.payload.expands_kind
                     )
                 )
+                if template.asset_id == "a_2dd9d975375a37bd54d0bdaf":
+                    expected_seed_ids = ("a_c73776390335a02c99de39e5",)
+                assert template.payload.seed_asset_ids == expected_seed_ids
                 assert all(
                     records_by_id[seed_id].split is split
                     and records_by_id[seed_id].coverage == (family,)
@@ -297,18 +300,26 @@ def test_heldout_seed_corrections_keep_exact_counterfactuals_and_demo_ingredient
         if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
     )
     demo_texts = tuple(
-        asset.payload
+        asset
         for asset in registry.pool(Split.DEMO).assets
         if isinstance(asset.payload, TextAssetPayload)
     )
-    assert any(
-        text.form is TextForm.DIRECT
-        and text.text == "Mark the filler words uh and er in the rehearsal notes."
-        for text in demo_texts
+    category = next(asset for asset in demo_texts if asset.asset_id == "a_dc4a358d6789972f41342d6f")
+    assert category.payload.form is TextForm.DIRECT
+    assert category.payload.text == (
+        "Mark every filler word in the rehearsal notes, including uh and er."
     )
+    assert category.protected_values == ("filler word category", "uh", "er")
+    exact_template = next(
+        asset
+        for asset in registry.pool(Split.DEMO).templates
+        if asset.asset_id == "a_2dd9d975375a37bd54d0bdaf"
+    )
+    assert exact_template.payload.seed_asset_ids == ("a_c73776390335a02c99de39e5",)
     assert any(
-        text.form is TextForm.DIRECT and text.text == "Never mind, that’s not relevant anymore."
-        for text in demo_texts
+        asset.payload.form is TextForm.DIRECT
+        and asset.payload.text == "Never mind, that’s not relevant anymore."
+        for asset in demo_texts
     )
 
 
