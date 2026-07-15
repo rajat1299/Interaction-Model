@@ -1,9 +1,9 @@
 # C5 pilot review
 
-**Awaiting user sign-off on `c5-timer-contention`, `c5-rollover` only.**
+**Approved by the user: all four C5 pilots.**
 The `teacher/` files are the exact teacher-visible segments; `reviewer/` is review-only.
-These streams were regenerated after oracle-continuation defects; other manifest pilots retain their prior approval and are out of scope unless their bytes changed.
-Confirm prospective mark timing, conflict ordering, pending-tool idle reasons, and the topic-change snapshot before any stale-result skip.
+This acceptance binds manifest `sha256:76b2b8d255e428981adf58bae2bece8be2ba839babcc3cf00272f97983318ce1` and every artifact hash in `SHA256SUMS`.
+`c5-lookup-live` and `c5-mark-negative` retained their earlier approval; the table records the repaired `c5-timer-contention` and `c5-rollover` streams approved in the final review round.
 
 | Pilot | Call / beat / observed seq | Scripted action | Open event facts | Pending | Timers | Floor owned | Stale basis snapshot |
 |---|---|---|---|---|---|---|---|

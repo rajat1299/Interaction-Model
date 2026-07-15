@@ -10,48 +10,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from im.assets import (
-    CorpusFamily,
     load_verified_registry_seals,
     render_split_seal_json,
 )
 from im.assets.model import canonical_artifact_bytes
-from im.generation.scenario_catalog import build_family_program
+from im.generation.pilot_catalog import C5_PILOT_SPECS, build_c5_pilot_programs
 from im.generation.scenarios import execute_scenario, validate_generated_scenario
-
-_PILOTS = (
-    (
-        "c5-lookup-live",
-        CorpusFamily.LOOKUP_LIVE,
-        "a_f3b136f45b1b6646830c19f4",
-        ("a_66d66a0cc4ccc4ed70700ca2",),
-        "c5-pilot-lookup-live-v1",
-    ),
-    (
-        "c5-timer-contention",
-        CorpusFamily.TIMER_CONTENTION,
-        "a_3b59764c94a070be55839190",
-        ("a_52314b7d612e679be956acab", "a_7f4bb4fd0a0cc6f9bcbd10f1"),
-        "c5-pilot-timer-contention-v1",
-    ),
-    (
-        "c5-mark-negative",
-        CorpusFamily.MARK_NEGATIVE,
-        "a_ef1ed36384d4290e3c1f1048",
-        ("a_6514bff23da1e7465cc26fd4",),
-        "c5-pilot-mark-negative-v1",
-    ),
-    (
-        "c5-rollover",
-        CorpusFamily.ROLLOVER,
-        "a_b2349b7ab5d479c0b04875de",
-        (
-            "a_52314b7d612e679be956acab",
-            "a_76d6b1cf1400172aaeb06d0c",
-            "a_af7454cb9fec2ce9483e9eab",
-        ),
-        "c5-pilot-rollover-v1",
-    ),
-)
 
 
 def _sha256(data: bytes) -> str:
@@ -129,20 +93,7 @@ async def generate_pilot_review(
     registry, seals = load_verified_registry_seals(registry_jsonl, seal_jsons)
     repository = repository.resolve()
     output = output if output.is_absolute() else repository / output
-    programs = tuple(
-        (
-            pilot_id,
-            build_family_program(
-                family,
-                registry,
-                split="test",
-                template_id=template_id,
-                asset_ids=asset_ids,
-                master_seed=master_seed,
-            ),
-        )
-        for pilot_id, family, template_id, asset_ids, master_seed in _PILOTS
-    )
+    programs = build_c5_pilot_programs(registry)
     known_pilot_ids = tuple(pilot_id for pilot_id, _program in programs)
     if review_pilot_ids is not None and (
         not review_pilot_ids
@@ -280,7 +231,7 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument(
         "--review-pilot",
         action="append",
-        choices=tuple(pilot_id for pilot_id, *_rest in _PILOTS),
+        choices=tuple(pilot_id for pilot_id, *_rest in C5_PILOT_SPECS),
         dest="review_pilot_ids",
     )
     return parser.parse_args()

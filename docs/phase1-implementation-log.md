@@ -282,3 +282,38 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   reviewer sidecars and ledgers, and the complete packet is checksum-bound.
 - Asset review is closed. Manual approval of all four pilot streams remains the active user gate;
   no pilot acceptance or teacher approval is inferred.
+
+## 2026-07-14 — C5 pilot acceptance
+
+- The user approved `c5-lookup-live`, `c5-mark-negative`, `c5-timer-contention`, and `c5-rollover`.
+  The acceptance binds pilot manifest
+  `sha256:76b2b8d255e428981adf58bae2bece8be2ba839babcc3cf00272f97983318ce1`
+  and the packet's checksum inventory; no stream, sidecar, ledger, asset, or seal bytes changed
+  during the apply step.
+- D2 funnel step 2 is complete for the C5 canary shapes. Teacher labeling has not started. The next
+  sequential work package is WP1-6/C6 packaging, split-ledger, leak-lint, and yield inventory.
+
+## 2026-07-14 — C6 packaging foundation and G-7 finding
+
+- The accepted four-pilot batch now runs through a deterministic C6 package step. Its manifest,
+  split ledger, oracle/runtime files, teacher segments, prompt-leak report, and yield inventory are
+  checksum-bound under `review/phase1/c6-pilot/`; teacher paths contain only stream and segment
+  hashes. The packaged stream identities exactly match the user-approved C5 manifest.
+- The leak linter first verifies the exact Phase 0 hashes for the behavior spec, action schema, and
+  prompt template, then proves every rendered user lane equals its captured canonical prefix plus
+  the frozen suffix. This admits legitimate user text that happens to resemble an oracle field or
+  future event ID while excluding any appended sidecar or future content. All 18 pilot prompts
+  pass; this is positive G-2 evidence for the pilot batch, not a claim about ungenerated batches.
+- The split ledger retains only identities and digests while mechanically rejecting cross-split
+  reuse of templates, assets, raw timing seeds, lookup facts/results, tool results, and timer
+  messages. The yield inventory treats every twin/triplet as an all-or-nothing unit, collapses
+  duplicate action shapes before exact bounded search, and keeps realized counts separate from
+  target reachability.
+- G-7 remains false. The committed audit reproducibly compiles 30 programs: eleven base recipes,
+  sixteen members across all eight twin axes, and the three-member provenance triplet. The
+  inventory treats these as 20 selectable all-or-nothing units and finds no `respond` action at
+  all although build-plan §3 requires 90; several family action ratios are independently
+  unreachable with the fixed whole-program shapes. Reallocation cannot repair this. New or
+  rebalanced C5 recipe shapes require runtime validation and focused manual inspection before a
+  full 2,000-decision dry run can pass, so WP1-6 exit is not claimed and teacher labeling remains
+  stopped.
