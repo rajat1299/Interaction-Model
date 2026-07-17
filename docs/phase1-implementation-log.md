@@ -683,3 +683,32 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
 - Fifty-seven calibration and cleanup tests pass, Ruff and diff checks pass, and the independent
   thermo-nuclear review approved the final contract implementation after its sampler-frame
   exclusion finding was repaired. The replacement analyzer run remains unconsumed at this point.
+
+## 2026-07-17 — Replacement analyzer result: Option B
+
+- The one authorized replacement analyzer run completed without a new execution or contract
+  failure and emitted `review/phase1/calibration-trace-analysis.json` (SHA-256
+  `b52f49ab49cbcdfeea0e59defa6c68b7b4b07473490a6b423e4d2797716bae98`). It binds reference
+  manifest `sha256:c04513c8d328e1672969748253076ddd392f430d7ede125065f695fa9d170227`
+  and unchanged synthetic manifest
+  `sha256:e7059ee634444c735f0b246d94de2616d8956fbc40d489b935dc91a8afe5e9e7`.
+- The global verdict is `fail` with no pending or unavailable metrics. The fixed policy layer does
+  not pass outright: snapshots arriving per decision are p10/p50/p90 1/3/5 synthetic versus
+  1/2/4 recorded, and event contention is 0.7173 versus 0.6348. Decision rate itself passes at
+  58.969 versus 54.277 decisions per minute.
+- The mandatory immediate-mode revision-locality comparison also fails after every designed
+  look-back transaction and transaction-backed sampler frame is excluded: synthetic p10/p50/p90
+  are 0/7/255 characters versus 0/12/120 recorded. Backspace-run length passes at 1/1/6 versus
+  1/1/7, and per-snapshot text-length change passes at 0/1/2 versus 0/1/2.
+- The other global residuals are sampler snapshot cadence (p90 509 ms synthetic versus 823.7 ms
+  recorded) and exact cursor position (p10 30 versus 20). Reference profiles use the full sessions
+  while synthetic timing draws use train slices, so within-session drift is a plausible contributor
+  to cadence; per the owner decision, that explanation is recorded without iteration.
+- All six regime-conditioned comparisons fail; five of the six also have policy-layer failures.
+  These measured policy and named-defect failures are outside the fixed acceptance policy and
+  cannot be accepted by raw-input adjudication. G-1 therefore closes under Option B with the
+  residuals documented. No further calibration run, tuning, band change, population change, or
+  analyzer change is authorized.
+- The blind replay packet was not assembled or judged after the fixed-policy stop. Provider-backed
+  teacher execution remains paused with zero calls pending the project owner's separate green
+  light; no cleanup or canary-preparation work was rolled back.
