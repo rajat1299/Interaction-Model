@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from im.config import RuntimeConfig, estimate_tokens
 from im.mark_projection import project_ambiguous_mark_targets, project_span
+from im.response_state import response_handled_snapshot_ids
 from im.schema.actions import (
     DelegateAction,
     IntegrateAction,
@@ -105,7 +106,7 @@ def _recent_dispositions(
     selected: list[PolicyRecord],
     disposition_by_id: dict[str, Disposition],
     policy_seq_by_id: dict[str, int],
-    responded_to_ids: set[str],
+    responded_to_ids: frozenset[str],
     snapshot_event_id: str,
     mandatory_event_ids: set[str],
 ) -> list[dict[str, object]]:
@@ -200,7 +201,14 @@ def project(
     assert isinstance(snapshot_event, SnapshotEvent)
 
     dispositions = {item.event_id: item.state for item in store.dispositions()}
-    responded_to_ids = {item.event_id for item in store.response_dispositions()}
+    responded_to_ids = response_handled_snapshot_ids(
+        (
+            record.event
+            for record in records
+            if isinstance(record.event, SnapshotEvent)
+        ),
+        (item.event_id for item in store.response_dispositions()),
+    )
     open_fire_records = [
         record
         for record in records

@@ -79,6 +79,7 @@ def make_runtime(
     *,
     render_sink=None,
     tool_script=None,
+    measurement_audits: bool = False,
 ) -> tuple[Store, ManualClock, TimerScheduler, ToolAdapter, ScriptedPolicy, TickRuntime]:
     store = Store(tmp_path / "session.sqlite3")
     clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
@@ -93,6 +94,7 @@ def make_runtime(
         clock=clock,
         render_sink=render_sink,
         tool_script=tool_script,
+        measurement_audits=measurement_audits,
     )
     return store, clock, scheduler, tools, policy, runtime
 
@@ -118,9 +120,55 @@ async def test_idle_audits_attempt_without_committing_action_or_continuing(tmp_p
         assert runtime.phase is TickPhase.IDLE
         assert runtime.tick_count == policy.call_count == 1
         assert action_types(store) == []
-        assert store._connection.execute("SELECT kind FROM audit").fetchall() == [
-            ("action_attempt",)
+        assert store._connection.execute("SELECT rowid, kind, payload FROM audit").fetchall() == [
+            (
+                1,
+                "action_attempt",
+                b'{"decision_id":"d_000001","observed_through_policy_seq":0,"raw":{"reason":"no_trigger","related_event_id":null,"type":"idle"}}',
+            )
         ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_decision_start_keeps_coalesced_snapshot_arrivals_in_order(tmp_path: Path) -> None:
+    store, clock, _scheduler, _tools, _policy, runtime = make_runtime(
+        tmp_path,
+        [IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None)],
+        measurement_audits=True,
+    )
+    try:
+        first = snapshot_draft(store, clock, "first")
+        second = snapshot_draft(store, clock, "second")
+        runtime.enqueue_committed_ingress(first)
+        runtime.enqueue_committed_ingress(second)
+        await runtime.run_until_idle()
+
+        (row,) = store._connection.execute(
+            "SELECT payload FROM audit WHERE kind = 'decision_started'"
+        ).fetchall()
+        assert parse_tim_json(bytes(row[0])) == {
+            "decision_id": "d_000001",
+            "observed_through_policy_seq": 0,
+            "started_mono_ns": 0,
+            "arrivals": [
+                {
+                    "event_id": first.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": False,
+                    "replaced_pending_snapshot": False,
+                },
+                {
+                    "event_id": second.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": False,
+                    "replaced_pending_snapshot": True,
+                },
+            ],
+        }
     finally:
         store.close()
 
@@ -243,9 +291,11 @@ class BlockingRespondPolicy:
         self.started = asyncio.Event()
         self.release = asyncio.Event()
         self.call_count = 0
+        self.observed_policy_bytes: list[bytes] = []
 
-    async def decide(self, _policy_bytes: bytes) -> object:
+    async def decide(self, policy_bytes: bytes) -> object:
         self.call_count += 1
+        self.observed_policy_bytes.append(policy_bytes)
         if self.call_count == 1:
             self.started.set()
             await self.release.wait()
@@ -310,6 +360,61 @@ async def test_new_snapshot_during_inference_blocks_stale_respond_then_ticks_fre
 
 
 @pytest.mark.asyncio
+async def test_arrival_during_render_is_not_marked_as_inferring(tmp_path: Path) -> None:
+    render_started = asyncio.Event()
+    release_render = asyncio.Event()
+
+    async def sink(_effect) -> None:
+        render_started.set()
+        await release_render.wait()
+
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    first = snapshot_draft(store, clock, "first", activity="paused")
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy(
+            [
+                RespondAction(type="respond", reply_to_event_id=first.id, text="reply"),
+                IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
+            ]
+        ),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+        render_sink=sink,
+        measurement_audits=True,
+    )
+    try:
+        runtime.enqueue_committed_ingress(first)
+        task = asyncio.create_task(runtime.run_until_idle())
+        await render_started.wait()
+        assert store._connection.execute(
+            "SELECT 1 FROM audit WHERE kind = 'decision_finished'"
+        ).fetchone()
+
+        second = snapshot_draft(store, clock, "second", activity="paused")
+        runtime.enqueue_committed_ingress(second)
+        release_render.set()
+        await task
+
+        rows = store._connection.execute(
+            "SELECT payload FROM audit WHERE kind = 'decision_started' ORDER BY rowid"
+        ).fetchall()
+        assert parse_tim_json(bytes(rows[1][0]))["arrivals"] == [
+            {
+                "event_id": second.id,
+                "source": "user",
+                "kind": "snapshot",
+                "arrived_while_inferring": False,
+                "replaced_pending_snapshot": False,
+            }
+        ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_mid_inference_ingress_commits_before_permitted_action_and_forces_next_tick(
     tmp_path: Path,
 ) -> None:
@@ -330,6 +435,7 @@ async def test_mid_inference_ingress_commits_before_permitted_action_and_forces_
         scheduler=TimerScheduler(store, clock),
         tools=ToolAdapter(store, clock),
         clock=clock,
+        measurement_audits=True,
     )
     try:
         runtime.enqueue_committed_ingress(instruction)
@@ -355,6 +461,143 @@ async def test_mid_inference_ingress_commits_before_permitted_action_and_forces_
         assert action_types(store) == ["schedule"]
         assert len(store.active_timers()) == 1
         assert runtime.pending == ()
+        rows = store._connection.execute(
+            "SELECT payload FROM audit WHERE kind = 'decision_started' ORDER BY rowid"
+        ).fetchall()
+        arrivals = [parse_tim_json(bytes(row[0]))["arrivals"] for row in rows]
+        assert arrivals == [
+            [
+                {
+                    "event_id": instruction.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": False,
+                    "replaced_pending_snapshot": False,
+                }
+            ],
+            [
+                {
+                    "event_id": fresh.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": True,
+                    "replaced_pending_snapshot": False,
+                }
+            ],
+        ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_continuation_decision_explicitly_audits_empty_arrivals(tmp_path: Path) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    snapshot = snapshot_draft(store, clock, "breathe", activity="paused")
+    schedule = ScheduleAction(
+        type="schedule",
+        instruction=span(snapshot, "breathe"),
+        interval_ms=1_000,
+        message="breathe",
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy(
+            [schedule, IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None)]
+        ),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+        measurement_audits=True,
+    )
+    try:
+        runtime.enqueue_committed_ingress(snapshot)
+        await runtime.run_until_idle()
+
+        rows = store._connection.execute(
+            "SELECT payload FROM audit WHERE kind = 'decision_started' ORDER BY rowid"
+        ).fetchall()
+        assert [parse_tim_json(bytes(row[0]))["arrivals"] for row in rows] == [
+            [
+                {
+                    "event_id": snapshot.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": False,
+                    "replaced_pending_snapshot": False,
+                }
+            ],
+            [],
+        ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_decision_timing_brackets_policy_without_changing_attempt_or_bytes(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    snapshot = snapshot_draft(store, clock, "first", activity="paused")
+    policy = BlockingRespondPolicy(
+        RespondAction(type="respond", reply_to_event_id=snapshot.id, text="reply")
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+        measurement_audits=True,
+    )
+    try:
+        runtime.enqueue_committed_ingress(snapshot)
+        task = asyncio.create_task(runtime.run_until_idle())
+        await policy.started.wait()
+        policy_bytes = store.policy_bytes()
+        clock.advance_ns(17)
+        policy.release.set()
+        await task
+
+        rows = store._connection.execute(
+            """
+            SELECT kind, payload FROM audit
+            WHERE kind IN ('decision_started', 'decision_finished', 'action_attempt')
+            ORDER BY rowid
+            """
+        ).fetchall()
+        start, finish, attempt = [parse_tim_json(bytes(row[1])) for row in rows]
+        assert [row[0] for row in rows] == [
+            "decision_started",
+            "decision_finished",
+            "action_attempt",
+        ]
+        assert start == {
+            "decision_id": "d_000001",
+            "observed_through_policy_seq": 0,
+            "started_mono_ns": 0,
+            "arrivals": [
+                {
+                    "event_id": snapshot.id,
+                    "source": "user",
+                    "kind": "snapshot",
+                    "arrived_while_inferring": False,
+                    "replaced_pending_snapshot": False,
+                }
+            ],
+        }
+        assert finish == {"decision_id": "d_000001", "finished_mono_ns": 17}
+        assert policy.observed_policy_bytes == [policy_bytes]
+        assert attempt == {
+            "decision_id": "d_000001",
+            "observed_through_policy_seq": 0,
+            "raw": {
+                "type": "respond",
+                "reply_to_event_id": snapshot.id,
+                "text": "reply",
+            },
+        }
     finally:
         store.close()
 
@@ -494,6 +737,22 @@ async def test_ordinary_response_is_one_shot_without_consuming_other_snapshot_ac
 
         assert action_types(store) == ["respond"]
         assert store.response_disposition(user.id) is not None
+        same = snapshot_draft(store, clock, user.payload["text"], activity="paused")
+        store.commit_policy(same)
+        assert build_license_view(store, runtime.config).latest_snapshot == (
+            build_license_view(store, runtime.config).event(same.id)
+        )
+        assert build_license_view(store, runtime.config).latest_snapshot.responded_to
+
+        changed = snapshot_draft(
+            store, clock, "Which timer should I stop first?", activity="paused"
+        )
+        store.commit_policy(changed)
+        assert not build_license_view(store, runtime.config).latest_snapshot.responded_to
+        repeated = snapshot_draft(store, clock, user.payload["text"], activity="paused")
+        store.commit_policy(repeated)
+        assert not build_license_view(store, runtime.config).latest_snapshot.responded_to
+
         block = store._connection.execute(
             "SELECT payload FROM audit WHERE kind = 'action_blocked' ORDER BY rowid DESC LIMIT 1"
         ).fetchone()

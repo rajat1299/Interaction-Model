@@ -7,8 +7,9 @@ from collections import deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from im.canonical_json import canonicalize_tim_json
+from im.canonical_json import TimJsonLimits, canonicalize_tim_json, parse_tim_json
 from im.config import RuntimeConfig
 from im.license import LicenseView
 from im.scheduler import ManualClock
@@ -20,6 +21,9 @@ from im.server import (
     load_session_artifacts,
 )
 from im.tick import TickPhase, ToolScript, build_license_view
+
+if TYPE_CHECKING:
+    from im.generation.ingestion import ScheduledSamplerFrame
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +145,65 @@ class TimedScriptedPolicy:
         return decision.attempt
 
 
+class VirtualLatencyStubPolicy:
+    """Sampler-backed, zero-network calibration policy on the shared virtual clock."""
+
+    def __init__(self, clock: ManualClock, seed: str) -> None:
+        from im.policy.latency_stub import LatencyStubPolicy
+
+        self.clock = clock
+        self.timings: list[DecisionTiming] = []
+        self._active_deadline_ns: int | None = None
+        self._policy = LatencyStubPolicy(seed, sleep=self._sleep)
+
+    @property
+    def sampler(self):
+        return self._policy.sampler
+
+    @property
+    def call_count(self) -> int:
+        return self._policy.call_count
+
+    @property
+    def last_latency_ms(self) -> int | None:
+        return self._policy.last_latency_ms
+
+    @property
+    def completed_count(self) -> int:
+        return len(self.timings)
+
+    @property
+    def active_deadline_ns(self) -> int | None:
+        return self._active_deadline_ns
+
+    @property
+    def calibration_metadata(self) -> dict[str, object]:
+        return self._policy.calibration_metadata
+
+    def calibration_decision_metadata(self) -> dict[str, int]:
+        return self._policy.calibration_decision_metadata()
+
+    async def decide(self, policy_bytes: bytes) -> object:
+        return await self._policy.decide(policy_bytes)
+
+    async def _sleep(self, _seconds: float) -> None:
+        latency_ms = self.last_latency_ms
+        if latency_ms is None:
+            raise RuntimeError("latency stub has not planned a decision")
+        started_mono_ns = self.clock.monotonic_ns()
+        self._active_deadline_ns = started_mono_ns + latency_ms * 1_000_000
+        await self.clock.sleep_until(self._active_deadline_ns)
+        completed_mono_ns = self.clock.monotonic_ns()
+        self.timings.append(
+            DecisionTiming(
+                call_index=self.call_count,
+                started_mono_ns=started_mono_ns,
+                completed_mono_ns=completed_mono_ns,
+            )
+        )
+        self._active_deadline_ns = None
+
+
 class RuntimeIngestionHarness:
     """Drive generated sampler bytes through one real background runtime."""
 
@@ -149,36 +212,47 @@ class RuntimeIngestionHarness:
         *,
         session_id: str,
         directory: Path,
-        decisions: Iterable[TimedDecision],
+        decisions: Iterable[TimedDecision] | None = None,
         config: RuntimeConfig | None = None,
         artifacts: SessionArtifacts | None = None,
         repository_root: Path | None = None,
         tool_script: ToolScript | None = None,
         decision_boundary_observer: DecisionBoundaryObserver | None = None,
+        calibration: bool = False,
+        measurement_audits: bool = False,
     ) -> None:
         if decision_boundary_observer is not None and not callable(decision_boundary_observer):
             raise TypeError("decision_boundary_observer must be callable or None")
+        if calibration and decisions is not None:
+            raise ValueError("calibration runtime does not accept scripted decisions")
+        if not calibration and decisions is None:
+            raise TypeError("decisions is required outside calibration mode")
         self.config = config or RuntimeConfig()
         root = repository_root or Path(__file__).resolve().parents[3]
         session_artifacts = artifacts or load_session_artifacts(
             ArtifactPaths.from_repository(root), self.config
         )
         self.clock = ManualClock()
-        self.policy = TimedScriptedPolicy(
-            self.clock,
-            decisions,
-            decision_boundary_capture=(
-                None
-                if decision_boundary_observer is None
-                else lambda call_index, policy_bytes: decision_boundary_observer(
-                    DecisionBoundary(
-                        call_index=call_index,
-                        policy_bytes=policy_bytes,
-                        license_view=build_license_view(self.session.store, self.config),
+        self._calibration = calibration
+        self._calibration_replayed = False
+        if calibration:
+            self.policy = VirtualLatencyStubPolicy(self.clock, session_id)
+        else:
+            self.policy = TimedScriptedPolicy(
+                self.clock,
+                decisions,
+                decision_boundary_capture=(
+                    None
+                    if decision_boundary_observer is None
+                    else lambda call_index, policy_bytes: decision_boundary_observer(
+                        DecisionBoundary(
+                            call_index=call_index,
+                            policy_bytes=policy_bytes,
+                            license_view=build_license_view(self.session.store, self.config),
+                        )
                     )
-                )
-            ),
-        )
+                ),
+            )
         self.session = RuntimeSession(
             session_id=session_id,
             directory=directory,
@@ -187,8 +261,29 @@ class RuntimeIngestionHarness:
             config=self.config,
             artifacts=session_artifacts,
             tool_script=tool_script,
+            measurement_audits=calibration or measurement_audits,
         )
         self._started = False
+
+    @classmethod
+    def calibration(
+        cls,
+        *,
+        session_id: str,
+        directory: Path,
+        config: RuntimeConfig | None = None,
+        artifacts: SessionArtifacts | None = None,
+        repository_root: Path | None = None,
+    ) -> RuntimeIngestionHarness:
+        """Build the sampler-backed, zero-network calibration replay mode."""
+        return cls(
+            session_id=session_id,
+            directory=directory,
+            config=config,
+            artifacts=artifacts,
+            repository_root=repository_root,
+            calibration=True,
+        )
 
     async def __aenter__(self) -> RuntimeIngestionHarness:
         self.start()
@@ -306,16 +401,17 @@ class RuntimeIngestionHarness:
             await asyncio.sleep(0)
         raise RuntimeError("runtime actors did not settle a virtual-time deadline")
 
-    async def drive_until_decisions(self, count: int, *, max_turns: int = 1_000) -> None:
+    async def _drive_until(
+        self,
+        complete: Callable[[], bool],
+        *,
+        max_turns: int,
+        failure: Callable[[], RuntimeError],
+    ) -> None:
         """Advance through policy deadlines without skipping earlier due work."""
-        if isinstance(count, bool) or not isinstance(count, int):
-            raise TypeError("count must be an integer")
-        total_count = self.policy.call_count + self.policy.remaining_count
-        if not 0 <= count <= total_count:
-            raise ValueError("count is outside the scripted decisions")
         for _ in range(max_turns):
             await self.progress_at_current_time()
-            if self.policy.completed_count >= count:
+            if complete():
                 return
             deadline = self.policy.active_deadline_ns
             if deadline is not None:
@@ -333,9 +429,86 @@ class RuntimeIngestionHarness:
             )
             if future:
                 await self._advance_to_ns(min(future))
-        raise RuntimeError(
-            f"runtime completed {self.policy.completed_count} decisions; expected {count}"
+        raise failure()
+
+    async def drive_until_decisions(self, count: int, *, max_turns: int = 1_000) -> None:
+        """Advance the finite scripted policy through a requested decision count."""
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise TypeError("count must be an integer")
+        if self._calibration:
+            raise RuntimeError("calibration decisions are derived from sampler ingress")
+        total_count = self.policy.call_count + self.policy.remaining_count
+        if not 0 <= count <= total_count:
+            raise ValueError("count is outside the scripted decisions")
+        await self._drive_until(
+            lambda: self.policy.completed_count >= count,
+            max_turns=max_turns,
+            failure=lambda: RuntimeError(
+                f"runtime completed {self.policy.completed_count} decisions; expected {count}"
+            ),
         )
+
+    async def drive_until_quiescent(self, *, max_turns: int = 1_000) -> None:
+        """Advance all virtual deadlines until the runtime has no remaining work."""
+        await self._drive_until(
+            lambda: (
+                self.policy.active_deadline_ns is None
+                and self.session.tick.phase is TickPhase.IDLE
+                and not self.session.tick.pending
+                and self.session.tick.mark_quiescent
+            ),
+            max_turns=max_turns,
+            failure=lambda: RuntimeError("runtime ingestion harness did not become idle"),
+        )
+
+    async def replay_calibration(
+        self, frames: Iterable[ScheduledSamplerFrame]
+    ) -> Path:
+        """Replay exact sampler frames and return the finalized SQLite artifact."""
+        if not self._calibration:
+            raise RuntimeError("calibration replay requires calibration mode")
+        if self._calibration_replayed:
+            raise RuntimeError("calibration runtime was already replayed")
+        schedule = self._validated_calibration_schedule(frames)
+        self._calibration_replayed = True
+        if not self._started:
+            self.start()
+        current_at_ms = 0
+        for at_ms, raw_bytes, _client_ts in schedule:
+            await self.advance_ms(at_ms - current_at_ms)
+            self.accept_snapshot(raw_bytes)
+            await self.progress_at_current_time()
+            current_at_ms = at_ms
+        await self.drive_until_quiescent()
+        last_client_ts = schedule[-1][2] if schedule else None
+        await self.session.complete_calibration(last_client_ts, len(schedule))
+        database_path = self.session.directory / "session.sqlite3"
+        await self.close()
+        return database_path
+
+    def _validated_calibration_schedule(
+        self, frames: Iterable[ScheduledSamplerFrame]
+    ) -> tuple[tuple[int, bytes, int], ...]:
+        schedule: list[tuple[int, bytes, int]] = []
+        for scheduled in frames:
+            try:
+                at_ms = scheduled.at_ms
+                raw_bytes = scheduled.raw_bytes
+            except AttributeError as error:
+                raise TypeError("frames must contain ScheduledSamplerFrame values") from error
+            if isinstance(at_ms, bool) or not isinstance(at_ms, int):
+                raise TypeError("frame.at_ms must be an integer")
+            if at_ms < 0:
+                raise ValueError("frame.at_ms must be non-negative")
+            if not isinstance(raw_bytes, bytes):
+                raise TypeError("frame.raw_bytes must be bytes")
+            if schedule and at_ms < schedule[-1][0]:
+                raise ValueError("scheduled sampler frames must be nondecreasing by at_ms")
+            frame = ClientSnapshotFrame.model_validate(
+                parse_tim_json(raw_bytes, TimJsonLimits.from_config(self.config))
+            )
+            schedule.append((at_ms, raw_bytes, frame.client_ts))
+        return tuple(schedule)
 
     async def wait_for_decisions(self, count: int, *, max_turns: int = 1_000) -> None:
         if isinstance(count, bool) or not isinstance(count, int):

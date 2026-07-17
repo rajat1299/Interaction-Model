@@ -23,16 +23,33 @@ from im.assets.model import (
 from im.assets.registry import AssetRegistry, AssetRegistryError
 from im.canonical_json import canonicalize_tim_json
 from im.generation.ingestion import ScheduledAnnotation, ScheduledSamplerFrame
+from im.generation.need_lineage import (
+    CancelResolutionEvidence,
+    build_skip_evidence,
+    derive_cancel_resolution_evidence,
+    validate_authored_need_lineage,
+    validate_need_lineage,
+)
 from im.generation.runtime import DecisionBoundary, RuntimeIngestionHarness, TimedDecision
 from im.generation.scenarios import (
+    BeatNeedLineage,
+    BeatResponseWarrant,
     BeatStaleResults,
     DeclaredPerturbation,
+    DelegateProvenance,
+    NeedBasisKind,
+    NeedLineage,
+    NeedStatus,
     PerturbationKind,
+    ResponseWarrantKind,
     ScenarioProgram,
     ScenarioValidationError,
+    _build_sidecar,
+    decode_sidecar_effective_view,
     execute_scenario,
     validate_generated_scenario,
 )
+from im.generation.sidecar import BeatEvidence
 from im.generation.timing import TimingSeed, materialize_timing_plan
 from im.license import (
     LicenseView,
@@ -43,9 +60,12 @@ from im.license import (
     ToolResultView,
 )
 from im.schema.actions import (
+    CancelAction,
+    CancelTimerTarget,
     DelegateAction,
     IdleAction,
     IdleReason,
+    IntegrateAction,
     LookupArgs,
     MarkAction,
     NudgeAction,
@@ -55,7 +75,7 @@ from im.schema.actions import (
     SkipReason,
     Span,
 )
-from im.schema.common import Disposition, TimerStatus, ToolName, ToolResultStatus
+from im.schema.common import Activity, Disposition, TimerStatus, ToolName, ToolResultStatus
 from im.schema.events import EVENT_ADAPTER, SnapshotEvent, StateCheckpointEvent, TimerFireEvent
 from im.schema.textspan import utf16_len
 from im.serialize import render_event
@@ -151,7 +171,13 @@ def _program(
     )
 
 
-def _snapshot(event_id: str, seq: int, text: str) -> SnapshotEvent:
+def _snapshot(
+    event_id: str,
+    seq: int,
+    text: str,
+    *,
+    activity: Activity = Activity.PAUSED,
+) -> SnapshotEvent:
     event = EVENT_ADAPTER.validate_python(
         {
             "v": 1,
@@ -160,7 +186,7 @@ def _snapshot(event_id: str, seq: int, text: str) -> SnapshotEvent:
             "dt_ms": 0,
             "source": "user",
             "kind": "snapshot",
-            "activity": "paused",
+            "activity": activity.value,
             "payload": {
                 "text": text,
                 "selection_start_utf16": utf16_len(text),
@@ -179,6 +205,7 @@ def _checkpoint(
     snapshot: SnapshotEvent,
     *,
     open_fires: tuple[tuple[str, int, str, int], ...] = (),
+    pending_tools: tuple[tuple[str, int, str, str, str], ...] = (),
 ) -> StateCheckpointEvent:
     event = EVENT_ADAPTER.validate_python(
         {
@@ -221,7 +248,18 @@ def _checkpoint(
                     for fire_id, policy_seq, timer_id, due_age_ms in open_fires
                 ],
                 "open_tool_results": [],
-                "pending_tools": [],
+                "pending_tools": [
+                    {
+                        "request_id": request_id,
+                        "policy_seq": policy_seq,
+                        "fact_event_id": fact_event_id,
+                        "fact_text": fact_text,
+                        "tool": "lookup",
+                        "args": {"query": query},
+                        "age_ms": 0,
+                    }
+                    for request_id, policy_seq, fact_event_id, fact_text, query in pending_tools
+                ],
                 "prior_uses": [],
                 "applied_marks": [],
                 "ambiguous_marks": [],
@@ -288,9 +326,16 @@ def _view(
     fires: tuple[TimerFireView, ...] = (),
     results: tuple[ToolResultView, ...] = (),
     timers: tuple[TimerView, ...] = (),
+    floor_owned: bool = False,
 ) -> LicenseView:
     views = tuple(
-        SnapshotView(event_id=item.id, text=item.payload.text, policy_seq=item.seq)
+        SnapshotView(
+            event_id=item.id,
+            text=item.payload.text,
+            policy_seq=item.seq,
+            activity=item.activity,
+            is_composing=item.payload.is_composing,
+        )
         for item in snapshots
     )
     return LicenseView(
@@ -298,6 +343,7 @@ def _view(
         events=(*views, *fires, *results),
         pending_tool_requests=pending,
         timers=timers,
+        floor_owned=floor_owned,
     )
 
 
@@ -309,17 +355,108 @@ def _boundary(view: LicenseView, *events: object) -> DecisionBoundary:
     )
 
 
+def _action_executed(event_id: str, seq: int, action: object) -> object:
+    return EVENT_ADAPTER.validate_python(
+        {
+            "v": 1,
+            "id": event_id,
+            "seq": seq,
+            "dt_ms": 0,
+            "source": "model",
+            "kind": "action_executed",
+            "payload": {"action": action.model_dump(mode="json")},
+        }
+    )
+
+
+def _scheduled(event_id: str, seq: int, timer_id: str, instruction_id: str, message: str) -> object:
+    return EVENT_ADAPTER.validate_python(
+        {
+            "v": 1,
+            "id": event_id,
+            "seq": seq,
+            "dt_ms": 0,
+            "source": "runtime",
+            "kind": "scheduled",
+            "payload": {
+                "timer_id": timer_id,
+                "instruction_id": instruction_id,
+                "interval_ms": 1_000,
+                "message": message,
+                "first_due_in_ms": 1_000,
+            },
+        }
+    )
+
+
+def _tool_requested(event_id: str, seq: int, request_id: str, query: str) -> object:
+    return EVENT_ADAPTER.validate_python(
+        {
+            "v": 1,
+            "id": event_id,
+            "seq": seq,
+            "dt_ms": 0,
+            "source": "runtime",
+            "kind": "tool_requested",
+            "payload": {"request_id": request_id, "tool": "lookup", "args": {"query": query}},
+        }
+    )
+
+
 def _validate_oracle(
     boundary: DecisionBoundary,
     action: object,
     *future: object,
     stale: tuple[str, ...] = (),
+    warrant: BeatResponseWarrant | None = None,
+    floor_open: bool | None = None,
+    opening_event_id: str | None = None,
+    need_lineage: tuple[NeedLineage, ...] = (),
+    delegate_provenance: tuple[DelegateProvenance, ...] = (),
+    cancel_resolution_evidence: CancelResolutionEvidence | None = None,
+    require_g7_evidence: bool = False,
 ) -> None:
+    view = boundary.license_view
+    opening = view.event(opening_event_id)
+    warrant_snapshot = view.event(None if warrant is None else warrant.snapshot_event_id)
     scenario_oracle.validate_oracle_action(
         boundary,
         action,
-        future_actions=tuple(future),
-        stale_tool_result_event_ids=stale,
+        BeatEvidence(
+            beat_id="test",
+            stale_tool_result_event_ids=stale,
+            floor_open=floor_open,
+            floor_opening_snapshot_event_id=(
+                None if not isinstance(opening, SnapshotView) else opening.event_id
+            ),
+            floor_opening_snapshot_text=(
+                None if not isinstance(opening, SnapshotView) else opening.text
+            ),
+            stale_snapshot_event_id=None,
+            stale_snapshot_text=None,
+            response_warrant_kind=(
+                None if not isinstance(warrant_snapshot, SnapshotView) else warrant.kind
+            ),
+            response_warrant_snapshot_event_id=(
+                None
+                if not isinstance(warrant_snapshot, SnapshotView)
+                else warrant_snapshot.event_id
+            ),
+            response_warrant_snapshot_text=(
+                None if not isinstance(warrant_snapshot, SnapshotView) else warrant_snapshot.text
+            ),
+            response_warrant_failed_result_event_id=(
+                None if warrant is None else warrant.failed_result_event_id
+            ),
+            need_lineage=need_lineage,
+            delegate_provenance_by_beat=delegate_provenance,
+            skip_evidence=None,
+            cancel_resolution_evidence=cancel_resolution_evidence,
+            future_actions=tuple(future),
+            oracle_floor_open=floor_open,
+            require_floor_opening_evidence=True,
+            require_g7_evidence=require_g7_evidence,
+        ),
     )
 
 
@@ -601,16 +738,522 @@ def test_oracle_orders_two_explicit_skip_reasons_by_policy_seq() -> None:
     _validate_oracle(boundary, canceled, superseded)
 
 
-def test_oracle_response_key_prefers_latest_user_warrant() -> None:
-    older = _snapshot("e_000002", 2, "older")
-    latest = _snapshot("e_000003", 3, "latest")
-    view = _view((older, latest))
-    old_response = RespondAction(type="respond", reply_to_event_id=older.id, text="old")
-    latest_response = RespondAction(type="respond", reply_to_event_id=latest.id, text="new")
-
-    assert scenario_oracle._response_key(view, latest_response) < scenario_oracle._response_key(
-        view, old_response
+def test_need_lineage_orders_superseded_and_abandoned_result_skips() -> None:
+    alpha = _snapshot("e_000002", 2, "alpha")
+    alpha_action = DelegateAction(
+        type="delegate",
+        fact=_span(alpha, "alpha"),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query="alpha"),
     )
+    beta = _snapshot("e_000005", 5, "beta")
+    beta_action = DelegateAction(
+        type="delegate",
+        fact=_span(beta, "beta"),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query="beta"),
+    )
+    abandoned = _snapshot("e_000008", 8, "Different topic.")
+    superseded_result = ToolResultView(
+        "e_000009", "r_001", True, ToolResultStatus.SUCCEEDED, Disposition.OPEN, policy_seq=9
+    )
+    stale_result = ToolResultView(
+        "e_000010", "r_002", True, ToolResultStatus.SUCCEEDED, Disposition.OPEN, policy_seq=10
+    )
+    boundary = _boundary(
+        _view((alpha, beta, abandoned), results=(superseded_result, stale_result)),
+        alpha,
+        _action_executed("e_000003", 3, alpha_action),
+        _tool_requested("e_000004", 4, "r_001", "alpha"),
+        beta,
+        _action_executed("e_000006", 6, beta_action),
+        _tool_requested("e_000007", 7, "r_002", "beta"),
+        abandoned,
+    )
+    needs = (
+        NeedLineage(
+            "n_alpha",
+            NeedStatus.SUPERSEDED,
+            beta.id,
+            "n_beta",
+            NeedBasisKind.SUPERSEDED,
+        ),
+        NeedLineage(
+            "n_beta",
+            NeedStatus.ABANDONED,
+            abandoned.id,
+            basis_kind=NeedBasisKind.TOPIC_CHANGED,
+        ),
+    )
+    provenance = (
+        DelegateProvenance("alpha", "n_alpha", alpha_action.fact),
+        DelegateProvenance("beta", "n_beta", beta_action.fact),
+    )
+    stale = SkipAction(
+        type="skip",
+        target_event_id=stale_result.event_id,
+        reason=SkipReason.STALE_TOOL_RESULT,
+    )
+    superseded = SkipAction(
+        type="skip",
+        target_event_id=superseded_result.event_id,
+        reason=SkipReason.SUPERSEDED_QUERY,
+    )
+
+    with pytest.raises(ScenarioValidationError, match="winning subject"):
+        _validate_oracle(
+            boundary,
+            stale,
+            stale=(stale_result.event_id,),
+            need_lineage=needs,
+            delegate_provenance=provenance,
+        )
+    _validate_oracle(
+        boundary,
+        superseded,
+        stale=(stale_result.event_id,),
+        need_lineage=needs,
+        delegate_provenance=provenance,
+    )
+
+
+def test_live_need_request_basis_can_be_checkpoint_fact_only() -> None:
+    current = _snapshot("e_000010", 10, "Different topic.")
+    checkpoint = _checkpoint(
+        "e_000011",
+        current,
+        pending_tools=(("r_001", 4, "e_000002", "score", "score"),),
+    )
+    pending = PendingToolRequestView.from_args(
+        "r_001", "e_000002", ToolName.LOOKUP, {"query": "score"}, policy_seq=4
+    )
+    boundary = _boundary(_view((current,), pending=(pending,)), checkpoint)
+
+    validate_need_lineage(
+        boundary,
+        (
+            NeedLineage(
+                "n_score",
+                NeedStatus.LIVE,
+                "e_000002",
+                basis_kind=NeedBasisKind.REQUEST,
+            ),
+        ),
+    )
+
+
+def test_superseded_need_checkpoint_fact_basis_expands_skip_evidence() -> None:
+    current = _snapshot("e_000010", 10, "Different topic.")
+    checkpoint = _checkpoint(
+        "e_000011",
+        current,
+        pending_tools=(
+            ("r_001", 4, "e_000002", "old score", "old score"),
+            ("r_002", 8, "e_000005", "new score", "new score"),
+        ),
+    )
+    boundary = _boundary(_view((current,)), checkpoint)
+    old_fact = Span(event_id="e_000002", start_utf16=0, end_utf16=9, text="old score")
+    new_fact = Span(event_id="e_000005", start_utf16=0, end_utf16=9, text="new score")
+
+    evidence = build_skip_evidence(
+        boundary,
+        "e_000012",
+        NeedLineage(
+            "n_old",
+            NeedStatus.SUPERSEDED,
+            "e_000005",
+            superseded_by_need_id="n_new",
+        ),
+        (
+            DelegateProvenance("old", "n_old", old_fact),
+            DelegateProvenance("new", "n_new", new_fact),
+        ),
+    )
+
+    assert evidence.basis_event_text == "new score"
+
+
+def test_beat_need_lineage_rejects_duplicate_need_ids() -> None:
+    need = NeedLineage("n_score", NeedStatus.LIVE, "e_000002")
+
+    with pytest.raises(ScenarioValidationError, match="sorted and unique"):
+        BeatNeedLineage("lookup", (need, need))
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        "LOOK UP the score",
+        "Lookup the score",
+        "Check the score",
+        "Refresh the score",
+        "Find the score",
+        "Search for the score",
+        "Tell me the score",
+        "Please find the score",
+    ),
+)
+def test_declared_delegate_rejects_operation_framing_prefixes(query: str) -> None:
+    snapshot = _snapshot("e_000002", 2, query)
+    action = DelegateAction(
+        type="delegate",
+        fact=_span(snapshot, query),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query=query),
+    )
+
+    with pytest.raises(ScenarioValidationError, match="operation-framing prefix"):
+        validate_authored_need_lineage(
+            ("lookup",),
+            (action,),
+            (
+                BeatNeedLineage(
+                    "lookup",
+                    (NeedLineage("n_score", NeedStatus.LIVE, snapshot.id),),
+                ),
+            ),
+            (DelegateProvenance("lookup", "n_score", action.fact),),
+        )
+
+
+def test_strict_g7_evidence_is_opt_in_for_tool_skips_and_cancels() -> None:
+    snapshot = _snapshot("e_000002", 2, "New topic")
+    result = ToolResultView(
+        "e_000003", "r_001", True, ToolResultStatus.SUCCEEDED, Disposition.OPEN, policy_seq=3
+    )
+    boundary = _boundary(_view((snapshot,), results=(result,)), snapshot)
+    skip = SkipAction(
+        type="skip",
+        target_event_id=result.event_id,
+        reason=SkipReason.STALE_TOOL_RESULT,
+    )
+
+    _validate_oracle(
+        boundary,
+        skip,
+        stale=(result.event_id,),
+    )
+    with pytest.raises(ScenarioValidationError, match="requires tool-result skip lineage"):
+        _validate_oracle(
+            boundary,
+            skip,
+            stale=(result.event_id,),
+            require_g7_evidence=True,
+        )
+
+    cancel_snapshot = _snapshot("e_000004", 4, "Cancel the reminder.")
+    cancel = CancelAction(
+        type="cancel",
+        instruction=_span(cancel_snapshot, cancel_snapshot.payload.text),
+        target=CancelTimerTarget(kind="timer", timer_id="t_001"),
+    )
+    cancel_boundary = _boundary(
+        _view((cancel_snapshot,), timers=(TimerView("t_001", TimerStatus.ACTIVE),)),
+        cancel_snapshot,
+    )
+    _validate_oracle(
+        cancel_boundary,
+        cancel,
+    )
+    with pytest.raises(ScenarioValidationError, match="requires cancel resolution evidence"):
+        _validate_oracle(
+            cancel_boundary,
+            cancel,
+            require_g7_evidence=True,
+        )
+
+    delegate_snapshot = _snapshot("e_000005", 5, "station score")
+    delegate = DelegateAction(
+        type="delegate",
+        fact=_span(delegate_snapshot, delegate_snapshot.payload.text),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query=delegate_snapshot.payload.text),
+    )
+    with pytest.raises(ScenarioValidationError, match="requires delegate provenance"):
+        _validate_oracle(
+            _boundary(_view((delegate_snapshot,)), delegate_snapshot),
+            delegate,
+            require_g7_evidence=True,
+        )
+
+
+def test_failed_result_response_warrant_binds_the_latest_invitation_and_floor() -> None:
+    invitation = _snapshot("e_000002", 2, "Please respond about the failed lookup.")
+    failed = ToolResultView(
+        "e_000003", "r_001", True, ToolResultStatus.FAILED, Disposition.OPEN, policy_seq=3
+    )
+    respond = RespondAction(type="respond", reply_to_event_id=failed.event_id, text="It failed.")
+    yielded_boundary = _boundary(_view((invitation,), results=(failed,)), invitation)
+
+    with pytest.raises(ScenarioValidationError, match="declared warrant"):
+        _validate_oracle(
+            yielded_boundary,
+            respond,
+            warrant=BeatResponseWarrant("reply", invitation.id, ResponseWarrantKind.INVITATION),
+            floor_open=True,
+            opening_event_id=invitation.id,
+        )
+
+    _validate_oracle(
+        yielded_boundary,
+        respond,
+        warrant=BeatResponseWarrant(
+            "reply", invitation.id, ResponseWarrantKind.INVITATION, failed.event_id
+        ),
+        floor_open=True,
+        opening_event_id=invitation.id,
+    )
+
+    active_invitation = _snapshot(
+        invitation.id,
+        invitation.seq,
+        invitation.payload.text,
+        activity=Activity.ACTIVE,
+    )
+    active_boundary = _boundary(_view((active_invitation,), results=(failed,)), active_invitation)
+    active_idle = IdleAction(
+        type="idle",
+        reason=IdleReason.AWAITING_OPENING,
+        related_event_id=failed.event_id,
+    )
+    _validate_oracle(
+        active_boundary,
+        active_idle,
+        warrant=BeatResponseWarrant(
+            "reply", active_invitation.id, ResponseWarrantKind.INVITATION, failed.event_id
+        ),
+        floor_open=False,
+    )
+
+
+def test_cancel_resolution_uses_all_segments_and_schedule_action_sequences() -> None:
+    schedule_snapshot = _snapshot("e_000001", 1, "Schedule billing reminders.")
+    schedule_one = ScheduleAction(
+        type="schedule",
+        instruction=_span(schedule_snapshot, "Schedule billing reminders"),
+        interval_ms=1_000,
+        message="Billing reminder",
+    )
+    schedule_two = ScheduleAction(
+        type="schedule",
+        instruction=_span(schedule_snapshot, "Schedule billing reminders"),
+        interval_ms=2_000,
+        message="Billing reminder",
+    )
+    history = b"\n".join(
+        render_event(event)
+        for event in (
+            schedule_snapshot,
+            _action_executed("e_000002", 2, schedule_one),
+            _scheduled("e_000003", 3, "t_001", "i_001", schedule_one.message),
+            _action_executed("e_000004", 4, schedule_two),
+            _scheduled("e_000005", 5, "t_002", "i_001", schedule_two.message),
+        )
+    )
+    cancel_snapshot = _snapshot("e_000006", 6, "Cancel the second active billing reminder.")
+    cancel = CancelAction(
+        type="cancel",
+        instruction=_span(cancel_snapshot, cancel_snapshot.payload.text),
+        target=CancelTimerTarget(kind="timer", timer_id="t_002"),
+    )
+    boundary = _boundary(_view((cancel_snapshot,)), cancel_snapshot)
+
+    evidence = derive_cancel_resolution_evidence(
+        cancel,
+        boundary,
+        CancelResolutionEvidence("cancel", cancel_snapshot.id, ("t_002",)),
+        (history, render_event(cancel_snapshot)),
+        observed_policy_seq=6,
+    )
+
+    assert evidence is not None
+    assert [item.as_json_object() for item in evidence.active_timers] == [
+        {"timer_id": "t_001", "message": "Billing reminder", "schedule_policy_seq": 2},
+        {"timer_id": "t_002", "message": "Billing reminder", "schedule_policy_seq": 4},
+    ]
+    assert evidence.as_json_object() == {
+        "beat_id": "cancel",
+        "basis_event_id": "e_000006",
+        "resolved_timer_ids": ["t_002"],
+        "active_timers": [
+            {"timer_id": "t_001", "message": "Billing reminder", "schedule_policy_seq": 2},
+            {"timer_id": "t_002", "message": "Billing reminder", "schedule_policy_seq": 4},
+        ],
+        "descriptor": "billing",
+        "candidate_timer_ids": ["t_001", "t_002"],
+        "resolved_ordinal": 2,
+        "resolved_target": "t_002",
+        "scripted_target_timer_id": "t_002",
+    }
+
+
+def test_oracle_snapshot_response_requires_a_declared_open_latest_warrant() -> None:
+    older = _snapshot("e_000002", 2, "Can you help?")
+    latest = _snapshot("e_000003", 3, "Please explain the next step.")
+    action = RespondAction(type="respond", reply_to_event_id=latest.id, text="Start here.")
+    warrant = BeatResponseWarrant("reply", latest.id, ResponseWarrantKind.INVITATION)
+    boundary = _boundary(_view((older, latest)), older, latest)
+
+    with pytest.raises(ScenarioValidationError, match="declared response warrant"):
+        _validate_oracle(boundary, action, floor_open=True, opening_event_id=latest.id)
+    _validate_oracle(boundary, action, warrant=warrant, floor_open=True, opening_event_id=latest.id)
+    with pytest.raises(ScenarioValidationError, match="latest user snapshot"):
+        _validate_oracle(
+            boundary,
+            RespondAction(type="respond", reply_to_event_id=older.id, text="Older reply."),
+            warrant=BeatResponseWarrant("reply", older.id, ResponseWarrantKind.YIELD),
+            floor_open=True,
+            opening_event_id=latest.id,
+        )
+    handled = SnapshotView(latest.id, latest.payload.text, latest.seq, responded_to=True)
+    with pytest.raises(ScenarioValidationError, match="already responded"):
+        _validate_oracle(
+            _boundary(LicenseView(latest_snapshot=handled, events=(handled,)), latest),
+            action,
+            warrant=warrant,
+            floor_open=True,
+            opening_event_id=latest.id,
+        )
+
+
+def test_oracle_response_warrant_requires_an_explicit_request() -> None:
+    narration = _snapshot("e_000002", 2, "The draft is ready for the next step.")
+    action = RespondAction(type="respond", reply_to_event_id=narration.id, text="Start here.")
+    warrant = BeatResponseWarrant("reply", narration.id, ResponseWarrantKind.INVITATION)
+
+    with pytest.raises(ScenarioValidationError, match="no explicit request"):
+        _validate_oracle(
+            _boundary(_view((narration,)), narration),
+            action,
+            warrant=warrant,
+            floor_open=True,
+            opening_event_id=narration.id,
+        )
+
+
+def test_oracle_response_warrant_derives_floor_from_snapshot_state() -> None:
+    invitation = _snapshot("e_000002", 2, "What should I check first?")
+    warrant = BeatResponseWarrant("reply", invitation.id, ResponseWarrantKind.INVITATION)
+    respond = RespondAction(type="respond", reply_to_event_id=invitation.id, text="Check this.")
+    active = SnapshotView(
+        invitation.id,
+        invitation.payload.text,
+        invitation.seq,
+        activity=Activity.ACTIVE,
+    )
+    active_boundary = _boundary(LicenseView(latest_snapshot=active, events=(active,)), invitation)
+
+    with pytest.raises(ScenarioValidationError, match="open floor"):
+        _validate_oracle(
+            active_boundary,
+            respond,
+            warrant=warrant,
+            floor_open=True,
+            opening_event_id=invitation.id,
+        )
+    _validate_oracle(
+        active_boundary,
+        IdleAction(
+            type="idle",
+            reason=IdleReason.AWAITING_OPENING,
+            related_event_id=invitation.id,
+        ),
+        warrant=warrant,
+        floor_open=False,
+    )
+
+    paused = SnapshotView(invitation.id, invitation.payload.text, invitation.seq)
+    with pytest.raises(ScenarioValidationError, match="closed floor"):
+        _validate_oracle(
+            _boundary(LicenseView(latest_snapshot=paused, events=(paused,)), invitation),
+            IdleAction(
+                type="idle",
+                reason=IdleReason.AWAITING_OPENING,
+                related_event_id=invitation.id,
+            ),
+            warrant=warrant,
+            floor_open=False,
+        )
+
+
+def test_oracle_yield_warrant_requires_a_request_and_explicit_yield_phrase() -> None:
+    invitation = _snapshot("e_000002", 2, "What should I check first?")
+    action = RespondAction(type="respond", reply_to_event_id=invitation.id, text="Check this.")
+
+    with pytest.raises(ScenarioValidationError, match="floor-yield phrase"):
+        _validate_oracle(
+            _boundary(_view((invitation,)), invitation),
+            action,
+            warrant=BeatResponseWarrant("reply", invitation.id, ResponseWarrantKind.YIELD),
+            floor_open=True,
+            opening_event_id=invitation.id,
+        )
+
+
+@pytest.mark.parametrize("status", (ToolResultStatus.SUCCEEDED, ToolResultStatus.FAILED))
+def test_oracle_derives_ready_result_without_a_scripted_future_action(
+    status: ToolResultStatus,
+) -> None:
+    snapshot = _snapshot(
+        "e_000002",
+        2,
+        (
+            "Please respond about the failed lookup."
+            if status is ToolResultStatus.FAILED
+            else "The lookup request is complete."
+        ),
+    )
+    result = ToolResultView("e_000003", "r_001", True, status, Disposition.OPEN, policy_seq=3)
+    boundary = _boundary(_view((snapshot,), results=(result,)), snapshot)
+    ready = (
+        IntegrateAction(type="integrate", result_event_id=result.event_id, text="Ready.")
+        if status is ToolResultStatus.SUCCEEDED
+        else RespondAction(type="respond", reply_to_event_id=result.event_id, text="Failed.")
+    )
+    warrant = (
+        BeatResponseWarrant("ready", snapshot.id, ResponseWarrantKind.INVITATION, result.event_id)
+        if status is ToolResultStatus.FAILED
+        else None
+    )
+
+    with pytest.raises(ScenarioValidationError, match="outranked"):
+        _validate_oracle(boundary, _idle(), floor_open=True, opening_event_id=snapshot.id)
+    _validate_oracle(
+        boundary,
+        ready,
+        warrant=warrant,
+        floor_open=True,
+        opening_event_id=snapshot.id,
+    )
+    _validate_oracle(
+        boundary,
+        IdleAction(
+            type="idle", reason=IdleReason.AWAITING_OPENING, related_event_id=result.event_id
+        ),
+        floor_open=False,
+    )
+    with pytest.raises(ScenarioValidationError, match="open floor"):
+        _validate_oracle(boundary, ready, warrant=warrant, floor_open=False)
+
+
+def test_oracle_rejects_unbound_or_hard_owned_opening_evidence() -> None:
+    older = _snapshot("e_000002", 2, "First complete thought.")
+    latest = _snapshot("e_000003", 3, "Second complete thought.")
+    action = _idle()
+    boundary = _boundary(_view((older, latest)), older, latest)
+
+    with pytest.raises(ScenarioValidationError, match="latest user snapshot"):
+        _validate_oracle(boundary, action, floor_open=True, opening_event_id=older.id)
+    with pytest.raises(ScenarioValidationError, match="not visible"):
+        _validate_oracle(boundary, action, floor_open=True, opening_event_id="e_000999")
+    with pytest.raises(ScenarioValidationError, match="hard-owned"):
+        _validate_oracle(
+            _boundary(_view((latest,), floor_owned=True), latest),
+            action,
+            floor_open=True,
+            opening_event_id=latest.id,
+        )
 
 
 @pytest.mark.parametrize(
@@ -678,6 +1321,82 @@ def _stale_skip_program(registry: AssetRegistry) -> ScenarioProgram:
     )
 
 
+def _lineaged_stale_skip_program(registry: AssetRegistry) -> ScenarioProgram:
+    query = "score"
+    plan = materialize_timing_plan(TimingSeed(Split.TEST, "lineaged-stale-sidecar"), 4)
+    fact = Span(event_id="e_000002", start_utf16=0, end_utf16=utf16_len(query), text=query)
+    return ScenarioProgram.select(
+        registry,
+        split=Split.TEST,
+        template_id="a_test_template",
+        asset_ids=("a_test_text",),
+        family=CorpusFamily.LOOKUP_STALE,
+        master_seed="lineaged-stale-sidecar",
+        timing_plan=plan,
+        frames=(
+            _frame(query),
+            ScheduledSamplerFrame(plan.service_ms[0] + 300, _frame("Different topic.").raw_bytes),
+        ),
+        actions=(
+            DelegateAction(
+                type="delegate",
+                fact=fact,
+                tool=ToolName.LOOKUP,
+                args=LookupArgs(query=query),
+            ),
+            IdleAction(type="idle", reason=IdleReason.AWAITING_TOOL, related_event_id="e_000002"),
+            SkipAction(
+                type="skip",
+                target_event_id="e_000006",
+                reason=SkipReason.STALE_TOOL_RESULT,
+            ),
+            _idle(),
+        ),
+        tool_results=(ScriptedToolResult(latency_ms=700, data={"score": "A"}),),
+        beat_ids=("b0", "b1", "b2", "b3"),
+        stale_results_by_beat=(
+            BeatStaleResults("b0", ()),
+            BeatStaleResults("b1", ()),
+            BeatStaleResults("b2", ("e_000006",)),
+            BeatStaleResults("b3", ()),
+        ),
+        perturbations=(DeclaredPerturbation(PerturbationKind.TOPIC_CHANGE),),
+        need_lineage_by_beat=(
+            BeatNeedLineage(
+                "b0",
+                (NeedLineage("n_score", NeedStatus.LIVE, "e_000002", basis_kind="request"),),
+            ),
+            BeatNeedLineage(
+                "b1",
+                (NeedLineage("n_score", NeedStatus.LIVE, "e_000002", basis_kind="request"),),
+            ),
+            BeatNeedLineage(
+                "b2",
+                (
+                    NeedLineage(
+                        "n_score",
+                        NeedStatus.ABANDONED,
+                        "e_000005",
+                        basis_kind="topic_changed",
+                    ),
+                ),
+            ),
+            BeatNeedLineage(
+                "b3",
+                (
+                    NeedLineage(
+                        "n_score",
+                        NeedStatus.ABANDONED,
+                        "e_000005",
+                        basis_kind="topic_changed",
+                    ),
+                ),
+            ),
+        ),
+        delegate_provenance_by_beat=(DelegateProvenance("b0", "n_score", fact),),
+    )
+
+
 @pytest.mark.asyncio
 async def test_stale_skip_sidecar_evidence_is_bound_and_omitted_elsewhere(tmp_path: Path) -> None:
     generated = await execute_scenario(
@@ -702,7 +1421,10 @@ async def test_stale_skip_sidecar_evidence_is_bound_and_omitted_elsewhere(tmp_pa
         if index != stale_index
     )
 
-    mutated = replace(stale, stale_snapshot_text="Unbound topic.")
+    mutated = replace(
+        stale,
+        evidence=replace(stale.evidence, stale_snapshot_text="Unbound topic."),
+    )
     decisions = list(generated.sidecar.decisions)
     decisions[stale_index] = mutated
     with pytest.raises(ScenarioValidationError, match="facts"):
@@ -712,6 +1434,237 @@ async def test_stale_skip_sidecar_evidence_is_bound_and_omitted_elsewhere(tmp_pa
                 sidecar=replace(generated.sidecar, decisions=tuple(decisions)),
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_need_lineage_binds_delegate_slots_and_reviewer_skip_evidence(tmp_path: Path) -> None:
+    program = replace(
+        _lineaged_stale_skip_program(_registry(CorpusFamily.LOOKUP_STALE)),
+        require_g7_evidence=True,
+    )
+    generated = await execute_scenario(
+        program,
+        session_id="s_lineaged_stale_sidecar",
+        directory=tmp_path / "lineaged-stale-sidecar",
+    )
+    skip = next(
+        decision
+        for decision in generated.sidecar.decisions
+        if isinstance(decision.action, SkipAction)
+    )
+
+    assert skip.skip_evidence is not None
+    assert skip.skip_evidence.need == NeedLineage(
+        "n_score", NeedStatus.ABANDONED, "e_000005", basis_kind="topic_changed"
+    )
+    assert generated.sidecar.decisions[0].delegate_provenance == DelegateProvenance(
+        "b0", "n_score", generated.program.actions[0].fact
+    )
+    assert b"need_lineage" not in generated.stream.canonical_segment_bytes
+    serialized = generated.sidecar.as_json_object()["decisions"]
+    assert serialized[2]["skip_evidence"] == {
+        "target_result_event_id": "e_000006",
+        "original_need_id": "n_score",
+        "original_fact_event_id": "e_000002",
+        "original_fact_text": "score",
+        "basis_kind": "topic_changed",
+        "basis_event_id": "e_000005",
+        "basis_event_text": "Different topic.",
+        "scripted_skip_reason": "stale_tool_result",
+    }
+    assert "stale_snapshot_event_id" not in serialized[2]
+
+    decisions = list(generated.sidecar.decisions)
+    decisions[2] = replace(
+        skip,
+        evidence=replace(
+            skip.evidence,
+            skip_evidence=None,
+            stale_snapshot_event_id="e_000005",
+            stale_snapshot_text="Different topic.",
+        ),
+    )
+    with pytest.raises(ScenarioValidationError, match="facts"):
+        validate_generated_scenario(
+            replace(generated, sidecar=replace(generated.sidecar, decisions=tuple(decisions)))
+        )
+
+
+@pytest.mark.asyncio
+async def test_strict_g7_validation_re_resolves_program_evidence(tmp_path: Path) -> None:
+    generated = await execute_scenario(
+        replace(
+            _lineaged_stale_skip_program(_registry(CorpusFamily.LOOKUP_STALE)),
+            require_g7_evidence=True,
+        ),
+        session_id="s_strict_g7_re_resolution",
+        directory=tmp_path / "strict-g7-re-resolution",
+    )
+    honest_rebuild = _build_sidecar(
+        generated.program, generated.stream, generated.decision_boundaries
+    )
+    assert honest_rebuild.canonical_bytes == generated.sidecar.canonical_bytes
+    assert honest_rebuild.sha256 == generated.sidecar.sha256
+    stripped_program = replace(
+        generated.program,
+        stale_results_by_beat=tuple(
+            BeatStaleResults(item.beat_id, ()) for item in generated.program.stale_results_by_beat
+        ),
+        need_lineage_by_beat=None,
+        delegate_provenance_by_beat=None,
+    )
+    assert stripped_program.require_g7_evidence
+    stripped_stream = replace(
+        generated.stream,
+        provenance=replace(
+            generated.stream.provenance,
+            generation_input_hash=stripped_program.input_hash,
+        ),
+    )
+    rebuilt = _build_sidecar(stripped_program, stripped_stream, generated.decision_boundaries)
+    rebuilt_bytes = rebuilt.canonical_bytes
+    rebuilt = replace(
+        rebuilt,
+        decisions=tuple(
+            replace(
+                decision,
+                evidence=replace(decision.evidence, require_g7_evidence=False),
+            )
+            for decision in rebuilt.decisions
+        ),
+    )
+
+    assert all(
+        not decision.evidence.need_lineage
+        and decision.evidence.delegate_provenance is None
+        and decision.evidence.skip_evidence is None
+        and not decision.evidence.require_g7_evidence
+        for decision in rebuilt.decisions
+    )
+    assert rebuilt.canonical_bytes == rebuilt_bytes
+    with pytest.raises(ScenarioValidationError, match="requires delegate provenance"):
+        validate_generated_scenario(
+            replace(
+                generated,
+                program=stripped_program,
+                stream=stripped_stream,
+                sidecar=rebuilt,
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_sidecar_decoder_expands_repeated_lineage_and_skip_basis(tmp_path: Path) -> None:
+    generated = await execute_scenario(
+        replace(
+            _lineaged_stale_skip_program(_registry(CorpusFamily.LOOKUP_STALE)),
+            require_g7_evidence=True,
+        ),
+        session_id="s_sidecar_round_trip",
+        directory=tmp_path / "sidecar-round-trip",
+    )
+    skip = generated.sidecar.decisions[2]
+    sidecar = replace(
+        generated.sidecar,
+        decisions=(
+            *generated.sidecar.decisions[:3],
+            replace(skip, call_index=4),
+            replace(
+                generated.sidecar.decisions[3],
+                call_index=5,
+                evidence=replace(generated.sidecar.decisions[3].evidence, need_lineage=()),
+            ),
+        ),
+    )
+
+    serialized = sidecar.as_json_object()
+    assert "need_state" not in serialized["decisions"][1]
+    assert "basis_event_text" not in serialized["decisions"][2]["skip_evidence"]
+    assert "basis_event_text" not in serialized["decisions"][3]["skip_evidence"]
+    assert serialized["decisions"][4]["need_state"] is None
+
+    effective = decode_sidecar_effective_view(sidecar.canonical_bytes)
+    assert effective["decisions"] == [decision.as_json_object() for decision in sidecar.decisions]
+    assert effective["decisions"][2]["skip_evidence"]["basis_event_text"] == "Different topic."
+    assert effective["decisions"][3]["skip_evidence"]["basis_event_text"] == "Different topic."
+    assert "need_lineage" not in effective["decisions"][4]
+
+
+def test_superseded_need_can_bind_its_delegate_after_the_skip() -> None:
+    old_snapshot = _snapshot("e_000002", 2, "old score")
+    old_delegate = DelegateAction(
+        type="delegate",
+        fact=_span(old_snapshot, "old score"),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query="old score"),
+    )
+    new_snapshot = _snapshot("e_000005", 5, "new score")
+    new_delegate = DelegateAction(
+        type="delegate",
+        fact=_span(new_snapshot, "new score"),
+        tool=ToolName.LOOKUP,
+        args=LookupArgs(query="new score"),
+    )
+    skip = SkipAction(
+        type="skip",
+        target_event_id="e_000006",
+        reason=SkipReason.SUPERSEDED_QUERY,
+    )
+    old_need = NeedLineage("n_old", NeedStatus.LIVE, old_snapshot.id)
+    new_need = NeedLineage("n_new", NeedStatus.LIVE, new_snapshot.id)
+    superseded_old_need = NeedLineage(
+        "n_old",
+        NeedStatus.SUPERSEDED,
+        new_snapshot.id,
+        superseded_by_need_id="n_new",
+    )
+    provenance = (
+        DelegateProvenance("old", "n_old", old_delegate.fact),
+        DelegateProvenance("new", "n_new", new_delegate.fact),
+    )
+    validate_authored_need_lineage(
+        ("old", "skip", "new"),
+        (old_delegate, skip, new_delegate),
+        (
+            BeatNeedLineage("old", (old_need,)),
+            BeatNeedLineage("skip", (new_need, superseded_old_need)),
+            BeatNeedLineage("new", (new_need, superseded_old_need)),
+        ),
+        provenance,
+    )
+
+    old_result = ToolResultView(
+        "e_000006", "r_001", True, ToolResultStatus.SUCCEEDED, Disposition.OPEN, policy_seq=6
+    )
+    skip_boundary = _boundary(
+        _view((old_snapshot, new_snapshot), results=(old_result,)),
+        old_snapshot,
+        _action_executed("e_000003", 3, old_delegate),
+        _tool_requested("e_000004", 4, "r_001", "old score"),
+        new_snapshot,
+    )
+    _validate_oracle(
+        skip_boundary,
+        skip,
+        new_delegate,
+        need_lineage=(new_need, superseded_old_need),
+        delegate_provenance=provenance,
+        require_g7_evidence=True,
+    )
+    next_boundary = _boundary(
+        _view((old_snapshot, new_snapshot)),
+        old_snapshot,
+        _action_executed("e_000003", 3, old_delegate),
+        _tool_requested("e_000004", 4, "r_001", "old score"),
+        new_snapshot,
+    )
+    _validate_oracle(
+        next_boundary,
+        new_delegate,
+        need_lineage=(new_need, superseded_old_need),
+        delegate_provenance=provenance,
+        require_g7_evidence=True,
+    )
 
 
 @pytest.mark.asyncio
@@ -757,6 +1710,8 @@ async def test_scenario_sidecar_captures_real_boundary_facts_and_stays_off_teach
     assert generated.sidecar.family is CorpusFamily.NEUTRAL_TYPING
     assert generated.stream.provenance.generation_input_hash == generated.program.input_hash
     assert generated.sidecar.sha256
+    assert b"response_warrant" not in generated.program.canonical_input_bytes
+    assert b"response_warrant" not in generated.sidecar.canonical_bytes
     assert b"neutral_typing_revision_pause" not in generated.stream.canonical_segment_bytes
     assert b"a_test_text" not in generated.stream.canonical_segment_bytes
     assert validate_generated_scenario(generated) == generated.sidecar

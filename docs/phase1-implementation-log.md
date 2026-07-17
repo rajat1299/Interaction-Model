@@ -507,3 +507,29 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   pending-selection pass, documented the local/line/far mix beside the selector, and reused its
   scalar-boundary table in the cursor path. The focused 30-test command and client build remain
   green; production behavior is unchanged, so the analyzer fixture was not rerun.
+
+## 2026-07-16 — Adjudicated refit #2 provenance preflight
+
+- The one authorized refit remains unconsumed. Its frozen reference is seven session manifests
+  across six regimes (`calibration-reference/manifest.json`, SHA-256
+  `c04513c8d328e1672969748253076ddd392f430d7ede125065f695fa9d170227`); the two
+  cursor-and-selection sessions remain separate and are pooled only at the regime-analysis layer.
+- The frozen synthetic source is the 417-target G7 resubmission-2 manifest (SHA-256
+  `05635b96a172f67e4cf9d631aa57f4acde035cc372947241c3fe360302a8fc42`) plus the
+  existing acceptance file (SHA-256
+  `ae187cef9c1518553fea8fb8591407716e6eee06f85019b97fb930498ebe90f5`). All 417
+  target-source hashes match fitted-v1; regime allocation remains 70/69/70/69/70/69.
+- The synthesizer fix is commit `b4b1aa7932c7106bd69384672189df34eb0993b2`; its input-profile
+  SHA-256 is `f637cc881ae830bc32d0d66b6f1bc89042f03c12bb1fe9d0f504b98fe59766b2`.
+  Before generation, the exact browser materializer and Python generator/analyzer/runtime closure
+  is being committed so the run can cite immutable code rather than a dirty working tree.
+- Read-only plan derivation resolved 417 streams and bound the current 20-file browser identity as
+  `sha256:6e350cf398740786e6e317786a827193073a84bd0843130c76a827f2e4c6240c`, the
+  109-file runtime identity as
+  `sha256:bf8fa514c04828ccb8142640e32e51e3eda198793a03337db900ea84bfc38b4d`,
+  and the complete preflight manifest as
+  `sha256:3ee898907a7d97b150f0a1cc4a32e631695ff7ac3dc661572b787cc5d9d92784`.
+- Preflight validation is green: the full Python test suite reached 100%, Ruff reported no issues,
+  the full client suite passed 57 tests, and the client TypeScript/Vite build completed. No network
+  or provider path is used; materialization is local and the runtime uses the frozen
+  `calibration-idle/v1` latency stub.

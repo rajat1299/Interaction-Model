@@ -31,12 +31,14 @@ from im.license import (
 )
 from im.mark_projection import project_ambiguous_mark_targets, project_span
 from im.policy.base import (
+    CalibrationPolicy,
     Policy,
     PolicyCallCancelled,
     PolicyCallError,
     PolicyCallTrace,
     PolicyDecision,
 )
+from im.response_state import response_handled_snapshot_ids
 from im.scheduler import Clock, TimerScheduler
 from im.schema.actions import (
     CancelAction,
@@ -124,7 +126,12 @@ def build_license_view(
     """Project objective license facts from one durable store snapshot."""
     records = store.policy_records()
     disposition_by_id = {item.event_id: item.state for item in store.dispositions()}
-    responded_to_ids = {item.event_id for item in store.response_dispositions()}
+    snapshots = tuple(
+        record.event for record in records if isinstance(record.event, SnapshotEvent)
+    )
+    responded_to_ids = response_handled_snapshot_ids(
+        snapshots, (item.event_id for item in store.response_dispositions())
+    )
     tool_request_policy_seq = {
         record.event.payload.request_id: record.seq
         for record in records
@@ -167,6 +174,8 @@ def build_license_view(
             text=latest_snapshot_record.event.payload.text,
             policy_seq=latest_snapshot_record.seq,
             responded_to=latest_snapshot_record.event.id in responded_to_ids,
+            activity=latest_snapshot_record.event.activity,
+            is_composing=latest_snapshot_record.event.payload.is_composing,
         )
     )
 
@@ -194,6 +203,8 @@ def build_license_view(
                     else 0
                 ),
                 responded_to=payload.snapshot.event_id in responded_to_ids,
+                activity=payload.snapshot.activity,
+                is_composing=payload.snapshot.is_composing,
             )
         )
         for fire in payload.open_timer_fires:
@@ -201,7 +212,7 @@ def build_license_view(
                 TimerFireView(
                     event_id=fire.event_id,
                     timer_id=fire.timer_id,
-                    disposition=Disposition.OPEN,
+                    disposition=disposition_by_id.get(fire.event_id, Disposition.OPEN),
                     policy_seq=fire.policy_seq,
                 )
             )
@@ -213,7 +224,7 @@ def build_license_view(
                     request_id=result.request_id,
                     completed=True,
                     status=result.status,
-                    disposition=Disposition.OPEN,
+                    disposition=disposition_by_id.get(result.event_id, Disposition.OPEN),
                     policy_seq=result.policy_seq,
                 )
             )
@@ -284,9 +295,6 @@ def build_license_view(
                 AmbiguousMarkView(mark_event_id=mark.mark_event_id, targets=tuple(mark.targets))
             )
         visible_timer_ids.update(timer.timer_id for timer in payload.timers)
-    snapshots = tuple(
-        record.event for record in records if isinstance(record.event, SnapshotEvent)
-    )
     for record in current_records:
         event = record.event
         if isinstance(event, SnapshotEvent):
@@ -296,6 +304,8 @@ def build_license_view(
                     text=event.payload.text,
                     policy_seq=record.seq,
                     responded_to=event.id in responded_to_ids,
+                    activity=event.activity,
+                    is_composing=event.payload.is_composing,
                 )
             )
         elif isinstance(event, TimerFireEvent):
@@ -424,6 +434,7 @@ class TickRuntime:
         config: RuntimeConfig | None = None,
         render_sink: RenderSink | None = None,
         tool_script: ToolScript | None = None,
+        measurement_audits: bool = False,
     ) -> None:
         self.store = store
         self.policy = policy
@@ -433,10 +444,13 @@ class TickRuntime:
         self.config = config or RuntimeConfig()
         self.render_sink = render_sink
         self.tool_script = tool_script
+        self._measurement_audits = measurement_audits
         self.phase = TickPhase.IDLE
         self.tick_count = 0
         self._decision_count = 0
         self._pending: list[PendingEvent] = []
+        self._arrivals: list[dict[str, object]] = []
+        self._policy_call_active = False
         self._drain_lock = asyncio.Lock()
         self._mark_quiescent = True
 
@@ -451,7 +465,27 @@ class TickRuntime:
 
     def enqueue_committed_ingress(self, draft: PendingEvent) -> None:
         """Queue ingress only after its raw evidence row committed durably."""
+        if self._measurement_audits:
+            replaced_pending_snapshot = (
+                draft.source == "user"
+                and draft.kind == "snapshot"
+                and any(
+                    event.source == "user" and event.kind == "snapshot"
+                    for event in self._pending
+                )
+            )
+            arrived_while_inferring = self._policy_call_active
         self._pending = coalesce(self._pending, draft)
+        if self._measurement_audits:
+            self._arrivals.append(
+                {
+                    "event_id": draft.id,
+                    "source": draft.source,
+                    "kind": draft.kind,
+                    "arrived_while_inferring": arrived_while_inferring,
+                    "replaced_pending_snapshot": replaced_pending_snapshot,
+                }
+            )
 
     async def submit_committed_ingress(self, draft: PendingEvent) -> None:
         self.enqueue_committed_ingress(draft)
@@ -488,9 +522,35 @@ class TickRuntime:
         decision_id = f"d_{self._decision_count:06d}"
         records = self.store.policy_records()
         observed_seq = records[-1].seq if records else None
+        if self._measurement_audits:
+            policy_bytes = self.store.policy_bytes()
+            self.store.audit(
+                "decision_started",
+                {
+                    "decision_id": decision_id,
+                    "observed_through_policy_seq": observed_seq,
+                    "started_mono_ns": self._now_mono_ns(),
+                    "arrivals": self._arrivals,
+                },
+            )
+            self._arrivals = []
         try:
             try:
-                policy_result = await self.policy.decide(self.store.policy_bytes())
+                if self._measurement_audits:
+                    self._policy_call_active = True
+                    try:
+                        policy_result = await self.policy.decide(policy_bytes)
+                    finally:
+                        self._policy_call_active = False
+                        self.store.audit(
+                            "decision_finished",
+                            {
+                                "decision_id": decision_id,
+                                "finished_mono_ns": self._now_mono_ns(),
+                            },
+                        )
+                else:
+                    policy_result = await self.policy.decide(self.store.policy_bytes())
             except (PolicyCallError, PolicyCallCancelled) as error:
                 self._record_policy_call_traces(decision_id, error.calls)
                 raise
@@ -866,14 +926,14 @@ class TickRuntime:
         return value
 
     def _audit_attempt(self, raw: object, decision_id: str, observed_seq: int | None) -> None:
-        self.store.audit(
-            "action_attempt",
-            {
-                "decision_id": decision_id,
-                "observed_through_policy_seq": observed_seq,
-                "raw": self._audit_value(raw),
-            },
-        )
+        payload = {
+            "decision_id": decision_id,
+            "observed_through_policy_seq": observed_seq,
+            "raw": self._audit_value(raw),
+        }
+        if self._measurement_audits and isinstance(self.policy, CalibrationPolicy):
+            payload["calibration"] = self.policy.calibration_decision_metadata()
+        self.store.audit("action_attempt", payload)
 
     def _record_policy_call_traces(
         self, decision_id: str, calls: tuple[PolicyCallTrace, ...]

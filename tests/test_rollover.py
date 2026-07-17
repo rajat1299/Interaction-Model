@@ -84,6 +84,66 @@ def set_hashes(store: Store) -> None:
     )
 
 
+def test_response_disposition_follows_unchanged_snapshot_across_rollover(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock()
+    text = "What should I check first?"
+    snapshot_id = commit_event(
+        store,
+        clock,
+        source="user",
+        kind="snapshot",
+        activity="paused",
+        payload={
+            "text": text,
+            "selection_start_utf16": len(text),
+            "selection_end_utf16": len(text),
+            "is_composing": False,
+            "edit_kind": "insert",
+        },
+    )
+    response_id = commit_event(
+        store,
+        clock,
+        source="model",
+        kind="action_executed",
+        payload=action_payload(
+            RespondAction(type="respond", reply_to_event_id=snapshot_id, text="Check the note.")
+        ),
+    )
+    store.set_response_disposition(snapshot_id, by_action_event_id=response_id)
+    same_snapshot_id = commit_event(
+        store,
+        clock,
+        source="user",
+        kind="snapshot",
+        activity="paused",
+        payload={
+            "text": text,
+            "selection_start_utf16": len(text),
+            "selection_end_utf16": len(text),
+            "is_composing": False,
+            "edit_kind": "insert",
+        },
+    )
+    set_hashes(store)
+
+    checkpoint = rollover(store, checkpoint_mono_ns=clock.monotonic_ns())
+
+    assert checkpoint.payload.snapshot.event_id == same_snapshot_id
+    assert [
+        (item.event_id, item.relation, item.state)
+        for item in checkpoint.payload.dispositions
+    ] == [(same_snapshot_id, "responded_to", Disposition.HANDLED)]
+    view = build_license_view(store, RuntimeConfig())
+    assert view.latest_snapshot is not None
+    assert view.latest_snapshot.event_id == same_snapshot_id
+    assert view.latest_snapshot.responded_to
+    store.close()
+
+
 def commit_pending_lookup(
     store: Store,
     clock: ManualClock,
@@ -1404,6 +1464,12 @@ async def test_double_rollover_continuity(tmp_path: Path) -> None:
         assert policy.call_count == 3
         assert store.get_disposition(ready_delivery.event_id).state is Disposition.HANDLED  # type: ignore[union-attr]
         assert store.get_disposition(beta_fire.event_id).state is Disposition.SKIPPED  # type: ignore[union-attr]
+        view_after_terminal_actions = build_license_view(store, config)
+        handled_result = view_after_terminal_actions.event(ready_delivery.event_id)
+        skipped_fire = view_after_terminal_actions.event(beta_fire.event_id)
+        assert handled_result is not None and skipped_fire is not None
+        assert handled_result.disposition is Disposition.HANDLED
+        assert skipped_fire.disposition is Disposition.SKIPPED
 
         clock.advance_ms(999)
         alpha_fire = scheduler.claim_due()

@@ -11,12 +11,21 @@ import type {
   Span,
   TimerStatusFrame,
 } from "./protocol";
+import {
+  CALIBRATION_RECORDING_VERSION,
+  CALIBRATION_REGIMES,
+  attachCalibrationRecorder,
+  type CalibrationRecorder,
+  type CalibrationRegime,
+  type CalibrationRecordingBundle,
+} from "./calibration-recorder";
 import { attachSampler } from "./sampler";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
 type TimerEntry = TimerStatusFrame & { receivedAt: number };
 
 const app = document.querySelector<HTMLDivElement>("#app");
+const calibrationRegime = calibrationRegimeFromLocation();
 
 if (app) {
   app.innerHTML = `
@@ -28,8 +37,17 @@ if (app) {
       </header>
       <section aria-label="Editor">
         <label for="interaction-text">Type here</label>
-        <textarea id="interaction-text" rows="12" spellcheck="true"></textarea>
+        <textarea id="interaction-text" rows="12" spellcheck="true" ${calibrationRegime ? "disabled" : ""}></textarea>
       </section>
+      ${
+        calibrationRegime
+          ? `<section aria-label="Calibration recording">
+        <h2>Calibration recording</h2>
+        <p id="calibration-status" role="status">Waiting for runtime session</p>
+        <button id="calibration-download" type="button" disabled>Stop &amp; download JSON</button>
+      </section>`
+          : ""
+      }
       <section aria-label="Timers">
         <h2>Timers</h2>
         <div id="timer-chips" aria-label="Timer status">No active timers</div>
@@ -46,10 +64,18 @@ if (app) {
   const reconnect = app.querySelector<HTMLButtonElement>("#reconnect")!;
   const timerChips = app.querySelector<HTMLDivElement>("#timer-chips")!;
   const annotations = app.querySelector<HTMLUListElement>("#annotations")!;
+  const calibrationStatus = app.querySelector<HTMLParagraphElement>("#calibration-status");
+  const calibrationDownload = app.querySelector<HTMLButtonElement>("#calibration-download");
   const timers = new Map<string, TimerEntry>();
   let socket: WebSocket | undefined;
   let sessionId: string | undefined;
   let latestSamplerFrame: ClientSnapshotFrame | undefined;
+  let calibrationRecorder: CalibrationRecorder | undefined;
+  let calibrationBundle: CalibrationRecordingBundle | undefined;
+  let calibrationCompleting = false;
+  let calibrationInvalid = false;
+  let calibrationRecoveryDownloaded = false;
+  let samplerDetach: ReturnType<typeof attachSampler> | undefined;
   let renderedTimerText: string | undefined;
   let closed = false;
 
@@ -132,10 +158,79 @@ if (app) {
     }
   };
 
-  const samplerDetach = attachSampler(textarea, (frame: ClientSnapshotFrame) => {
-    latestSamplerFrame = frame;
-    sendLatestSamplerFrame();
-  });
+  const startSampler = (): void => {
+    samplerDetach = attachSampler(textarea, (frame: ClientSnapshotFrame) => {
+      latestSamplerFrame = frame;
+      calibrationRecorder?.captureSamplerFrame(frame);
+      sendLatestSamplerFrame();
+    });
+  };
+
+  if (!calibrationRegime) {
+    startSampler();
+  }
+
+  const freezeCalibration = (): CalibrationRecordingBundle | undefined => {
+    textarea.disabled = true;
+    samplerDetach?.({ flushPending: true });
+    samplerDetach = undefined;
+    if (calibrationRecorder) {
+      calibrationRecorder.detach();
+      calibrationBundle = calibrationRecorder.exportBundle();
+      calibrationRecorder = undefined;
+    }
+    return calibrationBundle;
+  };
+
+  const downloadCalibrationRecovery = (bundle: CalibrationRecordingBundle): void => {
+    if (!calibrationRecoveryDownloaded) {
+      downloadCalibrationBundle(bundle, true);
+      calibrationRecoveryDownloaded = true;
+    }
+  };
+
+  const stopAndDownloadCalibration = async (): Promise<void> => {
+    if (calibrationCompleting) {
+      return;
+    }
+    calibrationCompleting = true;
+    calibrationDownload!.disabled = true;
+    const bundle = freezeCalibration();
+    if (!bundle) {
+      calibrationCompleting = false;
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/session/${encodeURIComponent(bundle.runtime_session_id)}/calibration-complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            last_client_ts: bundle.sampler_frames.at(-1)?.frame.client_ts ?? null,
+            sampler_frame_count: bundle.sampler_frames.length,
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`calibration completion failed (${response.status})`);
+      }
+      downloadCalibrationBundle(bundle);
+      calibrationStatus!.textContent = "Calibration stopped; JSON downloaded";
+    } catch {
+      downloadCalibrationRecovery(bundle);
+      calibrationCompleting = false;
+      calibrationStatus!.textContent =
+        "Calibration completion failed; incomplete JSON downloaded; retry completion";
+      calibrationDownload!.disabled = false;
+    }
+  };
+
+  if (calibrationDownload) {
+    calibrationDownload.addEventListener("click", () => {
+      void stopAndDownloadCalibration();
+    });
+  }
 
   const createWebSocketUrl = (sessionId: string): string => {
     const url = new URL(`/session/${encodeURIComponent(sessionId)}`, window.location.href);
@@ -144,13 +239,21 @@ if (app) {
   };
 
   const connect = async (): Promise<void> => {
-    if (closed || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) {
+    if (
+      closed ||
+      calibrationInvalid ||
+      (calibrationRegime !== undefined && calibrationBundle !== undefined) ||
+      socket?.readyState === WebSocket.OPEN ||
+      socket?.readyState === WebSocket.CONNECTING
+    ) {
       return;
     }
     setConnectionState("connecting");
     try {
       if (sessionId === undefined) {
-        const response = await fetch("/session", { method: "POST" });
+        const response = await fetch(calibrationRegime ? "/session?calibration=true" : "/session", {
+          method: "POST",
+        });
         if (!response.ok) {
           throw new Error(`session request failed (${response.status})`);
         }
@@ -165,7 +268,19 @@ if (app) {
       candidate.addEventListener("open", () => {
         if (socket === candidate) {
           setConnectionState("connected");
-          sendLatestSamplerFrame();
+          if (calibrationRegime && !calibrationRecorder && !calibrationBundle) {
+            calibrationRecorder = attachCalibrationRecorder(textarea, {
+              version: CALIBRATION_RECORDING_VERSION,
+              runtime_session_id: sessionId!,
+              regime: calibrationRegime,
+            });
+            startSampler();
+            textarea.disabled = false;
+            calibrationStatus!.textContent = `Recording calibration: ${calibrationRegime}`;
+            calibrationDownload!.disabled = false;
+          } else {
+            sendLatestSamplerFrame();
+          }
         }
       });
       candidate.addEventListener("message", (event) => {
@@ -186,7 +301,26 @@ if (app) {
         if (socket === candidate) {
           socket = undefined;
           if (!closed) {
+            if (calibrationRegime && calibrationRecorder && !calibrationBundle) {
+              calibrationInvalid = true;
+              const recovery = freezeCalibration();
+              if (recovery) {
+                downloadCalibrationRecovery(recovery);
+              }
+              calibrationStatus!.textContent =
+                "Calibration connection lost; incomplete JSON downloaded";
+              calibrationDownload!.disabled = true;
+              setConnectionState("error", "calibration recording disconnected");
+              reconnect.disabled = true;
+              return;
+            }
             setConnectionState("disconnected");
+            if (calibrationRegime && calibrationBundle) {
+              downloadCalibrationRecovery(calibrationBundle);
+              calibrationStatus!.textContent =
+                "Calibration connection lost; incomplete JSON downloaded";
+              reconnect.disabled = true;
+            }
           }
         }
       });
@@ -203,10 +337,29 @@ if (app) {
   window.addEventListener("beforeunload", () => {
     closed = true;
     window.clearInterval(countdownInterval);
-    samplerDetach();
+    samplerDetach?.();
+    calibrationRecorder?.detach();
     socket?.close();
   });
   void connect();
+}
+
+function calibrationRegimeFromLocation(): CalibrationRegime | undefined {
+  const values = new URLSearchParams(window.location.search).getAll("calibration");
+  return values.length === 1 ? CALIBRATION_REGIMES.find((regime) => regime === values[0]) : undefined;
+}
+
+function downloadCalibrationBundle(
+  bundle: CalibrationRecordingBundle,
+  incomplete = false,
+): void {
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${incomplete ? "incomplete-" : ""}calibration-${bundle.regime}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -61,6 +61,18 @@ class Policy(Protocol):
 
 
 @runtime_checkable
+class CalibrationPolicy(Policy, Protocol):
+    """A measured local policy that binds session and per-decision provenance."""
+
+    @property
+    def calibration_metadata(self) -> object:
+        """Return immutable session-level calibration provenance."""
+
+    def calibration_decision_metadata(self) -> object:
+        """Return provenance for the most recently completed decision."""
+
+
+@runtime_checkable
 class AsyncClosablePolicy(Protocol):
     """Optional lifecycle implemented by policies owning network clients."""
 

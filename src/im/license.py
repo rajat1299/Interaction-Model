@@ -37,6 +37,7 @@ from im.schema.actions import (
     Span,
 )
 from im.schema.common import (
+    Activity,
     Disposition,
     LicenseBlockCode,
     TimerStatus,
@@ -75,6 +76,8 @@ class SnapshotView:
     text: str
     policy_seq: int = 0
     responded_to: bool = False
+    activity: Activity = Activity.PAUSED
+    is_composing: bool = False
 
 
 @dataclass(frozen=True, slots=True)

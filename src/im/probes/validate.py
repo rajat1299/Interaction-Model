@@ -208,6 +208,26 @@ def _normalized_floor_stream(policy_stream: str) -> tuple[dict[str, object], ...
     return tuple(normalized)
 
 
+def _normalized_floor_view(view: LicenseView) -> LicenseView:
+    """Remove the one declared activity flip from a floor-twin projection."""
+
+    def normalize(event: object) -> object:
+        if isinstance(event, SnapshotView) and event.event_id == latest_event_id:
+            return replace(event, activity=Activity.PAUSED)
+        return event
+
+    latest_event_id = None if view.latest_snapshot is None else view.latest_snapshot.event_id
+    latest_snapshot = (
+        None if view.latest_snapshot is None else normalize(view.latest_snapshot)
+    )
+    return replace(
+        view,
+        latest_snapshot=latest_snapshot,
+        events=tuple(normalize(event) for event in view.events),
+        floor_owned=False,
+    )
+
+
 def _actionable_projection(view: LicenseView) -> tuple[object, ...]:
     snapshot = view.latest_snapshot
     normalized_snapshot = (
@@ -249,7 +269,7 @@ def _validate_twin_state(
     if family_id in {7, 10}:
         if not left_view.floor_owned or right_view.floor_owned:
             raise ProbeValidationError(f"floor twin has wrong active/paused polarity: {probe_id}")
-        if replace(left_view, floor_owned=False) != right_view:
+        if _normalized_floor_view(left_view) != _normalized_floor_view(right_view):
             raise ProbeValidationError(
                 f"floor twin changes objective state beyond floor ownership: {probe_id}"
             )

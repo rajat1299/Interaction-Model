@@ -1,10 +1,12 @@
 """WP14 complete catalog construction and contract gates."""
 
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
+from im.license import SnapshotView
 from im.probes.catalog import BuiltProbeCatalog, build_probe_catalog
 from im.probes.model import (
     ExpectedPosition,
@@ -421,3 +423,27 @@ def test_floor_invariance_rejects_a_historical_activity_change(
 
     with pytest.raises(ProbeValidationError, match="streams differ beyond snapshot activity"):
         validate_manifest(mutated_manifest, catalog.views)
+
+
+def test_floor_invariance_still_rejects_a_response_disposition_change(
+    catalog: BuiltProbeCatalog,
+) -> None:
+    views = dict(catalog.views)
+    key = ("f07-t01-b", "v1")
+    view = views[key]
+    assert view.latest_snapshot is not None
+    snapshot_id = view.latest_snapshot.event_id
+
+    def mark_responded(event: object) -> object:
+        if isinstance(event, SnapshotView) and event.event_id == snapshot_id:
+            return replace(event, responded_to=True)
+        return event
+
+    views[key] = replace(
+        view,
+        latest_snapshot=mark_responded(view.latest_snapshot),
+        events=tuple(mark_responded(event) for event in view.events),
+    )
+
+    with pytest.raises(ProbeValidationError, match="beyond floor ownership"):
+        validate_manifest(catalog.manifest, views)

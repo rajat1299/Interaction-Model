@@ -37,7 +37,7 @@ export function attachSampler(
   textarea: HTMLTextAreaElement,
   emit: SamplerEmit,
   options: SamplerOptions = {},
-): () => void {
+): (options?: { flushPending?: boolean }) => void {
   const samplerThrottleMs = positiveDelay(
     options.sampler_throttle_ms,
     DEFAULT_SAMPLER_THROTTLE_MS,
@@ -140,9 +140,13 @@ export function attachSampler(
   emit(snapshot("active"));
   pauseTimer = setTimeout(emitPaused, pauseMs);
 
-  return (): void => {
+  return (options: { flushPending?: boolean } = {}): void => {
     if (detached) {
       return;
+    }
+    if (options.flushPending && throttleTimer !== undefined) {
+      clearTimeout(throttleTimer);
+      emitActive();
     }
     detached = true;
     if (throttleTimer !== undefined) {

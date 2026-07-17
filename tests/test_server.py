@@ -14,11 +14,13 @@ from starlette.websockets import WebSocketDisconnect
 from im.canonical_json import canonicalize_tim_json
 from im.config import RuntimeConfig
 from im.policy.base import ScriptedPolicy
+from im.policy.latency_stub import LatencyStubPolicy
 from im.scheduler import ManualClock
 from im.schema.events import SessionStartEvent, SnapshotEvent, TimerFireEvent
 from im.server import (
     ArtifactPaths,
     RuntimeSession,
+    SessionUnavailableError,
     create_app,
     load_session_artifacts,
 )
@@ -64,6 +66,17 @@ class GatedScriptedPolicy(ScriptedPolicy):
             self.entered[call].set()
             await self.release[call].wait()
         return await super().decide(policy_bytes)
+
+
+class FailingGatedPolicy:
+    def __init__(self) -> None:
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def decide(self, _policy_bytes: bytes) -> object:
+        self.entered.set()
+        await self.release.wait()
+        raise RuntimeError("calibration policy failed")
 
 
 class FailingClosePolicy(ScriptedPolicy):
@@ -123,11 +136,12 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
         session_id = response.json()["session_id"]
         session: RuntimeSession = app.state.session_registry.get(session_id)
 
-        def inspect() -> tuple[object, object, object, bytes, list[tuple[object, ...]]]:
+        def inspect() -> tuple[object, object, object, object, bytes, list[tuple[object, ...]]]:
             record = session.store.policy_records()[0]
             return (
                 record.event,
                 session.store.get_meta("runtime_config"),
+                session.store.get_meta("runtime_session_id"),
                 session.store.get_meta("artifact_hashes"),
                 record.rendered,
                 session.store._connection.execute(
@@ -135,7 +149,9 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
                 ).fetchall(),
             )
 
-        event, stored_config, artifact_hashes, rendered, ingress = client.portal.call(inspect)
+        event, stored_config, stored_session_id, artifact_hashes, rendered, ingress = (
+            client.portal.call(inspect)
+        )
 
     assert isinstance(event, SessionStartEvent)
     assert event.id == "e_000001"
@@ -143,6 +159,7 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
     assert event.dt_ms == 0
     assert event.payload.capabilities.model_dump(mode="python") == config.timer_capabilities()
     assert stored_config == config.as_json_object()
+    assert stored_session_id == session_id
     assert artifact_hashes == {
         "config": event.payload.config_hash,
         "prompt": event.payload.prompt_hash,
@@ -177,6 +194,124 @@ def test_session_start_uses_exact_real_artifact_preimages(tmp_path: Path) -> Non
     for name, preimage in retained_preimages.items():
         digest = artifact_hashes[name].removeprefix("sha256:")
         assert (tmp_path / session_id / "artifacts/sha256" / digest).read_bytes() == preimage
+
+
+def test_calibration_session_opt_in_records_decision_measurements(tmp_path: Path) -> None:
+    async def no_sleep(_delay: float) -> None:
+        return None
+
+    policies: list[LatencyStubPolicy] = []
+
+    def calibration_policy(session_id: str) -> LatencyStubPolicy:
+        policy = LatencyStubPolicy(session_id, sleep=no_sleep)
+        policies.append(policy)
+        return policy
+
+    app = create_app(
+        session_root=tmp_path,
+        policy_factory=lambda _session_id: ScriptedPolicy([]),
+        calibration_policy_factory=calibration_policy,
+        clock_factory=lambda _session_id: ManualClock(),
+    )
+
+    with TestClient(app) as client:
+        session_id = client.post("/session?calibration=true").json()["session_id"]
+        policy = policies[0]
+        session: RuntimeSession = app.state.session_registry.get(session_id)
+        with client.websocket_connect(f"/session/{session_id}") as websocket:
+            websocket.send_json(sampler_frame("calibrate", activity="paused"))
+            client.portal.call(wait_for_calls, policy, 1)
+            websocket.send_json(
+                sampler_frame("calibrate again", activity="paused", client_ts=1)
+            )
+            client.portal.call(wait_for_calls, policy, 2)
+            completed = client.post(
+                f"/session/{session_id}/calibration-complete",
+                json={"last_client_ts": 1, "sampler_frame_count": 2},
+            )
+            assert completed.status_code == 200
+            assert completed.json() == {"completed": True}
+
+        def audit_kinds() -> list[str]:
+            return [
+                str(row[0])
+                for row in session.store._connection.execute(
+                    "SELECT kind FROM audit ORDER BY rowid"
+                )
+            ]
+
+        kinds = client.portal.call(audit_kinds)
+        completion = client.portal.call(
+            session.store.get_meta, "calibration_completed"
+        )
+
+    assert kinds == [
+        "decision_started",
+        "decision_finished",
+        "action_attempt",
+        "decision_started",
+        "decision_finished",
+        "action_attempt",
+        "calibration_completed",
+    ]
+    assert completion == {
+        "runtime_session_id": session_id,
+        "completed_mono_ns": 0,
+        "sampler_frame_count": 2,
+        "last_client_ts": 1,
+    }
+
+
+def test_non_calibration_session_cannot_be_completed(tmp_path: Path) -> None:
+    app = create_app(
+        session_root=tmp_path,
+        policy_factory=lambda _session_id: ScriptedPolicy([]),
+        clock_factory=lambda _session_id: ManualClock(),
+    )
+
+    with TestClient(app) as client:
+        session_id = client.post("/session").json()["session_id"]
+        response = client.post(
+            f"/session/{session_id}/calibration-complete",
+            json={"last_client_ts": None, "sampler_frame_count": 0},
+        )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "session is not a calibration recording"}
+
+
+@pytest.mark.asyncio
+async def test_calibration_completion_cannot_hide_actor_failure(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    config = RuntimeConfig()
+    policy = FailingGatedPolicy()
+    session = RuntimeSession(
+        session_id="s_failed_calibration",
+        directory=tmp_path / "s_failed_calibration",
+        policy=policy,
+        clock=ManualClock(),
+        config=config,
+        artifacts=load_session_artifacts(ArtifactPaths.from_repository(repo), config),
+        measurement_audits=True,
+    )
+    session.start()
+    session.accept_snapshot(canonicalize_tim_json(sampler_frame("fails")))
+    await policy.entered.wait()
+    completion = asyncio.create_task(session.complete_calibration(1, 1))
+    await asyncio.sleep(0)
+    policy.release.set()
+
+    with pytest.raises(SessionUnavailableError, match="session runtime failed"):
+        await completion
+    with pytest.raises(SessionUnavailableError, match="session runtime failed"):
+        await session.complete_calibration(1, 1)
+    kinds = [
+        str(row[0])
+        for row in session.store._connection.execute("SELECT kind FROM audit ORDER BY rowid")
+    ]
+    assert kinds == ["decision_started", "decision_finished", "session_runtime_failed"]
+    assert session.store.get_meta("calibration_completed") is None
+    await session.close()
 
 
 @pytest.mark.asyncio

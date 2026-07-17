@@ -33,7 +33,7 @@ from im.canonical_json import (
 )
 from im.coalesce import SnapshotState, derive_edit_kind
 from im.config import MAX_SAFE_INTEGER, RuntimeConfig, estimate_tokens
-from im.policy.base import AsyncClosablePolicy, Policy
+from im.policy.base import AsyncClosablePolicy, CalibrationPolicy, Policy
 from im.rollover import rollover, should_rollover
 from im.scheduler import AsyncioClock, Clock, DueTimerFire, TimerScheduler
 from im.schema.actions import Span
@@ -48,7 +48,7 @@ from im.schema.common import (
 from im.schema.events import AnnotationPayload, SnapshotEvent
 from im.serialize import RENDERER_ID
 from im.store import IdKind, PolicyEventDraft, Store, TimerLedgerRecord
-from im.tick import RenderCommand, RenderKind, TickRuntime, ToolScript
+from im.tick import RenderCommand, RenderKind, TickPhase, TickRuntime, ToolScript
 from im.tools import ToolAdapter, ToolResultDelivery
 
 TOOL_REGISTRY_VERSION = 1
@@ -156,6 +156,15 @@ class SessionCreated(_WireModel):
     session_id: StrictStr
 
 
+class CalibrationCompleteRequest(_WireModel):
+    last_client_ts: Annotated[int, Field(strict=True, ge=0, le=MAX_SAFE_INTEGER)] | None
+    sampler_frame_count: NonNegativeInt
+
+
+class CalibrationCompleted(_WireModel):
+    completed: Literal[True]
+
+
 @dataclass(frozen=True, slots=True)
 class ArtifactPaths:
     """Exact runtime artifacts whose bytes identify a reproducible session."""
@@ -250,6 +259,7 @@ class RuntimeSession:
         config: RuntimeConfig,
         artifacts: SessionArtifacts,
         tool_script: ToolScript | None = None,
+        measurement_audits: bool = False,
     ) -> None:
         self.session_id = session_id
         self.directory = directory
@@ -261,10 +271,17 @@ class RuntimeSession:
         self._socket: WebSocket | None = None
         self._socket_lock = asyncio.Lock()
         self._tick_wake = asyncio.Event()
+        self._tick_quiescent = asyncio.Event()
+        self._tick_quiescent.set()
         self._render_queue: asyncio.Queue[tuple[WebSocket, dict[str, object]] | None] = (
             asyncio.Queue()
         )
         self._closed = False
+        self._measurement_audits = measurement_audits
+        self._latest_client_ts: int | None = None
+        self._accepted_snapshot_count = 0
+        self._calibration_finalizing = False
+        self._calibration_completion_lock = asyncio.Lock()
         self._background_error: BaseException | None = None
         self._runner: asyncio.Task[None] | None = None
         self.tick = TickRuntime(
@@ -276,10 +293,18 @@ class RuntimeSession:
             config=config,
             render_sink=self._on_render_command,
             tool_script=tool_script,
+            measurement_audits=measurement_audits,
         )
-        self._initialize(artifacts)
+        calibration_metadata = (
+            policy.calibration_metadata
+            if measurement_audits and isinstance(policy, CalibrationPolicy)
+            else None
+        )
+        self._initialize(artifacts, calibration_metadata)
 
-    def _initialize(self, artifacts: SessionArtifacts) -> None:
+    def _initialize(
+        self, artifacts: SessionArtifacts, calibration_metadata: object | None
+    ) -> None:
         artifact_mapping = retain_session_artifacts(self.directory / "artifacts", artifacts)
         payload = {
             "schema_version": 1,
@@ -315,6 +340,9 @@ class RuntimeSession:
                 )
             )
             self.store.set_meta("runtime_config", self.config.as_json_object())
+            self.store.set_meta("runtime_session_id", self.session_id)
+            if calibration_metadata is not None:
+                self.store.set_meta("calibration_latency", calibration_metadata)
             self.store.set_meta("artifact_hashes", artifact_mapping)
             self.store.set_meta(
                 "session_hashes",
@@ -344,6 +372,7 @@ class RuntimeSession:
             tasks.create_task(self._run_render_output(), name=f"render:{self.session_id}")
 
     def _runner_done(self, task: asyncio.Task[None]) -> None:
+        self._tick_quiescent.set()
         if task.cancelled():
             return
         error = task.exception()
@@ -362,6 +391,55 @@ class RuntimeSession:
             raise SessionUnavailableError(
                 f"session runtime failed: {type(self._background_error).__name__}"
             )
+
+    async def complete_calibration(
+        self, last_client_ts: int | None, sampler_frame_count: int
+    ) -> None:
+        """Freeze one measured session only after its final sampler frame is decided."""
+        self.assert_healthy()
+        if not self._measurement_audits:
+            raise SessionUnavailableError("session is not a calibration recording")
+        async with self._calibration_completion_lock:
+            if self.store.get_meta("calibration_completed") is not None:
+                return
+            try:
+                async with asyncio.timeout(5):
+                    while self._accepted_snapshot_count < sampler_frame_count:
+                        await asyncio.sleep(0.01)
+            except TimeoutError as error:
+                raise SessionUnavailableError(
+                    "final calibration sampler frame was not retained"
+                ) from error
+            if self._accepted_snapshot_count != sampler_frame_count:
+                raise SessionUnavailableError("calibration sampler frame count does not match")
+            if self._latest_client_ts != last_client_ts:
+                raise SessionUnavailableError("final calibration sampler timestamp does not match")
+
+            self._calibration_finalizing = True
+            self.scheduler.close()
+            self.tools.close()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            try:
+                async with asyncio.timeout(5):
+                    await self._tick_quiescent.wait()
+            except TimeoutError as error:
+                raise SessionUnavailableError(
+                    "calibration runtime did not become quiescent"
+                ) from error
+            self.assert_healthy()
+            if self.tick.phase is not TickPhase.IDLE or self.tick.pending:
+                raise SessionUnavailableError("calibration runtime is not quiescent")
+
+            payload = {
+                "runtime_session_id": self.session_id,
+                "completed_mono_ns": self._monotonic_ns(),
+                "sampler_frame_count": sampler_frame_count,
+                "last_client_ts": last_client_ts,
+            }
+            with self.store.transaction():
+                self.store.audit("calibration_completed", payload)
+                self.store.set_meta("calibration_completed", payload)
 
     async def attach(self, websocket: WebSocket) -> bool:
         """Accept exactly one active browser transport for this session."""
@@ -391,6 +469,8 @@ class RuntimeSession:
     def accept_snapshot(self, raw: bytes) -> str:
         """Retain one raw sampler frame, validate it, and wake the tick actor."""
         self.assert_healthy()
+        if self._calibration_finalizing:
+            raise SessionUnavailableError("calibration recording is complete")
         if not isinstance(raw, bytes):
             raise TypeError("raw client frame must be bytes")
         event_id, now_mono_ns = self._append_raw_user_ingress(raw, "snapshot")
@@ -412,6 +492,9 @@ class RuntimeSession:
         )
         previous = self._latest_committed_snapshot()
         edit_kind = derive_edit_kind(previous, current, frame.input_type)
+        self._latest_client_ts = frame.client_ts
+        self._accepted_snapshot_count += 1
+        self._tick_quiescent.clear()
         self.tick.enqueue_committed_ingress(
             PolicyEventDraft(
                 id=event_id,
@@ -456,6 +539,7 @@ class RuntimeSession:
                 occurred_mono_ns=now_mono_ns,
             )
         )
+        self._tick_quiescent.clear()
         self._tick_wake.set()
         return event_id
 
@@ -508,6 +592,7 @@ class RuntimeSession:
             await self.tick.run_until_idle()
             if self.tick.tick_count != tick_count:
                 self._rollover_if_needed()
+            self._tick_quiescent.set()
 
     def _rollover_if_needed(self) -> None:
         if not self.tick.mark_quiescent:
@@ -534,10 +619,12 @@ class RuntimeSession:
         if timer is None:
             raise RuntimeError("claimed timer disappeared before transport projection")
         self._enqueue_frame(self._timer_status_frame(timer))
+        self._tick_quiescent.clear()
         self.tick.enqueue_committed_ingress(fire.draft)
         self._tick_wake.set()
 
     async def _on_tool_result(self, delivery: ToolResultDelivery) -> None:
+        self._tick_quiescent.clear()
         self.tick.enqueue_committed_ingress(delivery.as_policy_draft())
         self._tick_wake.set()
 
@@ -621,6 +708,7 @@ class RuntimeSession:
         self.scheduler.close()
         self.tools.close()
         self._tick_wake.set()
+        self._tick_quiescent.set()
         self._render_queue.put_nowait(None)
         runner = self._runner
         if runner is not None:
@@ -671,16 +759,25 @@ class SessionRegistry:
         self.tool_script_factory = tool_script_factory
         self.sessions: dict[str, RuntimeSession] = {}
 
-    def create(self) -> RuntimeSession:
+    def create(
+        self,
+        *,
+        measurement_audits: bool = False,
+        policy_factory: PolicyFactory | None = None,
+    ) -> RuntimeSession:
         session_id = f"s_{uuid4().hex}"
+        policy = (policy_factory or self.policy_factory)(session_id)
+        if measurement_audits and not isinstance(policy, CalibrationPolicy):
+            raise ValueError("calibration policy must provide bound provenance")
         session = RuntimeSession(
             session_id=session_id,
             directory=self.root / session_id,
-            policy=self.policy_factory(session_id),
+            policy=policy,
             clock=self.clock_factory(session_id),
             config=self.config,
             artifacts=self.artifacts,
             tool_script=self.tool_script_factory(session_id),
+            measurement_audits=measurement_audits,
         )
         session.start()
         self.sessions[session_id] = session
@@ -703,6 +800,8 @@ def create_app(
     artifact_paths: ArtifactPaths | None = None,
     config: RuntimeConfig | None = None,
     policy_factory: PolicyFactory | None = None,
+    calibration_policy_factory: PolicyFactory | None = None,
+    calibration_only: bool = False,
     clock_factory: ClockFactory | None = None,
     tool_script_factory: ToolScriptFactory | None = None,
 ) -> FastAPI:
@@ -729,12 +828,43 @@ def create_app(
     application.state.session_registry = registry
 
     @application.post("/session", response_model=SessionCreated)
-    async def create_session() -> SessionCreated:
+    async def create_session(calibration: bool = False) -> SessionCreated:
+        if calibration and calibration_policy_factory is None:
+            raise HTTPException(
+                status_code=409,
+                detail="calibration is disabled for this entrypoint",
+            )
+        if not calibration and calibration_only:
+            raise HTTPException(
+                status_code=409,
+                detail="this entrypoint only creates calibration sessions",
+            )
         try:
-            session = registry.create()
+            session = registry.create(
+                measurement_audits=calibration,
+                policy_factory=calibration_policy_factory if calibration else None,
+            )
         except (OSError, ValueError, RuntimeError) as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
         return SessionCreated(session_id=session.session_id)
+
+    @application.post(
+        "/session/{session_id}/calibration-complete",
+        response_model=CalibrationCompleted,
+    )
+    async def complete_calibration(
+        session_id: str, request: CalibrationCompleteRequest
+    ) -> CalibrationCompleted:
+        session = registry.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="unknown session")
+        try:
+            await session.complete_calibration(
+                request.last_client_ts, request.sampler_frame_count
+            )
+        except SessionUnavailableError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return CalibrationCompleted(completed=True)
 
     @application.websocket("/session/{session_id}")
     async def session_socket(websocket: WebSocket, session_id: str) -> None:
