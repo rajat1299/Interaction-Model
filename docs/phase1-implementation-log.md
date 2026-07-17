@@ -712,3 +712,66 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
 - The blind replay packet was not assembled or judged after the fixed-policy stop. Provider-backed
   teacher execution remains paused with zero calls pending the project owner's separate green
   light; no cleanup or canary-preparation work was rolled back.
+
+## 2026-07-17 — Project-owner G-1 close decision
+
+- The project owner closed G-1 under Option B on the unchanged trace-resampled population. The
+  binding quantitative result remains a fail against the frozen single-user reference profile:
+  decision rate and the per-event backspace/text-delta metrics pass, while the residuals are the
+  deliberately separate look-back revision stratum and pre-coalescing arrival-density deltas with
+  minimal model-visible effect. No analyzer rerun, population change, band change, or tuning is
+  authorized.
+- Reporting-only arithmetic on the existing browser bundles and materialization annotations
+  decomposes revision locality without invoking the analyzer. After excluding the declared
+  look-back transactions, the analyzer-compatible immediate lane contains 51,635 per-event
+  revision observations at p10/p50/p90 0/7/255 characters, versus the recorded metadata-free lane
+  at 0/12/120. The 933 declared look-back transactions have first-revision locality
+  p10/p50/p90 25/198/319 characters and are documented as a designed minority stratum, not judged
+  against the n=1 band. The annotations declare 5,488 immediate corrections and 933 look-backs;
+  those transaction counts are intentionally distinguished from per-event metric observations.
+- The owner requested a direct 20-pair blind replay packet as non-binding documentation. It will
+  be assembled and judged once, with the result reported honestly, but it cannot reopen or alter
+  the Option-B verdict and does not restore the deleted blind-admission machinery.
+- Phase 2 corpus generation will use the trace-resampled timing generator with the two-mode
+  revision model. Generator selection is an engineering handoff decision independent of G-1's
+  formal quantitative verdict; the parametric fitting machinery remains deleted.
+- Provider-backed WP1-9 teacher execution is now explicitly authorized. The run remains limited to
+  D2 funnel steps 1--3 on the frozen 38-parent/265-decision canary, followed by disagreement review
+  through the incoming WP1-8 shell. The closeout process freeze remains in force.
+
+## 2026-07-17 — WP1-8 review shell integration and teacher-run seal
+
+- The separate WP1-8 shell commit `e83528106833ceeb8eee367d6c102e6b61772d2c` was applied without
+  committing and reviewed against D2/D6 before integration. Its original 86-test build was green,
+  but browser and adversarial review found that the initial event and oracle decision could be
+  independently misbound, teacher labels were keyed by the teacher action type, only action types
+  were compared for disagreement, projected marks became stale after revisions, packet JSON was
+  cast at the trust boundary, and in-memory reviews could be lost on reload.
+- The repaired shell uses the canonical decision identity `(stream_sha256, observed_policy_seq)`,
+  opens every queue item at its prioritized decision's exact observed event, and implements D2
+  causal equivalence: action type, causal references, idle reason, and state-changing payload must
+  agree, while faithful `integrate.text` and `respond.text` wording remains semantically graded.
+  Drafts are bound to the manifest checksum, source-index checksum, and normalized teacher-label
+  digest; changing teacher evidence switches to its own review draft instead of silently resolving
+  a new disagreement with an old judgment.
+- Mark occurrence projection is an exact TypeScript port of the runtime's `SequenceMatcher`
+  behavior, including Unicode/UTF-16 conversion and distinct applied-versus-ambiguous mark state.
+  A 7,488-transition digest generated from `src/im/mark_projection.py` is a cross-language
+  regression. Idle decision intervals now require zero executed actions; non-idle intervals require
+  exactly one. The loader fails closed on malformed consumed artifacts, requires checksum coverage,
+  and validates the packet's existing cross-file identities without introducing a new schema or
+  manifest program.
+- The full 38-stream/265-decision canary loads locally with verified checksums, no subset-fidelity
+  divergence, and no browser console warning/error. Browser QA confirmed the selected event seq
+  equals the oracle's `observed_policy_seq`; an injected different-type label appeared as one
+  unresolved `CAUSAL DISAGREEMENT`. The production build and 109 client tests pass.
+- This evidence is deliberately named *canary stream-derivable subset coverage*, not G-6 proof.
+  Independent Phase-0 golden-trace runtime expectations for every D6 field are not present in the
+  shell test set, and `floor_open`, stale-result oracle evidence, and raw rejected attempts are not
+  reconstructible from the canary stream bytes. Full G-6 fidelity therefore remains unestablished
+  and will be stated as a closeout limitation rather than expanded into new Phase-1 fixtures.
+- The sealed live teacher plan reconstructs exactly 265 prefixes in one `tc0` Batch using
+  `gpt-5.6-terra`, high reasoning, 8,192 maximum output tokens, and one attempt. Its deterministic
+  estimate is 4,247,416 input plus 79,500 expected output tokens at `$5.9055200` Batch cost; no
+  provider call had been performed at this log point. Execution emits both the complete comparison
+  and a normalized WP1-8 teacher-label JSONL using the same D2 equivalence rule.
