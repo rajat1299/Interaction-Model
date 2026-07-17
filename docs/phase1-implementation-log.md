@@ -533,3 +533,41 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   the full client suite passed 57 tests, and the client TypeScript/Vite build completed. No network
   or provider path is used; materialization is local and the runtime uses the frozen
   `calibration-idle/v1` latency stub.
+
+## 2026-07-16 — Adjudicated refit #2 result and mandatory stop
+
+- The executable provenance closure was committed as
+  `61fdcece48a5f99f8285c63bd49a5e7ce9f269bd` after an independent thermo-nuclear
+  review found no critical or important correctness/provenance issue. The one authorized run then
+  completed exactly once and atomically sealed 417 synthetic records across the frozen
+  70/69/70/69/70/69 regime allocation. The analyzer consumed all 417 synthetic records and all
+  seven reference sessions; producer identity passed, reference duration passed, and no metric was
+  unavailable.
+- The sealed population manifest is `calibration-synthetic-refit-2/calibration-manifest.json`
+  (SHA-256 `7701b7dc158b16d9fe5b73ae68d68a38cef0ff87c9ca5c312de05ee27e43515a`).
+  The single measured report is `calibration-synthetic-refit-2/report-quantitative.json`
+  (SHA-256 `418f1f9e521b9b5b1817556f1976ffb04858a21628c2a5f4ee582e8afec8bfc5`).
+  Its measured `distribution_match_verdict` and `g1_verdict` are both `fail`; the canceled
+  evidence-admission program's residual `pending` field is not used for this decision.
+- The retained corpus provenance file contains 3,346 sorted entries
+  (`calibration-synthetic-refit-2/SHA256SUMS`, SHA-256
+  `8509dfd6dcd49c917dbffeea44cefa541b1cec20fd20a69c820f7f4c907fe0e1`), and a full
+  `shasum --check --status` completed successfully. Independent adjudication also verified exact,
+  unique analyzed-input sets, all 14 reference and 1,668 synthetic record-artifact hashes, balanced
+  regime membership, and internally consistent metric/failure summaries; it found no analyzer or
+  report corruption that could invalidate the failures.
+- The fixed global acceptance policy fails. `policy.decision_rate_per_min` is 68.231 synthetic
+  versus 54.277 recorded, and `policy.event_contention_rate` is 0.5296 versus 0.6348. Mandatory
+  `raw.revision_locality_chars` also fails: synthetic p50/p90 are 80/231 characters versus 12/120
+  recorded. Global `raw.backspace_run_length` passes at p10/p50/p90 1/1/6 versus 1/1/7, and global
+  `sampler.text_length_delta_chars` passes at 0/1/2 versus 0/1/2, but those passes cannot override
+  a policy-layer or named-defect failure.
+- Every regime-conditioned comparison has policy-layer nonpasses: copied/scripted 9,
+  cursor/selection 7, natural drafting 5, pauses/resumptions 9, revision-heavy 2, and short-command
+  4. Mandatory metrics additionally fail in cursor/selection (all three), pauses/resumptions
+  (text-length delta), revision-heavy (revision locality and backspace runs), and short-command
+  (backspace runs and text-length delta).
+- The project-owner stop rule is therefore active. No retuning or extra population is authorized,
+  and blind replay, cleanup, teacher canary, final Phase 1 report, and close tag have not been
+  started. This failed one-shot result is surfaced for owner direction; downstream work remains
+  stopped rather than silently adapting the preregistered policy.
