@@ -813,3 +813,16 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   independent thermo-nuclear reviewer approved the final packet.
 - Owner judgment is still pending. This check is non-binding documentation, cannot reopen G-1,
   and is not an admission record, gate, schema, or corpus artifact.
+
+## 2026-07-17 — Offline closeout verification stop point
+
+- The integrated WP1-8 shell, fail-closed WP1-9 runner, and non-binding blind documentation all
+  passed their independent thermo-nuclear reviews. The blind generator deterministically
+  reconstructs both checksum-separated directories and its executable viewer contract.
+- Repository-wide Ruff and the full Python test suite pass. The client suite passes 111/111 and
+  both `index.html` and `review.html` production entries build successfully. The remaining warning
+  is a dependency deprecation notice from FastAPI's Starlette test client, not a test failure.
+- No live teacher/provider call was made. The two owner-dependent closeout items remain the live
+  teacher canary plus disagreement/semantic review and the project owner's blinded 20-pair
+  judgment. The final Phase 1 report and tag remain intentionally uncreated until those records
+  exist.

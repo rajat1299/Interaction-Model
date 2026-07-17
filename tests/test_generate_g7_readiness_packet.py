@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import runpy
 from collections import Counter
 from dataclasses import replace

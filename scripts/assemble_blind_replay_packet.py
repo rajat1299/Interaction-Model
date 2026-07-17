@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E501
 """Assemble the non-binding, text-redacted Phase 1 blind replay packet."""
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
-
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "review/phase1/calibration-reference"
@@ -85,8 +85,7 @@ def _public_ms(value: float) -> int:
 def _redact_text(value: str) -> str:
     # Keep line geometry; every other UTF-16 code unit becomes one opaque cell.
     return "".join(
-        character if character in "\r\n" else "█" * _utf16_length(character)
-        for character in value
+        character if character in "\r\n" else "█" * _utf16_length(character) for character in value
     )
 
 
@@ -121,14 +120,16 @@ def _reference_traces() -> list[Trace]:
         ):
             raise ValueError(f"recorded calibration manifest binding failed: {trace.source_path}")
         traces.append(trace)
-    if Counter(trace.regime for trace in traces) != Counter({
-        "natural-drafting": 1,
-        "revision-heavy-writing": 1,
-        "copied-or-scripted-typing": 1,
-        "cursor-and-selection-edits": 2,
-        "short-command-like-inputs": 1,
-        "pauses-and-resumptions": 1,
-    }):
+    if Counter(trace.regime for trace in traces) != Counter(
+        {
+            "natural-drafting": 1,
+            "revision-heavy-writing": 1,
+            "copied-or-scripted-typing": 1,
+            "cursor-and-selection-edits": 2,
+            "short-command-like-inputs": 1,
+            "pauses-and-resumptions": 1,
+        }
+    ):
         raise ValueError("recorded calibration regimes no longer match the frozen reference")
     return traces
 
@@ -151,7 +152,9 @@ def _windows(trace: Trace) -> list[Window]:
             continue
         target = bisect.bisect_left(times, start_ms + WINDOW_TARGET_MS, low, high + 1)
         candidates = [index for index in (target - 1, target) if low <= index <= high]
-        end_index = min(candidates, key=lambda index: (abs(times[index] - start_ms - WINDOW_TARGET_MS), index))
+        end_index = min(
+            candidates, key=lambda index: (abs(times[index] - start_ms - WINDOW_TARGET_MS), index)
+        )
         windows.append(Window(trace, start_index, end_index, start_ms, times[end_index]))
     return windows
 
@@ -165,7 +168,10 @@ def _overlaps(first: Window, second: Window) -> bool:
 
 
 def _matching_duration(first: Window, second: Window) -> bool:
-    return abs(first.duration_ms - second.duration_ms) / max(first.duration_ms, second.duration_ms) <= 0.05
+    return (
+        abs(first.duration_ms - second.duration_ms) / max(first.duration_ms, second.duration_ms)
+        <= 0.05
+    )
 
 
 def _choose_pairs(recorded: list[Trace], synthetic: list[Trace]) -> list[tuple[Window, Window]]:
@@ -179,7 +185,9 @@ def _choose_pairs(recorded: list[Trace], synthetic: list[Trace]) -> list[tuple[W
 
     pairs: list[tuple[Window, Window]] = []
     for regime, quota in REGIME_QUOTAS.items():
-        candidates = [window for trace in recorded if trace.regime == regime for window in _windows(trace)]
+        candidates = [
+            window for trace in recorded if trace.regime == regime for window in _windows(trace)
+        ]
         candidates.sort(key=_window_key)
         rng.shuffle(candidates)
         selected: list[Window] = []
@@ -187,7 +195,9 @@ def _choose_pairs(recorded: list[Trace], synthetic: list[Trace]) -> list[tuple[W
         for candidate in candidates:
             if len(selected) == quota:
                 break
-            bundle_windows = [window for window in selected if window.trace.source_id == candidate.trace.source_id]
+            bundle_windows = [
+                window for window in selected if window.trace.source_id == candidate.trace.source_id
+            ]
             if len(bundle_windows) >= MAX_REAL_WINDOWS_PER_BUNDLE or any(
                 _overlaps(candidate, existing) for existing in bundle_windows
             ):
@@ -209,14 +219,18 @@ def _choose_pairs(recorded: list[Trace], synthetic: list[Trace]) -> list[tuple[W
         if len(selected) != quota:
             raise ValueError(f"could not select {quota} non-overlapping recorded {regime} windows")
 
-    if len(pairs) != 20 or Counter(real.trace.regime for real, _ in pairs) != Counter(REGIME_QUOTAS):
+    if len(pairs) != 20 or Counter(real.trace.regime for real, _ in pairs) != Counter(
+        REGIME_QUOTAS
+    ):
         raise ValueError("blind packet balance is invalid")
     return pairs
 
 
 def _public_window(window: Window) -> dict[str, object]:
     frames: list[dict[str, object]] = []
-    for index, item in enumerate(window.trace.frames[window.start_index : window.end_index + 1], start=1):
+    for index, item in enumerate(
+        window.trace.frames[window.start_index : window.end_index + 1], start=1
+    ):
         frame = item["frame"]
         text = frame["text"]
         if not isinstance(text, str):
@@ -229,17 +243,19 @@ def _public_window(window: Window) -> dict[str, object]:
         relative_ms = _public_ms(float(item["relative_ms"]) - window.start_ms)
         if frames:
             relative_ms = max(relative_ms, int(frames[-1]["relative_ms"]) + 1)
-        frames.append({
-            "frame_index": index,
-            "relative_ms": relative_ms,
-            "activity": frame["activity"],
-            "input_type": frame["input_type"],
-            "is_composing": frame["is_composing"],
-            "selection_start": start,
-            "selection_end": end,
-            "text": redacted,
-            "text_utf16_length": text_length,
-        })
+        frames.append(
+            {
+                "frame_index": index,
+                "relative_ms": relative_ms,
+                "activity": frame["activity"],
+                "input_type": frame["input_type"],
+                "is_composing": frame["is_composing"],
+                "selection_start": start,
+                "selection_end": end,
+                "text": redacted,
+                "text_utf16_length": text_length,
+            }
+        )
     return {
         "duration_ms": max(_public_ms(window.duration_ms), int(frames[-1]["relative_ms"])),
         "frame_count": len(frames),
@@ -266,7 +282,7 @@ def _assert_public_redaction(packet: dict[str, object]) -> None:
 
 
 def _viewer_html() -> bytes:
-    return br'''<!doctype html>
+    return rb"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -302,7 +318,7 @@ el("file").onchange=event=>event.target.files[0].text().then(load).catch(error=>
 window.__blindReplay={load,play,pause,restart,seek:setClock,state:()=>({clock,playing,current})};
 </script>
 </html>
-'''
+"""
 
 
 def _readme() -> bytes:
@@ -330,7 +346,9 @@ Do not open `../blind-replay-unblinding/PRIVATE-unblinding.json` until all judgm
 """
 
 
-def _assert_blind_metadata(public_pairs: list[dict[str, object]], private_pairs: list[dict[str, object]]) -> None:
+def _assert_blind_metadata(
+    public_pairs: list[dict[str, object]], private_pairs: list[dict[str, object]]
+) -> None:
     for public, private in zip(public_pairs, private_pairs, strict=True):
         if set(public) != {"pair_id", "regime", "side_a", "side_b"}:
             raise ValueError("public pair metadata can encode origin")
@@ -356,14 +374,21 @@ def _assert_blind_metadata(public_pairs: list[dict[str, object]], private_pairs:
         }
         for side in (side_a, side_b):
             frames = side["frames"]
-            if not isinstance(frames, list) or not frames or any(
-                not isinstance(frame, dict) or set(frame) != expected_frame_keys
-                for frame in frames
+            if (
+                not isinstance(frames, list)
+                or not frames
+                or any(
+                    not isinstance(frame, dict) or set(frame) != expected_frame_keys
+                    for frame in frames
+                )
             ):
                 raise ValueError("public sides have asymmetric frame metadata")
         fractional_presence: dict[str, bool] = {}
         for label, side in (("A", side_a), ("B", side_b)):
-            timing_values = [side["duration_ms"], *(frame["relative_ms"] for frame in side["frames"])]
+            timing_values = [
+                side["duration_ms"],
+                *(frame["relative_ms"] for frame in side["frames"]),
+            ]
             fractional_presence[label] = any(
                 isinstance(value, float) and not value.is_integer() for value in timing_values
             )
@@ -374,10 +399,15 @@ def _assert_blind_metadata(public_pairs: list[dict[str, object]], private_pairs:
                 frame_times[0] != 0
                 or side["duration_ms"] != frame_times[-1]
                 or not WINDOW_MIN_MS <= side["duration_ms"] <= WINDOW_MAX_MS
-                or any(current <= previous for previous, current in zip(frame_times, frame_times[1:]))
+                or any(
+                    current <= previous for previous, current in zip(frame_times, frame_times[1:])
+                )
             ):
                 raise ValueError("public frame timestamps are not strictly monotonic")
-        if fractional_presence["A"] != fractional_presence["B"] or fractional_presence[private["recorded_side"]]:
+        if (
+            fractional_presence["A"] != fractional_presence["B"]
+            or fractional_presence[private["recorded_side"]]
+        ):
             raise ValueError("fractional timestamp presence reveals the recorded side")
 
 
@@ -391,33 +421,37 @@ def _render_files() -> tuple[dict[str, bytes], dict[str, bytes]]:
     for index, (recorded, synthetic) in enumerate(pairs, start=1):
         pair_id = f"P{index:02d}"
         synthetic_side = "A" if index - 1 in synthetic_on_a else "B"
-        public_pairs.append({
-            "pair_id": pair_id,
-            "regime": recorded.trace.regime,
-            "side_a": _public_window(synthetic if synthetic_side == "A" else recorded),
-            "side_b": _public_window(recorded if synthetic_side == "A" else synthetic),
-        })
-        private_pairs.append({
-            "pair_id": pair_id,
-            "regime": recorded.trace.regime,
-            "recorded_side": "B" if synthetic_side == "A" else "A",
-            "recorded": {
-                "runtime_session_id": recorded.trace.source_id,
-                "source_path": str(recorded.trace.source_path),
-                "start_frame_index": recorded.start_index + 1,
-                "end_frame_index": recorded.end_index + 1,
-                "start_ms": round(recorded.start_ms, 3),
-                "end_ms": round(recorded.end_ms, 3),
-            },
-            "synthetic": {
-                "runtime_session_id": synthetic.trace.source_id,
-                "source_path": str(synthetic.trace.source_path),
-                "start_frame_index": synthetic.start_index + 1,
-                "end_frame_index": synthetic.end_index + 1,
-                "start_ms": round(synthetic.start_ms, 3),
-                "end_ms": round(synthetic.end_ms, 3),
-            },
-        })
+        public_pairs.append(
+            {
+                "pair_id": pair_id,
+                "regime": recorded.trace.regime,
+                "side_a": _public_window(synthetic if synthetic_side == "A" else recorded),
+                "side_b": _public_window(recorded if synthetic_side == "A" else synthetic),
+            }
+        )
+        private_pairs.append(
+            {
+                "pair_id": pair_id,
+                "regime": recorded.trace.regime,
+                "recorded_side": "B" if synthetic_side == "A" else "A",
+                "recorded": {
+                    "runtime_session_id": recorded.trace.source_id,
+                    "source_path": str(recorded.trace.source_path),
+                    "start_frame_index": recorded.start_index + 1,
+                    "end_frame_index": recorded.end_index + 1,
+                    "start_ms": round(recorded.start_ms, 3),
+                    "end_ms": round(recorded.end_ms, 3),
+                },
+                "synthetic": {
+                    "runtime_session_id": synthetic.trace.source_id,
+                    "source_path": str(synthetic.trace.source_path),
+                    "start_frame_index": synthetic.start_index + 1,
+                    "end_frame_index": synthetic.end_index + 1,
+                    "start_ms": round(synthetic.start_ms, 3),
+                    "end_ms": round(synthetic.end_ms, 3),
+                },
+            }
+        )
     public = {
         "format_version": "phase1-blind-replay/v1",
         "blinded": True,
@@ -453,7 +487,9 @@ def _render_files() -> tuple[dict[str, bytes], dict[str, bytes]]:
 
 
 def _checksums(files: dict[str, bytes]) -> bytes:
-    return "".join(f"{_sha256(data)}  {name}\n" for name, data in sorted(files.items())).encode("ascii")
+    return "".join(f"{_sha256(data)}  {name}\n" for name, data in sorted(files.items())).encode(
+        "ascii"
+    )
 
 
 def _directory_files(directory: Path) -> dict[str, bytes]:
@@ -482,7 +518,7 @@ def _verify(
 
 
 def _check_viewer(output: Path) -> None:
-    script = r'''
+    script = r"""
 const fs=require("node:fs"),assert=require("node:assert/strict"),{JSDOM}=require("jsdom");
 (async()=>{
   const [htmlPath,packetPath]=process.argv.slice(1),packet=JSON.parse(fs.readFileSync(packetPath,"utf8"));
@@ -514,9 +550,15 @@ const fs=require("node:fs"),assert=require("node:assert/strict"),{JSDOM}=require
   dom.window.close();
   console.log("viewer-contract-ok");
 })().catch(error=>{console.error(error);process.exitCode=1});
-'''
+"""
     result = subprocess.run(
-        ["node", "-e", script, str(output / "viewer.html"), str(output / "public-blinded-pairs.json")],
+        [
+            "node",
+            "-e",
+            script,
+            str(output / "viewer.html"),
+            str(output / "public-blinded-pairs.json"),
+        ],
         cwd=ROOT / "client",
         capture_output=True,
         text=True,
@@ -569,8 +611,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--unblinding-output", type=Path)
-    parser.add_argument("--replace", action="store_true", help="replace the two owned output directories")
-    parser.add_argument("--check", action="store_true", help="validate the existing deterministic packet")
+    parser.add_argument(
+        "--replace", action="store_true", help="replace the two owned output directories"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="validate the existing deterministic packet"
+    )
     args = parser.parse_args()
     output = args.output if args.output.is_absolute() else ROOT / args.output
     if args.unblinding_output is None:
