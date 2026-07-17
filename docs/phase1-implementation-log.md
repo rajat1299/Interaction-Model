@@ -782,3 +782,12 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   teacher-evidence-bound draft identity, and displays `SEMANTIC REVIEW REQUIRED` at the exact
   decision. The full client suite is 111/111, the production build is green, and the independent
   thermo-nuclear recheck approved the handoff. No provider call was made during this repair.
+- The live-run boundary now distinguishes the `$5.9055200` expected Batch estimate from the
+  `$21.5908700` approval ceiling implied by 265 requests at the configured 8,192-token maximum.
+  Execution requires the ceiling explicitly, rejects absent, zero, inconsistent, or malformed
+  per-response usage, and preserves raw provider artifacts plus known partial usage on failure
+  without emitting importable labels. Success and failure artifacts remove opposing stale state
+  before publishing their final record. An uncertain Batch create can only be adopted through the
+  exact shard ledger, including correction of an unverified ID, and is never retried as a new
+  Batch. Ruff and 31 scoped runner/lifecycle/packet tests pass; the independent thermo-nuclear
+  reviewer approved the repaired runner. Per the owner's pause instruction, no live call was made.
