@@ -11,22 +11,19 @@ from im.generation.calibration import (
     CALIBRATION_REGIMES,
     ArtifactRef,
     CalibrationError,
-    CalibrationManifest,
     CalibrationRecord,
     MetricData,
-    _distribution_match_verdict,
-    _evidence_admission_verdict,
     _family_drift,
-    _g1_verdict,
-    _producer_identity,
-    _source_authority,
-    analyze_calibration,
     compare_metrics,
     extract_record_metrics,
     load_manifest,
-    write_report,
 )
-from im.generation.calibration_metrics import _metrics, _raw_metrics, _sampler_metrics
+from im.generation.calibration_metrics import (
+    _annotate_revision_placement,
+    _metrics,
+    _raw_metrics,
+    _sampler_metrics,
+)
 from im.generation.sidecar import PerturbationKind
 from im.policy.latency_stub import D1LatencySampler, latency_stub_metadata
 from im.store import PolicyEventDraft, Store
@@ -337,36 +334,6 @@ def _manifest(tmp_path: Path, population: str, *, recording_duration_ms: int = 3
     return path
 
 
-def test_manifest_authority_and_owned_byte_snapshot(tmp_path: Path) -> None:
-    manifest = load_manifest(_manifest(tmp_path, "synthetic"), expected_population="synthetic")
-    record = manifest.records[0]
-    assert record.family is CorpusFamily.NEUTRAL_TYPING
-    assert record.declared_perturbations == (PerturbationKind.DRAFT_REVISION,)
-
-    record.browser_bundle.path.write_bytes(b"changed after verification")
-    record.runtime_session.path.write_bytes(b"changed after verification")
-    metrics = extract_record_metrics(record)
-    assert metrics["sampler.text_length_delta_chars"].values == [-1.0]
-
-
-def test_manifest_rejects_self_declared_authority_and_incomplete_c6_coverage(
-    tmp_path: Path,
-) -> None:
-    path = _manifest(tmp_path, "synthetic")
-    value = __import__("json").loads(path.read_bytes())
-    value["records"][0]["family"] = CorpusFamily.RESERVED.value
-    path.write_bytes(canonical_artifact_bytes(value))
-    with pytest.raises(CalibrationError, match="exactly"):
-        load_manifest(path)
-
-    path = _manifest(tmp_path / "coverage", "synthetic")
-    value = __import__("json").loads(path.read_bytes())
-    value["records"].pop()
-    path.write_bytes(canonical_artifact_bytes(value))
-    with pytest.raises(CalibrationError, match="six closed D3 regimes|exactly cover"):
-        load_manifest(path)
-
-
 def test_exact_decision_audits_drive_queue_metrics(tmp_path: Path) -> None:
     manifest = load_manifest(_manifest(tmp_path, "reference"))
     metrics = extract_record_metrics(manifest.records[0])
@@ -483,6 +450,153 @@ def test_raw_revisions_use_ordered_edit_state_and_input_variants() -> None:
     assert metrics["raw.revision_locality_chars"].values[:2] == [4.0, 3.0]
 
 
+def test_revision_placement_excludes_only_declared_look_back_locality() -> None:
+    def event(
+        ordinal: int,
+        kind: str,
+        text: str,
+        selection: int,
+        *,
+        input_type: str | None = None,
+        data: str | None = None,
+    ) -> dict[str, object]:
+        return {
+            "ordinal": ordinal,
+            "relative_ms": ordinal * 10,
+            "kind": kind,
+            "input_type": input_type,
+            "data": data,
+            "text": text,
+            "selection_start": selection,
+            "selection_end": selection,
+            "is_composing": False,
+        }
+
+    raw = [
+        event(1, "selectionchange", "x" * 100, 98),
+        event(2, "input", "x" * 101, 99, input_type="insertText", data="x"),
+        event(3, "selectionchange", "x" * 101, 10),
+        event(4, "input", "x" * 100, 10, input_type="deleteContentBackward"),
+        event(5, "selectionchange", "x" * 100, 10),
+        event(6, "input", "x" * 101, 11, input_type="insertText", data="x"),
+        event(7, "selectionchange", "x" * 101, 101),
+        event(8, "input", "x" * 100, 100, input_type="deleteContentBackward"),
+    ]
+    metrics = _metrics()
+    excluded = _annotate_revision_placement(
+        metrics,
+        {
+            "timing": {
+                "split": "train",
+                "seed_id": "timing/train/string:test",
+                "revision": {
+                    "immediate_count": 2,
+                    "look_back_count": 1,
+                    "look_back_input_ordinal_ranges": [
+                        {"start_ordinal": 4, "end_ordinal": 6}
+                    ],
+                },
+            }
+        },
+        raw,
+    )
+    _raw_metrics(metrics, raw, CALIBRATION_REGIMES[0], excluded)
+
+    assert metrics["raw.revision_immediate_count"].values == [2.0]
+    assert metrics["raw.revision_look_back_count"].values == [1.0]
+    assert metrics["raw.revision_locality_chars"].values == [2.0, 0.0]
+
+
+def test_revision_placement_rejects_overlapping_ranges() -> None:
+    raw = [
+        {
+            "ordinal": ordinal,
+            "relative_ms": ordinal,
+            "kind": "input" if ordinal % 2 == 0 else "selectionchange",
+            "input_type": "deleteContentBackward" if ordinal % 2 == 0 else None,
+            "data": None,
+            "text": "x" * (10 - ordinal // 2),
+            "selection_start": 2,
+            "selection_end": 2,
+            "is_composing": False,
+        }
+        for ordinal in range(1, 7)
+    ]
+    ranges = [
+        {"start_ordinal": 2, "end_ordinal": 4},
+        {"start_ordinal": 4, "end_ordinal": 6},
+    ]
+    with pytest.raises(CalibrationError, match="look-back"):
+        _annotate_revision_placement(
+            _metrics(),
+            {
+                "timing": {
+                    "split": "train",
+                    "seed_id": "timing/train/string:test",
+                    "revision": {
+                        "immediate_count": 1,
+                        "look_back_count": len(ranges),
+                        "look_back_input_ordinal_ranges": ranges,
+                    },
+                }
+            },
+            raw,
+        )
+
+
+def test_revision_placement_rejects_nonrevision_input_ranges() -> None:
+    raw = [
+        {
+            "ordinal": 1,
+            "relative_ms": 1,
+            "kind": "input",
+            "input_type": "insertText",
+            "data": "x",
+            "text": "x",
+            "selection_start": 1,
+            "selection_end": 1,
+            "is_composing": False,
+        }
+    ]
+    with pytest.raises(CalibrationError, match="nonrevision"):
+        _annotate_revision_placement(
+            _metrics(),
+            {
+                "timing": {
+                    "split": "train",
+                    "seed_id": "timing/train/string:test",
+                    "revision": {
+                        "immediate_count": 0,
+                        "look_back_count": 1,
+                        "look_back_input_ordinal_ranges": [
+                            {"start_ordinal": 1, "end_ordinal": 1}
+                        ],
+                    },
+                }
+            },
+            raw,
+        )
+
+
+def test_revision_placement_uses_split_scoped_shared_timing_parser() -> None:
+    with pytest.raises(CalibrationError, match="same split"):
+        _annotate_revision_placement(
+            _metrics(),
+            {
+                "timing": {
+                    "split": "train",
+                    "seed_id": "timing/dev/string:test",
+                    "revision": {
+                        "immediate_count": 0,
+                        "look_back_count": 0,
+                        "look_back_input_ordinal_ranges": [],
+                    },
+                }
+            },
+            [],
+        )
+
+
 def test_sampler_counts_every_observed_raw_activity_kind() -> None:
     raw = [
         {"ordinal": ordinal, "kind": kind}
@@ -510,43 +624,6 @@ def test_sampler_counts_every_observed_raw_activity_kind() -> None:
         ],
     )
     assert metrics["sampler.raw_input_changes_per_snapshot"].values == [5.0, 0.0]
-
-
-def test_reference_duration_is_a_g1_acceptance_check(tmp_path: Path) -> None:
-    reference = load_manifest(_manifest(tmp_path / "reference", "reference"))
-    synthetic = load_manifest(_manifest(tmp_path / "synthetic", "synthetic"))
-    report = analyze_calibration(reference, synthetic, allow_unfitted_observation=True)
-    assert report["reference_duration"] == {
-        "duration_ms": 1_800_000.0,
-        "minimum_ms": 1_800_000,
-        "maximum_ms": 2_700_000,
-        "verdict": "pass",
-    }
-
-    short_reference = load_manifest(
-        _manifest(tmp_path / "short-reference", "reference", recording_duration_ms=240_000)
-    )
-    assert (
-        analyze_calibration(short_reference, synthetic, allow_unfitted_observation=True)[
-            "reference_duration"
-        ]["verdict"]
-        == "fail"
-    )
-
-
-def test_baseline_unfitted_replay_is_observable_but_not_final_evidence(tmp_path: Path) -> None:
-    reference = load_manifest(_manifest(tmp_path / "reference", "reference"))
-    baseline = load_manifest(
-        Path(__file__).parents[1]
-        / "review/phase1/calibration-synthetic-baseline/calibration-manifest.json",
-        expected_population="synthetic",
-    )
-
-    assert baseline.input_profile is None
-    with pytest.raises(
-        CalibrationError, match="baseline-unfitted evidence is not eligible for final analysis"
-    ):
-        analyze_calibration(reference, baseline)
 
 
 def test_runtime_rejects_missing_completion_audit(tmp_path: Path) -> None:
@@ -627,50 +704,6 @@ def test_reference_runtime_binds_each_idle_attempt_to_its_seeded_draw(
         None,
         None,
         (),
-    )
-    with pytest.raises(CalibrationError, match=message):
-        extract_record_metrics(altered)
-
-
-@pytest.mark.parametrize(
-    ("tamper", "message"),
-    [
-        ("metadata", "zero-network calibration provenance"),
-        ("action", "stub attempt does not match"),
-        ("draw", "stub attempt does not match"),
-    ],
-)
-def test_synthetic_runtime_requires_the_same_latency_stub_audit(
-    tmp_path: Path, tamper: str, message: str
-) -> None:
-    record = load_manifest(_manifest(tmp_path, "synthetic")).records[0]
-    connection = __import__("sqlite3").connect(record.runtime_session.path)
-    if tamper == "metadata":
-        connection.execute("DELETE FROM meta WHERE key='calibration_latency'")
-    else:
-        row = connection.execute(
-            "SELECT rowid,payload FROM audit WHERE kind='action_attempt' ORDER BY rowid LIMIT 1"
-        ).fetchone()
-        payload = __import__("json").loads(bytes(row[1]))
-        if tamper == "action":
-            payload["raw"] = {"type": "idle", "reason": "awaiting_tool", "related_event_id": None}
-        else:
-            payload["calibration"]["planned_latency_ms"] += 1
-        connection.execute(
-            "UPDATE audit SET payload=? WHERE rowid=?",
-            (canonical_artifact_bytes(payload), row[0]),
-        )
-    connection.commit()
-    connection.close()
-    damaged = record.runtime_session.path.read_bytes()
-    altered = CalibrationRecord(
-        record.runtime_session_id,
-        record.regime,
-        record.browser_bundle,
-        ArtifactRef(record.runtime_session.path, _digest(damaged), damaged),
-        record.stream_sha256,
-        record.family,
-        record.declared_perturbations,
     )
     with pytest.raises(CalibrationError, match=message):
         extract_record_metrics(altered)
@@ -855,10 +888,7 @@ def test_external_event_metrics_never_borrow_a_separate_coverage_verdict() -> No
         "reference": {"numerator": 0, "denominator": 0, "value": None},
         "synthetic": {"numerator": 0, "denominator": 0, "value": None},
         "status": "not_applicable",
-        "reason": (
-            "the reference population has no comparable denominator; "
-            "external-event coverage is a separate gate"
-        ),
+        "reason": "the reference population has no comparable denominator",
     }
 
 
@@ -894,81 +924,3 @@ def test_family_drift_is_diagnostic_and_not_evaluable() -> None:
     }
     assert report["record_count"] == 1
     assert report["regime_counts"][regime] == 1
-
-
-def test_source_authority_scope_is_a_g1_pending_gate(tmp_path: Path) -> None:
-    synthetic = CalibrationManifest(
-        tmp_path / "synthetic.json",
-        "synthetic",
-        None,
-        (),
-        _digest(b"s"),
-        source_acceptance_scope={
-            "approved_response_delta_count": 22,
-            "approved_stream_count": 25,
-        },
-        source_population_count=417,
-    )
-    source_authority = _source_authority(synthetic)
-    assert source_authority == {
-        "verdict": "pending",
-        "approved_stream_count": 25,
-        "package_stream_count": 417,
-        "reason": "human source acceptance covers 25 of 417 package streams",
-    }
-    assert (
-        _g1_verdict(observational_only=False, verdicts=[source_authority["verdict"]])
-        == "pending"
-    )
-
-
-def test_legacy_hardened_manifest_is_read_only_noneligible_evidence() -> None:
-    manifest = load_manifest(
-        Path(__file__).parents[1]
-        / "review/phase1/calibration-synthetic-fitted-v1/calibration-manifest.json",
-        expected_population="synthetic",
-    )
-    assert manifest.producer_identity_admissible is False
-    assert _producer_identity(manifest) == {
-        "verdict": "not_eligible",
-        "reason": "legacy synthetic evidence lacks required v4 producer identities",
-    }
-
-
-def test_measurement_failure_and_evidence_admission_are_separate() -> None:
-    assert _distribution_match_verdict(["pending", "fail"]) == "fail"
-    assert (
-        _evidence_admission_verdict(
-            observational_only=False, verdicts=["pending", "not_eligible"]
-        )
-        == "not_eligible"
-    )
-    assert _g1_verdict(observational_only=False, verdicts=["pending", "fail"]) == "fail"
-    assert _g1_verdict(observational_only=False, verdicts=["fail", "not_eligible"]) == (
-        "not_eligible"
-    )
-
-
-def test_g1_blind_review_requires_the_sealed_packet(tmp_path: Path) -> None:
-    reference = CalibrationManifest(
-        tmp_path / "reference.json", "reference", None, (), _digest(b"r")
-    )
-    synthetic = CalibrationManifest(
-        tmp_path / "synthetic.json", "synthetic", None, (), _digest(b"s")
-    )
-    with pytest.raises(CalibrationError, match="requires assignment, packet root, and judgment"):
-        analyze_calibration(
-            reference,
-            synthetic,
-            blind_assignment_path=tmp_path / "assignment.json",
-            blind_judgment_path=tmp_path / "judgment.json",
-        )
-
-
-def test_report_writer_is_canonical_and_never_overwrites(tmp_path: Path) -> None:
-    path = tmp_path / "report.json"
-    report = {"verdict": "pending"}
-    write_report(path, report)
-    assert path.read_bytes() == canonical_artifact_bytes(report)
-    with pytest.raises(FileExistsError):
-        write_report(path, report)

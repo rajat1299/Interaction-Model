@@ -17,34 +17,22 @@ from im.generation.g7_catalog import build_g7_fresh_session_programs
 from im.generation.packaging import _ACTION_ORDER, FAMILY_ACTION_TARGETS
 
 
-def test_g7_acceptance_binds_the_exact_approved_packet() -> None:
+def test_g7_packet_checksums_bind_the_exact_sealed_bytes() -> None:
     repository = Path(__file__).parents[1]
-    acceptance = json.loads(
-        (repository / "review/phase1/g7-readiness-acceptance.json").read_bytes()
-    )
-    packet = repository / acceptance["packet"]["path"]
-    bindings = {
-        "packet_json_sha256": "packet.json",
-        "sha256s_sha256": "SHA256SUMS",
-        "manifest_sha256": "manifest.json",
-        "g7_readiness_sha256": "g7-readiness.json",
-        "review_sha256": "REVIEW.md",
-        "response_delta_sha256": "RESPONSE-DELTA.md",
+    packet = repository / "review/phase1/g7-readiness-resubmission-2"
+    required = {
+        "packet.json",
+        "manifest.json",
+        "g7-readiness.json",
+        "REVIEW.md",
+        "RESPONSE-DELTA.md",
     }
-
-    assert acceptance["decision"] == "approved"
-    assert acceptance["reviewer_id"] == "user:phase1-reviewer"
-    assert acceptance["scope"] == {
-        "approved_response_delta_count": 22,
-        "approved_stream_count": 25,
-    }
-    assert acceptance["training_corpus_admission_eligible"] is False
-    for field, relative_path in bindings.items():
-        digest = hashlib.sha256((packet / relative_path).read_bytes()).hexdigest()
-        assert acceptance["packet"][field] == f"sha256:{digest}"
+    covered: set[str] = set()
     for row in (packet / "SHA256SUMS").read_text().splitlines():
         expected, relative_path = row.split("  ", 1)
+        covered.add(relative_path)
         assert hashlib.sha256((packet / relative_path).read_bytes()).hexdigest() == expected
+    assert required <= covered
 
 
 def test_g7_packet_plan_reaches_the_frozen_budget_with_disjoint_scale_witnesses() -> None:

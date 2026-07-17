@@ -229,7 +229,7 @@ def _source_index_sidecars(source_index: dict[str, object]) -> Counter[str]:
     return sidecars
 
 
-def _verify_stream(
+def verify_calibration_family_evidence_stream(
     stream: dict[str, object], reviewer_root: Path, teacher_root: Path
 ) -> tuple[str, int]:
     stream_sha256 = _sha256(stream["stream_sha256"], "manifest stream_sha256")
@@ -391,7 +391,9 @@ def verify_calibration_family_evidence(
 
     families: dict[str, list[int]] = {}
     for stream in streams:
-        family, decision_count = _verify_stream(stream, reviewer_root, teacher_root)
+        family, decision_count = verify_calibration_family_evidence_stream(
+            stream, reviewer_root, teacher_root
+        )
         counts = families.setdefault(family, [0, 0])
         counts[0] += 1
         counts[1] += decision_count

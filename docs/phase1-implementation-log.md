@@ -571,3 +571,77 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   and blind replay, cleanup, teacher canary, final Phase 1 report, and close tag have not been
   started. This failed one-shot result is surfaced for owner direction; downstream work remains
   stopped rather than silently adapting the preregistered policy.
+
+## 2026-07-17 — Calibration resolution and closeout restart
+
+- The project owner terminated parametric timing fitting permanently after two failed fits and
+  replaced the prior stop with one timeboxed trace-resampled implementation plus one frozen
+  analyzer verification. Timing geometry may cross from the recordings; recorded text content may
+  not. Resampling is seeded, regime-conditioned, interval-level, jittered, and split-disjoint under
+  build-plan decision #8.
+- Revision placement is separate from timing resampling: immediate cursor-local corrections are
+  dominant by count and remain banded against the recorded profile; deliberate line-to-paragraph
+  look-backs are a declared minority design stratum and are reported rather than fit to the n=1
+  profile. No third parametric iteration or decision-rate-only tuning is authorized.
+- Cleanup and the WP1-9 real-teacher canary are unblocked immediately and run in parallel with the
+  trace implementation. The prior delete/keep rule and process freeze remain binding. Verification
+  is one analyzer run followed by the direct 20-pair blind replay; any work exceeding one working
+  day closes Phase 1 under Option B with the measured residuals.
+- The owner superseded the earlier four-session/two-session timing partition with material-level
+  slicing inside every physical bundle. All seven bundles, including both cursor/selection takes as
+  independent atoms, are cut at the nearest eligible burst/pause boundaries to approximately
+  60% train, 20% dev, and 20% test. Exact boundary times/ordinals and source hashes are recorded;
+  no timing interval crosses splits, and seed namespaces remain split-scoped.
+- Frozen reference metrics continue to use the full seven bundles pooled into six regime profiles.
+  The one verification population draws timing geometry from train slices only. The final report
+  will state that within-session drift between the full-session reference and train-slice source
+  can explain a small excursion if one appears; it will not trigger another iteration. Timing
+  material partitioning remains orthogonal to the sealed TEST lexical-asset ledger.
+
+## 2026-07-17 — WP1-9 teacher canary offline preparation
+
+- The frozen G7 batch-001 packet was preflighted offline, then deterministically sampled at
+  `ceil(10%)` within each of its eleven families while retaining complete parent, checkpoint, and
+  counterfactual sibling streams. The canary contains 27 source units, 38 complete parent streams,
+  219 selected source-segment calls, and 265 full-parent decisions for the eventual teacher run.
+- The derived packet is checksum-bound and reuses the existing manifest, leak-lint, teacher-stream,
+  reviewer-sidecar, runtime-ledger, and Markdown review layout. Selected source-index values remain
+  exact subsets of the frozen source index; family, sidecar, checkpoint-call, and complete-parent
+  bindings are independently verified. Focused tests and Ruff pass, and independent specification
+  and thermo-nuclear code-quality reviews approved the offline preparation.
+- Teacher invocations remain zero. No provider, network, credential, or artifact-transmission path
+  was used; execution remains paused pending the project owner's explicit green light. Repository
+  inspection found no interactive WP1-8 review shell to exercise, so the preparation truthfully
+  exercises only the established Markdown/sidecar packet format. That missing instrument remains
+  an owner-visible closeout limitation rather than a new reviewer lane built under the process
+  freeze.
+
+## 2026-07-17 — Trace timing implementation and cleanup ready
+
+- The timing profile is now reproducibly extracted from all seven physical recording bundles. Each
+  bundle records exact train/dev/test boundary times and actual burst ordinals; the two interior
+  cuts are the nearest eligible burst starts to 60% and 80%, and the terminal point is represented
+  explicitly as recording end. The generated profile contains only numeric timing geometry and
+  source hashes. Its current canonical size is 44,387 bytes, and regeneration is byte-identical.
+- Regime timing draws seeded burst length/duration pairs, individual inter-key interval atoms, and
+  between-burst gaps from the selected split, with bounded jitter. Interval residual allocation is
+  seed-permuted and exchangeable rather than left-biased. The one frozen burst-gap map is owned by
+  the Python analyzer and emitted into the profile for TypeScript consumption.
+- Revision placement now records only genuine designed strata. Immediate corrections remain
+  dominant; deliberate look-backs are admitted only when the emitted selection actually moves by
+  a configured 8, 12, or 16 lines. The materializer records exact look-back input-ordinal ranges,
+  and the analyzer excludes only those ranges from the banded revision-locality sample while
+  retaining immediate edits and ordinary tail corrections. A 36-line regression produced 291
+  immediate edits and 58 genuine look-backs; a single-line input produced no falsely labeled
+  look-back.
+- Closeout cleanup deleted the v4/preflight, admission/source-authority, blind-packet, external
+  coverage population, superseded calibration population/report, and second-population code and
+  artifacts. The one retained population path uses the frozen C6 lexical assets, exact balanced
+  six-regime allocation, the train timing pool, a clean producer commit, deterministic seeds, and
+  a complete sorted `SHA256SUMS`. Stream-semantics, leak-lint, family-evidence, latency-stub,
+  reference-recording, and failed-take validation paths remain.
+- Independent specification and thermo-nuclear reviews approved the trace, cleanup, and offline
+  canary implementations after their findings were repaired. The integrated non-population suite,
+  client suite/build, profile reproducibility check, Ruff, and diff checks are green. No final
+  population or analyzer verification has run yet; the single authorized verification remains
+  unconsumed.

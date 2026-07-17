@@ -1,0 +1,554 @@
+{
+  "format_version": 1,
+  "generator": {
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "high",
+    "input_fields": [
+      "teacher_visible_prefix",
+      "invitation",
+      "answer_contract"
+    ]
+  },
+  "records": [
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 0,
+      "request_sha256": "1718ded747d9c11f32d4b5356dcfda9ad0cfda155f55861ad44f09237c309f0f",
+      "candidate_response": "Which date should I use?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 1,
+      "request_sha256": "af11a6890e5b20e734065e0ffc06bcd44f969c7b95c77a64a8a7218507ad9d18",
+      "candidate_response": "Which city should I look up?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 2,
+      "request_sha256": "9f212220e450e7c3c42cb502457215ddbe3b1700219486d16e68bc0197f1edd7",
+      "candidate_response": "Which library branch should I check?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 3,
+      "request_sha256": "fe6cc034436443a4d9cdd30c37ca5282be1d30112fe2589a7ba2906d21248df2",
+      "candidate_response": "Which recipe should I look up?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 4,
+      "request_sha256": "2991beacdd0975ce03bd6df17b80571beb074529699ece703d42056c34b29b8b",
+      "candidate_response": "Which station should I check?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 5,
+      "request_sha256": "ec69df710a8dd5e42fa89e1a516a1e97343567e989fc0116e40f99d81d74ec4a",
+      "candidate_response": "Which edition should I look up?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 6,
+      "request_sha256": "c8f7b3f0e373b6a28b28f0da415bc7a39b17f16c7c0f6c827e4b56c6d1f7311a",
+      "candidate_response": "Which tracking number should I check?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 7,
+      "request_sha256": "db1d4abd55da985c40eebfbc7843065fc0f85f0e698cdfac5976325d982146a9",
+      "candidate_response": "Which museum should I check?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 8,
+      "request_sha256": "06ebc00939c9e0fe526626388b04699e57847633158bccb5b7adb95decbc9214",
+      "candidate_response": "Which flight number should I check?"
+    },
+    {
+      "profile_id": "g7-response-ambiguity-lookup-live",
+      "item_index": 9,
+      "request_sha256": "8f57d8815e2eb3da75717fdf5c50d04cf029b05ddd87b0e2142760b90b82cb76",
+      "candidate_response": "Which policy should I check?"
+    },
+    {
+      "profile_id": "g7-response-failed-tool-00",
+      "item_index": 0,
+      "request_sha256": "4d590aad520117c6938ba240d98c237a47f89a9d79276d33de91bb81aa4b985f",
+      "candidate_response": "No—the Fable Station platform lookup failed, so it didn’t produce a usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-01",
+      "item_index": 0,
+      "request_sha256": "4b0422456be020d82bbde27ef433b96f3c32335504371b01f88698e000099916",
+      "candidate_response": "The Morrow Glen cistern fill percentage lookup failed and returned no usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-02",
+      "item_index": 0,
+      "request_sha256": "f3bfba8a49e92febd5982a2eff3148cccbdfa4e72e6ee40da75d4b06335ca20c",
+      "candidate_response": "The Alder Loop registry lookup failed, so there’s no usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-03",
+      "item_index": 0,
+      "request_sha256": "dfcf600187d6c0d0c46395cd7c5a246496817e7d4b69f522ab983c3eb3319501",
+      "candidate_response": "The Thistle Row gallery wing lookup failed, so there was no usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-04",
+      "item_index": 0,
+      "request_sha256": "e86ca23b6786d6e45976c4b326be0e1db108f072d6d6d3afa0de06acb6e77559",
+      "candidate_response": "The Fable Station platform lookup failed, so there was no usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-05",
+      "item_index": 0,
+      "request_sha256": "0a2e7507f077d997c26cb9c47bffc00ae28c145960a064d96a0deaa641886fc7",
+      "candidate_response": "The lookup for Morrow Glen cistern fill percentage failed: lookup failed."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-06",
+      "item_index": 0,
+      "request_sha256": "5113861411aaf1e3746f37e0d3d1ad7550339640103059aaf020423f5f35a5e8",
+      "candidate_response": "The lookup failed for Alder Loop registry; no usable answer is available."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-07",
+      "item_index": 0,
+      "request_sha256": "05cb1bc479a829eb88291615f296be7faa3ed9e22612a03708caa12c89a3cd78",
+      "candidate_response": "The Thistle Row gallery wing lookup failed."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-08",
+      "item_index": 0,
+      "request_sha256": "c6c7690ff25db0c338bfc197edbe92df894f252e760df2488a2b032db1b76668",
+      "candidate_response": "The lookup for Fable Station platform failed, so there is no usable answer."
+    },
+    {
+      "profile_id": "g7-response-failed-tool-09",
+      "item_index": 0,
+      "request_sha256": "a4e25f7fcd50d7e8670002a57c3f50a85f66af663480a444e128b9f7bc0265e4",
+      "candidate_response": "Morrow Glen cistern fill percentage: lookup failed; no usable answer was returned."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 0,
+      "request_sha256": "d26e408e859101e9b4fa17cffa45160377bbdd4a99a451cf6136792a2625362b",
+      "candidate_response": "Which library branch should I use for the new lookup?"
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 1,
+      "request_sha256": "5ffe7bb98cc3bc9f0721a023874f87f5748e99fda280e552ceddb3cdb714a9a3",
+      "candidate_response": "Which market should I check?"
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 2,
+      "request_sha256": "493fdf77bc16d7ad6f85607611a66aa785312be50a7bbd7a17923a712bdba57f",
+      "candidate_response": "Which event date should I use for the new lookup?"
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 3,
+      "request_sha256": "18de79ab10a2d4dd9109a81532abdab677ad6c3149f1de9e3d698d81db439661",
+      "candidate_response": "Which clinic should I check?"
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 4,
+      "request_sha256": "9a461bed20510fbe9d0490a26e18c35a1024459d7440721754470d45dc87bcf3",
+      "candidate_response": "Which trail should I check?"
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 5,
+      "request_sha256": "b460dc36aa6910db3c4ca71e1cbbcf05a94519a8c500c4e4a7072ee52fcdf730",
+      "candidate_response": "I can’t add calendar events or schedule reminders for a specific clock time. I can only set indefinite fixed-interval recurring reminders."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 6,
+      "request_sha256": "1789b317698a486da0428d891d7b407b9fd762cf4c9ed88f2ae3e870c4a09397",
+      "candidate_response": "I can’t send email, but I can help draft the message."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 7,
+      "request_sha256": "ad40e87d129293d5a115d21c47e4881ac3b04b258b7e3f972920c2a9f63f0e61",
+      "candidate_response": "I can’t book a table, but I can help draft a reservation request."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 8,
+      "request_sha256": "9acd58733f6a4b586df32839b69e6a1661f2934594ef18019dc84a5ef7c7f379",
+      "candidate_response": "I can’t place an order, but I can help prepare the order details."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-mixed",
+      "item_index": 9,
+      "request_sha256": "48c7bae6e64fadb20184173ac23cfbb3d74474854c7d16e4c78e8c4a974d47ec",
+      "candidate_response": "I can’t upload files, but I can help prepare the report."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 0,
+      "request_sha256": "3767978dd039109fdc5b24d71c74f5c46c15374d183f5d32a7c53ecbe94ad5ae",
+      "candidate_response": "I cannot make phone calls, but I can help draft what to say."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 1,
+      "request_sha256": "2e60e97b413722d31f01e4af39ee1060b4e192d7238aff4802f6b402775ff592",
+      "candidate_response": "I cannot purchase tickets, but I can help compare ticket details."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 2,
+      "request_sha256": "3dc22b08427672fd7c6d3912ab02b4ed33ea412d0cdef1fc751c3a4292a65780",
+      "candidate_response": "I cannot edit cloud documents, but I can help draft the changes."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 3,
+      "request_sha256": "0294f0bdc2768bad38a3ccd2b8f0fd2ca61348275f068c454765b24fd95c5a22",
+      "candidate_response": "I cannot send text messages, but I can help draft the text."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 4,
+      "request_sha256": "ec1bcade4ea47a478f54419dd4ff94e975843bbef4e9a270671d2e4d91bb659a",
+      "candidate_response": "I cannot join video calls, but I can help prepare talking points."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 5,
+      "request_sha256": "95ab7e739ce1477c9a8bba5218769f86badb2f2870f7f95e68c90a28e1a44c97",
+      "candidate_response": "I cannot create accounts, but I can help list the signup details."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 6,
+      "request_sha256": "44e7f68a0183030c31bf9dfd91b2a5bf21eb26547b25653f12974a7c111510b2",
+      "candidate_response": "I cannot submit forms, but I can help prepare the form."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 7,
+      "request_sha256": "b20f1733886c6c07d926284ac03831573fd4cecba4b902fc5d42152a2160e969",
+      "candidate_response": "I cannot transfer money, but I can help organize the payment details."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 8,
+      "request_sha256": "6b808da0c48d5739825d18cc69edd74d13ff0692c91786144be8788fe4293525",
+      "candidate_response": "I cannot sign in to accounts, but I can help explain the account steps."
+    },
+    {
+      "profile_id": "g7-response-lookup-stale-unsupported",
+      "item_index": 9,
+      "request_sha256": "9b79b8a7ae0aa08afd354e3766d28ac28668f19ab5862e483226e854df4914da",
+      "candidate_response": "I cannot file insurance claims, but I can help organize the claim details."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 0,
+      "request_sha256": "5117f74e9f931a5e6d8089218bba0175098b4c693ff2f3b87eb0edaddba1afad",
+      "candidate_response": "Version 3"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 1,
+      "request_sha256": "171b9fe70ff5cf9b9b1758dbaff21e69604913405ebcec633bf70e8d469d8591",
+      "candidate_response": "It was removed because its figures were outdated."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 2,
+      "request_sha256": "bebe9ad843ef2c784db38f6219e97db071d866d744faa0ddbf39d65b535eb810",
+      "candidate_response": "Cite the current source."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 3,
+      "request_sha256": "62cae1590b0a40154cf51dbd195b38856f1031543086600211b9d68ab7c9b1c4",
+      "candidate_response": "Leave it out of the final copy."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 4,
+      "request_sha256": "9435f0d98f02313dfa79a757ae2f5264a8e3628a4fef735a3737c8c6a1b956ea",
+      "candidate_response": "Remove the duplicate chart, retain the methods table, and update the caption."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 5,
+      "request_sha256": "5526e91f1b6595825438b677e28b880c740b8cc3a3a240878fd7785d1f389373",
+      "candidate_response": "The current price is $35."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 6,
+      "request_sha256": "8a59d27e041dade2821b877ef60c47489b47eba05d3f7523951359cb45f408ec",
+      "candidate_response": "Pacific Ocean"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 7,
+      "request_sha256": "d8acb29a5f553d76e5c9a1e044803bcef35d84ed60bbfe3b4b5831ed2b09b4b4",
+      "candidate_response": "operations@example.com"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 8,
+      "request_sha256": "607d979821ce42feb262edf2fde659fb73cce7ee455b1fbf868c1027fee6ed90",
+      "candidate_response": "Use the current template."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-negative",
+      "item_index": 9,
+      "request_sha256": "3dfbd89e5fd4074c43a5d86e2f278262058bbde43f814785cbf3e5d4b28cf899",
+      "candidate_response": "Keep the signed agreement, discard the duplicate scan, and index the receipt."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 0,
+      "request_sha256": "d45a4f3f0a0051ca875555857df7fe1c5502fa7ed60035a6fbf5fef0ab4b4ceb",
+      "candidate_response": "The deadline is noon."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 1,
+      "request_sha256": "92a92fdde7b047cd07bb35ef039b43be481b49f19dea9fe3d3932222c9db18e3",
+      "candidate_response": "Travel details"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 2,
+      "request_sha256": "109e9d7d4ecce0e99267ba9b5021d251a851e28af455fa0b0225550d295f67da",
+      "candidate_response": "It’s urgent because water is pooling under the sink."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 3,
+      "request_sha256": "e1b08eebd107cf5352a9ebc461d9db10cd62a1a9bb9c56c9751585e661fdc4ad",
+      "candidate_response": "signed-form.pdf"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 4,
+      "request_sha256": "90f6412b4ac013f5398b9c40c0c3ed6e0bec50d410c2d0828a7b97e2b7345ff0",
+      "candidate_response": "Do not close the ticket yet."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 5,
+      "request_sha256": "b76c344f1b06e2756a762c77622a65275d3bcf2e0dc14b2c8bdb707dfa2418c9",
+      "candidate_response": "Test the alarm, photograph the panel, and file the report."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 6,
+      "request_sha256": "b428e66731e1371e2955bab194fb9b1e1d929c80a15105f54d53dc87570fe4a2",
+      "candidate_response": "Dana owns the client follow-up."
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 7,
+      "request_sha256": "b83c1bcf7737c6e7d1736f06d3aa7b5617cdf4aa9a0f9b0f4fed16ff387046e0",
+      "candidate_response": "0°C"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 8,
+      "request_sha256": "a8a084847df40f79ff46b4fdfa6c038bc314bc90e7ca85588b118a3d8ce346e7",
+      "candidate_response": "newcomers"
+    },
+    {
+      "profile_id": "g7-response-ordinary-mark-positive",
+      "item_index": 9,
+      "request_sha256": "c41b4b00a1c4ef73bcf317584b9e421540fe1769777c3fc19d31cd3ee75ec806",
+      "candidate_response": "Do not mix the cleaners because the combination releases fumes."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 0,
+      "request_sha256": "ed65c0d9e4c88e91c097854e8cdbe373764241d0083da1a5bdd480e8b576ec16",
+      "candidate_response": "Juniper"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 1,
+      "request_sha256": "d0eab061c7615bfee62bbc345b82058244fb3d109389707453b946f4bf787558",
+      "candidate_response": "An open switch breaks the circuit, so no current flows to the lamp."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 2,
+      "request_sha256": "849603c45e273b999aea0f29e22bb813c63e5d4c87ed8c5cf634e7c5cd39644f",
+      "candidate_response": "Trip budget"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 3,
+      "request_sha256": "cc2f29c0da31efed090611d7dc878c6d9e793be53c5c04dc1a116264ada2d1f3",
+      "candidate_response": "Keep the title unchanged."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 4,
+      "request_sha256": "efa992ba7736740523f515d1b666f6f5429a98e56b8738f1f0964d6c046383d4",
+      "candidate_response": "Monday: send invoice; Tuesday: review draft; Wednesday: call Mina."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 5,
+      "request_sha256": "d59495f54414e1acf03ca830486c28ac6499743b44e85e9571d28f857c555a6e",
+      "candidate_response": "The meeting is on Thursday."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 6,
+      "request_sha256": "065536f6898270f39e1b367b4aaf18431a3e7f6c960f1fa031ebcdbf5a3a91d4",
+      "candidate_response": "Salem"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 7,
+      "request_sha256": "a79e6faadd77cc62fb5ce252b8a62be69a12495484d9d7ce76d06b9ee3f60139",
+      "candidate_response": "approved"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 8,
+      "request_sha256": "aa571bcd88447b7cab874dc298eb33973808fd5446a27aab00d1119b09fff453",
+      "candidate_response": "Bar B is taller."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-1",
+      "item_index": 9,
+      "request_sha256": "f884e62d0ad7920b99792d4442c17fa62cedd009db611c7e238e880c9513ac6e",
+      "candidate_response": "Preserve the current wording."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 0,
+      "request_sha256": "7d95cc3fb44958bd0a6953db854af6e4b74563edc377e95baa06747997075f75",
+      "candidate_response": "The blue route is likely cheaper since it has no tolls."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 1,
+      "request_sha256": "f07c9daffb30412daec30231982c6001ea405b3615ad87eb11fdc0767e1b695a",
+      "candidate_response": "Test checkout, update the changelog, then publish the release notes."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 2,
+      "request_sha256": "2523522aea081671a26d6871365cbfc672f2fce7624860befb0adc5c1d0fdbc3",
+      "candidate_response": "The library closes at 6 PM."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 3,
+      "request_sha256": "38a7ed134e641b3abb5aa9cf1fef39423212872ccc74f623a2d04fa19d0f41bb",
+      "candidate_response": "Mars"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 4,
+      "request_sha256": "c11d29cade76991b0f6c062d9baf7095473cd1841b368549d20167adcb1f980f",
+      "candidate_response": "It means review only for typos before sending."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 5,
+      "request_sha256": "326cfd4b1359f9b7a3649af0ecbb407d17b7ca0c332c00e2c3bd9195afec291d",
+      "candidate_response": "Battery use was higher because location tracking stayed on."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 6,
+      "request_sha256": "bb086499caa5e09478af1b7bc25a894ef47451141c8ee2e1f0cd00c77dce28b3",
+      "candidate_response": "River bridge"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 7,
+      "request_sha256": "7a3c2c624befac5a446516b720c15b2131275998045a1696e6943d844a957df2",
+      "candidate_response": "Name"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 8,
+      "request_sha256": "c0350dde3daf438d45d921f5dddcec5c575a4bde47703783f5c278cd116069a5",
+      "candidate_response": "There are 14 blue folders."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-2",
+      "item_index": 9,
+      "request_sha256": "41dd81cb11a97e3eebcefd1c3f7093b2515ca1804a353d2ef90d8efd46c9e9ef",
+      "candidate_response": "Ari checked the west gate, logged a loose hinge, and notified maintenance."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 0,
+      "request_sha256": "93fdfe25ee1e01830e7e676aaf109d4f0857cc4460e772e9853e3111c34b5b9e",
+      "candidate_response": "A hexagon has six sides."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 1,
+      "request_sha256": "9e1530d5b08a70cec1fed075da632bcf5169590b83d71e3cbe13248e65d98f66",
+      "candidate_response": "6 to 8 PM."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 2,
+      "request_sha256": "2cc8c4cfef0e9d8f8494271ab1c347ccef7e9c31f850c9f7d71682814643077f",
+      "candidate_response": "The total is $18: $12 for fruit plus $6 for bread."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 3,
+      "request_sha256": "1c7edfe6f11d7fabf160c6e2e8ee06cfef4c6fbe08872268bf3786ef402bb7a1",
+      "candidate_response": "A clean copy is a version without comments or tracked changes."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 4,
+      "request_sha256": "94cd5bb35d84b1add724031a33ec926f9948beddba4c3ff069dbcea6790d76d7",
+      "candidate_response": "DOCX — it’s editable."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 5,
+      "request_sha256": "2caf5a1d269cef012ce7be6885e8b5a5af941346f34c9c0621cb9d8912c65f0c",
+      "candidate_response": "Restock cups, wipe the counter, then lock the side door."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 6,
+      "request_sha256": "6f69f4d673524287039085e43c7a66a9d6193c4a9bda3b0b804b43a08ef50cbb",
+      "candidate_response": "The train is on platform 4."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 7,
+      "request_sha256": "d16b4deb739bc7a37ae32f15a9ae61fc1fd6fd351e967f3a699496ececc2835d",
+      "candidate_response": "Na"
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 8,
+      "request_sha256": "d32079a0ae1c965f4edea86c914ca74345e6d19d583b577e1ff52c499bc63696",
+      "candidate_response": "Seat A."
+    },
+    {
+      "profile_id": "g7-response-ordinary-neutral-3",
+      "item_index": 9,
+      "request_sha256": "b5c11684df623329caeeece3179fa296def972e893306ae145a272a7fc6288cd",
+      "candidate_response": "Water basil, tie the tomato vines, and cover the seedlings tonight."
+    }
+  ]
+}

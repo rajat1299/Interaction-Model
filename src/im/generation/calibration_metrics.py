@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -12,7 +13,11 @@ from im.generation.calibration_evidence import (
     load_browser_capture,
     load_runtime_evidence,
 )
-from im.generation.calibration_manifest import CalibrationError, CalibrationRecord
+from im.generation.calibration_manifest import (
+    CalibrationError,
+    CalibrationRecord,
+    parse_timing_annotation,
+)
 from im.schema.common import Activity, EditKind
 from im.schema.events import SnapshotEvent
 from im.schema.textspan import utf16_len
@@ -35,7 +40,8 @@ _CONTINUOUS = _names(
     "raw.within_burst_gap_ms raw.between_burst_gap_ms raw.burst_length_chars "
     "raw.burst_duration_ms raw.pause_length_ms raw.backspace_run_length "
     "raw.revision_locality_chars raw.cursor_travel_utf16 raw.selection_length_utf16 "
-    "raw.paste_length_chars raw.ime_duration_ms raw.ime_update_count sampler.snapshot_dt_ms "
+    "raw.paste_length_chars raw.ime_duration_ms raw.ime_update_count "
+    "raw.revision_immediate_count raw.revision_look_back_count sampler.snapshot_dt_ms "
     "sampler.text_length_delta_chars sampler.cursor_position_utf16 "
     "sampler.cursor_distance_utf16 sampler.selection_length_utf16 "
     "sampler.raw_input_changes_per_snapshot policy.policy_events_per_decision "
@@ -117,7 +123,38 @@ def _metrics() -> Metrics:
     return Metrics({name: MetricData(kind) for name, kind in _METRIC_KINDS.items()})
 
 
-def _raw_metrics(metrics: dict[str, MetricData], raw: list[dict[str, object]], regime: str) -> None:
+def _revision_items(
+    events: list[dict[str, object]],
+) -> list[tuple[dict[str, object], dict[str, object] | None]]:
+    revision_items: list[tuple[dict[str, object], dict[str, object] | None]] = []
+    previous: dict[str, object] | None = None
+    for item in events:
+        if item["kind"] == "input":
+            input_type = item["input_type"]
+            changed = previous is not None and previous["text"] != item["text"]
+            state_revision = changed and (
+                int(previous["selection_end"]) < utf16_len(str(previous["text"]))
+                or int(previous["selection_end"]) > int(previous["selection_start"])
+            )
+            if (
+                state_revision
+                or isinstance(input_type, str)
+                and (
+                    input_type.startswith("delete")
+                    or input_type in {"historyUndo", "historyRedo", "insertReplacementText"}
+                )
+            ):
+                revision_items.append((item, previous))
+        previous = item
+    return revision_items
+
+
+def _raw_metrics(
+    metrics: dict[str, MetricData],
+    raw: list[dict[str, object]],
+    regime: str,
+    excluded_revision_locality_ordinals: frozenset[int] = frozenset(),
+) -> None:
     events = sorted(raw, key=lambda item: int(item["ordinal"]))
     inputs = [item for item in events if item["kind"] == "input"]
     burst_gap_ms = BURST_GAP_MS[regime]
@@ -146,26 +183,7 @@ def _raw_metrics(metrics: dict[str, MetricData], raw: list[dict[str, object]], r
             "raw.burst_duration_ms",
             [float(burst[-1]["relative_ms"]) - float(burst[0]["relative_ms"])],
         )
-    revision_items: list[tuple[dict[str, object], dict[str, object] | None]] = []
-    previous: dict[str, object] | None = None
-    for item in events:
-        if item["kind"] == "input":
-            input_type = item["input_type"]
-            changed = previous is not None and previous["text"] != item["text"]
-            state_revision = changed and (
-                int(previous["selection_end"]) < utf16_len(str(previous["text"]))
-                or int(previous["selection_end"]) > int(previous["selection_start"])
-            )
-            if (
-                state_revision
-                or isinstance(input_type, str)
-                and (
-                    input_type.startswith("delete")
-                    or input_type in {"historyUndo", "historyRedo", "insertReplacementText"}
-                )
-            ):
-                revision_items.append((item, previous))
-        previous = item
+    revision_items = _revision_items(events)
     metrics.rate(
         "raw.revision_rate",
         len(revision_items),
@@ -178,6 +196,7 @@ def _raw_metrics(metrics: dict[str, MetricData], raw: list[dict[str, object]], r
             if previous is not None
             else utf16_len(str(item["text"])) - int(item["selection_end"])
             for item, previous in revision_items
+            if int(item["ordinal"]) not in excluded_revision_locality_ordinals
         ),
     )
     metrics.observe(
@@ -380,6 +399,42 @@ def _policy_metrics(
     )
 
 
+def _annotate_revision_placement(
+    metrics: dict[str, MetricData],
+    materialization: dict[str, object] | None,
+    raw: list[dict[str, object]],
+) -> frozenset[int]:
+    """Attach the text-free design stratum without changing browser-event semantics."""
+    if materialization is None:
+        return frozenset()
+    timing = materialization.get("timing")
+    if timing is None:
+        return frozenset()
+    revision = parse_timing_annotation(timing).revision
+    events = sorted(raw, key=lambda item: int(item["ordinal"]))
+    input_ordinals = {
+        int(item["ordinal"]) for item in events if item["kind"] == "input"
+    }
+    revision_ordinals = {
+        int(item["ordinal"]) for item, _previous in _revision_items(events)
+    }
+    excluded: set[int] = set()
+    for item in revision.look_back_input_ordinal_ranges:
+        start, end = item.start_ordinal, item.end_ordinal
+        if (
+            start not in input_ordinals
+            or end not in input_ordinals
+        ):
+            raise CalibrationError("materialization look-back range escapes input")
+        admitted = {ordinal for ordinal in input_ordinals if start <= ordinal <= end}
+        if not admitted or not admitted <= revision_ordinals:
+            raise CalibrationError("materialization look-back range contains nonrevision input")
+        excluded.update(admitted)
+    metrics.observe("raw.revision_immediate_count", [revision.immediate_count])
+    metrics.observe("raw.revision_look_back_count", [revision.look_back_count])
+    return frozenset(excluded)
+
+
 def extract_record_metrics(record: CalibrationRecord) -> dict[str, MetricData]:
     """Use the same extraction path for reference and synthetic records."""
     capture = load_browser_capture(record)
@@ -389,7 +444,16 @@ def extract_record_metrics(record: CalibrationRecord) -> dict[str, MetricData]:
         capture.recording_duration_ms,
     )
     metrics = _metrics()
-    _raw_metrics(metrics, raw, record.regime)
+    materialization = None
+    if record.materialization is not None:
+        try:
+            materialization = json.loads(record.materialization.data)
+        except (TypeError, ValueError) as error:
+            raise CalibrationError("materialization recipe is not JSON") from error
+        if not isinstance(materialization, dict):
+            raise CalibrationError("materialization recipe must be an object")
+    excluded = _annotate_revision_placement(metrics, materialization, raw)
+    _raw_metrics(metrics, raw, record.regime, excluded)
     _sampler_metrics(metrics, raw, frames)
     _policy_metrics(metrics, load_runtime_evidence(record, capture), duration_ms)
     return metrics
@@ -456,10 +520,7 @@ def _compare(
         return {
             **result,
             "status": "not_applicable",
-            "reason": (
-                "the reference population has no comparable denominator; "
-                "external-event coverage is a separate gate"
-            ),
+            "reason": "the reference population has no comparable denominator",
         }
     if reference.kind == "rare":
         if not require_rare:

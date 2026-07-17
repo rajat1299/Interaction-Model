@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CALIBRATION_REGIMES, type CalibrationRegime } from "./calibration-recorder";
 import {
   CALIBRATED_INPUT_PROFILE,
-  FROZEN_BURST_GAP_MS,
+  synthesizeCalibratedInput,
 } from "./calibrated-input";
 import {
   BASELINE_INPUT_PROFILES,
@@ -495,12 +495,215 @@ describe("input synthesis", () => {
   it("keeps calibrated gap grids on their frozen sides of every burst boundary", () => {
     for (const regime of CALIBRATION_REGIMES) {
       const profile = CALIBRATED_INPUT_PROFILE.regimes[regime];
-      expect(profile.within_burst_gap_ms.every((milliseconds) => milliseconds < FROZEN_BURST_GAP_MS[regime])).toBe(true);
-      expect(profile.between_burst_gap_ms.every((milliseconds) => milliseconds >= FROZEN_BURST_GAP_MS[regime])).toBe(true);
+      const burstGapMs = profile.timing.burst_gap_ms;
+      for (const split of ["train", "dev", "test"] as const) {
+        const atoms = profile.timing.splits[split];
+        expect(atoms.inter_key_interval_ms.every((milliseconds) => milliseconds < burstGapMs)).toBe(true);
+        expect(atoms.between_burst_gap_ms.every((milliseconds) => milliseconds >= burstGapMs)).toBe(true);
+      }
     }
   });
 
-  it("anchors multiline revision moves to the latest edit while retaining minority far jumps", () => {
+  it("uses deterministic split-scoped interval bootstrap timing and declares revision strata", () => {
+    const target = Array.from(
+      { length: 36 },
+      (_, index) => `line ${String(index).padStart(2, "0")} carries a stable correction target`,
+    ).join("\n");
+    const first = synthesizeCalibratedInput(target, "split-seed", "revision-heavy-writing", {
+      timing_split: "train",
+    });
+    const repeated = synthesizeCalibratedInput(target, "split-seed", "revision-heavy-writing", {
+      timing_split: "train",
+    });
+    const dev = synthesizeCalibratedInput(target, "split-seed", "revision-heavy-writing", {
+      timing_split: "dev",
+    });
+
+    expect(first).toEqual(repeated);
+    expect(first.timing).toMatchObject({
+      split: "train",
+      seed_id: "timing/train/string:split-seed",
+    });
+    expect(first.steps).not.toEqual(dev.steps);
+    expect(first.timing.revision.immediate_count).toBeGreaterThan(
+      first.timing.revision.look_back_count,
+    );
+    expect(first.timing.revision.look_back_count).toBeGreaterThan(0);
+    expect(first.look_back_input_step_ranges).toHaveLength(
+      first.timing.revision.look_back_count,
+    );
+    for (const [index, range] of first.look_back_input_step_ranges.entries()) {
+      expect(first.steps[range.start_step]?.kind).toBe("delete");
+      expect(["insert", "paste"]).toContain(first.steps[range.end_step]?.kind);
+      if (index > 0) {
+        expect(range.start_step).toBeGreaterThan(
+          first.look_back_input_step_ranges[index - 1]!.end_step,
+        );
+      }
+    }
+    expect(applyScript(first.steps)).toBe(target);
+  });
+
+  it("emits empirical burst geometry with independently bootstrapped intervals", async () => {
+    const target = "x".repeat(600);
+    const regime = "pauses-and-resumptions" as const;
+    const synthesis = synthesizeCalibratedInput(target, "geometry-seed", regime, {
+      timing_split: "train",
+    });
+    const regimeTiming = CALIBRATED_INPUT_PROFILE.regimes[regime].timing;
+    const geometries = regimeTiming.splits.train.burst_geometry;
+    const burstGapMs = regimeTiming.burst_gap_ms;
+    const jitter = CALIBRATED_INPUT_PROFILE.timing.jitter_ms;
+    const bursts: { length: number; duration: number; intervals: number[] }[] = [];
+    let inserted = 0;
+    for (const step of synthesis.steps) {
+      if (inserted >= target.length) {
+        break;
+      }
+      if (step.kind === "wait" && step.role === "between-burst") {
+        bursts.push({ length: 0, duration: 0, intervals: [] });
+      } else if (step.kind === "wait" && step.role === "within-burst") {
+        const burst = bursts.at(-1) ?? { length: 0, duration: 0, intervals: [] };
+        if (bursts.length === 0) {
+          bursts.push(burst);
+        }
+        burst.duration += step.ms;
+        burst.intervals.push(step.ms);
+      } else if (step.kind === "insert" && step.text === "x") {
+        const burst = bursts.at(-1) ?? { length: 0, duration: 0, intervals: [] };
+        if (bursts.length === 0) {
+          bursts.push(burst);
+        }
+        burst.length += 1;
+        inserted += 1;
+      }
+    }
+
+    for (const burst of bursts.slice(0, -1)) {
+      expect(geometries.some(([length]) => length === burst.length)).toBe(true);
+      expect(geometries.some(
+        ([length, duration]) => length === burst.length && Math.abs(duration - burst.duration) <= jitter,
+      )).toBe(true);
+      expect(burst.intervals).toHaveLength(Math.max(0, burst.length - 1));
+      expect(burst.intervals.every(
+        (milliseconds) => milliseconds >= 1 && milliseconds < burstGapMs,
+      )).toBe(true);
+    }
+    expect(CALIBRATED_INPUT_PROFILE.regimes[regime].timing.splits.train).not.toHaveProperty(
+      "burst_interval_sequences",
+    );
+
+    const reference = CALIBRATED_INPUT_PROFILE.timing.bundles.find(
+      (bundle) => bundle.regime === regime,
+    )!;
+    const { readFileSync } = await import("node:" + "fs");
+    const recording = JSON.parse(readFileSync(
+      `../review/phase1/calibration-reference/sessions/${reference.runtime_session_id}/browser.json`,
+      "utf8",
+    )) as { raw_events: {
+      ordinal: number;
+      relative_ms: number;
+      kind: string;
+      data: string | null;
+    }[] };
+    const trainEnd = reference.splits.train.end.event_ordinal!;
+    const sourceInputs = recording.raw_events.filter(
+      (event) => event.kind === "input" && event.ordinal < trainEnd,
+    );
+    const sourceSequences = new Set<string>();
+    let sourceBurst: typeof sourceInputs = [];
+    const finishSourceBurst = (): void => {
+      if (sourceBurst.length > 1 && sourceBurst.every((event) => [...(event.data ?? "")].length === 1)) {
+        sourceSequences.add(JSON.stringify(sourceBurst.slice(1).map((event, index) => Math.max(
+          1,
+          Math.min(
+            burstGapMs - 1,
+            Math.floor(event.relative_ms - sourceBurst[index]!.relative_ms + 0.5),
+          ),
+        ))));
+      }
+    };
+    for (const event of sourceInputs) {
+      if (
+        sourceBurst.length > 0 &&
+        event.relative_ms - sourceBurst.at(-1)!.relative_ms >= burstGapMs
+      ) {
+        finishSourceBurst();
+        sourceBurst = [];
+      }
+      sourceBurst.push(event);
+    }
+    finishSourceBurst();
+    expect(bursts.some(
+      (burst) => burst.intervals.length > 1 && !sourceSequences.has(JSON.stringify(burst.intervals)),
+    )).toBe(true);
+  });
+
+  it("randomizes bounded residual allocation across interval positions", () => {
+    const regime = "pauses-and-resumptions" as const;
+    const regimeTiming = CALIBRATED_INPUT_PROFILE.regimes[regime].timing;
+    const boundary = regimeTiming.burst_gap_ms;
+    const geometries = regimeTiming.splits.train.burst_geometry;
+    const jitter = CALIBRATED_INPUT_PROFILE.timing.jitter_ms;
+    const boundHits = Array.from({ length: 6 }, () => 0);
+    let eligibleBursts = 0;
+
+    for (let seed = 0; seed < 32; seed += 1) {
+      const target = "x".repeat(2_000);
+      const synthesis = synthesizeCalibratedInput(target, seed, regime, {
+        timing_split: "train",
+      });
+      let intervals: number[] = [];
+      let burstLength = 0;
+      let inserted = 0;
+      const finishBurst = (): void => {
+        expect(intervals).toHaveLength(burstLength - 1);
+        expect(intervals.every((value) => value >= 1 && value < boundary)).toBe(true);
+        const duration = intervals.reduce((total, value) => total + value, 0);
+        expect(geometries.some(
+          ([length, recordedDuration]) =>
+            length === burstLength && Math.abs(recordedDuration - duration) <= jitter,
+        )).toBe(true);
+        if (intervals.length >= boundHits.length) {
+          eligibleBursts += 1;
+          for (let index = 0; index < boundHits.length; index += 1) {
+            if (intervals[index] === 1 || intervals[index] === boundary - 1) {
+              boundHits[index]! += 1;
+            }
+          }
+        }
+        intervals = [];
+        burstLength = 0;
+      };
+      for (const step of synthesis.steps) {
+        if (inserted === target.length) {
+          break;
+        }
+        if (step.kind !== "wait") {
+          if (step.kind === "insert" && step.text === "x") {
+            burstLength += 1;
+            inserted += 1;
+          }
+          continue;
+        }
+        if (step.role === "between-burst") {
+          finishBurst();
+        } else if (step.role === "within-burst") {
+          intervals.push(step.ms);
+        }
+      }
+      expect(inserted).toBe(target.length);
+      expect(synthesis).toEqual(synthesizeCalibratedInput("x".repeat(2_000), seed, regime, {
+        timing_split: "train",
+      }));
+    }
+
+    expect(eligibleBursts).toBeGreaterThan(100);
+    expect(boundHits[0]).toBeLessThanOrEqual(Math.max(...boundHits.slice(1)) * 1.5);
+    expect(boundHits.slice(1).some((count) => count > 0)).toBe(true);
+  });
+
+  it("keeps multiline edits local-dominant with signed line moves and minority far jumps", () => {
     const target = Array.from(
       { length: 36 },
       (_, index) => `line ${String(index).padStart(2, "0")} carries a stable correction target`,
@@ -509,21 +712,23 @@ describe("input synthesis", () => {
 
     for (const regime of ["revision-heavy-writing", "cursor-and-selection-edits"] as const) {
       const moves: number[] = [];
-      let localAfterFarEdit = 0;
+      let forwardLineMoves = 0;
+      let backwardLineMoves = 0;
       for (let seed = 0; seed < 16; seed += 1) {
         const script = synthesizeInputScript(target, seed, regime);
         const selections = editSelectionEnds(script.steps);
         for (let index = 1; index < selections.length; index += 1) {
           const previous = selections[index - 1]!;
           const current = selections[index]!;
-          const move = Math.abs(current - previous);
+          const signedMove = current - previous;
+          const move = Math.abs(signedMove);
           moves.push(move);
-          if (
-            target.length - previous > lineSpan * 6 &&
-            move <= 16 &&
-            target.length - current > lineSpan * 6
-          ) {
-            localAfterFarEdit += 1;
+          if (move >= lineSpan && move <= lineSpan * 4) {
+            if (signedMove > 0) {
+              forwardLineMoves += 1;
+            } else {
+              backwardLineMoves += 1;
+            }
           }
         }
         expect(applyScriptResult(script.steps)).toMatchObject({
@@ -538,10 +743,11 @@ describe("input synthesis", () => {
       const farMoves = moves.filter((move) => move > lineSpan * 6).length;
 
       expect(localMoves / moves.length).toBeGreaterThan(0.5);
-      expect(lineMoves / moves.length).toBeGreaterThan(0.1);
+      expect(lineMoves).toBeGreaterThan(0);
+      expect(forwardLineMoves).toBeGreaterThan(0);
+      expect(backwardLineMoves).toBeGreaterThan(0);
       expect(farMoves).toBeGreaterThan(0);
       expect(farMoves / moves.length).toBeLessThan(0.2);
-      expect(localAfterFarEdit).toBeGreaterThan(0);
     }
   });
 

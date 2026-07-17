@@ -17,6 +17,7 @@ const request: CalibrationSyntheticRequest = {
   runtime_session_id: "synthetic-session-001",
   regime: "revision-heavy-writing",
   seed: "seed-001",
+  timing_split: "train",
   target_text: "Draft café 😀, then revise.",
   transient_texts: [],
   input_profile_id: "phase1-d3-calibrated-v1",
@@ -46,7 +47,7 @@ function materializeBatch(value: CalibrationSyntheticBatchRequest) {
 function deleteBackwardRuns(bundle: ReturnType<typeof materialize>): number[] {
   const runs: number[] = [];
   let length = 0;
-  for (const event of bundle.raw_events.filter((event) => event.kind === "input")) {
+  for (const event of bundle.bundle.raw_events.filter((event) => event.kind === "input")) {
     if (event.input_type === "deleteContentBackward") {
       length += 1;
     } else if (length > 0) {
@@ -68,16 +69,16 @@ afterEach(() => {
 describe("synthetic calibration materializer", () => {
   it("emits a dense recorder bundle ending at the synthesized target's paused frame", () => {
     const bundle = materialize(request);
-    const captures = [...bundle.raw_events, ...bundle.sampler_frames]
+    const captures = [...bundle.bundle.raw_events, ...bundle.bundle.sampler_frames]
       .sort((left, right) => left.ordinal - right.ordinal);
-    const finalFrame = bundle.sampler_frames.at(-1)?.frame;
+    const finalFrame = bundle.bundle.sampler_frames.at(-1)?.frame;
 
-    expect(bundle).toMatchObject({
+    expect(bundle.bundle).toMatchObject({
       version: "calibration-recording/v1",
       runtime_session_id: request.runtime_session_id,
       regime: request.regime,
     });
-    expect(Object.keys(bundle).sort()).toEqual([
+    expect(Object.keys(bundle.bundle).sort()).toEqual([
       "raw_events",
       "recording_duration_ms",
       "regime",
@@ -96,9 +97,32 @@ describe("synthetic calibration materializer", () => {
       activity: "paused",
       is_composing: false,
     });
-    expect(bundle.recording_duration_ms).toBeGreaterThanOrEqual(
-      bundle.sampler_frames.at(-1)!.relative_ms,
+    expect(bundle.bundle.recording_duration_ms).toBeGreaterThanOrEqual(
+      bundle.bundle.sampler_frames.at(-1)!.relative_ms,
     );
+    expect(bundle.timing).toMatchObject({
+      split: "train",
+      seed_id: "timing/train/string:seed-001",
+      revision: {
+        immediate_count: expect.any(Number),
+        look_back_count: expect.any(Number),
+        look_back_input_ordinal_ranges: expect.any(Array),
+      },
+    });
+    const ranges = bundle.timing.revision.look_back_input_ordinal_ranges;
+    expect(ranges).toHaveLength(bundle.timing.revision.look_back_count);
+    const inputs = bundle.bundle.raw_events.filter((event) => event.kind === "input");
+    for (const [index, range] of ranges.entries()) {
+      const admitted = inputs.filter(
+        (event) => event.ordinal >= range.start_ordinal && event.ordinal <= range.end_ordinal,
+      );
+      expect(admitted.length).toBeGreaterThan(0);
+      expect(admitted[0]!.input_type).toBe("deleteContentBackward");
+      expect(admitted.at(-1)!.input_type).toBe("insertText");
+      if (index > 0) {
+        expect(range.start_ordinal).toBeGreaterThan(ranges[index - 1]!.end_ordinal);
+      }
+    }
   });
 
   it("is reproducible and reaches the requested final text in every regime", () => {
@@ -107,11 +131,53 @@ describe("synthetic calibration materializer", () => {
     for (const [index, regime] of CALIBRATION_REGIMES.entries()) {
       const targetText = `Regime ${index}: café 😀`;
       const bundle = materialize({ ...request, regime, seed: index, target_text: targetText });
-      expect(bundle.sampler_frames.at(-1)?.frame).toMatchObject({
+      expect(bundle.bundle.sampler_frames.at(-1)?.frame).toMatchObject({
         text: targetText,
         activity: "paused",
       });
     }
+  });
+
+  it("declares only genuine line-distance look-backs and reclassifies unsupported ones", () => {
+    const targetText = Array.from(
+      { length: 36 },
+      (_, index) => `line ${String(index).padStart(2, "0")} carries a stable correction target`,
+    ).join("\n");
+    const materialized = materialize({
+      ...request,
+      seed: "genuine-look-backs",
+      target_text: targetText,
+    });
+    const { revision } = materialized.timing;
+    expect(revision.immediate_count).toBeGreaterThan(revision.look_back_count);
+    expect(revision.look_back_count).toBeGreaterThan(0);
+
+    const events = materialized.bundle.raw_events;
+    const lineAt = (offset: number): number => [...targetText.slice(0, offset)]
+      .filter((character) => character === "\n").length;
+    const signedMovements = revision.look_back_input_ordinal_ranges.map(({ start_ordinal }) => {
+      const inputIndex = events.findIndex((event) => event.ordinal === start_ordinal);
+      const selected = events[inputIndex - 1]!;
+      const previous = events
+        .slice(0, inputIndex - 1)
+        .reverse()
+        .find((event) => event.kind === "selectionchange")!;
+      expect(selected.kind).toBe("selectionchange");
+      return lineAt(selected.selection_start) - lineAt(previous.selection_start);
+    });
+    const movements = signedMovements.map(Math.abs);
+    expect(movements.every((lines) => lines >= 8)).toBe(true);
+    expect(movements.every((lines) => [8, 12, 16].includes(lines))).toBe(true);
+    expect(signedMovements.some((lines) => lines < 0)).toBe(true);
+    expect(signedMovements.some((lines) => lines > 0)).toBe(true);
+
+    const singleLine = materialize({
+      ...request,
+      seed: "unsupported-look-backs",
+      target_text: "a single line has no configured line-distance look-back location",
+    });
+    expect(singleLine.timing.revision.look_back_count).toBe(0);
+    expect(singleLine.timing.revision.look_back_input_ordinal_ranges).toEqual([]);
   });
 
   it("keeps cursor variants visible to the sampler while preserving raw input and selection totals", () => {
@@ -122,10 +188,10 @@ describe("synthetic calibration materializer", () => {
       seed: "cursor-variant-a",
       target_text: targetText,
     });
-    const inputs = bundle.raw_events.filter((event) => event.kind === "input");
-    const selections = bundle.raw_events.filter((event) => event.kind === "selectionchange");
+    const inputs = bundle.bundle.raw_events.filter((event) => event.kind === "input");
+    const selections = bundle.bundle.raw_events.filter((event) => event.kind === "selectionchange");
     const extraSelections = selections.length - inputs.length;
-    const targetFrames = bundle.sampler_frames
+    const targetFrames = bundle.bundle.sampler_frames
       .map((record) => record.frame)
       .filter((frame) => frame.text === targetText && frame.activity === "active");
 
@@ -161,13 +227,13 @@ describe("synthetic calibration materializer", () => {
       target_text: targetText,
       transient_texts: transientTexts,
     });
-    const inputs = bundle.raw_events.filter((event) => event.kind === "input");
+    const inputs = bundle.bundle.raw_events.filter((event) => event.kind === "input");
     const deletes = inputs.filter((event) => event.input_type === "deleteContentBackward");
-    const explicitSelections = bundle.raw_events.filter((event) => event.kind === "selectionchange").length - inputs.length;
+    const explicitSelections = bundle.bundle.raw_events.filter((event) => event.kind === "selectionchange").length - inputs.length;
 
     expect(deletes.length).toBeGreaterThanOrEqual(121 + transientTexts.length);
     expect(explicitSelections).toBe(143);
-    expect(bundle.sampler_frames.at(-1)?.frame).toMatchObject({ text: targetText, activity: "paused" });
+    expect(bundle.bundle.sampler_frames.at(-1)?.frame).toMatchObject({ text: targetText, activity: "paused" });
   });
 
   it("accepts only the request object's JSON-safe shape", () => {
@@ -175,6 +241,7 @@ describe("synthetic calibration materializer", () => {
     expect(() => parseCalibrationSyntheticRequest({ ...request, extra: true })).toThrow(RangeError);
     expect(() => parseCalibrationSyntheticRequest({ ...request, regime: "freeform" })).toThrow(RangeError);
     expect(() => parseCalibrationSyntheticRequest({ ...request, seed: Number.NaN })).toThrow(RangeError);
+    expect(() => parseCalibrationSyntheticRequest({ ...request, timing_split: "preview" })).toThrow(RangeError);
     expect(() => parseCalibrationSyntheticRequest({ ...request, transient_texts: ["same", "same"] })).toThrow(RangeError);
     expect(() => parseCalibrationSyntheticRequest({ ...request, input_profile_sha256: "not-a-digest" })).toThrow(RangeError);
     expect(() => parseCalibrationSyntheticRequest({
@@ -212,12 +279,13 @@ describe("synthetic calibration materializer", () => {
       "materializer_sha256",
       "records",
     ]);
-    expect(response.records.map((bundle) => bundle.runtime_session_id)).toEqual(
+    expect(response.records.map(({ bundle }) => bundle.runtime_session_id)).toEqual(
       batch.records.map((record) => record.runtime_session_id),
     );
-    expect(response.records.map((bundle) => bundle.sampler_frames.at(-1)?.frame.text)).toEqual(
+    expect(response.records.map(({ bundle }) => bundle.sampler_frames.at(-1)?.frame.text)).toEqual(
       batch.records.map((record) => record.target_text),
     );
+    expect(response.records.map(({ timing }) => timing.split)).toEqual(["train", "train"]);
     expect(parseCalibrationSyntheticBatchRequest(batch)).toEqual(batch);
     expect(() => parseCalibrationSyntheticBatchRequest({ ...batch, records: [] })).toThrow(RangeError);
     expect(() =>

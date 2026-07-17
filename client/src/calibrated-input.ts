@@ -7,25 +7,50 @@ import {
   type InputScript,
   type InputScriptStep,
 } from "./input-synthesis";
-import type { CalibrationRegime } from "./calibration-recorder";
+import { CALIBRATION_REGIMES, type CalibrationRegime } from "./calibration-recorder";
 
 type CommonRegime = {
   target_utf16_length: number;
-  initial_delay_ms: readonly number[];
-  burst_scalar_quantiles: readonly number[];
-  within_burst_gap_ms: readonly number[];
-  between_burst_gap_ms: readonly number[];
   end_backspace_runs: readonly number[];
+  timing: {
+    burst_gap_ms: number;
+    splits: Record<CalibrationTimingSplit, TimingAtoms>;
+  };
   ime_carrier?: string;
+};
+
+export type CalibrationTimingSplit = "train" | "dev" | "test";
+
+type TimingBoundaryPoint = {
+  relative_ms: number;
+  event_ordinal: number | null;
+  boundary_ordinal: number;
+  is_burst_boundary: boolean;
+  boundary_kind: "burst-start" | "recording-end";
+};
+
+type TimingAtoms = {
+  initial_delay_ms: readonly number[];
+  inter_key_interval_ms: readonly number[];
+  burst_geometry: readonly (readonly [number, number])[];
+  between_burst_gap_ms: readonly number[];
 };
 
 type PlainRegime = CommonRegime & { mode: "plain" };
 
+type RevisionPlacement = {
+  immediate_count: number;
+  immediate_local_count: number;
+  immediate_line_offsets: readonly number[];
+  look_back_count: number;
+  look_back_line_offsets: readonly number[];
+};
+
 type RevisionRegime = CommonRegime & {
   mode: "revision";
-  selection_edit_count: number;
   replacement_scalar_quantiles: readonly number[];
   waited_selection_count: number;
+  revision_placement: RevisionPlacement;
 };
 
 type CursorVariant = {
@@ -39,6 +64,7 @@ type CursorRegime = CommonRegime & {
   mode: "cursor";
   cursor_variants: readonly CursorVariant[];
   replacement_utf16_length: number;
+  revision_placement: RevisionPlacement;
 };
 
 type ShortRegime = CommonRegime & {
@@ -54,30 +80,37 @@ type CalibratedInputProfile = {
   format_version: "input-synthesis-profile/v1";
   input_profile_id: "phase1-d3-calibrated-v1";
   sampler_throttle_ms: 100;
+  timing: {
+    algorithm: "seeded-bootstrap-v1";
+    jitter_ms: number;
+    bundles: readonly {
+      runtime_session_id: string;
+      regime: CalibrationRegime;
+      browser_bundle_sha256: string;
+      splits: Record<CalibrationTimingSplit, {
+        start: TimingBoundaryPoint;
+        end: TimingBoundaryPoint;
+      }>;
+    }[];
+  };
   regimes: Record<CalibrationRegime, CalibratedRegime>;
 };
 
 /** The committed artifact is the only default profile. It contains no source text. */
-export const CALIBRATED_INPUT_PROFILE = profile as CalibratedInputProfile;
+export const CALIBRATED_INPUT_PROFILE = profile as unknown as CalibratedInputProfile;
 export const CALIBRATED_INPUT_PROFILE_ID = CALIBRATED_INPUT_PROFILE.input_profile_id;
 
-/** Frozen D3 classifier boundaries; profile bins may not straddle these. */
-export const FROZEN_BURST_GAP_MS: Readonly<Record<CalibrationRegime, number>> = Object.freeze({
-  "natural-drafting": 148,
-  "revision-heavy-writing": 180,
-  "copied-or-scripted-typing": 80,
-  "cursor-and-selection-edits": 150,
-  "short-command-like-inputs": 113,
-  "pauses-and-resumptions": 325,
-});
-
 function assertCalibratedProfileGaps(): void {
-  for (const regime of Object.keys(FROZEN_BURST_GAP_MS) as CalibrationRegime[]) {
+  for (const regime of CALIBRATION_REGIMES) {
     const profileRegime = CALIBRATED_INPUT_PROFILE.regimes[regime];
-    const boundary = FROZEN_BURST_GAP_MS[regime];
+    const boundary = profileRegime.timing.burst_gap_ms;
     if (
-      profileRegime.within_burst_gap_ms.some((milliseconds) => milliseconds >= boundary) ||
-      profileRegime.between_burst_gap_ms.some((milliseconds) => milliseconds < boundary)
+      !Number.isInteger(boundary) ||
+      boundary <= 1 ||
+      Object.values(profileRegime.timing.splits).some(({ inter_key_interval_ms, between_burst_gap_ms }) =>
+        inter_key_interval_ms.some((milliseconds) => milliseconds >= boundary) ||
+        between_burst_gap_ms.some((milliseconds) => milliseconds < boundary),
+      )
     ) {
       throw new RangeError(`calibrated ${regime} gap bins cross the frozen burst boundary`);
     }
@@ -88,13 +121,86 @@ assertCalibratedProfileGaps();
 
 export type CalibratedInputOptions = {
   transient_texts?: readonly string[];
+  timing_split?: CalibrationTimingSplit;
 };
 
-function grid(
-  values: readonly number[],
+export type CalibrationSynthesisTrace = {
+  split: CalibrationTimingSplit;
+  seed_id: string;
+  revision: { immediate_count: number; look_back_count: number };
+};
+
+export type CalibratedInputSynthesis = {
+  steps: InputScript;
+  timing: CalibrationSynthesisTrace;
+  look_back_input_step_ranges: readonly {
+    start_step: number;
+    end_step: number;
+  }[];
+};
+
+function grid<T>(
+  values: readonly T[],
   next: () => number,
-): number {
+): T {
   return values[Math.min(values.length - 1, Math.floor(next() * values.length))]!;
+}
+
+function timingSeedId(seed: string | number, split: CalibrationTimingSplit): string {
+  return `timing/${split}/${typeof seed}:${String(seed)}`;
+}
+
+function jittered(
+  value: number,
+  next: () => number,
+  minimum: number,
+  maximum = Number.MAX_SAFE_INTEGER,
+): number {
+  const jitter = CALIBRATED_INPUT_PROFILE.timing.jitter_ms;
+  const offset = Math.floor(next() * (jitter * 2 + 1)) - jitter;
+  return clamp(Math.round(value) + offset, minimum, maximum);
+}
+
+function bootstrapWithinIntervals(
+  duration: number,
+  count: number,
+  atoms: TimingAtoms,
+  boundary: number,
+  next: () => number,
+): number[] {
+  if (count === 0) {
+    return [];
+  }
+  const intervals = Array.from({ length: count }, () => jittered(
+    grid(atoms.inter_key_interval_ms, next),
+    next,
+    1,
+    boundary - 1,
+  ));
+  const allocationOrder = intervals.map((_value, index) => index);
+  for (let index = allocationOrder.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(next() * (index + 1));
+    [allocationOrder[index], allocationOrder[swapIndex]] = [
+      allocationOrder[swapIndex]!,
+      allocationOrder[index]!,
+    ];
+  }
+  let remaining = duration - intervals.reduce((total, value) => total + value, 0);
+  for (const index of allocationOrder) {
+    if (remaining === 0) {
+      break;
+    }
+    const value = intervals[index]!;
+    const adjustment = remaining > 0
+      ? Math.min(remaining, boundary - 1 - value)
+      : -Math.min(-remaining, value - 1);
+    intervals[index] = value + adjustment;
+    remaining -= adjustment;
+  }
+  if (remaining !== 0) {
+    throw new RangeError("sampled burst duration is infeasible");
+  }
+  return intervals;
 }
 
 function scaledCount(count: number, targetLength: number, referenceLength: number): number {
@@ -111,9 +217,21 @@ function scalarBoundaries(text: string): number[] {
   return boundaries;
 }
 
+type RevisionPlacementMode = "local" | "line" | "look-back";
+
+type SelectedRevisionPlacement = {
+  index: number;
+  mode: RevisionPlacementMode;
+};
+
 type RecentEditSelector = {
   boundaries: readonly number[];
-  startIndex: (maxStart: number, next: () => number) => number;
+  startIndex: (
+    maxStart: number,
+    next: () => number,
+    mode: RevisionPlacementMode,
+    lineOffsets?: readonly number[],
+  ) => SelectedRevisionPlacement;
   update: (endIndex: number) => void;
 };
 
@@ -149,26 +267,36 @@ function recentEditSelector(text: string): RecentEditSelector {
 
   return {
     boundaries,
-    startIndex: (maxStart, next): number => {
-      // 72% within ±8 scalars, 23% at ±2–3 lines, and 5% uniform.
-      const mode = next();
-      if (mode < 0.72) {
-        return clamp(anchor + Math.floor(next() * 17) - 8, 0, maxStart);
+    startIndex: (maxStart, next, mode, lineOffsets = []): SelectedRevisionPlacement => {
+      const local = (): SelectedRevisionPlacement => ({
+        index: clamp(anchor + Math.floor(next() * 17) - 8, 0, maxStart),
+        mode: "local",
+      });
+      if (mode === "local") {
+        return local();
       }
-      if (mode < 0.95) {
-        if (lineStarts.length <= 3) {
-          return clamp(anchor + Math.floor(next() * 17) - 8, 0, maxStart);
-        }
-        const lineIndex = lineIndexAt(anchor);
-        const candidates = [-3, -2, 2, 3]
-          .map((offset) => lineIndex + offset)
-          .filter((index) => index >= 0 && index < lineStarts.length);
-        const selectedLine = candidates[Math.floor(next() * candidates.length)]!;
-        const start = lineStarts[selectedLine]!;
-        const end = lineStarts[selectedLine + 1] ?? boundaries.length - 1;
-        return clamp(start + Math.floor(next() * Math.max(1, end - start)), 0, maxStart);
+      if (lineStarts.length <= 1) {
+        return local();
       }
-      return Math.floor(next() * (maxStart + 1));
+      const lineIndex = lineIndexAt(anchor);
+      const candidates = lineOffsets
+        .flatMap((offset) => [lineIndex - offset, lineIndex + offset])
+        .filter(
+          (index) =>
+            index >= 0 &&
+            index < lineStarts.length &&
+            lineStarts[index]! <= maxStart,
+        );
+      if (candidates.length === 0) {
+        return local();
+      }
+      const selectedLine = candidates[Math.floor(next() * candidates.length)]!;
+      const start = lineStarts[selectedLine]!;
+      const end = lineStarts[selectedLine + 1] ?? boundaries.length - 1;
+      return {
+        index: clamp(start + Math.floor(next() * Math.max(1, end - start)), 0, maxStart),
+        mode,
+      };
     },
     update: (endIndex): void => {
       anchor = endIndex;
@@ -198,13 +326,16 @@ function interiorSlice(
   desiredUtf16Length: number,
   selector: RecentEditSelector,
   next: () => number,
-): readonly [number, number, string] {
+  mode: RevisionPlacementMode = "local",
+  lineOffsets?: readonly number[],
+): readonly [number, number, string, RevisionPlacementMode] {
   const { boundaries } = selector;
   if (boundaries.length === 1) {
-    return [0, 0, ""];
+    return [0, 0, "", "local"];
   }
   const maxStart = Math.max(0, boundaries.length - 2);
-  const startIndex = selector.startIndex(maxStart, next);
+  const placement = selector.startIndex(maxStart, next, mode, lineOffsets);
+  const startIndex = placement.index;
   let endIndex = startIndex + 1;
   while (
     endIndex < boundaries.length &&
@@ -216,7 +347,7 @@ function interiorSlice(
   const start = boundaries[startIndex]!;
   const end = boundaries[endIndex]!;
   selector.update(endIndex);
-  return [start, end, text.slice(start, end)];
+  return [start, end, text.slice(start, end), placement.mode];
 }
 
 function interiorScalarSlice(
@@ -224,36 +355,55 @@ function interiorScalarSlice(
   desiredScalars: number,
   selector: RecentEditSelector,
   next: () => number,
-): readonly [number, number, string] {
+  mode: RevisionPlacementMode = "local",
+  lineOffsets?: readonly number[],
+): readonly [number, number, string, RevisionPlacementMode] {
   const { boundaries } = selector;
   const scalarCount = boundaries.length - 1;
   if (scalarCount === 0) {
-    return [0, 0, ""];
+    return [0, 0, "", "local"];
   }
   const count = Math.min(Math.max(1, desiredScalars), scalarCount);
   const maxStart = scalarCount - count;
-  const startIndex = selector.startIndex(maxStart, next);
+  const placement = selector.startIndex(maxStart, next, mode, lineOffsets);
+  const startIndex = placement.index;
   const start = boundaries[startIndex]!;
   const end = boundaries[startIndex + count]!;
   selector.update(startIndex + count);
-  return [start, end, text.slice(start, end)];
+  return [start, end, text.slice(start, end), placement.mode];
 }
 
-/**
- * Build the closed-profile default script. Draws choose quantile bins, never
- * reference-event order or source text, and all paths restore the final target.
- */
-export function synthesizeCalibratedInputScript(
+/** Build a closed-profile script from text-free, split-scoped timing atoms. */
+export function synthesizeCalibratedInput(
   targetText: string,
   seed: string | number,
   regimeName: CalibrationRegime,
   options: CalibratedInputOptions = {},
-): InputScript {
+): CalibratedInputSynthesis {
   const regime = CALIBRATED_INPUT_PROFILE.regimes[regimeName];
+  const split = options.timing_split ?? "train";
+  const atoms = regime.timing.splits[split];
+  const burstGapMs = regime.timing.burst_gap_ms;
   const rng = createNamedInputRng(seed);
+  const timingRng = createNamedInputRng(timingSeedId(seed, split));
   const steps: InputScriptStep[] = [];
-  const timing = (): number => grid(regime.within_burst_gap_ms, () => rng.next("timing"));
-  const between = (): number => grid(regime.between_burst_gap_ms, () => rng.next("timing"));
+  const trace: CalibrationSynthesisTrace = {
+    split,
+    seed_id: timingSeedId(seed, split),
+    revision: { immediate_count: 0, look_back_count: 0 },
+  };
+  const lookBackInputStepRanges: { start_step: number; end_step: number }[] = [];
+  const timing = (): number => jittered(
+    grid(atoms.inter_key_interval_ms, () => timingRng.next("timing")),
+    () => timingRng.next("timing"),
+    1,
+    burstGapMs - 1,
+  );
+  const between = (): number => jittered(
+    grid(atoms.between_burst_gap_ms, () => timingRng.next("timing")),
+    () => timingRng.next("timing"),
+    burstGapMs,
+  );
   const pick = (values: readonly number[], stream: InputRngSubstream): number =>
     grid(values, () => rng.next(stream));
   const withinInputWait = (): void => {
@@ -269,23 +419,59 @@ export function synthesizeCalibratedInputScript(
 
   steps.push({
     kind: "wait",
-    ms: pick(regime.initial_delay_ms, "timing"),
+    ms: jittered(
+      grid(atoms.initial_delay_ms, () => timingRng.next("timing")),
+      () => timingRng.next("timing"),
+      0,
+    ),
     role: "initial",
   });
 
   const typeText = (text: string, afterInput = false): void => {
-    let remaining = pick(regime.burst_scalar_quantiles, "timing");
+    const nextBurst = (): { remaining: number; intervals: number[]; intervalIndex: number } => {
+      const [length, recordedDuration] = grid(
+        atoms.burst_geometry,
+        () => timingRng.next("timing"),
+      );
+      const intervalCount = length - 1;
+      const duration = intervalCount === 0 ? 0 : jittered(
+        recordedDuration,
+        () => timingRng.next("timing"),
+        intervalCount,
+        intervalCount * (burstGapMs - 1),
+      );
+      return {
+        remaining: length,
+        intervals: bootstrapWithinIntervals(
+          duration,
+          intervalCount,
+          atoms,
+          burstGapMs,
+          () => timingRng.next("timing"),
+        ),
+        intervalIndex: 0,
+      };
+    };
+    let burst = nextBurst();
+    if (afterInput) {
+      burst.remaining -= 1;
+    }
     let first = !afterInput;
     for (const character of text) {
       if (!first) {
-        const role = remaining <= 0 ? "between-burst" : "within-burst";
-        steps.push({ kind: "wait", ms: role === "between-burst" ? between() : timing(), role });
-        if (remaining <= 0) {
-          remaining = pick(regime.burst_scalar_quantiles, "timing");
+        if (burst.remaining <= 0) {
+          steps.push({ kind: "wait", ms: between(), role: "between-burst" });
+          burst = nextBurst();
+        } else {
+          steps.push({
+            kind: "wait",
+            ms: burst.intervals[burst.intervalIndex++] ?? timing(),
+            role: "within-burst",
+          });
         }
       }
       steps.push({ kind: "insert", text: character });
-      remaining -= 1;
+      burst.remaining -= 1;
       first = false;
     }
   };
@@ -316,20 +502,49 @@ export function synthesizeCalibratedInputScript(
     case "revision": {
       typeText(targetText);
       const selector = recentEditSelector(targetText);
-      const editCount = scaledCount(
-        regime.selection_edit_count,
+      const immediateCount = scaledCount(
+        regime.revision_placement.immediate_count,
         targetText.length,
         regime.target_utf16_length,
       );
+      const immediateLocalCount = Math.min(
+        immediateCount,
+        scaledCount(
+          regime.revision_placement.immediate_local_count,
+          targetText.length,
+          regime.target_utf16_length,
+        ),
+      );
+      const lookBackCount = scaledCount(
+        regime.revision_placement.look_back_count,
+        targetText.length,
+        regime.target_utf16_length,
+      );
+      const editCount = immediateCount + lookBackCount;
       for (let index = 0; index < editCount; index += 1) {
-        const [start, end, replacement] = interiorSlice(
+        const immediate = index < immediateCount;
+        const mode = immediate
+          ? index < immediateLocalCount ? "local" : "line"
+          : "look-back";
+        const lineOffsets = immediate
+          ? regime.revision_placement.immediate_line_offsets
+          : regime.revision_placement.look_back_line_offsets;
+        const [start, end, replacement, actualMode] = interiorSlice(
           targetText,
           pick(regime.replacement_scalar_quantiles, "revision"),
           selector,
           () => rng.next("revision"),
+          mode,
+          lineOffsets,
         );
         if (start === end) {
           continue;
+        }
+        const designedLookBack = actualMode === "look-back";
+        if (designedLookBack) {
+          trace.revision.look_back_count += 1;
+        } else {
+          trace.revision.immediate_count += 1;
         }
         steps.push({ kind: "selection", start_utf16: start, end_utf16: end });
         if (
@@ -338,8 +553,15 @@ export function synthesizeCalibratedInputScript(
         ) {
           observedSelectionWait();
         }
+        const transactionStart = steps.length;
         steps.push({ kind: "delete" });
         typeText(replacement, true);
+        if (designedLookBack) {
+          lookBackInputStepRanges.push({
+            start_step: transactionStart,
+            end_step: steps.length - 1,
+          });
+        }
       }
       repeatedBackspaces(steps, regime.end_backspace_runs, withinInputWait);
       steps.push({ kind: "selection", start_utf16: targetText.length, end_utf16: targetText.length });
@@ -365,20 +587,59 @@ export function synthesizeCalibratedInputScript(
         targetText.length,
         regime.target_utf16_length,
       );
+      const intendedPlacementCount = scaledCount(
+        regime.revision_placement.immediate_count + regime.revision_placement.look_back_count,
+        targetText.length,
+        regime.target_utf16_length,
+      );
+      const lookBackCount = Math.min(
+        Math.max(0, editCount - 1),
+        Math.round((editCount * regime.revision_placement.look_back_count) / intendedPlacementCount),
+      );
+      const immediateCount = editCount - lookBackCount;
+      const immediateLocalCount = Math.min(
+        immediateCount,
+        scaledCount(
+          regime.revision_placement.immediate_local_count,
+          targetText.length,
+          regime.target_utf16_length,
+        ),
+      );
       let insertedRemaining = totalInserted;
       for (let index = 0; index < editCount; index += 1) {
         const remainingEdits = editCount - index;
         const count = Math.max(1, Math.floor(insertedRemaining / remainingEdits));
         insertedRemaining -= count;
-        const [start, end, replacement] = interiorScalarSlice(
+        const immediate = index < immediateCount;
+        const mode = immediate
+          ? index < immediateLocalCount ? "local" : "line"
+          : "look-back";
+        const [start, end, replacement, actualMode] = interiorScalarSlice(
           targetText,
           count,
           selector,
           () => rng.next("cursor"),
+          mode,
+          immediate
+            ? regime.revision_placement.immediate_line_offsets
+            : regime.revision_placement.look_back_line_offsets,
         );
+        const designedLookBack = actualMode === "look-back";
+        if (designedLookBack) {
+          trace.revision.look_back_count += 1;
+        } else {
+          trace.revision.immediate_count += 1;
+        }
         steps.push({ kind: "selection", start_utf16: start, end_utf16: end });
+        const transactionStart = steps.length;
         steps.push({ kind: "delete" });
         typeText(replacement, true);
+        if (designedLookBack) {
+          lookBackInputStepRanges.push({
+            start_step: transactionStart,
+            end_step: steps.length - 1,
+          });
+        }
       }
       const waitedSelections = scaledCount(
         variant.waited_selection_count,
@@ -405,6 +666,7 @@ export function synthesizeCalibratedInputScript(
         selector,
         () => rng.next("cursor"),
       );
+      trace.revision.immediate_count += 1;
       steps.push({ kind: "selection", start_utf16: start, end_utf16: end });
       observedSelectionWait();
       steps.push({ kind: "paste", text: replacement });
@@ -463,5 +725,15 @@ export function synthesizeCalibratedInputScript(
     }
   }
 
-  return steps;
+  return { steps, timing: trace, look_back_input_step_ranges: lookBackInputStepRanges };
+}
+
+/** Compatibility wrapper for callers that only need executable steps. */
+export function synthesizeCalibratedInputScript(
+  targetText: string,
+  seed: string | number,
+  regimeName: CalibrationRegime,
+  options: CalibratedInputOptions = {},
+): InputScript {
+  return synthesizeCalibratedInput(targetText, seed, regimeName, options).steps;
 }

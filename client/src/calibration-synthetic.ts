@@ -9,14 +9,21 @@ import {
 } from "./calibration-recorder";
 import {
   INPUT_SYNTHESIS_PROFILE_ID,
-  synthesizeInputScript,
+  type InputScriptStep,
 } from "./input-synthesis";
+import {
+  CALIBRATED_INPUT_PROFILE,
+  synthesizeCalibratedInput,
+  type CalibrationSynthesisTrace,
+  type CalibrationTimingSplit,
+} from "./calibrated-input";
 import { createSamplerHarness } from "./sampler-harness";
 
 export type CalibrationSyntheticRequest = {
   runtime_session_id: string;
   regime: CalibrationRegime;
   seed: string | number;
+  timing_split: CalibrationTimingSplit;
   target_text: string;
   transient_texts: string[];
   input_profile_id: typeof INPUT_SYNTHESIS_PROFILE_ID;
@@ -45,7 +52,21 @@ export type CalibrationSyntheticBatchResponse = {
   input_profile_id: typeof INPUT_SYNTHESIS_PROFILE_ID;
   input_profile_sha256: string;
   materializer_sha256: string;
-  records: CalibrationRecordingBundle[];
+  records: CalibrationSyntheticMaterializedRecord[];
+};
+
+export type CalibrationSyntheticMaterializedRecord = {
+  bundle: CalibrationRecordingBundle;
+  timing: CalibrationSyntheticTiming;
+};
+
+export type CalibrationSyntheticTiming = CalibrationSynthesisTrace & {
+  revision: CalibrationSynthesisTrace["revision"] & {
+    look_back_input_ordinal_ranges: {
+      start_ordinal: number;
+      end_ordinal: number;
+    }[];
+  };
 };
 
 export const CALIBRATION_SYNTHETIC_REQUEST_VERSION = "calibration-synthetic-request/v1";
@@ -57,6 +78,7 @@ const REQUEST_KEYS = [
   "runtime_session_id",
   "regime",
   "seed",
+  "timing_split",
   "target_text",
   "transient_texts",
   "input_profile_id",
@@ -74,6 +96,12 @@ function isDigest(value: unknown): value is string {
   return typeof value === "string" && /^sha256:[0-9a-f]{64}$/.test(value);
 }
 
+function producesInput(step: InputScriptStep): boolean {
+  return ["insert", "delete", "paste", "compositionupdate", "compositioncommit"].includes(
+    step.kind,
+  );
+}
+
 /** Validate the one JSON object accepted by the opt-in file adapter. */
 export function parseCalibrationSyntheticRequest(value: unknown): CalibrationSyntheticRequest {
   if (!isObject(value) || Object.keys(value).length !== REQUEST_KEYS.length ||
@@ -84,6 +112,7 @@ export function parseCalibrationSyntheticRequest(value: unknown): CalibrationSyn
     runtime_session_id: runtimeSessionId,
     regime,
     seed,
+    timing_split: timingSplit,
     target_text: targetText,
     transient_texts: transientTexts,
     input_profile_id: inputProfileId,
@@ -99,6 +128,9 @@ export function parseCalibrationSyntheticRequest(value: unknown): CalibrationSyn
   }
   if (typeof seed !== "string" && (typeof seed !== "number" || !Number.isFinite(seed))) {
     throw new RangeError("seed must be a string or finite number");
+  }
+  if (timingSplit !== "train" && timingSplit !== "dev" && timingSplit !== "test") {
+    throw new RangeError("timing_split must be train, dev, or test");
   }
   if (
     !Array.isArray(transientTexts) ||
@@ -121,6 +153,7 @@ export function parseCalibrationSyntheticRequest(value: unknown): CalibrationSyn
     runtime_session_id: runtimeSessionId,
     regime: regime as CalibrationRegime,
     seed,
+    timing_split: timingSplit,
     target_text: targetText,
     transient_texts: transientTexts,
     input_profile_id: inputProfileId,
@@ -165,14 +198,12 @@ export function parseCalibrationSyntheticBatchRequest(value: unknown): Calibrati
 export function materializeCalibrationSynthetic(
   request: CalibrationSyntheticRequest,
   clock: CalibrationSyntheticClock,
-): CalibrationRecordingBundle {
-  const script = synthesizeInputScript(
+): CalibrationSyntheticMaterializedRecord {
+  const synthesis = synthesizeCalibratedInput(
     request.target_text,
     request.seed,
     request.regime,
-    undefined,
-    undefined,
-    { transient_texts: request.transient_texts },
+    { transient_texts: request.transient_texts, timing_split: request.timing_split },
   );
   const textarea = document.createElement("textarea");
   const recorder = attachCalibrationRecorder(textarea, {
@@ -185,19 +216,50 @@ export function materializeCalibrationSynthetic(
     textarea,
     now: clock.now,
     advanceTimersByTime: clock.advanceTimersByTime,
-    sampler_throttle_ms: script.environment.sampler_throttle_ms,
+    sampler_throttle_ms: CALIBRATED_INPUT_PROFILE.sampler_throttle_ms,
     pause_ms: SYNTHETIC_PAUSE_MS,
     onFrame: recorder.captureSamplerFrame,
   });
 
   try {
-    harness.run(script.steps);
+    harness.run(synthesis.steps);
     harness.advance(SYNTHETIC_PAUSE_MS);
     const finalFrame = harness.frames.at(-1);
     if (textarea.value !== request.target_text || finalFrame?.activity !== "paused") {
       throw new Error("synthetic calibration replay did not reach its final paused target state");
     }
-    return recorder.exportBundle();
+    const bundle = recorder.exportBundle();
+    const inputSteps = synthesis.steps
+      .map((step, index) => producesInput(step) ? index : -1)
+      .filter((index) => index >= 0);
+    const inputEvents = bundle.raw_events.filter((event) => event.kind === "input");
+    if (inputSteps.length !== inputEvents.length) {
+      throw new Error("synthesis input steps do not map exactly to exported raw inputs");
+    }
+    const ordinalByStep = new Map(
+      inputSteps.map((step, index) => [step, inputEvents[index]!.ordinal]),
+    );
+    const lookBackRanges = synthesis.look_back_input_step_ranges.map(({ start_step, end_step }) => {
+      const startOrdinal = ordinalByStep.get(start_step);
+      const endOrdinal = ordinalByStep.get(end_step);
+      if (startOrdinal === undefined || endOrdinal === undefined || startOrdinal > endOrdinal) {
+        throw new Error("look-back edit plan does not map to raw input ordinals");
+      }
+      return { start_ordinal: startOrdinal, end_ordinal: endOrdinal };
+    });
+    if (lookBackRanges.length !== synthesis.timing.revision.look_back_count) {
+      throw new Error("look-back edit plan count does not match synthesis trace");
+    }
+    return {
+      bundle,
+      timing: {
+        ...synthesis.timing,
+        revision: {
+          ...synthesis.timing.revision,
+          look_back_input_ordinal_ranges: lookBackRanges,
+        },
+      },
+    };
   } finally {
     harness.detach();
     recorder.detach();

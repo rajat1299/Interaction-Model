@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CALIBRATION_REGIMES } from "./calibration-recorder";
 import {
   CALIBRATED_INPUT_PROFILE,
-  FROZEN_BURST_GAP_MS,
 } from "./calibrated-input";
 import {
   BASELINE_INPUT_PROFILES,
@@ -210,8 +209,11 @@ describe("sampler harness", () => {
     expect(percentile(deltas, 0.9)).toBe(2);
     for (const regime of CALIBRATION_REGIMES) {
       const profile = CALIBRATED_INPUT_PROFILE.regimes[regime];
-      expect(profile.within_burst_gap_ms.every((milliseconds) => milliseconds < FROZEN_BURST_GAP_MS[regime])).toBe(true);
-      expect(profile.between_burst_gap_ms.every((milliseconds) => milliseconds >= FROZEN_BURST_GAP_MS[regime])).toBe(true);
+      const burstGapMs = profile.timing.burst_gap_ms;
+      for (const split of ["train", "dev", "test"] as const) {
+        expect(profile.timing.splits[split].inter_key_interval_ms.every((milliseconds) => milliseconds < burstGapMs)).toBe(true);
+        expect(profile.timing.splits[split].between_burst_gap_ms.every((milliseconds) => milliseconds >= burstGapMs)).toBe(true);
+      }
     }
   });
 

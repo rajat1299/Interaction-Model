@@ -1,0 +1,26 @@
+{
+  "version": "calibration-failure-fixtures/v1",
+  "authorization_date": "2026-07-16",
+  "purpose": "transport and incomplete-session recovery regression fixtures",
+  "eligible_for_calibration": false,
+  "eligible_for_training": false,
+  "eligible_for_labeling": false,
+  "fixtures": [
+    {
+      "path": "natural-drafting-live-terra-tpm-failure-decision-114.json",
+      "sha256": "c432465fa5fedb848d2399df6560ad5b43992662fe823e12ae4a25e9467e079d",
+      "runtime_session_id": "s_e2debd351b794392bcee005018911267",
+      "regime": "natural-drafting",
+      "sampler_frame_count": 852,
+      "observed_failure": "provider HTTP 429 TPM limit at policy decision 114"
+    },
+    {
+      "path": "natural-drafting-live-terra-tpm-failure-decision-121.json",
+      "sha256": "7b2a658470a4f0ba5a13601f0e0d35179cde494117ad9e3e8ecdb247cc8dd67c",
+      "runtime_session_id": "s_0a1429ca406f4649bc7f02897d67642b",
+      "regime": "natural-drafting",
+      "sampler_frame_count": 847,
+      "observed_failure": "provider HTTP 429 TPM limit at policy decision 121"
+    }
+  ]
+}
