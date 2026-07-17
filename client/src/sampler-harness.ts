@@ -7,6 +7,8 @@ import { attachSampler, type SamplerOptions } from "./sampler";
 export type SamplerHarnessOptions = Pick<SamplerOptions, "sampler_throttle_ms" | "pause_ms" | "now"> & {
   /** Supplied by Vitest fake timers in Node; no test dependency reaches production code. */
   advanceTimersByTime: (milliseconds: number) => void;
+  /** Optional observer for the exact production sampler callback. */
+  onFrame?: (frame: ClientSnapshotFrame) => void;
   textarea?: HTMLTextAreaElement;
 };
 
@@ -46,7 +48,10 @@ export function createSamplerHarness(options: SamplerHarnessOptions): SamplerHar
   textarea.focus();
 
   const frames: ClientSnapshotFrame[] = [];
-  const detachSampler = attachSampler(textarea, (frame) => frames.push({ ...frame }), {
+  const detachSampler = attachSampler(textarea, (frame) => {
+    frames.push({ ...frame });
+    options.onFrame?.(frame);
+  }, {
     sampler_throttle_ms: options.sampler_throttle_ms,
     pause_ms: options.pause_ms,
     now: options.now,

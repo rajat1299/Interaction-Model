@@ -2,11 +2,16 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { CALIBRATION_REGIMES, type CalibrationRegime } from "./calibration-recorder";
 import {
+  CALIBRATED_INPUT_PROFILE,
+  FROZEN_BURST_GAP_MS,
+} from "./calibrated-input";
+import {
   BASELINE_INPUT_PROFILES,
   DEFAULT_INPUT_SYNTHESIS_ENVIRONMENT,
   createInputScriptState,
   createInputScriptPlayer,
   createNamedInputRng,
+  INPUT_SYNTHESIS_PROFILE_ID,
   summarizeInputScript,
   synthesizeInputScript,
   transitionInputScriptState,
@@ -102,6 +107,25 @@ function forcedProfile(overrides: Partial<InputSynthesisProfile>): InputSynthesi
 
 function mean(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function editSelectionEnds(script: InputScript): number[] {
+  const ends: number[] = [];
+  let pending: number | undefined;
+  for (const step of script) {
+    if (step.kind === "wait") {
+      continue;
+    }
+    if (step.kind === "selection") {
+      pending = step.end_utf16;
+      continue;
+    }
+    if (step.kind === "delete" && pending !== undefined) {
+      ends.push(pending);
+    }
+    pending = undefined;
+  }
+  return ends;
 }
 
 describe("input synthesis", () => {
@@ -459,7 +483,7 @@ describe("input synthesis", () => {
       expect(first).toEqual(second);
       expect(first).toMatchObject({
         version: "input-script/v1",
-        calibration_status: "baseline-unfitted",
+        calibration_status: INPUT_SYNTHESIS_PROFILE_ID,
         regime,
         seed_id: "number:17",
         environment: DEFAULT_INPUT_SYNTHESIS_ENVIRONMENT,
@@ -468,7 +492,60 @@ describe("input synthesis", () => {
     }
   });
 
-  it("distinguishes the six baseline regimes structurally across seeds", () => {
+  it("keeps calibrated gap grids on their frozen sides of every burst boundary", () => {
+    for (const regime of CALIBRATION_REGIMES) {
+      const profile = CALIBRATED_INPUT_PROFILE.regimes[regime];
+      expect(profile.within_burst_gap_ms.every((milliseconds) => milliseconds < FROZEN_BURST_GAP_MS[regime])).toBe(true);
+      expect(profile.between_burst_gap_ms.every((milliseconds) => milliseconds >= FROZEN_BURST_GAP_MS[regime])).toBe(true);
+    }
+  });
+
+  it("anchors multiline revision moves to the latest edit while retaining minority far jumps", () => {
+    const target = Array.from(
+      { length: 36 },
+      (_, index) => `line ${String(index).padStart(2, "0")} carries a stable correction target`,
+    ).join("\n");
+    const lineSpan = target.indexOf("\n") + 1;
+
+    for (const regime of ["revision-heavy-writing", "cursor-and-selection-edits"] as const) {
+      const moves: number[] = [];
+      let localAfterFarEdit = 0;
+      for (let seed = 0; seed < 16; seed += 1) {
+        const script = synthesizeInputScript(target, seed, regime);
+        const selections = editSelectionEnds(script.steps);
+        for (let index = 1; index < selections.length; index += 1) {
+          const previous = selections[index - 1]!;
+          const current = selections[index]!;
+          const move = Math.abs(current - previous);
+          moves.push(move);
+          if (
+            target.length - previous > lineSpan * 6 &&
+            move <= 16 &&
+            target.length - current > lineSpan * 6
+          ) {
+            localAfterFarEdit += 1;
+          }
+        }
+        expect(applyScriptResult(script.steps)).toMatchObject({
+          text: target,
+          selection_start_utf16: target.length,
+          selection_end_utf16: target.length,
+        });
+      }
+
+      const localMoves = moves.filter((move) => move <= 16).length;
+      const lineMoves = moves.filter((move) => move >= lineSpan && move <= lineSpan * 4).length;
+      const farMoves = moves.filter((move) => move > lineSpan * 6).length;
+
+      expect(localMoves / moves.length).toBeGreaterThan(0.5);
+      expect(lineMoves / moves.length).toBeGreaterThan(0.1);
+      expect(farMoves).toBeGreaterThan(0);
+      expect(farMoves / moves.length).toBeLessThan(0.2);
+      expect(localAfterFarEdit).toBeGreaterThan(0);
+    }
+  });
+
+  it("distinguishes the six calibrated regimes structurally across seeds", () => {
     const natural = aggregate("natural-drafting");
     const revision = aggregate("revision-heavy-writing");
     const copied = aggregate("copied-or-scripted-typing");
@@ -479,14 +556,32 @@ describe("input synthesis", () => {
     for (const stats of [natural, revision, copied, cursor, command, paused]) {
       expect(stats.burst_lengths.length).toBeGreaterThan(0);
       expect(stats.burst_durations_ms).toHaveLength(stats.burst_lengths.length);
-      expect(stats.ime_update_counts.length).toBeGreaterThan(0);
       expect(stats.ime_update_counts.every((count) => count >= 1 && count <= 4)).toBe(true);
     }
-    expect(revision.deletes).toBeGreaterThan(natural.deletes * 3);
-    expect(copied.pastes).toBeGreaterThan(natural.pastes * 10);
+    expect(revision.deletes).toBeGreaterThan(natural.deletes);
+    expect(copied.pastes).toBe(0);
+    expect(cursor.pastes).toBeGreaterThan(0);
     expect(cursor.selections).toBeGreaterThan(natural.selections * 3);
-    expect(mean(command.burst_lengths)).toBeGreaterThan(mean(natural.burst_lengths));
-    expect(paused.wait_ms).toBeGreaterThan(natural.wait_ms * 3);
+    expect(mean(command.burst_lengths)).toBeLessThanOrEqual(mean(natural.burst_lengths));
+    expect(paused.wait_ms).toBeGreaterThan(natural.wait_ms);
+  });
+
+  it("emits one selectionchange after every input and one for explicit selection", () => {
+    const textarea = document.createElement("textarea");
+    document.body.append(textarea);
+    const player = createInputScriptPlayer(textarea);
+    const events: string[] = [];
+    textarea.addEventListener("input", () => events.push("input"));
+    const onSelectionChange = (): void => {
+      events.push("selectionchange");
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+
+    player.apply({ kind: "insert", text: "x" });
+    player.apply({ kind: "selection", start_utf16: 0, end_utf16: 1 });
+    document.removeEventListener("selectionchange", onSelectionChange);
+
+    expect(events).toEqual(["input", "selectionchange", "selectionchange"]);
   });
 
   it("rejects unknown regimes and malformed Unicode", () => {

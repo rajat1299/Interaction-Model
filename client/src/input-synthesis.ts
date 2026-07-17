@@ -4,6 +4,12 @@ import {
   CALIBRATION_REGIMES,
   type CalibrationRegime,
 } from "./calibration-recorder";
+import {
+  CALIBRATED_INPUT_PROFILE,
+  CALIBRATED_INPUT_PROFILE_ID,
+  synthesizeCalibratedInputScript,
+  type CalibratedInputOptions,
+} from "./calibrated-input";
 
 export type InputRngSubstream = "timing" | "revision" | "cursor" | "paste" | "composition";
 
@@ -20,7 +26,8 @@ export type WaitStep = {
     | "punctuation"
     | "hesitation"
     | "revision"
-    | "composition";
+    | "composition"
+    | "initial";
 };
 export type InsertStep = { kind: "insert"; text: string };
 export type DeleteStep = {
@@ -72,7 +79,7 @@ export const DEFAULT_INPUT_SYNTHESIS_ENVIRONMENT: Readonly<InputSynthesisEnviron
 
 export type SynthesizedInputScript = {
   version: "input-script/v1";
-  calibration_status: "baseline-unfitted";
+  calibration_status: typeof INPUT_SYNTHESIS_PROFILE_ID | "baseline-unfitted";
   regime: CalibrationRegime;
   seed_id: string;
   target_text: string;
@@ -80,9 +87,12 @@ export type SynthesizedInputScript = {
   steps: InputScript;
 };
 
+export const INPUT_SYNTHESIS_PROFILE_ID = CALIBRATED_INPUT_PROFILE_ID;
+export type InputSynthesisOptions = CalibratedInputOptions;
+
 /**
- * Explicit pre-calibration priors. C7 must replace/ratify these values before
- * the distribution gate can pass; the status above prevents accidental claims.
+ * Compatibility priors used only when a caller supplies an explicit custom
+ * profile; default synthesis uses the calibrated JSON artifact.
  */
 export const BASELINE_INPUT_PROFILES: Record<CalibrationRegime, InputSynthesisProfile> = {
   "natural-drafting": {
@@ -316,14 +326,29 @@ export function synthesizeInputScript(
   regime: CalibrationRegime,
   profile?: InputSynthesisProfile,
   environment: InputSynthesisEnvironment = DEFAULT_INPUT_SYNTHESIS_ENVIRONMENT,
+  options: InputSynthesisOptions = {},
 ): SynthesizedInputScript {
   if (!CALIBRATION_REGIMES.includes(regime)) {
     throw new RangeError("unknown input synthesis regime");
   }
-  const selectedProfile = profile ?? BASELINE_INPUT_PROFILES[regime];
   assertWellFormed(targetText);
-  validateProfile(selectedProfile);
   validateEnvironment(environment);
+  if (profile === undefined) {
+    if (environment.sampler_throttle_ms !== CALIBRATED_INPUT_PROFILE.sampler_throttle_ms) {
+      throw new RangeError("the calibrated input profile requires sampler_throttle_ms=100");
+    }
+    return {
+      version: "input-script/v1",
+      calibration_status: INPUT_SYNTHESIS_PROFILE_ID,
+      regime,
+      seed_id: seedId(seed),
+      target_text: targetText,
+      environment: { sampler_throttle_ms: environment.sampler_throttle_ms },
+      steps: synthesizeCalibratedInputScript(targetText, seed, regime, options),
+    };
+  }
+  const selectedProfile = profile;
+  validateProfile(selectedProfile);
   const rng = createNamedInputRng(seed);
   const characters = [...targetText];
   const steps: InputScriptStep[] = [];
@@ -847,6 +872,7 @@ export function transitionInputScriptState(
 
 function dispatchInput(textarea: HTMLTextAreaElement, inputType: string, data: string | null): void {
   textarea.dispatchEvent(new InputEvent("input", { inputType, data }));
+  document.dispatchEvent(new Event("selectionchange"));
 }
 
 /** Apply non-time script steps to one textarea with browser-like DOM events. */

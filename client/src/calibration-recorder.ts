@@ -62,6 +62,8 @@ export type CalibrationRecordingBundle = {
   version: CalibrationRecordingVersion;
   runtime_session_id: string;
   regime: CalibrationRegime;
+  /** Frozen when recording stops, so exported bundles have a durable end time. */
+  recording_duration_ms: number;
   raw_events: RawTextareaInteraction[];
   sampler_frames: RecordedSamplerFrame[];
 };
@@ -142,11 +144,14 @@ export function attachCalibrationRecorder(
   const regime = options.regime;
   const now = options.now ?? (() => performance.now());
   const startedAt = finiteTime(now());
+  // ponytail: v1 keeps directly auditable snapshots in memory. The 7.5-minute,
+  // 10 Hz stress check is the ceiling; move these lanes to IndexedDB chunks if it is exceeded.
   const rawEvents: RawTextareaInteraction[] = [];
   const samplerFrames: RecordedSamplerFrame[] = [];
   let isComposing = false;
   let captureOrdinal = 0;
   let lastRelativeMs = 0;
+  let recordingDurationMs: number | undefined;
   let detached = false;
 
   const relativeNow = (): number => {
@@ -227,6 +232,7 @@ export function attachCalibrationRecorder(
       version,
       runtime_session_id: runtimeSessionId,
       regime,
+      recording_duration_ms: recordingDurationMs ?? lastRelativeMs,
       raw_events: rawEvents.map(copyRawEvent),
       sampler_frames: samplerFrames.map(copySamplerFrame),
     }),
@@ -234,6 +240,7 @@ export function attachCalibrationRecorder(
       if (detached) {
         return;
       }
+      recordingDurationMs = Math.max(lastRelativeMs, finiteTime(now()) - startedAt, 0);
       detached = true;
       textarea.removeEventListener("input", onInput);
       document.removeEventListener("selectionchange", onSelectionChange);

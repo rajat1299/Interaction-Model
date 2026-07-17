@@ -209,6 +209,51 @@ describe("attachCalibrationRecorder", () => {
     recorder.detach();
   });
 
+  it("freezes the recording duration when detached", () => {
+    let time = 100;
+    const textarea = document.createElement("textarea");
+    document.body.append(textarea);
+    const recorder = attach(textarea, () => time);
+
+    time = 125;
+    recorder.captureSamplerFrame(samplerFrame());
+    time = 175;
+    recorder.detach();
+    time = 250;
+
+    expect(recorder.exportBundle().recording_duration_ms).toBe(75);
+  });
+
+  it("keeps an expected worst-regime sidecar below the in-memory ceiling", () => {
+    let time = 0;
+    let text = "";
+    const textarea = document.createElement("textarea");
+    document.body.append(textarea);
+    const recorder = attach(textarea, () => time);
+
+    // 7.5 minutes at the production sampler's 10 Hz ceiling, with one new
+    // character and one raw event per emission, is deliberately conservative.
+    for (let index = 0; index < 4_500; index += 1) {
+      time += 100;
+      text += "x";
+      textarea.value = text;
+      textarea.setSelectionRange(text.length, text.length);
+      textarea.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: "x" }));
+      recorder.captureSamplerFrame(
+        samplerFrame({
+          text,
+          selection_start: text.length,
+          selection_end: text.length,
+          client_ts: time,
+        }),
+      );
+    }
+    recorder.detach();
+
+    const bytes = new TextEncoder().encode(JSON.stringify(recorder.exportBundle())).byteLength;
+    expect(bytes).toBeLessThan(32 * 1024 * 1024);
+  });
+
   it("rejects a clock that regresses instead of distorting recorded timing", () => {
     let time = 1_000;
     const textarea = document.createElement("textarea");

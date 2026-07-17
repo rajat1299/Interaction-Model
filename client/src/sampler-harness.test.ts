@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CALIBRATION_REGIMES } from "./calibration-recorder";
 import {
+  CALIBRATED_INPUT_PROFILE,
+  FROZEN_BURST_GAP_MS,
+} from "./calibrated-input";
+import {
   BASELINE_INPUT_PROFILES,
   DEFAULT_INPUT_SYNTHESIS_ENVIRONMENT,
   synthesizeInputScript,
@@ -9,6 +13,14 @@ import {
 } from "./input-synthesis";
 import { compareSamplerFrameSequences, createSamplerHarness } from "./sampler-harness";
 import type { ClientSnapshotFrame } from "./protocol";
+
+function percentile(values: readonly number[], quantile: number): number {
+  const ordered = [...values].sort((left, right) => left - right);
+  const position = (ordered.length - 1) * quantile;
+  const low = Math.floor(position);
+  const high = Math.ceil(position);
+  return ordered[low]! + (ordered[high]! - ordered[low]!) * (position - low);
+}
 
 describe("sampler harness", () => {
   beforeEach(() => {
@@ -175,6 +187,32 @@ describe("sampler harness", () => {
     );
     expect(custom.environment.sampler_throttle_ms).toBe(customThrottle);
     assertVisible(custom, customThrottle);
+  });
+
+  it("coalesces calibrated typing into two-character sampler deltas without crossing burst boundaries", () => {
+    const deltas: number[] = [];
+    for (const regime of ["copied-or-scripted-typing", "pauses-and-resumptions"] as const) {
+      for (let seed = 0; seed < 8; seed += 1) {
+        const harness = createSamplerHarness({
+          advanceTimersByTime: vi.advanceTimersByTime,
+          sampler_throttle_ms: 100,
+          pause_ms: 1_500,
+        });
+        harness.run(synthesizeInputScript("A compact sampler cadence target.", seed, regime).steps);
+        harness.advance(1_500);
+        for (let index = 1; index < harness.frames.length; index += 1) {
+          deltas.push(harness.frames[index]!.text.length - harness.frames[index - 1]!.text.length);
+        }
+        harness.detach();
+      }
+    }
+
+    expect(percentile(deltas, 0.9)).toBe(2);
+    for (const regime of CALIBRATION_REGIMES) {
+      const profile = CALIBRATED_INPUT_PROFILE.regimes[regime];
+      expect(profile.within_burst_gap_ms.every((milliseconds) => milliseconds < FROZEN_BURST_GAP_MS[regime])).toBe(true);
+      expect(profile.between_burst_gap_ms.every((milliseconds) => milliseconds >= FROZEN_BURST_GAP_MS[regime])).toBe(true);
+    }
   });
 
   it("compares future browser fixtures at an explicit timing tolerance boundary", () => {

@@ -317,3 +317,193 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   rebalanced C5 recipe shapes require runtime validation and focused manual inspection before a
   full 2,000-decision dry run can pass, so WP1-6 exit is not claimed and teacher labeling remains
   stopped.
+
+## 2026-07-15 — G-7 blocker repair design
+
+- Each ordinary response invitation is now an independent terminal counterfactual pair built from
+  one frozen prefix: the open-floor continuation responds, the active-floor continuation emits
+  `idle(awaiting_opening)`, and neither stream continues after that branch. Response-floor shapes
+  therefore use an explicit one-decision packaging exception instead of misrepresenting the rough
+  6–20-decision source-unit target. All regular response contracts bind their visible support to
+  the same invitation event, `e_000002`.
+- The oracle rejects scheduling an interval/message-equivalent active timer unless the later user
+  instruction explicitly asks for another or additional reminder. The rejected timer-cancel
+  recipe now uses explicit additional-reminder wording and must regenerate as a complete stream.
+  Response prose validation also rejects tautological or raw adapter-error echoes; the user-bound
+  `g7-response-failed-tool-05` replacement is accepted only at its exact catalog key and exact
+  text.
+- Composite lookup subjects are permitted in v1. A future prohibition is a deliberate contract
+  change, not a silent generator or lint change. The ambiguity response pool now includes genuine
+  under-specified requests rather than relying only on meta-invitations that name the missing
+  schema field.
+- Changing the response pairs changed every regular teacher-visible prefix, so their drafts were
+  regenerated from exact isolated prefixes rather than carrying forward stale provenance. Against
+  the previously reviewed response artifact, 67 response texts remain byte-identical, the one
+  failed-tool rewrite is the user's exact supplied text, and 22 independently regenerated response
+  texts require focused semantic review. This entry records engineering disposition only; it does
+  not record human approval of the rebuilt streams or responses.
+- The canonical readiness batch keeps globally unique raw sources. Four non-admissible mechanical
+  batches execute the same reviewed response assets again, so those response stream bytes may
+  repeat across batches; the packet states that exception directly. Source identity remains unique
+  within every batch, fresh and checkpoint identities remain globally unique, and timing/master
+  seed identity remains globally unique. The five-batch production run executed 10,000 selected
+  decisions and produced the scoped resubmission packet; its semantic review is still pending.
+
+## 2026-07-16 — G-7 readiness acceptance
+
+- The user approved all 25 scoped streams and all 22 response deltas after byte-level inspection.
+  The acceptance is stored outside the reviewed packet so the approved packet and its checksum
+  inventory remain byte-identical. It binds packet
+  `sha256:0e0cd64f831aeb21085fbc6113c547cec35240131959b21f0821e1d193cd8a14`
+  and checksum inventory
+  `sha256:bb601c2cb85589f874ade18e0bd81c2797065600afdfc0b257fe205520b722c6`.
+- G-7 is accepted. This does not admit TEST readiness evidence to training and does not waive the
+  post-teacher response gate required before template promotion.
+- Two non-blocking notes remain: watch the clipped `I cannot X, but can help Y` limitation frame
+  for convergence during bulk generation; in the v1.1 spec backlog, state that warrant-present
+  direct questions use `awaiting_opening`, while warrant-absent ambiguous control instructions use
+  `ambiguous`. The frozen v1 contract is unchanged.
+
+## 2026-07-16 — C7 calibration engineering ready for real recordings
+
+- The browser harness now has an explicit six-regime calibration mode. Editing remains disabled
+  until the runtime session, local raw-event recorder, and unchanged production sampler start
+  together only after the calibration WebSocket opens. A disconnect invalidates the take and
+  downloads an explicitly incomplete recovery bundle; reconnect never silently resends or dedups
+  calibration frames. Stopping a recording freezes editing and flushes any pending trailing frame
+  before freezing the full recording duration. The browser binds the sampler-frame count and final
+  timestamp to the runtime and downloads the local JSON sidecar only after durable acknowledgment;
+  a failed acknowledgment preserves and recovery-downloads the stopped bundle while allowing the
+  completion acknowledgment to be retried. Invalid or repeated
+  calibration query values fail closed. The sidecar remains calibration-only and outside every
+  corpus/labeling path.
+- Calibration sessions opt into operational `decision_started` / `decision_finished` audits via
+  `POST /session?calibration=true`. Those rows retain ordered ingress identities, pending-snapshot
+  replacement, the exact policy-call busy boundary, and monotonic service timing. The default is
+  off: ordinary runtime and generation retain their prior `action_attempt` row ids and bytes, so
+  the accepted C5/G7 streams and regeneration identities remain frozen. SQLite also persists the
+  random runtime session id used to join the browser sidecar to its policy/queue lane. Completion
+  waits for the bound sampler tail and the actor's own quiescence barrier, freezes timer/tool
+  delivery, and then appends one `calibration_completed` audit. Policy failure stays on the actor
+  path and records `session_runtime_failed`; failed or truncated sessions are inadmissible.
+- The offline analyzer owns verified artifact bytes, deserializes the hash-bound SQLite snapshot
+  in memory, derives synthetic family and perturbation authority only from the bound C6 package
+  manifest, and requires exact package-stream coverage. Reference and synthetic populations use
+  the same raw, sampler, and policy measurement path and D3 tolerance classes. Rare mechanics are
+  coverage gates; missing evidence keeps G1 pending; the total reference duration must be 30–45
+  minutes; and family drift may waive only the closed metrics authorized by each stream's exact C6
+  perturbation declaration. Raw revision metrics use pre-edit cursor/selection state, and sampler
+  load counts every raw event kind observed by the production sampler. Blind review separates a
+  concealed, hash-bound 20-pair A/B assignment from the reviewer judgment and rejects repeated
+  exact trace pairs.
+- Engineering validation is green: 816 Python tests, repository Ruff, 46 client tests, and the
+  TypeScript/Vite production build. This is not a G1 or G4 claim. G1 still needs the user's
+  30–45-minute six-regime reference recording, synthetic replays for an exact packaged batch, and
+  the blinded 20-pair judgment; G4 still needs independent real-browser sampler-equivalence
+  evidence. Calibration recordings remain local validation data and are never admitted to
+  training.
+
+## 2026-07-16 — C7 calibration policy isolated from paid inference
+
+- Two natural-drafting attempts through the live prompted entrypoint reached policy decisions 114
+  and 121 before provider TPM 429 failures. The browser recovery path preserved 852 and 847 sampler
+  frames respectively, but neither runtime completed; both takes are inadmissible for G1. With the
+  user's authorization, the exact recovery downloads are retained under
+  `review/phase1/calibration-failures/` as transport-failure fixtures only, bound by SHA-256 and
+  excluded from calibration analysis, labeling, and training.
+- Human calibration now has a dedicated zero-network entrypoint. Its deterministic policy always
+  emits `idle(no_trigger)` and samples each decision's service time from the frozen D1 core table
+  using a versioned SHA-256 named stream. The runtime persists the policy, network, profile, RNG,
+  and seed identity, and the offline analyzer rejects reference sessions without that exact
+  provenance. No API key or WP13 dry run is involved.
+- The paid WP13 entrypoint fails closed on `?calibration=true`, and the calibration entrypoint fails
+  closed on ordinary session creation. Timer/tool conditional queue measurements remain a separate
+  deterministic external-event calibration workload; they do not justify live policy calls.
+- Reference admission also rejects any provider-call trace, non-idle attempt, committed model
+  action, missing or mismatched decision draw, non-exact provenance integer, or completion that
+  precedes its final attempt. The final focused thermo-nuclear review approved the zero-network
+  provenance chain with no blockers. Validation is green: 829 Python tests, repository Ruff, 46
+  client tests, and the TypeScript/Vite production build.
+
+## 2026-07-16 — G-1 Rajat-profile refit finding and admission hardening
+
+- The single D3-sanctioned refit materialized 417 deterministic browser/runtime pairs from the
+  approved G7 source package with the zero-network latency stub. It made no provider calls. The
+  fitted population fails the preregistered global comparison on five metrics: backspace-run
+  length, revision locality, per-snapshot text-length change, cursor position, and policy decision
+  opportunities per minute. All six regime comparisons also fail at least one metric. This is a
+  valid engineering finding that the fitted generator did not match the recorded Rajat profile;
+  it is not evidence that Rajat's typing speed, correction rate, or locality mix is a universal
+  user distribution, and decision opportunities are not model actions.
+- The most actionable simulator defect is revision locality: the generated population's median
+  and p90 edit distances are 72 and 290 characters, versus 12 and 120 in the recording. Future
+  profile design should weight nearby edits most heavily, retain ordinary word and two-to-three-
+  line corrections, and keep far-document jumps as a genuine minority. Backspace frequency and
+  typing/decision cadence likewise belong to explicit user strata rather than one universal fit.
+  Replacing the frozen single-recording benchmark with a deployment mixture is a D3 contract
+  amendment for adjudication, not a silent post-hoc change to this run.
+- The fitted-v1 evidence is deliberately non-admissible as final G-1 proof. Its legacy v3 manifest
+  did not bind the complete executable browser/runtime producer identity, and human source
+  acceptance covers 25 of the 417 materialized stream identities. The analyzer now verifies exact
+  latency-stub draws and zero provider calls for both populations, treats legacy v3 evidence as
+  read-only/non-eligible, and requires future v4 manifests to bind closed source inventories,
+  dependency graphs, tool/runtime versions, and drift checks from preflight through final seal.
+  Source authority remains 25/417 pending; global quantitative failure remains visible beneath the
+  admission verdict.
+- The calibration core is split by ownership: manifest/admission, browser and SQLite evidence,
+  metric computation, and report orchestration. The blind protocol consumes the public evidence
+  object and accepts only future v4-admissible synthetic evidence. Family semantic evidence passes
+  for 331 streams and 2,605 decisions; family typing drift is explicitly not evaluable because the
+  G7 package has no raw DOM/sampler or SQLite decision-boundary evidence. The external timer/tool
+  workload passes separately and cannot turn denominator-free calibration metrics into passes.
+- The corrected report is `calibration-synthetic-fitted-v1/report-adjudicated-v2.json` (SHA-256
+  `16d9e9015c6de2c8e33a8db51a7fce714e051945a0f90cd6e3ac6e78900a1dee`). It separates the
+  measured result (`distribution_match_verdict: fail`) from evidence admission
+  (`evidence_admission_verdict: not_eligible`) and labels the run an adjudicated finding rather
+  than final evidence. The overall G-1 verdict remains `not_eligible`; the blind packet is
+  withheld, G-4 remains unmeasured, and no second refit or population run is authorized before
+  the benchmark and full-source-authority questions are resolved.
+
+## 2026-07-16 — Phase 1 closeout directive
+
+- The project owner accepted the fitted-v1 distribution mismatch as an actionable synthesizer
+  finding and superseded the prior handoff's proposed next steps. The evidence-admission program,
+  v4 manifest work, source-authority expansion, blind-packet withholding, and benchmark-mixture
+  proposal are terminated. A process freeze now prohibits new gates, manifest schemas, reviewer
+  lanes, admission taxonomies, and report versions; new findings are recorded as prose.
+- One final refit is authorized after the named synthesizer fix. Policy/queue metrics, including
+  decision opportunities per minute, must pass outright. Revision locality, backspace-run length,
+  and per-snapshot text-length change must also pass without widened bands. Other raw or sampler
+  residuals may be accepted only with one policy-impact sentence each in the final phase report.
+  A result outside that policy stops the work without another tuning iteration.
+- The frozen reference profile has six regimes represented by seven usable recording sessions.
+  Cursor-and-selection has two sessions because the first alone was below the duration target.
+  Their session boundaries remain intact and their observations are pooled at the regime layer;
+  no synthetic concatenated session is introduced.
+- Work continues in the existing dirty `codex/phase-1` workspace by project-owner instruction.
+  Existing unrelated changes remain preserved. Before the synthesizer fix, the focused client
+  baseline passed 22 tests across `input-synthesis.test.ts` and
+  `calibration-synthetic.test.ts`.
+
+## 2026-07-16 — Phase 1 closeout input synthesizer slice 1a
+
+- Initial RED: `cd client && npm test -- --run src/input-synthesis.test.ts
+  src/calibration-synthetic.test.ts src/sampler-harness.test.ts` produced the intended four
+  failures: the uniform selector gave multiline edit-locality p50 of 747 (limit 64), both frozen
+  revision/cursor raw backspace tails were absent, and sampler text-delta p90 was 1 rather than 2.
+- Correction RED: the ordered-selection regression failed against the first selector implementation:
+  word-near consecutive moves were 48.56%, below the required majority. Its tail-relative anchor
+  therefore did not represent the latest edit.
+- GREEN: the same focused command passes 30 tests; `cd client && npm run build` passes
+  `tsc` and Vite; `./.venv/bin/python -m pytest -q tests/test_generation_calibration.py`
+  passes 34 tests. The direct system `pytest` command lacked the local `im` import path, so the
+  repository virtual environment was used for the required analyzer-fixture check.
+- Revision and cursor edit positions now update the selector anchor to the latest edit's scalar end
+  boundary, preserve scalar boundaries, retain a small uniform far-jump mode, and restore the
+  frozen backspace tails. Cadence grids keep every frozen burst boundary intact while exercising
+  two-character sampler deltas. No population generation or final refit was run; policy-band and
+  p50/p90 acceptance status remain unclaimed.
+- Review cleanup replaced the ordered-selection test helper's repeated suffix scans with one
+  pending-selection pass, documented the local/line/far mix beside the selector, and reused its
+  scalar-boundary table in the cursor path. The focused 30-test command and client build remain
+  green; production behavior is unchanged, so the analyzer fixture was not rerun.
