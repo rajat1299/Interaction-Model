@@ -450,7 +450,7 @@ def test_raw_revisions_use_ordered_edit_state_and_input_variants() -> None:
     assert metrics["raw.revision_locality_chars"].values[:2] == [4.0, 3.0]
 
 
-def test_revision_placement_excludes_only_declared_look_back_locality() -> None:
+def test_revision_placement_accepts_and_excludes_contiguous_transaction() -> None:
     def event(
         ordinal: int,
         kind: str,
@@ -477,8 +477,8 @@ def test_revision_placement_excludes_only_declared_look_back_locality() -> None:
         event(2, "input", "x" * 101, 99, input_type="insertText", data="x"),
         event(3, "selectionchange", "x" * 101, 10),
         event(4, "input", "x" * 100, 10, input_type="deleteContentBackward"),
-        event(5, "selectionchange", "x" * 100, 10),
-        event(6, "input", "x" * 101, 11, input_type="insertText", data="x"),
+        event(5, "selectionchange", "x" * 100, 100),
+        event(6, "input", "x" * 101, 101, input_type="insertText", data="x"),
         event(7, "selectionchange", "x" * 101, 101),
         event(8, "input", "x" * 100, 100, input_type="deleteContentBackward"),
     ]
@@ -500,11 +500,54 @@ def test_revision_placement_excludes_only_declared_look_back_locality() -> None:
         },
         raw,
     )
+    assert excluded == frozenset({4, 6})
     _raw_metrics(metrics, raw, CALIBRATION_REGIMES[0], excluded)
 
     assert metrics["raw.revision_immediate_count"].values == [2.0]
     assert metrics["raw.revision_look_back_count"].values == [1.0]
     assert metrics["raw.revision_locality_chars"].values == [2.0, 0.0]
+    assert metrics["raw.burst_length_chars"].values == [1.0]
+    assert (metrics["raw.revision_rate"].numerator, metrics["raw.revision_rate"].denominator) == (
+        2,
+        2,
+    )
+
+
+def test_revision_placement_rejects_interrupted_transaction() -> None:
+    raw = [
+        {
+            "ordinal": ordinal,
+            "relative_ms": ordinal,
+            "kind": "input",
+            "input_type": input_type,
+            "data": "x" if input_type == "insertText" else None,
+            "text": "x",
+            "selection_start": 0,
+            "selection_end": 0,
+            "is_composing": False,
+        }
+        for ordinal, input_type in enumerate(
+            ("deleteContentBackward", "insertText", "deleteContentBackward"), start=1
+        )
+    ]
+    with pytest.raises(CalibrationError, match="contiguous revision transaction"):
+        _annotate_revision_placement(
+            _metrics(),
+            {
+                "timing": {
+                    "split": "train",
+                    "seed_id": "timing/train/string:test",
+                    "revision": {
+                        "immediate_count": 0,
+                        "look_back_count": 1,
+                        "look_back_input_ordinal_ranges": [
+                            {"start_ordinal": 1, "end_ordinal": 3}
+                        ],
+                    },
+                }
+            },
+            raw,
+        )
 
 
 def test_revision_placement_rejects_overlapping_ranges() -> None:
@@ -624,6 +667,42 @@ def test_sampler_counts_every_observed_raw_activity_kind() -> None:
         ],
     )
     assert metrics["sampler.raw_input_changes_per_snapshot"].values == [5.0, 0.0]
+
+
+def test_sampler_excludes_declared_transaction_members_from_raw_change_count() -> None:
+    raw = [{"ordinal": ordinal, "kind": "input"} for ordinal in (1, 3, 5, 7)]
+
+    def frame(ordinal: int, text: str) -> dict[str, object]:
+        return {
+            "ordinal": ordinal,
+            "relative_ms": ordinal,
+            "frame": {
+                "text": text,
+                "selection_start": len(text),
+                "selection_end": len(text),
+                "is_composing": False,
+                "input_type": "insertText",
+                "activity": "active",
+                "client_ts": ordinal,
+            },
+        }
+
+    metrics = _metrics()
+    _sampler_metrics(
+        metrics,
+        raw,
+        [
+            frame(2, "a"),
+            frame(4, ""),
+            frame(6, "x"),
+            frame(8, "xy"),
+        ],
+        frozenset({3, 5}),
+    )
+    assert metrics["sampler.raw_input_changes_per_snapshot"].values == [1.0, 1.0]
+    assert metrics["sampler.text_length_delta_chars"].values == [1.0]
+    assert metrics["sampler.edit_insert_rate"].denominator == 2
+    assert metrics["sampler.cursor_position_utf16"].values == [1.0, 2.0]
 
 
 def test_runtime_rejects_missing_completion_audit(tmp_path: Path) -> None:

@@ -645,3 +645,41 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   client suite/build, profile reproducibility check, Ruff, and diff checks are green. No final
   population or analyzer verification has run yet; the single authorized verification remains
   unconsumed.
+
+## 2026-07-17 — Trace population complete; analyzer stopped on range semantics
+
+- The single trace-resampled population completed with 417 records, the frozen balanced regime
+  allocation, train-slice timing material, producer commit
+  `6b1b4a8b9f2bce9f26e79b90d09883ad3e9ea14c`, and a fully verified `SHA256SUMS` inventory.
+- The authorized analyzer was invoked once and stopped before writing a report because a designed
+  look-back ordinal range contained raw inputs that the analyzer did not classify individually as
+  revisions. Read-only localization found 16 affected ranges across 15 streams: 15 ranges in
+  revision-heavy writing and one in cursor/selection edits.
+- Every affected transaction begins with a classified `deleteContentBackward` revision. The
+  rejected members are 39 subsequent `insertText` events inside those same inclusive correction
+  ranges; after the deletion, those insertions occur at the temporary document end and therefore
+  do not satisfy the analyzer's event-level revision predicate. The generator records an inclusive
+  correction transaction while the analyzer assertion requires every constituent input to be an
+  event-level revision.
+- No quantitative report was created. The analyzer has not been rerun, no metric or population was
+  tuned, and blind replay and provider-backed teacher execution remain unstarted pending the
+  project owner's stop-rule decision.
+
+## 2026-07-17 — Analyzer transaction contract authorized
+
+- Analyzer contract: insertions belonging to a revision transaction whose first event is a
+  validated revision are accepted as transaction members for validation, contiguity is required,
+  and those transaction members are excluded from all metric observations; the population, bands,
+  timing, and metric definitions remain frozen.
+- The authorization permits one minimal contract fix and one replacement analyzer run within the
+  existing timebox. A replacement failure for any new reason closes Phase 1 under Option B with the
+  failure documented; no additional population, tuning, band, timing, or metric change is allowed.
+- The implementation validates each range as a contiguous input transaction whose first member is
+  an event-level revision and whose later members are `insertText`. Its exact member ordinals are
+  removed from raw observations; sampler frames receiving any of those inputs since the preceding
+  frame advance internal comparison state but emit no observations, preventing the transaction's
+  delta from leaking into the next ordinary frame. Policy evidence and all metric formulas remain
+  unchanged.
+- Fifty-seven calibration and cleanup tests pass, Ruff and diff checks pass, and the independent
+  thermo-nuclear review approved the final contract implementation after its sampler-frame
+  exclusion finding was repaired. The replacement analyzer run remains unconsumed at this point.

@@ -153,9 +153,16 @@ def _raw_metrics(
     metrics: dict[str, MetricData],
     raw: list[dict[str, object]],
     regime: str,
-    excluded_revision_locality_ordinals: frozenset[int] = frozenset(),
+    excluded_input_ordinals: frozenset[int] = frozenset(),
 ) -> None:
-    events = sorted(raw, key=lambda item: int(item["ordinal"]))
+    events = sorted(
+        (
+            item
+            for item in raw
+            if int(item["ordinal"]) not in excluded_input_ordinals
+        ),
+        key=lambda item: int(item["ordinal"]),
+    )
     inputs = [item for item in events if item["kind"] == "input"]
     burst_gap_ms = BURST_GAP_MS[regime]
     gaps = [
@@ -196,7 +203,6 @@ def _raw_metrics(
             if previous is not None
             else utf16_len(str(item["text"])) - int(item["selection_end"])
             for item, previous in revision_items
-            if int(item["ordinal"]) not in excluded_revision_locality_ordinals
         ),
     )
     metrics.observe(
@@ -253,13 +259,20 @@ def _raw_metrics(
 
 
 def _sampler_metrics(
-    metrics: dict[str, MetricData], raw: list[dict[str, object]], frames: list[dict[str, object]]
+    metrics: dict[str, MetricData],
+    raw: list[dict[str, object]],
+    frames: list[dict[str, object]],
+    excluded_input_ordinals: frozenset[int] = frozenset(),
 ) -> None:
     frames = sorted(frames, key=lambda item: int(item["ordinal"]))
-    raw_events = raw
+    raw_events = [
+        item for item in raw if int(item["ordinal"]) not in excluded_input_ordinals
+    ]
     previous: SnapshotState | None = None
     previous_activity: str | None = None
     last_ordinal = 0
+    excluded_ordinals = sorted(excluded_input_ordinals)
+    excluded_index = 0
     edit_names = {
         EditKind.INSERT: "sampler.edit_insert_rate",
         EditKind.DELETE: "sampler.edit_delete_rate",
@@ -277,50 +290,62 @@ def _sampler_metrics(
             int(payload["selection_end"]),
             bool(payload["is_composing"]),
         )
-        if previous is not None:
-            metrics.observe(
-                "sampler.snapshot_dt_ms",
-                [float(item["relative_ms"]) - float(frames[index - 1]["relative_ms"])],
-            )
-            metrics.observe(
-                "sampler.text_length_delta_chars",
-                [utf16_len(current.text) - utf16_len(previous.text)],
-            )
-            metrics.rate("sampler.unchanged_snapshot_rate", int(current.text == previous.text), 1)
-            metrics.observe(
-                "sampler.cursor_distance_utf16",
-                [abs(current.selection_start_utf16 - previous.selection_start_utf16)],
-            )
-        edit = derive_edit_kind(
-            previous,
-            current,
-            payload["input_type"] if isinstance(payload["input_type"], str) else None,
-        )
-        for kind, name in edit_names.items():
-            metrics.rate(name, int(edit is kind), 1)
-        activity = str(payload["activity"])
-        metrics.rate("sampler.active_rate", int(activity == Activity.ACTIVE.value), 1)
-        if previous_activity is not None:
-            for before in Activity:
-                for after in Activity:
-                    name = f"sampler.{before.value}_to_{after.value}_rate"
-                    metrics.rate(
-                        name,
-                        int((previous_activity, activity) == (before.value, after.value)),
-                        1,
-                    )
-        metrics.observe("sampler.cursor_position_utf16", [current.selection_start_utf16])
-        metrics.observe(
-            "sampler.selection_length_utf16",
-            [current.selection_end_utf16 - current.selection_start_utf16],
-        )
-        metrics.rate("sampler.composing_rate", int(current.is_composing), 1)
         ordinal = int(item["ordinal"])
-        metrics.observe(
-            "sampler.raw_input_changes_per_snapshot",
-            [sum(last_ordinal < int(raw_item["ordinal"]) < ordinal for raw_item in raw_events)],
+        while (
+            excluded_index < len(excluded_ordinals)
+            and excluded_ordinals[excluded_index] <= last_ordinal
+        ):
+            excluded_index += 1
+        observe_frame = not (
+            excluded_index < len(excluded_ordinals)
+            and excluded_ordinals[excluded_index] < ordinal
         )
-        metrics["sampler.composition_coverage"].seen |= current.is_composing
+        activity = str(payload["activity"])
+        if observe_frame:
+            if previous is not None:
+                metrics.observe(
+                    "sampler.snapshot_dt_ms",
+                    [float(item["relative_ms"]) - float(frames[index - 1]["relative_ms"])],
+                )
+                metrics.observe(
+                    "sampler.text_length_delta_chars",
+                    [utf16_len(current.text) - utf16_len(previous.text)],
+                )
+                metrics.rate(
+                    "sampler.unchanged_snapshot_rate", int(current.text == previous.text), 1
+                )
+                metrics.observe(
+                    "sampler.cursor_distance_utf16",
+                    [abs(current.selection_start_utf16 - previous.selection_start_utf16)],
+                )
+            edit = derive_edit_kind(
+                previous,
+                current,
+                payload["input_type"] if isinstance(payload["input_type"], str) else None,
+            )
+            for kind, name in edit_names.items():
+                metrics.rate(name, int(edit is kind), 1)
+            metrics.rate("sampler.active_rate", int(activity == Activity.ACTIVE.value), 1)
+            if previous_activity is not None:
+                for before in Activity:
+                    for after in Activity:
+                        name = f"sampler.{before.value}_to_{after.value}_rate"
+                        metrics.rate(
+                            name,
+                            int((previous_activity, activity) == (before.value, after.value)),
+                            1,
+                        )
+            metrics.observe("sampler.cursor_position_utf16", [current.selection_start_utf16])
+            metrics.observe(
+                "sampler.selection_length_utf16",
+                [current.selection_end_utf16 - current.selection_start_utf16],
+            )
+            metrics.rate("sampler.composing_rate", int(current.is_composing), 1)
+            metrics.observe(
+                "sampler.raw_input_changes_per_snapshot",
+                [sum(last_ordinal < int(raw_item["ordinal"]) < ordinal for raw_item in raw_events)],
+            )
+            metrics["sampler.composition_coverage"].seen |= current.is_composing
         previous, previous_activity, last_ordinal = current, activity, ordinal
 
 
@@ -412,24 +437,25 @@ def _annotate_revision_placement(
         return frozenset()
     revision = parse_timing_annotation(timing).revision
     events = sorted(raw, key=lambda item: int(item["ordinal"]))
-    input_ordinals = {
-        int(item["ordinal"]) for item in events if item["kind"] == "input"
-    }
+    inputs = [item for item in events if item["kind"] == "input"]
+    input_indexes = {int(item["ordinal"]): index for index, item in enumerate(inputs)}
     revision_ordinals = {
         int(item["ordinal"]) for item, _previous in _revision_items(events)
     }
     excluded: set[int] = set()
     for item in revision.look_back_input_ordinal_ranges:
         start, end = item.start_ordinal, item.end_ordinal
-        if (
-            start not in input_ordinals
-            or end not in input_ordinals
-        ):
+        if start not in input_indexes or end not in input_indexes:
             raise CalibrationError("materialization look-back range escapes input")
-        admitted = {ordinal for ordinal in input_ordinals if start <= ordinal <= end}
-        if not admitted or not admitted <= revision_ordinals:
+        start_index, end_index = input_indexes[start], input_indexes[end]
+        admitted = inputs[start_index : end_index + 1]
+        if not admitted or int(admitted[0]["ordinal"]) not in revision_ordinals:
             raise CalibrationError("materialization look-back range contains nonrevision input")
-        excluded.update(admitted)
+        if any(member["input_type"] != "insertText" for member in admitted[1:]):
+            raise CalibrationError(
+                "materialization look-back range is not a contiguous revision transaction"
+            )
+        excluded.update(int(member["ordinal"]) for member in admitted)
     metrics.observe("raw.revision_immediate_count", [revision.immediate_count])
     metrics.observe("raw.revision_look_back_count", [revision.look_back_count])
     return frozenset(excluded)
@@ -454,7 +480,7 @@ def extract_record_metrics(record: CalibrationRecord) -> dict[str, MetricData]:
             raise CalibrationError("materialization recipe must be an object")
     excluded = _annotate_revision_placement(metrics, materialization, raw)
     _raw_metrics(metrics, raw, record.regime, excluded)
-    _sampler_metrics(metrics, raw, frames)
+    _sampler_metrics(metrics, raw, frames, excluded)
     _policy_metrics(metrics, load_runtime_evidence(record, capture), duration_ms)
     return metrics
 
