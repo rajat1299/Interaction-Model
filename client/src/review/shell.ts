@@ -35,9 +35,9 @@ import {
   type ReviewRecord,
 } from "./review-sidecar";
 import {
-  actionsAreCausallyEquivalent,
   lookupTeacherLabel,
   parseTeacherLabels,
+  teacherReviewStatus,
   type TeacherLabelMap,
 } from "./teacher-labels";
 import type { Action, LoadedPacket, SidecarDecision } from "./types";
@@ -162,7 +162,7 @@ function stopPlayback(): void {
   btn.setAttribute("aria-pressed", "false");
 }
 
-function teacherOracleDisagreement(
+function teacherOracleNeedsReview(
   streamSha: string,
   dec: SidecarDecision,
 ): boolean {
@@ -171,7 +171,7 @@ function teacherOracleDisagreement(
     streamKey(streamSha),
     dec.observed_policy_seq,
   );
-  return Boolean(label && !actionsAreCausallyEquivalent(label.action, dec.action));
+  return Boolean(label && teacherReviewStatus(label, dec.action) !== "causally_equivalent");
 }
 
 function rebuildQueue(): void {
@@ -181,7 +181,7 @@ function rebuildQueue(): void {
   }
   const disagreementKeys = collectDisagreementKeys(
     state.index.packet.streams,
-    teacherOracleDisagreement,
+    teacherOracleNeedsReview,
   );
   state.queue = buildStreamQueue(
     state.index.packet.streams,
@@ -280,7 +280,7 @@ function progressCounts(): {
   let unresolvedDisagreements = 0;
   const disagreementKeys = collectDisagreementKeys(
     state.index.packet.streams,
-    teacherOracleDisagreement,
+    teacherOracleNeedsReview,
   );
   for (const sha of state.index.order) {
     const key = recordKey({
@@ -411,9 +411,17 @@ function renderAll(): void {
       streamKey(indexed.stream.sha256),
       decision.observed_policy_seq,
     );
-    teacherBox.textContent = label
-      ? `Teacher (${actionsAreCausallyEquivalent(label.action, decision.action) ? "causally equivalent" : "CAUSAL DISAGREEMENT"}): ${JSON.stringify(label)}`
-      : "Teacher label not loaded.";
+    if (!label) {
+      teacherBox.textContent = "Teacher label not loaded.";
+    } else {
+      const status = teacherReviewStatus(label, decision.action);
+      const display = {
+        causal_disagreement: "CAUSAL DISAGREEMENT",
+        causally_equivalent: "causally equivalent",
+        semantic_review_required: "SEMANTIC REVIEW REQUIRED",
+      }[status];
+      teacherBox.textContent = `Teacher (${display}): ${JSON.stringify(label)}`;
+    }
   } else {
     teacherBox.textContent = "Teacher label not loaded.";
   }

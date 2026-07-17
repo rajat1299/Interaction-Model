@@ -25,6 +25,11 @@ export type TeacherLabel = {
 
 export type TeacherLabelMap = Map<string, TeacherLabel>;
 
+export type TeacherReviewStatus =
+  | "causally_equivalent"
+  | "semantic_review_required"
+  | "causal_disagreement";
+
 export type TeacherLabelImportResult =
   | { ok: true; labels: TeacherLabelMap }
   | { ok: false; errors: string[]; partial: TeacherLabelMap };
@@ -112,4 +117,25 @@ export function actionsAreCausallyEquivalent(teacher: Action, oracle: Action): b
     return teacher.reply_to_event_id === oracle.reply_to_event_id;
   }
   return canon(teacher) === canon(oracle);
+}
+
+/**
+ * Fail closed across the normalized runner/UI boundary. Causal mismatches always
+ * require review; same-reference integrate/respond wording is queued when the
+ * runner explicitly marks it for semantic review.
+ */
+export function teacherReviewStatus(
+  label: TeacherLabel,
+  oracle: Action,
+): TeacherReviewStatus {
+  if (!actionsAreCausallyEquivalent(label.action, oracle)) {
+    return "causal_disagreement";
+  }
+  if (label.label === "causal_disagreement") {
+    return "causal_disagreement";
+  }
+  if (label.label === "semantic_review_required") {
+    return "semantic_review_required";
+  }
+  return "causally_equivalent";
 }

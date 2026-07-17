@@ -3,6 +3,7 @@ import {
   actionsAreCausallyEquivalent,
   lookupTeacherLabel,
   parseTeacherLabels,
+  teacherReviewStatus,
 } from "./teacher-labels";
 import type { Action } from "./types";
 
@@ -50,6 +51,41 @@ describe("D2 causal action equivalence", () => {
         { type: "respond", reply_to_event_id: "e_2", text: "Another wording" },
       ),
     ).toBe(true);
+  });
+
+  it("routes same-reference wording changes through semantic review", () => {
+    const oracle: Action = {
+      type: "integrate",
+      result_event_id: "e_1",
+      text: "Oracle wording",
+    };
+    const teacher: Action = {
+      type: "integrate",
+      result_event_id: "e_1",
+      text: "Teacher wording",
+    };
+    expect(
+      teacherReviewStatus(
+        {
+          stream_sha256: STREAM,
+          decision_policy_seq: 7,
+          action: teacher,
+          label: "semantic_review_required",
+        },
+        oracle,
+      ),
+    ).toBe("semantic_review_required");
+    expect(
+      teacherReviewStatus(
+        {
+          stream_sha256: STREAM,
+          decision_policy_seq: 7,
+          action: oracle,
+          label: "causally_equivalent",
+        },
+        oracle,
+      ),
+    ).toBe("causally_equivalent");
   });
 
   it("rejects action-type, causal-reference, idle-reason, and state-payload changes", () => {

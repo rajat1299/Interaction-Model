@@ -775,3 +775,10 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   estimate is 4,247,416 input plus 79,500 expected output tokens at `$5.9055200` Batch cost; no
   provider call had been performed at this log point. Execution emits both the complete comparison
   and a normalized WP1-8 teacher-label JSONL using the same D2 equivalence rule.
+- The runner review clarified the D2 wording boundary before execution: an exact
+  `integrate`/`respond` action can auto-clear, but a same-reference action with different text is
+  emitted as `semantic_review_required` and must remain unresolved for human grading. The shell now
+  queues and prioritizes that label separately from a causal mismatch, preserves it under the same
+  teacher-evidence-bound draft identity, and displays `SEMANTIC REVIEW REQUIRED` at the exact
+  decision. The full client suite is 111/111, the production build is green, and the independent
+  thermo-nuclear recheck approved the handoff. No provider call was made during this repair.

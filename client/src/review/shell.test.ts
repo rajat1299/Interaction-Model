@@ -94,6 +94,54 @@ describe("review shell", () => {
     );
   });
 
+  it("queues same-reference teacher wording for semantic review", async () => {
+    const result = await loadPacketFromEntries(loadCanaryEntries());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const target = result.packet.streams.find((stream) =>
+      stream.sidecar.decisions.some(({ action }) =>
+        action.type === "integrate" || action.type === "respond",
+      ),
+    );
+    expect(target).toBeTruthy();
+    if (!target) return;
+    const targetDecision = target.sidecar.decisions.find(({ action }) =>
+      action.type === "integrate" || action.type === "respond",
+    );
+    expect(targetDecision).toBeTruthy();
+    if (!targetDecision || (targetDecision.action.type !== "integrate" && targetDecision.action.type !== "respond")) return;
+    const teacherAction = { ...targetDecision.action, text: "Teacher wording requiring review." };
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(result.packet);
+    expect(
+      await loadTeacherLabelsText(
+        JSON.stringify({
+          stream_sha256: `sha256:${target.sha256}`,
+          decision_policy_seq: targetDecision.observed_policy_seq,
+          action: teacherAction,
+          label: "semantic_review_required",
+        }),
+      ),
+    ).toBeNull();
+
+    const button = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")].find(
+      (item) => item.textContent?.includes(target.sha256.slice(0, 10)),
+    );
+    expect(button).toBeTruthy();
+    button!.click();
+    const oracle = JSON.parse(document.getElementById("inspect-oracle")!.textContent!);
+    expect(oracle.observed_policy_seq).toBe(targetDecision.observed_policy_seq);
+    expect(document.getElementById("teacher-panel")!.textContent).toContain(
+      "SEMANTIC REVIEW REQUIRED",
+    );
+    expect(document.getElementById("progress")!.textContent).toContain(
+      "unresolved disagreements: 1",
+    );
+  });
+
   it("persists a packet-keyed draft and guards unexported work", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
