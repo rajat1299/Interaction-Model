@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 1 blind replay viewer</title>
+<style>
+body{font:16px system-ui,sans-serif;max-width:1200px;margin:2rem auto;padding:0 1rem;color:#18212f}button,input,select{font:inherit}#pairs{display:flex;flex-wrap:wrap;gap:.4rem;margin:1rem 0}.selected{background:#183b5b;color:white}.controls{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;border:1px solid #bdc7d3;border-radius:.5rem}.controls input{flex:1;min-width:16rem}.sides{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.side{border:1px solid #bdc7d3;border-radius:.5rem;padding:1rem}.state{font-size:.85rem;color:#4c5a68}.text{min-height:15rem;max-height:28rem;overflow:auto;background:#17202b;color:#d6e3ef;padding:1rem;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:.25rem}.selection{background:#ffd75e;color:#17202b}.caret{border-left:3px solid #ffd75e;margin-left:-1px}@media(max-width:760px){.sides{grid-template-columns:1fr}}</style>
+<main>
+<h1>Phase 1 blind replay viewer</h1>
+<p>Non-binding documentation. Load <code>public-blinded-pairs.json</code>; each trace is text-redacted.</p>
+<input id="file" type="file" accept="application/json,.json">
+<div id="pairs"></div>
+<fieldset id="controls" class="controls" disabled><legend>Replay</legend><button id="play" type="button">Play</button><button id="pause" type="button">Pause</button><button id="restart" type="button">Restart</button><label>Speed <select id="speed"><option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option><option value="2">2&times;</option><option value="4">4&times;</option></select></label><input id="timeline" type="range" min="0" value="0" step="1" aria-label="Replay time"><output id="clock">0.000 s</output></fieldset>
+<div id="content"></div>
+</main>
+<script>
+let packet,current=0,clock=0,playing=false,lastTick=0,animation=0;
+const el=id=>document.getElementById(id);
+const trace=name=>packet.pairs[current][`side_${name.toLowerCase()}`];
+const duration=()=>Math.max(trace("A").duration_ms,trace("B").duration_ms);
+function frameAt(value,time){let index=0;while(index+1<value.frames.length&&value.frames[index+1].relative_ms<=time)index++;return value.frames[index]}
+function paint(name,frame){const text=el(`text-${name}`),mark=document.createElement("span"),start=frame.selection_start,end=frame.selection_end;mark.className=start===end?"caret":"selection";mark.textContent=start===end?"\u200b":frame.text.slice(start,end);text.replaceChildren(document.createTextNode(frame.text.slice(0,start)),mark,document.createTextNode(frame.text.slice(end)));}
+function draw(name){const value=trace(name),frame=frameAt(value,clock);el(`state-${name}`).textContent=`frame ${frame.frame_index}/${value.frame_count} | ${frame.relative_ms} ms | selection ${frame.selection_start}\u2013${frame.selection_end} | ${frame.input_type||"no input"} | ${frame.activity}`;paint(name,frame)}
+function setClock(value){clock=Math.max(0,Math.min(Number(value),duration()));el("timeline").value=clock;el("clock").textContent=`${(clock/1000).toFixed(3)} s`;draw("A");draw("B")}
+function pause(){playing=false;cancelAnimationFrame(animation);el("play").disabled=false}
+function restart(){pause();setClock(0)}
+function tick(now){if(!playing)return;setClock(clock+(now-lastTick)*Number(el("speed").value));lastTick=now;if(clock>=duration())pause();else animation=requestAnimationFrame(tick)}
+function play(){if(playing)return;if(clock>=duration())setClock(0);playing=true;lastTick=performance.now();el("play").disabled=true;animation=requestAnimationFrame(tick)}
+function side(name){return `<section class="side"><h2>Side ${name}</h2><p class="state" id="state-${name}"></p><pre class="text" id="text-${name}"></pre></section>`}
+function render(){pause();const pair=packet.pairs[current];el("pairs").innerHTML=packet.pairs.map((item,index)=>`<button type="button" class="${index===current?"selected":""}" data-pair="${index}">${item.pair_id}</button>`).join("");el("content").innerHTML=`<p><strong>${pair.pair_id}</strong> \u00b7 ${pair.regime}</p><div class="sides">${side("A")}${side("B")}</div>`;el("controls").disabled=false;el("timeline").max=Math.ceil(duration());document.querySelectorAll("[data-pair]").forEach(button=>button.onclick=()=>{current=+button.dataset.pair;clock=0;render();setClock(0)});setClock(clock)}
+function load(value){packet=typeof value==="string"?JSON.parse(value):value;if(!packet.blinded||!Array.isArray(packet.pairs)||!packet.pairs.length||packet.pairs.some(pair=>![pair.side_a,pair.side_b].every(side=>side&&side.frame_count===side.frames.length&&side.frames.length)))throw Error("not a blind replay packet");current=0;clock=0;render()}
+el("play").onclick=play;el("pause").onclick=pause;el("restart").onclick=restart;el("timeline").oninput=event=>{pause();setClock(event.target.value)};
+el("file").onchange=event=>event.target.files[0].text().then(load).catch(error=>alert(error.message));
+window.__blindReplay={load,play,pause,restart,seek:setClock,state:()=>({clock,playing,current})};
+</script>
+</html>

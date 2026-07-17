@@ -1,0 +1,440 @@
+{
+  "format_version": "phase1-blind-replay-private/v1",
+  "non_binding": true,
+  "pairs": [
+    {
+      "pair_id": "P01",
+      "recorded": {
+        "end_frame_index": 533,
+        "end_ms": 221852.1,
+        "runtime_session_id": "s_09f2e78b310547449e5508b85a6c8ad8",
+        "source_path": "review/phase1/calibration-reference/sessions/s_09f2e78b310547449e5508b85a6c8ad8/browser.json",
+        "start_frame_index": 495,
+        "start_ms": 212374.7
+      },
+      "recorded_side": "A",
+      "regime": "pauses-and-resumptions",
+      "synthetic": {
+        "end_frame_index": 420,
+        "end_ms": 207033.0,
+        "runtime_session_id": "c7-calibration-2223b066bf43088c4f90826679a35c9acec071e3d9bb144b6661a513b06f5bc2",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-2223b066bf43088c4f90826679a35c9acec071e3d9bb144b6661a513b06f5bc2.json",
+        "start_frame_index": 391,
+        "start_ms": 197105.0
+      }
+    },
+    {
+      "pair_id": "P02",
+      "recorded": {
+        "end_frame_index": 40,
+        "end_ms": 40959.6,
+        "runtime_session_id": "s_65e8c5c631e446e294388b911d22a3df",
+        "source_path": "review/phase1/calibration-reference/sessions/s_65e8c5c631e446e294388b911d22a3df/browser.json",
+        "start_frame_index": 9,
+        "start_ms": 30850.0
+      },
+      "recorded_side": "A",
+      "regime": "cursor-and-selection-edits",
+      "synthetic": {
+        "end_frame_index": 266,
+        "end_ms": 181571.0,
+        "runtime_session_id": "c7-calibration-305748e135b0d9f3b04e2d74955da284f3cff2a12e1d80466609dc2b6f9db86c",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-305748e135b0d9f3b04e2d74955da284f3cff2a12e1d80466609dc2b6f9db86c.json",
+        "start_frame_index": 192,
+        "start_ms": 171530.0
+      }
+    },
+    {
+      "pair_id": "P03",
+      "recorded": {
+        "end_frame_index": 468,
+        "end_ms": 182343.3,
+        "runtime_session_id": "s_92763e2ab6324223b6525225a026f4f2",
+        "source_path": "review/phase1/calibration-reference/sessions/s_92763e2ab6324223b6525225a026f4f2/browser.json",
+        "start_frame_index": 425,
+        "start_ms": 171879.8
+      },
+      "recorded_side": "B",
+      "regime": "short-command-like-inputs",
+      "synthetic": {
+        "end_frame_index": 224,
+        "end_ms": 73805.0,
+        "runtime_session_id": "c7-calibration-0d24b6c70124b1c24590e090fcd8f8599834f43a3cc64e3ed09bd2b54ea03956",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-0d24b6c70124b1c24590e090fcd8f8599834f43a3cc64e3ed09bd2b54ea03956.json",
+        "start_frame_index": 180,
+        "start_ms": 63213.0
+      }
+    },
+    {
+      "pair_id": "P04",
+      "recorded": {
+        "end_frame_index": 61,
+        "end_ms": 18775.9,
+        "runtime_session_id": "s_92763e2ab6324223b6525225a026f4f2",
+        "source_path": "review/phase1/calibration-reference/sessions/s_92763e2ab6324223b6525225a026f4f2/browser.json",
+        "start_frame_index": 24,
+        "start_ms": 8690.4
+      },
+      "recorded_side": "A",
+      "regime": "short-command-like-inputs",
+      "synthetic": {
+        "end_frame_index": 435,
+        "end_ms": 145349.0,
+        "runtime_session_id": "c7-calibration-1cf934961acb1d83defcf9184a962e2fe1dcea572d90df1896a2141c3fbd7b0e",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-1cf934961acb1d83defcf9184a962e2fe1dcea572d90df1896a2141c3fbd7b0e.json",
+        "start_frame_index": 385,
+        "start_ms": 135390.0
+      }
+    },
+    {
+      "pair_id": "P05",
+      "recorded": {
+        "end_frame_index": 965,
+        "end_ms": 298852.6,
+        "runtime_session_id": "s_b80c65b578604a3a9a90222fcb22e69a",
+        "source_path": "review/phase1/calibration-reference/sessions/s_b80c65b578604a3a9a90222fcb22e69a/browser.json",
+        "start_frame_index": 932,
+        "start_ms": 288824.1
+      },
+      "recorded_side": "B",
+      "regime": "natural-drafting",
+      "synthetic": {
+        "end_frame_index": 56,
+        "end_ms": 32829.0,
+        "runtime_session_id": "c7-calibration-b8d87a7435876c6700e34ef2ff7a0859fe324449d864859596988f03b22adb61",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-b8d87a7435876c6700e34ef2ff7a0859fe324449d864859596988f03b22adb61.json",
+        "start_frame_index": 24,
+        "start_ms": 22575.0
+      }
+    },
+    {
+      "pair_id": "P06",
+      "recorded": {
+        "end_frame_index": 570,
+        "end_ms": 292631.8,
+        "runtime_session_id": "s_15b355943e8f4ba5833e51855372120d",
+        "source_path": "review/phase1/calibration-reference/sessions/s_15b355943e8f4ba5833e51855372120d/browser.json",
+        "start_frame_index": 536,
+        "start_ms": 282762.9
+      },
+      "recorded_side": "B",
+      "regime": "revision-heavy-writing",
+      "synthetic": {
+        "end_frame_index": 47,
+        "end_ms": 23619.0,
+        "runtime_session_id": "c7-calibration-79ab1832d73c04ec086e404b6ffed218218a5b7b630c724b02495c2ffdda4a38",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-79ab1832d73c04ec086e404b6ffed218218a5b7b630c724b02495c2ffdda4a38.json",
+        "start_frame_index": 20,
+        "start_ms": 13692.0
+      }
+    },
+    {
+      "pair_id": "P07",
+      "recorded": {
+        "end_frame_index": 229,
+        "end_ms": 86810.3,
+        "runtime_session_id": "s_92763e2ab6324223b6525225a026f4f2",
+        "source_path": "review/phase1/calibration-reference/sessions/s_92763e2ab6324223b6525225a026f4f2/browser.json",
+        "start_frame_index": 198,
+        "start_ms": 77108.8
+      },
+      "recorded_side": "B",
+      "regime": "short-command-like-inputs",
+      "synthetic": {
+        "end_frame_index": 94,
+        "end_ms": 27094.0,
+        "runtime_session_id": "c7-calibration-7c74e7fb2ef63dcfc42b6deca3c012be598c4fdd1ce211bb50c0949cb1a305b0",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-7c74e7fb2ef63dcfc42b6deca3c012be598c4fdd1ce211bb50c0949cb1a305b0.json",
+        "start_frame_index": 63,
+        "start_ms": 17034.0
+      }
+    },
+    {
+      "pair_id": "P08",
+      "recorded": {
+        "end_frame_index": 79,
+        "end_ms": 22471.2,
+        "runtime_session_id": "s_09f2e78b310547449e5508b85a6c8ad8",
+        "source_path": "review/phase1/calibration-reference/sessions/s_09f2e78b310547449e5508b85a6c8ad8/browser.json",
+        "start_frame_index": 45,
+        "start_ms": 12697.3
+      },
+      "recorded_side": "A",
+      "regime": "pauses-and-resumptions",
+      "synthetic": {
+        "end_frame_index": 95,
+        "end_ms": 25897.0,
+        "runtime_session_id": "c7-calibration-87d6bc48d9bc5c29383d4d5c3ed517e0859c819115ab2c5d5f7220199778b423",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-87d6bc48d9bc5c29383d4d5c3ed517e0859c819115ab2c5d5f7220199778b423.json",
+        "start_frame_index": 66,
+        "start_ms": 15904.0
+      }
+    },
+    {
+      "pair_id": "P09",
+      "recorded": {
+        "end_frame_index": 185,
+        "end_ms": 186813.7,
+        "runtime_session_id": "s_65e8c5c631e446e294388b911d22a3df",
+        "source_path": "review/phase1/calibration-reference/sessions/s_65e8c5c631e446e294388b911d22a3df/browser.json",
+        "start_frame_index": 162,
+        "start_ms": 175880.2
+      },
+      "recorded_side": "A",
+      "regime": "cursor-and-selection-edits",
+      "synthetic": {
+        "end_frame_index": 79,
+        "end_ms": 161068.0,
+        "runtime_session_id": "c7-calibration-b806bcaaddda8a89e16cbcccaa3a889c51b952e6f7000906fe754e262d4dde36",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-b806bcaaddda8a89e16cbcccaa3a889c51b952e6f7000906fe754e262d4dde36.json",
+        "start_frame_index": 56,
+        "start_ms": 150559.0
+      }
+    },
+    {
+      "pair_id": "P10",
+      "recorded": {
+        "end_frame_index": 65,
+        "end_ms": 23713.0,
+        "runtime_session_id": "s_075225cc081943c08268b9bb995ec615",
+        "source_path": "review/phase1/calibration-reference/sessions/s_075225cc081943c08268b9bb995ec615/browser.json",
+        "start_frame_index": 27,
+        "start_ms": 13767.2
+      },
+      "recorded_side": "B",
+      "regime": "copied-or-scripted-typing",
+      "synthetic": {
+        "end_frame_index": 504,
+        "end_ms": 168040.0,
+        "runtime_session_id": "c7-calibration-dc1220054261b9b28f74c587fd18d586bfb5dc6af0cfa51259f566523eb25a20",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-dc1220054261b9b28f74c587fd18d586bfb5dc6af0cfa51259f566523eb25a20.json",
+        "start_frame_index": 476,
+        "start_ms": 157896.0
+      }
+    },
+    {
+      "pair_id": "P11",
+      "recorded": {
+        "end_frame_index": 36,
+        "end_ms": 33593.9,
+        "runtime_session_id": "s_957c8c51589448eaad4e8d6bcdb8abd0",
+        "source_path": "review/phase1/calibration-reference/sessions/s_957c8c51589448eaad4e8d6bcdb8abd0/browser.json",
+        "start_frame_index": 11,
+        "start_ms": 23519.8
+      },
+      "recorded_side": "A",
+      "regime": "cursor-and-selection-edits",
+      "synthetic": {
+        "end_frame_index": 256,
+        "end_ms": 141174.0,
+        "runtime_session_id": "c7-calibration-e19d4fefeecc4c4a21e60d1a4de0e779bdf5319e893d5b5e26a98e1f5b126452",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-e19d4fefeecc4c4a21e60d1a4de0e779bdf5319e893d5b5e26a98e1f5b126452.json",
+        "start_frame_index": 178,
+        "start_ms": 131139.0
+      }
+    },
+    {
+      "pair_id": "P12",
+      "recorded": {
+        "end_frame_index": 84,
+        "end_ms": 26715.0,
+        "runtime_session_id": "s_15b355943e8f4ba5833e51855372120d",
+        "source_path": "review/phase1/calibration-reference/sessions/s_15b355943e8f4ba5833e51855372120d/browser.json",
+        "start_frame_index": 58,
+        "start_ms": 16717.8
+      },
+      "recorded_side": "B",
+      "regime": "revision-heavy-writing",
+      "synthetic": {
+        "end_frame_index": 670,
+        "end_ms": 307760.0,
+        "runtime_session_id": "c7-calibration-ab51de9cfbd9ea244bc1e98bb90de89e02622627ea3ff42393a4e35a01d92076",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-ab51de9cfbd9ea244bc1e98bb90de89e02622627ea3ff42393a4e35a01d92076.json",
+        "start_frame_index": 605,
+        "start_ms": 297716.0
+      }
+    },
+    {
+      "pair_id": "P13",
+      "recorded": {
+        "end_frame_index": 338,
+        "end_ms": 152531.3,
+        "runtime_session_id": "s_15b355943e8f4ba5833e51855372120d",
+        "source_path": "review/phase1/calibration-reference/sessions/s_15b355943e8f4ba5833e51855372120d/browser.json",
+        "start_frame_index": 306,
+        "start_ms": 141863.2
+      },
+      "recorded_side": "A",
+      "regime": "revision-heavy-writing",
+      "synthetic": {
+        "end_frame_index": 190,
+        "end_ms": 110276.0,
+        "runtime_session_id": "c7-calibration-5ced45282bc6b8315d517cdb860317c4031a5d43023593d1d781b621c930a272",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-5ced45282bc6b8315d517cdb860317c4031a5d43023593d1d781b621c930a272.json",
+        "start_frame_index": 167,
+        "start_ms": 100093.0
+      }
+    },
+    {
+      "pair_id": "P14",
+      "recorded": {
+        "end_frame_index": 533,
+        "end_ms": 281479.6,
+        "runtime_session_id": "s_15b355943e8f4ba5833e51855372120d",
+        "source_path": "review/phase1/calibration-reference/sessions/s_15b355943e8f4ba5833e51855372120d/browser.json",
+        "start_frame_index": 503,
+        "start_ms": 271123.6
+      },
+      "recorded_side": "B",
+      "regime": "revision-heavy-writing",
+      "synthetic": {
+        "end_frame_index": 278,
+        "end_ms": 176274.0,
+        "runtime_session_id": "c7-calibration-2035f7028dfdb1d6ffcc026b32911305043f4c334c6e2099a1c7a9638342fcdf",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-2035f7028dfdb1d6ffcc026b32911305043f4c334c6e2099a1c7a9638342fcdf.json",
+        "start_frame_index": 245,
+        "start_ms": 166296.0
+      }
+    },
+    {
+      "pair_id": "P15",
+      "recorded": {
+        "end_frame_index": 210,
+        "end_ms": 73435.6,
+        "runtime_session_id": "s_b80c65b578604a3a9a90222fcb22e69a",
+        "source_path": "review/phase1/calibration-reference/sessions/s_b80c65b578604a3a9a90222fcb22e69a/browser.json",
+        "start_frame_index": 177,
+        "start_ms": 63345.8
+      },
+      "recorded_side": "B",
+      "regime": "natural-drafting",
+      "synthetic": {
+        "end_frame_index": 1019,
+        "end_ms": 314025.0,
+        "runtime_session_id": "c7-calibration-a51b732935d998455c09fdc1218a8c547677525e193830140d76f3db7f16a50e",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-a51b732935d998455c09fdc1218a8c547677525e193830140d76f3db7f16a50e.json",
+        "start_frame_index": 973,
+        "start_ms": 304151.0
+      }
+    },
+    {
+      "pair_id": "P16",
+      "recorded": {
+        "end_frame_index": 366,
+        "end_ms": 138855.4,
+        "runtime_session_id": "s_09f2e78b310547449e5508b85a6c8ad8",
+        "source_path": "review/phase1/calibration-reference/sessions/s_09f2e78b310547449e5508b85a6c8ad8/browser.json",
+        "start_frame_index": 339,
+        "start_ms": 128890.5
+      },
+      "recorded_side": "B",
+      "regime": "pauses-and-resumptions",
+      "synthetic": {
+        "end_frame_index": 619,
+        "end_ms": 227464.0,
+        "runtime_session_id": "c7-calibration-0d7964b15c8f169715feb75e4845337c5720f68ae799449c448d4b6349bde197",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-0d7964b15c8f169715feb75e4845337c5720f68ae799449c448d4b6349bde197.json",
+        "start_frame_index": 579,
+        "start_ms": 217331.0
+      }
+    },
+    {
+      "pair_id": "P17",
+      "recorded": {
+        "end_frame_index": 227,
+        "end_ms": 77169.8,
+        "runtime_session_id": "s_075225cc081943c08268b9bb995ec615",
+        "source_path": "review/phase1/calibration-reference/sessions/s_075225cc081943c08268b9bb995ec615/browser.json",
+        "start_frame_index": 195,
+        "start_ms": 67229.2
+      },
+      "recorded_side": "A",
+      "regime": "copied-or-scripted-typing",
+      "synthetic": {
+        "end_frame_index": 665,
+        "end_ms": 214613.0,
+        "runtime_session_id": "c7-calibration-3b9715883df08c0b806e632d6754c88f460a730eaf8c90d8ee09cd775f72bf02",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-3b9715883df08c0b806e632d6754c88f460a730eaf8c90d8ee09cd775f72bf02.json",
+        "start_frame_index": 620,
+        "start_ms": 205099.0
+      }
+    },
+    {
+      "pair_id": "P18",
+      "recorded": {
+        "end_frame_index": 516,
+        "end_ms": 160628.7,
+        "runtime_session_id": "s_b80c65b578604a3a9a90222fcb22e69a",
+        "source_path": "review/phase1/calibration-reference/sessions/s_b80c65b578604a3a9a90222fcb22e69a/browser.json",
+        "start_frame_index": 487,
+        "start_ms": 150537.3
+      },
+      "recorded_side": "B",
+      "regime": "natural-drafting",
+      "synthetic": {
+        "end_frame_index": 655,
+        "end_ms": 193101.0,
+        "runtime_session_id": "c7-calibration-dfe19704032fdae454196bbeba8f10b67e86f4e1d08b1e8a69f23dff20b51807",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-dfe19704032fdae454196bbeba8f10b67e86f4e1d08b1e8a69f23dff20b51807.json",
+        "start_frame_index": 629,
+        "start_ms": 183091.0
+      }
+    },
+    {
+      "pair_id": "P19",
+      "recorded": {
+        "end_frame_index": 677,
+        "end_ms": 209492.3,
+        "runtime_session_id": "s_b80c65b578604a3a9a90222fcb22e69a",
+        "source_path": "review/phase1/calibration-reference/sessions/s_b80c65b578604a3a9a90222fcb22e69a/browser.json",
+        "start_frame_index": 641,
+        "start_ms": 199528.1
+      },
+      "recorded_side": "A",
+      "regime": "natural-drafting",
+      "synthetic": {
+        "end_frame_index": 322,
+        "end_ms": 101230.0,
+        "runtime_session_id": "c7-calibration-bc0234471a432cb91cb520094c54a54d1f59fb570f76a88001e93cae7ee4b8ac",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-bc0234471a432cb91cb520094c54a54d1f59fb570f76a88001e93cae7ee4b8ac.json",
+        "start_frame_index": 299,
+        "start_ms": 91000.0
+      }
+    },
+    {
+      "pair_id": "P20",
+      "recorded": {
+        "end_frame_index": 308,
+        "end_ms": 101727.9,
+        "runtime_session_id": "s_075225cc081943c08268b9bb995ec615",
+        "source_path": "review/phase1/calibration-reference/sessions/s_075225cc081943c08268b9bb995ec615/browser.json",
+        "start_frame_index": 271,
+        "start_ms": 91698.2
+      },
+      "recorded_side": "A",
+      "regime": "copied-or-scripted-typing",
+      "synthetic": {
+        "end_frame_index": 520,
+        "end_ms": 169999.0,
+        "runtime_session_id": "c7-calibration-89b3b9d0621e149187d978ec1fbcf47d0b0242b7578790d34427b1ba0b96f207",
+        "source_path": "review/phase1/calibration-synthetic-final/browser/c7-calibration-89b3b9d0621e149187d978ec1fbcf47d0b0242b7578790d34427b1ba0b96f207.json",
+        "start_frame_index": 497,
+        "start_ms": 159682.0
+      }
+    }
+  ],
+  "public_packet_sha256": "7ddf6214300a4440deca3af43ed9b4a2a007a86317d80870b741985f0ed75b26",
+  "regime_quotas": {
+    "copied-or-scripted-typing": 3,
+    "cursor-and-selection-edits": 3,
+    "natural-drafting": 4,
+    "pauses-and-resumptions": 3,
+    "revision-heavy-writing": 4,
+    "short-command-like-inputs": 3
+  },
+  "selection_seed": "phase1-blind-replay-v1",
+  "synthetic_side_counts": {
+    "A": 10,
+    "B": 10
+  }
+}

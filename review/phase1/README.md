@@ -18,9 +18,13 @@ Asset approval, split sealing, C5 pilot acceptance, and sealed G-7 readiness val
 Teacher labeling and template promotion have not started; the post-teacher response gate remains
 mandatory.
 
-The first fitted G-1 population found a real mismatch against the single-user reference profile;
-the measured values remain in the implementation log and will be summarized in the final phase
-report. Its superseded population, adjudication, admission, and blind-packet artifacts were deleted
-during closeout cleanup. Fresh trace-resampled verification is pending; after its metrics are
-available, the project owner performs the one direct blind check. That measured path is the only
-G-1 follow-up.
+The trace-resampled G-1 population closes under Option B as a quantitative fail against the frozen
+single-user reference profile. The unchanged measured result is
+[`calibration-trace-analysis.json`](calibration-trace-analysis.json); no further population,
+analyzer, band, or tuning iteration is authorized. The direct 20-pair replay is assembled as
+non-binding documentation in [`blind-replay-documentation/`](blind-replay-documentation/), with its
+answer key physically separate; project-owner judgment is pending and cannot alter G-1.
+
+The frozen WP1-9 canary packet is prepared and the WP1-8 shell is integrated. Live teacher
+execution and disagreement review remain pending; no provider call has been made since the owner
+asked the task to stop before live model calls.

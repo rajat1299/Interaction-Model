@@ -791,3 +791,25 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   exact shard ledger, including correction of an unverified ID, and is never retried as a new
   Batch. Ruff and 31 scoped runner/lifecycle/packet tests pass; the independent thermo-nuclear
   reviewer approved the repaired runner. Per the owner's pause instruction, no live call was made.
+
+## 2026-07-17 — Non-binding blind replay documentation
+
+- The reporting-only blind packet is assembled at
+  `review/phase1/blind-replay-documentation/`: 20 recorded-versus-synthetic pairs balanced across
+  the six regimes at 4/4/3/3/3/3, with both cursor recordings retained, 10 synthetic traces on
+  each blinded side, non-overlapping recorded windows, distinct synthetic sources within each
+  regime, and approximately ten seconds per side. Recorded text is replaced by opaque UTF-16
+  geometry while timing, input activity, cursor position, and selection spans remain visible.
+- The timestamp-driven viewer supports play, pause, restart, speed, and seek and renders caret and
+  ranged-selection geometry. Public timing uses the same integer-millisecond precision on both
+  sides. The private answer key is physically separate at
+  `review/phase1/blind-replay-unblinding/`, has its own checksum inventory, and binds public JSON
+  SHA-256 `7ddf6214300a4440deca3af43ed9b4a2a007a86317d80870b741985f0ed75b26`.
+- Adversarial review caught and removed two deterministic unblinding channels in the initial
+  draft: an asymmetric duration percentage and recorded-only fractional timestamps. It also
+  repaired the original nonfunctional viewer, required physical answer-key isolation, and closed
+  alias/symlink replacement hazards. Deterministic regeneration, both checksum inventories, the
+  executable viewer contract, redaction, window balance, and source reconstruction pass; the
+  independent thermo-nuclear reviewer approved the final packet.
+- Owner judgment is still pending. This check is non-binding documentation, cannot reopen G-1,
+  and is not an admission record, gate, schema, or corpus artifact.
