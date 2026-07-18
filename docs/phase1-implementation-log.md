@@ -1040,3 +1040,69 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   Ruff, checksum verification, and diff checks pass before launch. The thermo-nuclear review found
   no structural regression: the production change is one packet identity plus two artifact paths,
   with the test mutation repaired to target a non-idle decision instead of relying on packet order.
+- Provenance commit `0772ae3` sealed the packet and runner binding before launch. The detached
+  launchd job `com.interactionmodel.phase1.teacher-recanary` then submitted shard 0 as Batch
+  `batch_6a5bb4e79668819095fc792eea2788b4`; its first retained state is `validating`. The local runner
+  polls at 600-second intervals and will submit later shards sequentially only after each prior
+  shard completes.
+
+## 2026-07-18 — Repaired teacher-canary Batch result
+
+- All five approved replacement shards completed successfully: 56, 58, 54, 53, and 44 responses,
+  for 265/265 complete provider outputs and zero provider-error rows. The five Batch identities are
+  `batch_6a5bb4e79668819095fc792eea2788b4`, `batch_6a5bb7439fd0819090d11fe3549fc064`,
+  `batch_6a5bb99eb5408190868e3c588c303ce9`, `batch_6a5bbbf999ac8190ae1f676aae242117`,
+  and `batch_6a5bbe54d0408190bce8183ec5672717`.
+- Strict action validation accepted every response. The canonical comparison and 265-row label file
+  contain 210 `auto_pass`, 48 `causal_disagreement`, and seven `semantic_review_required` outcomes,
+  with 265 unique stream/decision identities and no malformed or missing action. This reduces the
+  valid unresolved queue from the original canary's 84 decisions to 55.
+- Provider-reported usage is 3,745,178 input tokens, 3,176,790 cached-input tokens, 124,580
+  cache-write tokens, 65,116 output tokens, and 55,415 reasoning tokens. The pinned Batch charge is
+  `$1.634885000`, below the `$5.9067600` estimate and `$21.5921100` approved ceiling.
+- Local validation confirmed canonical comparison bytes, complete unique labels, completed provider
+  request counts for every shard, retained raw inputs/outputs/batch records, and empty error files.
+  The detached launchd job and monitor were stopped after verification. No corrective or additional
+  provider request was submitted; the 55 disagreements now proceed through the existing WP1-8
+  offline review path.
+
+## 2026-07-18 — Repaired-canary WP1-8 disagreement review
+
+- Product outcome: determine whether the repaired teacher configuration is safe for the full
+  Phase 2 labeling spend. Hypothesis: the prior five systemic template repairs would remove the
+  original 45 template flags, leaving only faithful wording accepts and defensible teacher errors.
+  Prediction: all 55 repaired-run disagreements would review to accept or reject with no new
+  oracle/template flag.
+- The existing WP1-8 sidecar contract reviewed all 55 disagreements across 28 streams. Fourteen
+  decisions were reused only after the complete normalized teacher-label object matched the prior
+  reviewed run byte-for-byte at the same stream and policy sequence; the other 41 were reviewed by
+  split primary lanes plus an independent adversarial lane. Raw prefixes, oracle actions, teacher
+  actions, and the signed behavior specification were inspected for every challenged cluster.
+- The prediction was falsified. Final decision outcomes are seven accept, 43 reject, and five flag;
+  D2 whole-stream outcomes are six accept, 21 reject, and one flag. The 83-record
+  `review-decisions.jsonl` covers every disagreement plus every affected whole stream, matches the
+  sealed packet identities exactly, and imports through WP1-8. The seven accepts are faithful
+  same-reference response wording. The 43 rejects include missed marks, wrong spans, floor
+  violations, wrong idle reasons, and live-result lifecycle errors.
+- The five flags form one concrete idle-reason defect around the sealed partial asset `Highli`.
+  Under the behavior specification, standalone or trailing incomplete request text requires
+  `typing_active`, while a quoted occurrence requires higher-precedence
+  `instruction_not_direct`. Two mark-negative oracle beats and three quiet lookup-pressure oracle
+  beats instead use `instruction_not_direct` or `no_trigger`. The three timer cases challenged by
+  the adversarial lane are not flags: each latest snapshot contains a new direct complete
+  recurring instruction with a distinct message, so the schedule oracle remains defensible.
+- Decision: iterate, not scale. The smallest offline repair changes only the two current G7
+  generators that produced the five flags. The generic historical scenario compiler remains
+  unchanged because altering it changes the frozen C5 pilot hashes and capture bytes. Focused G7,
+  checkpoint, and scenario-catalog tests pass after that boundary correction; Ruff passes. No
+  provider call, credential read, response repair, oracle substitution, or packet mutation
+  occurred during review or repair. A replacement provider canary remains blocked on separate
+  project-owner authorization.
+- The required thermo-nuclear review approved the two-generator repair with no blocker: the source
+  text and idle-reason sequence match the signed contract, no canonical helper can be reused
+  without crossing the frozen historical compiler boundary, determinism is unchanged, and neither
+  already-large generator file newly crosses the 1,000-line threshold. Full Ruff, all Python test
+  files in memory-safe alphabetical shards, 113 client tests, the client production build, and
+  `git diff --check` pass. The single-process Python suite was also attempted and was killed by the
+  operating system with exit 137 after 32 percent; sharding covered every test file without that
+  memory spike.

@@ -400,6 +400,16 @@ def _negative_mark_recipe(
     )
     if not negative_assets:
         raise ValueError("mark-negative G7 recipe requires non-direct negative-state assets")
+
+    def idle_for(asset: AssetRecord) -> IdleAction:
+        assert isinstance(asset.payload, TextAssetPayload)
+        reason = (
+            IdleReason.TYPING_ACTIVE
+            if asset.payload.form is TextForm.PARTIAL
+            else IdleReason.INSTRUCTION_NOT_DIRECT
+        )
+        return _idle(reason)
+
     s = plan.service_ms
     control_text = control.payload.text
     target_text = _multi_target_text(control_text, target, mark_count)
@@ -427,10 +437,13 @@ def _negative_mark_recipe(
     )
     actions = (
         _idle(),
-        _idle(IdleReason.INSTRUCTION_NOT_DIRECT),
+        idle_for(negative_assets[0]),
         *marks,
         _idle(),
-        *(_idle(IdleReason.INSTRUCTION_NOT_DIRECT) for _ in range(idle_count - 3)),
+        *(
+            idle_for(negative_assets[(index + 1) % len(negative_assets)])
+            for index in range(idle_count - 3)
+        ),
     )
     return _program(bundle, template, family, master_seed, plan, tuple(frames), actions)
 

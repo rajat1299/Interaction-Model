@@ -622,9 +622,16 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
     recipe.checkpoint()
 
     quiet = _quiet_sources(pool)
-    for text in quiet[:5]:
+    quiet_reasons = (
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.NO_TRIGGER,
+        IdleReason.NO_TRIGGER,
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.INSTRUCTION_NOT_DIRECT,
+    )
+    for text, reason in zip(quiet[:5], quiet_reasons, strict=True):
         recipe.snapshot(text)
-        recipe.action(_idle(), runtime_events=0)
+        recipe.action(_idle(reason), runtime_events=0)
 
     first_source = f"Please look up {first.query}."
     first_id, first_at, first_action = _delegate_snapshot(recipe, first_source, first.query)

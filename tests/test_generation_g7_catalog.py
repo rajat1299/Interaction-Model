@@ -231,6 +231,13 @@ def test_fresh_catalog_builds_from_the_sealed_test_lookup_pool() -> None:
 
     assert len(delegates) == 2
     assert delegates[0].args.query != delegates[1].args.query
+    negative = programs["g7-fresh-mark-negative-7i-3m"].actions
+    assert tuple(negative[index].reason for index in (6, 7, 8, 9)) == (
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.INSTRUCTION_NOT_DIRECT,
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.INSTRUCTION_NOT_DIRECT,
+    )
 
 
 @pytest.mark.parametrize("split", tuple(Split))

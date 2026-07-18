@@ -6,6 +6,8 @@ import {
   recordKey,
   type ReviewRecord,
 } from "./review-sidecar";
+import { loadPacketFromEntries } from "./packet-loader";
+import { loadCanaryEntries, loadCanaryReviewDecisions } from "./test-fixtures";
 
 const sample: ReviewRecord[] = [
   {
@@ -94,5 +96,29 @@ describe("review sidecar export/import", () => {
     expect(conflicted.ok).toBe(false);
     // Existing must remain unchanged.
     expect(existing.get(recordKey(first))?.note).toBe("a");
+  });
+
+  it("accepts the repaired canary's completed WP1-8 sidecar", async () => {
+    const packet = await loadPacketFromEntries(loadCanaryEntries());
+    expect(packet.ok).toBe(true);
+    if (!packet.ok) return;
+    const parsed = parseReviewSidecar(loadCanaryReviewDecisions());
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const knownStreams = new Set(
+      packet.packet.streams.map((stream) => `sha256:${stream.sha256}`),
+    );
+    const knownSeqs = new Map(
+      packet.packet.streams.map((stream) => [
+        `sha256:${stream.sha256}`,
+        new Set(stream.sidecar.decisions.map((decision) => decision.observed_policy_seq)),
+      ]),
+    );
+    const merged = mergeReviewRecords(new Map(), parsed.records, knownStreams, knownSeqs);
+    expect(merged.ok).toBe(true);
+    if (!merged.ok) return;
+    expect(merged.added).toBe(83);
+    expect(parsed.records.filter((record) => record.decision_policy_seq !== null)).toHaveLength(55);
   });
 });

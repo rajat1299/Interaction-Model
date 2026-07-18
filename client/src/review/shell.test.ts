@@ -6,7 +6,7 @@ import {
   mountReviewShell,
 } from "./shell";
 import { loadPacketFromEntries } from "./packet-loader";
-import { loadCanaryEntries } from "./test-fixtures";
+import { loadCanaryEntries, loadCanaryTeacherLabels } from "./test-fixtures";
 
 describe("review shell", () => {
   let cleanup: (() => void) | null = null;
@@ -139,6 +139,17 @@ describe("review shell", () => {
     );
     expect(document.getElementById("progress")!.textContent).toContain(
       "unresolved disagreements: 1",
+    );
+  });
+
+  it("loads the repaired canary labels into the real review queue", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
+    expect(await loadTeacherLabelsText(loadCanaryTeacherLabels())).toBeNull();
+    expect(document.getElementById("progress")!.textContent).toContain(
+      "unresolved disagreements: 55",
     );
   });
 

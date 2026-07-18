@@ -7,8 +7,19 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { PacketEntry } from "./packet-loader";
 
-/** client/ cwd → ../review/phase1/teacher-canary */
-export const CANARY_ROOT = join(process.cwd(), "../review/phase1/teacher-canary");
+/** client/ cwd → current repaired teacher-canary packet */
+export const CANARY_ROOT = join(
+  process.cwd(),
+  "../review/phase1/teacher-canary-recanary/packet-rebound",
+);
+const CANARY_LABELS = join(
+  process.cwd(),
+  "../review/phase1/teacher-canary-recanary/execution/sharded/teacher-labels.jsonl",
+);
+const CANARY_REVIEWS = join(
+  process.cwd(),
+  "../review/phase1/teacher-canary-recanary/execution/sharded/review/review-decisions.jsonl",
+);
 
 function walk(dir: string, base: string, out: PacketEntry[]): void {
   for (const name of readdirSync(dir)) {
@@ -28,4 +39,12 @@ export function loadCanaryEntries(): PacketEntry[] {
   const out: PacketEntry[] = [];
   walk(CANARY_ROOT, CANARY_ROOT, out);
   return out;
+}
+
+export function loadCanaryTeacherLabels(): string {
+  return readFileSync(CANARY_LABELS, "utf8");
+}
+
+export function loadCanaryReviewDecisions(): string {
+  return readFileSync(CANARY_REVIEWS, "utf8");
 }

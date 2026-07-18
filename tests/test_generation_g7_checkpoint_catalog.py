@@ -143,6 +143,13 @@ def test_checkpoint_lookup_preludes_and_visible_need_replacements_are_specific()
         for program in (duplicate_a, duplicate_b)
         for action in program.actions[:8]
     )
+    assert tuple(action.reason for action in duplicate_b.actions[9:14]) == (
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.NO_TRIGGER,
+        IdleReason.NO_TRIGGER,
+        IdleReason.TYPING_ACTIVE,
+        IdleReason.INSTRUCTION_NOT_DIRECT,
+    )
 
     a_delegates = tuple(
         action for action in duplicate_a.actions if isinstance(action, DelegateAction)
