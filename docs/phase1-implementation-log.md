@@ -1149,3 +1149,21 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   the final packet, and the final packet, normalized labels, comparison, review coverage, raw
   provider artifacts, and usage totals all verify independently. The runner and WP1-8 fixture now
   bind the final packet; no further teacher call is required or authorized.
+
+## 2026-07-18 — Phase 1 closeout
+
+- The single final report is `review/phase1/README.md`. It records G-1 as an Option B quantitative
+  failure, G-2/G-3/G-5/G-6/G-7 as passes, and G-4 as project-owner acceptance of the existing
+  WP1-3 fixture evidence without a new closeout measurement. It includes the calibration finding,
+  trace-resampled fix, residuals, non-binding blind result, teacher canary, limitations,
+  found/deferred items, and the implementation-plan section 6 handoff.
+- Cleanup commit `6b1b4a8` and final repaired-canary commit `a00c6e7` satisfy the remaining code and
+  evidence closeout items. The process freeze was preserved: no new gate, report version, manifest
+  schema, reviewer lane, or admission taxonomy was introduced.
+- Final local verification passed: Ruff; every Python test file in sequential ten-file memory-safe
+  shards; all 113 client tests; the client production build; the 130-entry final packet checksum
+  inventory; the two-entry WP1-8 review checksum inventory; all local report links; and
+  `git diff --check`. A prior 25-file Python shard was killed by the operating system with signal 9
+  and no assertion failure, so the complete file list was rerun successfully in smaller shards.
+- The annotated close tag is `phase1-close` and binds the commit containing this final report and
+  log entry. Phase 1 is closed; no additional provider call is required or authorized.
