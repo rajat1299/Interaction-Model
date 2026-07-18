@@ -928,3 +928,34 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
 - No template was repaired and no re-canary was submitted at this log point. Any new model call
   requires separate project-owner authorization after the affected template/oracle shapes are
   repaired offline.
+
+## 2026-07-18 — Reviewed offline teacher-canary template repair
+
+- The five systemic flag clusters were repaired offline in commits `3babcd6`, `fea575e`, and
+  `364d08c`, with no provider call, credential read, corpus mutation, analyzer change, gate change,
+  or core-oracle change. Quoted and attributed command controls now use
+  `instruction_not_direct`; intended lookup delegates are framed as explicit requests with exact
+  fact spans; visible lookup retention and abandonment agree with need lineage; duplicate stale
+  results are skipped before lower-priority actions; and duplicate B terminates with a concrete
+  `already_handled` decision after its two skips and integration. The failed-response twin keeps
+  its failed result live for the final explicit invitation.
+- Timer schedule sources now contain one canonical direct command instead of a wrapper containing
+  a nested command, while preserving interval/message semantics, action indices, and deterministic
+  contextual capacity. Timer-cancel pressure text is neutral observational filler rather than an
+  unquoted command. The reviewed teacher-only errors—including malformed returned spans, missed
+  marks, floor violations, and defensible unsupported or underspecified lookup choices—remain
+  unchanged; the repair does not tune templates to individual teacher answers.
+- The first independent specification review caught a one-beat mismatch in duplicate B: visible
+  abandonment preceded the corresponding need-state transition. Commit `fea575e` moves the
+  abandonment snapshot and transition to the causally later awaiting beat without changing action
+  counts or fixed indices. The repeated specification review passed.
+- The mandatory thermo-nuclear review then caught a deterministic-capacity regression: removing
+  neutral timer context left only ten timer-contention identities where 25 are required. Commit
+  `364d08c` restores the existing seed-dependent neutral context rotation without changing the
+  canonical command or timer semantics. The repeated thermo-nuclear review passed and found no
+  remaining correctness, lifecycle, span, determinism, or responsibility blocker.
+- Manager verification passed 138 selected G7 catalog, checkpoint, failed-response-twin,
+  readiness-packet, timer-semantics, scenario-core, and scenario-catalog tests. Ruff and
+  `git diff --check` pass on the complete repair. The original failed canary and quarantined review
+  evidence remain append-only. Repaired canary regeneration is offline-only; a replacement OpenAI
+  Batch upload remains stopped behind a new project-owner authorization.
