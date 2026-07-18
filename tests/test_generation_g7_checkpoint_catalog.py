@@ -262,6 +262,35 @@ async def test_lookup_duplicates_keep_their_exact_candidates_in_production_names
     assert len(selected) == 1
     assert selected[0].call_indices == call_indices
     if shape_id == "g7-checkpoint-lookup-duplicate-b":
+        third_delegate_index = max(
+            index
+            for index, action in enumerate(parent.program.actions)
+            if isinstance(action, DelegateAction)
+        )
+        awaiting_index = third_delegate_index + 1
+        third_snapshot = parent.decision_boundaries[
+            third_delegate_index
+        ].license_view.latest_snapshot
+        awaiting_snapshot = parent.decision_boundaries[awaiting_index].license_view.latest_snapshot
+        assert third_snapshot is not None
+        assert awaiting_snapshot is not None
+        assert "no longer need" not in third_snapshot.text
+        assert "no longer need" in awaiting_snapshot.text
+        for index, expected_status in (
+            (third_delegate_index, NeedStatus.LIVE),
+            (awaiting_index, NeedStatus.ABANDONED),
+        ):
+            needs = {
+                need.need_id: need for need in parent.program.need_lineage_by_beat[index].needs
+            }
+            assert needs["n_002"].status is expected_status
+            assert needs["n_003"].status is expected_status
+        awaiting_needs = parent.program.need_lineage_by_beat[awaiting_index].needs
+        assert all(
+            need.basis_event_id == awaiting_snapshot.event_id
+            for need in awaiting_needs
+            if need.need_id in {"n_002", "n_003"}
+        )
         assert tuple(type(action) for action in selected[0].selected_actions[-4:]) == (
             SkipAction,
             SkipAction,

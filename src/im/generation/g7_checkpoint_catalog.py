@@ -632,12 +632,15 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
     second_id, second_at, second_action = _delegate_snapshot(recipe, second_source, second.query)
     third_source = f"Keep {first.query} active. Please look up {third.query}."
     third_id, third_at = recipe.snapshot(third_source)
+    third_action = recipe.action(_delegate(third_id, third_source, third.query), runtime_events=2)
     superseding_snapshot = (
         f"Keep {first.query} active. I no longer need {second.query} or {third.query}; "
         "those lookups are abandoned."
     )
-    superseding_id, _ = recipe.snapshot(superseding_snapshot, at_ms=third_at)
-    third_action = recipe.action(_delegate(third_id, third_source, third.query), runtime_events=2)
+    superseding_id, superseding_at = recipe.snapshot(
+        superseding_snapshot,
+        at_ms=_causal_at(timing, (third_action, third_at), floor=recipe.next_at_ms),
+    )
     awaiting_results = recipe.action(_idle(IdleReason.AWAITING_TOOL, first_id), runtime_events=0)
 
     first_result = recipe.world_event()
@@ -657,7 +660,7 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
         (first_action, first_at),
         (second_action, second_at),
         (third_action, third_at),
-        (awaiting_results, third_at + timing.service_ms[third_action]),
+        (awaiting_results, superseding_at),
     )
     recipe.snapshot(
         "The first lookup result is now recorded in the notebook.",
@@ -701,7 +704,7 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
             G7NeedPlan(
                 "n_002",
                 second_action,
-                first_skip,
+                awaiting_results,
                 NeedStatus.ABANDONED,
                 NeedBasisKind.ABANDONED,
                 superseding_id,
@@ -709,7 +712,7 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
             G7NeedPlan(
                 "n_003",
                 third_action,
-                first_skip,
+                awaiting_results,
                 NeedStatus.ABANDONED,
                 NeedBasisKind.ABANDONED,
                 superseding_id,
