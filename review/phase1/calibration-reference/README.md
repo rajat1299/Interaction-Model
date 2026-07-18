@@ -7,3 +7,6 @@ is the duration extension; both are independently admitted records.
 The fixtures are local validation evidence only. They are excluded from teacher input, labeling,
 training, asset pools, and corpus splits. The two failed live-policy takes remain separately under
 `../calibration-failures/` and are not referenced by this manifest.
+
+The manifest's browser paths resolve only in authorized local workspaces. The raw recording JSONs
+and `.im/sessions/*/session.sqlite3` runtime databases are intentionally untracked and ignored.

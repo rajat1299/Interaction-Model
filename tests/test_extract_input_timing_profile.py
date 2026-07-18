@@ -6,6 +6,8 @@ import sys
 from hashlib import sha256
 from pathlib import Path
 
+import pytest
+
 from im.generation.calibration_metrics import BURST_GAP_MS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,10 @@ from scripts.extract_input_timing_profile import REVISION_PLACEMENTS, build_prof
 
 SCRIPT = ROOT / "scripts" / "extract_input_timing_profile.py"
 PROFILE = ROOT / "client" / "src" / "input-synthesis-profile.json"
+pytestmark = pytest.mark.skipif(
+    not (ROOT / "review/phase1/calibration-reference/sessions").is_dir(),
+    reason="private local calibration recordings are unavailable",
+)
 
 
 def test_timing_profile_is_reproducible_text_free_and_split_on_burst_boundaries(

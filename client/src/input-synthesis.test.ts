@@ -544,7 +544,7 @@ describe("input synthesis", () => {
     expect(applyScript(first.steps)).toBe(target);
   });
 
-  it("emits empirical burst geometry with independently bootstrapped intervals", async () => {
+  it("emits empirical burst geometry with independently bootstrapped intervals", async ({ skip }) => {
     const target = "x".repeat(600);
     const regime = "pauses-and-resumptions" as const;
     const synthesis = synthesizeCalibratedInput(target, "geometry-seed", regime, {
@@ -596,11 +596,13 @@ describe("input synthesis", () => {
     const reference = CALIBRATED_INPUT_PROFILE.timing.bundles.find(
       (bundle) => bundle.regime === regime,
     )!;
-    const { readFileSync } = await import("node:" + "fs");
-    const recording = JSON.parse(readFileSync(
-      `../review/phase1/calibration-reference/sessions/${reference.runtime_session_id}/browser.json`,
-      "utf8",
-    )) as { raw_events: {
+    const recordingPath =
+      `../review/phase1/calibration-reference/sessions/${reference.runtime_session_id}/browser.json`;
+    const { existsSync, readFileSync } = await import("node:" + "fs");
+    if (!existsSync(recordingPath)) {
+      skip("private local calibration recordings are unavailable");
+    }
+    const recording = JSON.parse(readFileSync(recordingPath, "utf8")) as { raw_events: {
       ordinal: number;
       relative_ms: number;
       kind: string;

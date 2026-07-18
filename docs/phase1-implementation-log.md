@@ -1167,3 +1167,31 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   and no assertion failure, so the complete file list was rerun successfully in smaller shards.
 - The annotated close tag is `phase1-close` and binds the commit containing this final report and
   log entry. Phase 1 is closed; no additional provider call is required or authorized.
+
+## 2026-07-18 — Post-close repository cleanup
+
+- The post-close slice removed 9,008 population and execution-debris files from the working tree
+  and reclaimed approximately 1.52 GiB net. The trace population's 2,920 materialized browser,
+  runtime, and materialization files were deleted. Fitted-v1 and refit-2 bulk were already absent;
+  their recoverable evidentiary heads were retained alongside the trace heads in compact,
+  checksummed directories (17 files total across the three populations).
+- The pre-repair and final teacher-canary workspaces were reduced to the sealed input packets,
+  canonical final comparison/review artifacts, and purchased provider evidence. All ten paid
+  `provider-output.jsonl` files (265 rows per run) and all ten provider batch records were copied
+  byte-for-byte into `review/phase1/teacher-canary-provider-evidence/`; the pre-repair plan and
+  fail-closed result were retained with them. The 24-file directory passes its complete
+  `SHA256SUMS` inventory before and after removal of regenerable inputs, cache ledgers, empty error
+  files, and launch logs.
+- Seven browser recording JSONs remain local in `browsersessions/`, with seven local reference
+  mirrors. `.im/sessions/` currently holds 13 local runtime session databases. The 14 JSON paths
+  were removed from Git tracking, and `.im/`, `browsersessions/`, and the local reference-session
+  directory are explicitly ignored. Tests that prove properties from raw recordings run when the
+  private local material is present and tolerate its intentional absence in a clean checkout.
+- The empty blind form, superseded Phase 1 handoff, duplicate repaired packet, pre-repair review
+  debris, and unreferenced blind-packet assembler were removed. The Grok blind judgment was kept
+  as non-binding documentation. No trace generator, analyzer, teacher runner, G7 validator, leak
+  lint, split ledger, or review-packet contract was removed.
+- Post-deletion verification passes: Ruff; every Python test file in sequential ten-file
+  memory-safe shards; all 113 client tests; the client production build; all retained population
+  head inventories; the final teacher-canary packet/review inventories; the paid-provider
+  evidence inventory; and `git diff --check`.

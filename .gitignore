@@ -22,11 +22,16 @@ checkpoints/
 wandb/
 
 # Runtime state
+.im/
 *.sqlite
 *.sqlite3
 *.sqlite-*
 *.sqlite.lock
 *.db
+
+# Private calibration recordings (retained locally, never committed)
+browsersessions/
+review/phase1/calibration-reference/sessions/
 
 # Data (synthetic corpus, eval sets — track via hashes, not blobs)
 data/
