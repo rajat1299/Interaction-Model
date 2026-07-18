@@ -24,6 +24,9 @@ from im.generation.timer_instruction_semantics import parse_timer_instruction_v1
 from im.schema.actions import (
     CancelAction,
     DelegateAction,
+    IdleAction,
+    IdleReason,
+    IntegrateAction,
     NudgeAction,
     ScheduleAction,
     SkipAction,
@@ -77,9 +80,9 @@ _DUPLICATE_B_ACTION_TYPES = (
     "delegate",
     "delegate",
     "idle",
+    "skip",
+    "skip",
     "integrate",
-    "skip",
-    "skip",
     "idle",
 )
 
@@ -127,6 +130,73 @@ def test_checkpoint_programs_declare_complete_strict_g7_evidence(program_builder
     assert len(evidence) == len(cancels)
     assert tuple(item.resolved_timer_ids for item in evidence) == tuple(
         (action.target.timer_id,) for action in cancels
+    )
+
+
+def test_checkpoint_lookup_preludes_and_visible_need_replacements_are_specific() -> None:
+    registry = _sealed_registry()
+    duplicate_a = _lookup_duplicate_a_program(registry, "g7-checkpoint-source-contracts-a")
+    duplicate_b = _lookup_duplicate_b_program(registry, "g7-checkpoint-source-contracts-b")
+
+    assert all(
+        isinstance(action, IdleAction) and action.reason is IdleReason.INSTRUCTION_NOT_DIRECT
+        for program in (duplicate_a, duplicate_b)
+        for action in program.actions[:8]
+    )
+
+    a_delegates = tuple(
+        action for action in duplicate_a.actions if isinstance(action, DelegateAction)
+    )
+    a_sources = tuple(frame.raw_bytes.decode("utf-8") for frame in duplicate_a.frames)
+    assert all(
+        f"Please look up {action.fact.text}." in "\n".join(a_sources)
+        for action in a_delegates[:-1]
+    )
+    assert (
+        f"I no longer need {a_delegates[-2].fact.text}; instead, please look up "
+        f"{a_delegates[-1].fact.text}."
+        in "\n".join(a_sources)
+    )
+    replacement_skip = next(
+        action for action in duplicate_a.actions if isinstance(action, SkipAction)
+    )
+    replacement_need = next(
+        need
+        for need in duplicate_a.need_lineage_by_beat[
+            duplicate_a.actions.index(replacement_skip)
+        ].needs
+        if need.need_id == "n_003"
+    )
+    assert replacement_skip.reason is SkipReason.SUPERSEDED_QUERY
+    assert replacement_need.status is NeedStatus.SUPERSEDED
+    assert replacement_need.superseded_by_need_id == "n_004"
+
+    b_delegates = tuple(
+        action for action in duplicate_b.actions if isinstance(action, DelegateAction)
+    )
+    b_sources = "\n".join(frame.raw_bytes.decode("utf-8") for frame in duplicate_b.frames)
+    assert all(f"Please look up {action.fact.text}." in b_sources for action in b_delegates)
+    assert f"Keep {b_delegates[0].fact.text} active." in b_sources
+    assert f"I no longer need {b_delegates[1].fact.text}" in b_sources
+
+
+def test_timer_cancel_pressure_frames_are_neutral() -> None:
+    program = _timer_cancel_program(_sealed_registry(), "g7-timer-cancel-pressure-neutral")
+    pressure_frames = tuple(
+        json.loads(frame.raw_bytes)["text"]
+        for frame in program.frames
+        if len(frame.raw_bytes) > 3_000
+    )
+
+    assert len(pressure_frames) == 4
+    assert all(
+        "Remind me every" not in text and "Set another reminder every" not in text
+        for text in pressure_frames
+    )
+    assert all(
+        isinstance(program.actions[index], IdleAction)
+        and program.actions[index].reason is IdleReason.NO_TRIGGER
+        for index in (1, 3, 5, 7)
     )
 
 
@@ -191,6 +261,17 @@ async def test_lookup_duplicates_keep_their_exact_candidates_in_production_names
 
     assert len(selected) == 1
     assert selected[0].call_indices == call_indices
+    if shape_id == "g7-checkpoint-lookup-duplicate-b":
+        assert tuple(type(action) for action in selected[0].selected_actions[-4:]) == (
+            SkipAction,
+            SkipAction,
+            IntegrateAction,
+            IdleAction,
+        )
+        terminal = parent.sidecar.decisions[-1].action
+        assert isinstance(terminal, IdleAction)
+        assert terminal.reason is IdleReason.ALREADY_HANDLED
+        assert terminal.related_event_id == parent.sidecar.decisions[-2].action.result_event_id
 
 
 @pytest.mark.asyncio

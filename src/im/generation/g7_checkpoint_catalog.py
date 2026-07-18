@@ -455,7 +455,7 @@ def _perturbation(family: CorpusFamily) -> str:
 def _prelude(recipe: _Recipe, document: str, *, count: int = _PRELUDE_DOCUMENT_COUNT) -> None:
     for _ in range(count):
         recipe.snapshot(document)
-        recipe.action(_idle(), runtime_events=0)
+        recipe.action(_idle(IdleReason.INSTRUCTION_NOT_DIRECT), runtime_events=0)
 
 
 def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
@@ -470,10 +470,12 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
     recipe = _Recipe([], [])
     _prelude(recipe, _working_document(pool))
 
-    first_id, first_at, first_action = _delegate_snapshot(recipe, first.query, first.query)
+    first_source = f"Please look up {first.query}."
+    first_id, first_at, first_action = _delegate_snapshot(recipe, first_source, first.query)
+    second_source = f"Keep {first.query} active. Please look up {second.query}."
     second_id, second_at, second_action = _delegate_snapshot(
         recipe,
-        second.query,
+        second_source,
         second.query,
         at_ms=_causal_at(
             timing,
@@ -510,9 +512,10 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
         first_result_at,
         latest_quiet_at + timing.service_ms[latest_quiet_idle],
     )
+    third_source = f"Keep {second.query} active. Please look up {third.query}."
     third_id, third_at, third_action = _delegate_snapshot(
         recipe,
-        third.query,
+        third_source,
         third.query,
         at_ms=_causal_at(
             timing,
@@ -525,7 +528,7 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
     second_integrate = recipe.action(
         IntegrateAction(type="integrate", result_event_id=second_result, text=second.result_a)
     )
-    fourth_source = f"I no longer need {third.query}; instead, check {fourth.query}."
+    fourth_source = f"I no longer need {third.query}; instead, please look up {fourth.query}."
     fourth_id, fourth_at, fourth_action = _delegate_snapshot(
         recipe,
         fourth_source,
@@ -539,7 +542,7 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
     third_result_at = _causal_at(timing, (fourth_action, fourth_at))
     third_result = recipe.world_event()
     recipe.action(
-        SkipAction(type="skip", target_event_id=third_result, reason=SkipReason.STALE_TOOL_RESULT)
+        SkipAction(type="skip", target_event_id=third_result, reason=SkipReason.SUPERSEDED_QUERY)
     )
     recipe.action(_idle(IdleReason.AWAITING_TOOL, fourth_id), runtime_events=0)
 
@@ -558,7 +561,6 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
             (third_action, third_at, third_result_at, third.result_a),
             (fourth_action, fourth_at, fourth_at + _LONG_PENDING_MS, fourth.result_a),
         ),
-        stale=((len(recipe.actions) - 2, (third_result,)),),
         openings=(
             (first_integrate, latest_quiet_id),
             (second_integrate, third_id),
@@ -584,9 +586,10 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
                 "n_003",
                 third_action,
                 fourth_action,
-                NeedStatus.ABANDONED,
-                NeedBasisKind.ABANDONED,
+                NeedStatus.SUPERSEDED,
+                NeedBasisKind.SUPERSEDED,
                 fourth_id,
+                "n_004",
             ),
             G7NeedPlan("n_004", fourth_action),
         ),
@@ -623,37 +626,53 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
         recipe.snapshot(text)
         recipe.action(_idle(), runtime_events=0)
 
-    first_id, first_at, first_action = _delegate_snapshot(recipe, first.query, first.query)
-    second_id, second_at, second_action = _delegate_snapshot(recipe, second.query, second.query)
-    third_id, third_at = recipe.snapshot(third.query)
+    first_source = f"Please look up {first.query}."
+    first_id, first_at, first_action = _delegate_snapshot(recipe, first_source, first.query)
+    second_source = f"Keep {first.query} active. Please look up {second.query}."
+    second_id, second_at, second_action = _delegate_snapshot(recipe, second_source, second.query)
+    third_source = f"Keep {first.query} active. Please look up {third.query}."
+    third_id, third_at = recipe.snapshot(third_source)
     superseding_snapshot = (
-        f"Keep {first.query} in view. {second.query} and {third.query} no longer fit the notebook."
+        f"Keep {first.query} active. I no longer need {second.query} or {third.query}; "
+        "those lookups are abandoned."
     )
     superseding_id, _ = recipe.snapshot(superseding_snapshot, at_ms=third_at)
-    third_action = recipe.action(_delegate(third_id, third.query, third.query), runtime_events=2)
-    recipe.action(_idle(IdleReason.AWAITING_TOOL, first_id), runtime_events=0)
+    third_action = recipe.action(_delegate(third_id, third_source, third.query), runtime_events=2)
+    awaiting_results = recipe.action(_idle(IdleReason.AWAITING_TOOL, first_id), runtime_events=0)
 
     first_result = recipe.world_event()
     second_result = recipe.world_event()
     third_result = recipe.world_event()
-    first_integrate = recipe.action(
-        IntegrateAction(type="integrate", result_event_id=first_result, text=first.result_a)
-    )
     first_skip = recipe.action(
         SkipAction(type="skip", target_event_id=second_result, reason=SkipReason.STALE_TOOL_RESULT)
     )
     second_skip = recipe.action(
         SkipAction(type="skip", target_event_id=third_result, reason=SkipReason.STALE_TOOL_RESULT)
     )
-    recipe.action(_idle(), runtime_events=0)
-    if len(recipe.actions) != total_actions:
-        raise RuntimeError("duplicate B action ledger drifted")
+    first_integrate = recipe.action(
+        IntegrateAction(type="integrate", result_event_id=first_result, text=first.result_a)
+    )
     result_at = _causal_at(
         timing,
         (first_action, first_at),
         (second_action, second_at),
         (third_action, third_at),
+        (awaiting_results, third_at + timing.service_ms[third_action]),
     )
+    recipe.snapshot(
+        "The first lookup result is now recorded in the notebook.",
+        at_ms=max(
+            recipe.next_at_ms,
+            result_at
+            + sum(timing.service_ms[index] for index in (first_skip, second_skip, first_integrate))
+            + 100,
+        ),
+    )
+    terminal_idle = recipe.action(
+        _idle(IdleReason.ALREADY_HANDLED, first_result), runtime_events=0
+    )
+    if len(recipe.actions) != total_actions:
+        raise RuntimeError("duplicate B action ledger drifted")
     return _materialize(
         bundle,
         template,
@@ -674,7 +693,7 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
             G7NeedPlan(
                 "n_001",
                 first_action,
-                first_skip,
+                terminal_idle,
                 NeedStatus.SATISFIED,
                 NeedBasisKind.RESULT,
                 first_result,
@@ -985,7 +1004,10 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
     neutral = iter(_seeded_quiet_sources(pool, master_seed, 4))
     recipe = _Recipe([], [])
     cancel_plan = G7CancelPlan()
-    pressure_unit = f"{short.instruction} {long.instruction} "
+    pressure_unit = (
+        "The atlas remains open beside the notebook while the field cards and pencil stay in "
+        "their original places. "
+    )
     pressure = (pressure_unit * 80)[:4_020]
     additional_long_instruction = render_timer_instruction_v1(
         long.interval_ms, long.message, explicit_additional=True
@@ -1191,9 +1213,9 @@ _CHECKPOINT_SPECS = (
             *((IdleAction,) * 5),
             *((DelegateAction,) * 3),
             IdleAction,
+            SkipAction,
+            SkipAction,
             IntegrateAction,
-            SkipAction,
-            SkipAction,
             IdleAction,
         ),
     ),

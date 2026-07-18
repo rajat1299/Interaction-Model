@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -42,6 +43,7 @@ from im.schema.actions import (
     RespondAction,
     ScheduleAction,
 )
+from im.schema.textspan import utf16_len
 
 
 def _reviewed_registry() -> AssetRegistry:
@@ -263,6 +265,40 @@ def test_fresh_timer_schedules_round_trip_the_closed_instruction_semantics(split
 
     for _shape_id, program in programs:
         _assert_timer_schedule_semantics(program.actions)
+
+
+@pytest.mark.parametrize("split", tuple(Split))
+def test_fresh_timer_schedule_sources_have_one_canonical_direct_command(split: Split) -> None:
+    registry = _reviewed_registry()
+    programs = build_g7_fresh_session_programs(
+        registry,
+        split=split,
+        inputs=_family_inputs(registry, split),
+        master_seed=f"g7-timer-source-spans-{split.value}",
+    )
+    timer_command = re.compile(r"(?:Remind me|Set another reminder) every [^.]+\.")
+
+    for _shape_id, program in programs:
+        for action in program.actions:
+            if not isinstance(action, ScheduleAction):
+                continue
+            command = action.instruction.text
+            sources = tuple(
+                json.loads(frame.raw_bytes)["text"]
+                for frame in program.frames
+                if command in json.loads(frame.raw_bytes)["text"]
+            )
+            assert len(sources) == 1
+            (source,) = sources
+            assert len(timer_command.findall(source)) == 1
+            assert (
+                source == command
+                or source.startswith(f"{command}\n")
+                or source.endswith(f"\n{command}")
+            )
+            offset = source.index(command)
+            assert action.instruction.start_utf16 == utf16_len(source[:offset])
+            assert action.instruction.end_utf16 == utf16_len(source[:offset]) + utf16_len(command)
 
 
 @pytest.mark.asyncio

@@ -115,18 +115,6 @@ _RESPONSE_FAMILIES = (
     CorpusFamily.LOOKUP_LIVE,
     CorpusFamily.LOOKUP_STALE,
 )
-_ADDITIONAL_TIMER_PREFIXES = (
-    "Also set another reminder",
-    "Please add one more reminder",
-    "Set an additional reminder too",
-    "Please create another reminder as well",
-    "Add a separate reminder too",
-    "Please set another recurring reminder",
-    "Create one more independent reminder",
-    "I need an additional reminder",
-    "Please add another recurring reminder",
-    "Set up one more reminder too",
-)
 _TIMER_CONTEXTS = (
     "desk note",
     "field log",
@@ -579,7 +567,7 @@ def _timer_normal_compact(
         master_seed,
         plan,
         (
-            _frame(0, _timer_preface(timer.instruction)),
+            _frame(0, _timer_preface()),
             _frame(first_schedule_at, texts[0]),
             _frame(first_schedule_at + s[1] - 1, texts[1]),
             _frame(first_schedule_at + s[1] + s[2] - 1, texts[2]),
@@ -589,9 +577,9 @@ def _timer_normal_compact(
     )
 
 
-def _timer_preface(instruction: str) -> str:
+def _timer_preface() -> str:
     """Return a deterministic neutral preface before the compact timer wave."""
-    return f"Preparing a reminder: {instruction}"
+    return "The next reminder is being prepared."
 
 
 def _timer_contention_control(
@@ -786,28 +774,16 @@ def _timer_texts(
     *,
     contextual: bool,
 ) -> tuple[str, ...]:
-    namespace += "-context" if contextual else ""
     if not instructions:
         raise ValueError("timer text wave requires at least one instruction")
-    count = len(instructions) - 1
-    prefixes = _rotated_choices(master_seed, namespace, _ADDITIONAL_TIMER_PREFIXES)[:count]
     if not contextual:
-        return (
-            instructions[0],
-            *(
-                f"{prefix}: {instruction}"
-                for prefix, instruction in zip(prefixes, instructions[1:], strict=True)
-            ),
-        )
-    contexts = _rotated_choices(master_seed, f"{namespace}-noun", _TIMER_CONTEXTS)[:count]
-    return (
-        instructions[0],
-        *(
-            f"{prefix} for the {context}: {instruction}"
-            for prefix, context, instruction in zip(
-                prefixes, contexts, instructions[1:], strict=True
-            )
-        ),
+        return instructions
+    contexts = _rotated_choices(master_seed, f"{namespace}-context", _TIMER_CONTEXTS)[
+        : len(instructions)
+    ]
+    return tuple(
+        f"The {context} remains open beside the notebook.\n{instruction}"
+        for context, instruction in zip(contexts, instructions, strict=True)
     )
 
 

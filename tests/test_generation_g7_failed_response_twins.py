@@ -24,7 +24,7 @@ from im.generation.scenarios import execute_scenario
 from im.generation.yield_readiness import G7ShapeAllocation, G7SourceUnit
 from im.schema.actions import DelegateAction, IdleAction, IdleReason, IntegrateAction, RespondAction
 from im.schema.common import ToolResultStatus
-from im.schema.events import StateCheckpointEvent, ToolResultEvent
+from im.schema.events import SnapshotEvent, StateCheckpointEvent, ToolResultEvent
 from im.serialize import parse_event
 
 
@@ -177,6 +177,41 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         == ("b3", "b7", "b8")
         for program in twins.programs
     )
+    assert all(
+        action.reason is IdleReason.INSTRUCTION_NOT_DIRECT
+        for program in twins.programs
+        for action in program.actions[:3]
+        if isinstance(action, IdleAction)
+    )
+    assert all(
+        next(
+            need
+            for need in program.need_lineage_by_beat[-1].needs
+            if need.need_id == "n_failed_lookup"
+        ).status.value
+        == "live"
+        for program in twins.programs
+    )
+
+    for parent, program in zip(parents, twins.programs, strict=True):
+        snapshots = {
+            event.id: event
+            for segment in parent.stream.segments
+            for line in segment.policy_bytes.splitlines()
+            if isinstance((event := parse_event(line)), SnapshotEvent)
+        }
+        delegates = tuple(
+            action for action in program.actions if isinstance(action, DelegateAction)
+        )
+        assert all(action.fact.text == action.args.query for action in delegates)
+        assert all(
+            f"Please look up {action.fact.text}." in snapshots[action.fact.event_id].payload.text
+            for action in delegates
+        )
+        assert (
+            "remains available for the final invitation"
+            in snapshots[FAILED_QUERY_EVENT_ID].payload.text
+        )
 
     assert yielded.frames[:-1] == active.frames[:-1]
     yielded_final = parse_tim_json(yielded.frames[-1].raw_bytes)

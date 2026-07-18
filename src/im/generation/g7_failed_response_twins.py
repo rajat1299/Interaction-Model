@@ -146,6 +146,18 @@ def build_g7_failed_response_twin_programs(
     bundle, template, failure, first_success, second_success, document = _inputs(
         registry, failed_lookup_index
     )
+    failure_source = (
+        "Keep the failed lookup result active; it remains available for the final invitation. "
+        f"Please look up {failure.query}."
+    )
+    first_source = (
+        "Keep the failed lookup result available for the final invitation. "
+        f"Please look up {first_success.query}."
+    )
+    second_source = (
+        "Keep the failed lookup result available for the final invitation. "
+        f"Please look up {second_success.query}."
+    )
     failed_result = ScriptedToolResult(
         latency_ms=100,
         data={"unused": True},
@@ -175,20 +187,20 @@ def build_g7_failed_response_twin_programs(
         second_request_committed_at,
     ) = _frames(
         document,
-        failure.query,
-        first_success.query,
-        second_success.query,
+        failure_source,
+        first_source,
+        second_source,
         invitation,
         timing.service_ms,
     )
     actions = (
-        *(_idle() for _ in range(_PRELUDE_COUNT)),
-        _delegate("e_000005", failure.query),
+        *(_idle(IdleReason.INSTRUCTION_NOT_DIRECT) for _ in range(_PRELUDE_COUNT)),
+        _delegate("e_000005", failure_source, failure.query),
         _idle(IdleReason.AWAITING_OPENING, FAILED_RESULT_EVENT_ID),
         _idle(IdleReason.AWAITING_OPENING, FAILED_RESULT_EVENT_ID),
         _idle(IdleReason.AWAITING_OPENING, FAILED_RESULT_EVENT_ID),
-        _delegate("e_000012", first_success.query),
-        _delegate("e_000013", second_success.query),
+        _delegate("e_000012", first_source, first_success.query),
+        _delegate("e_000013", second_source, second_success.query),
         _idle(IdleReason.AWAITING_TOOL, "e_000012"),
         IntegrateAction(type="integrate", result_event_id="e_000019", text=first_success.result_a),
         IntegrateAction(type="integrate", result_event_id="e_000020", text=second_success.result_a),
@@ -426,13 +438,13 @@ def _frame(at_ms: int, text: str, activity: str) -> ScheduledSamplerFrame:
     )
 
 
-def _delegate(event_id: str, query: str) -> DelegateAction:
+def _delegate(event_id: str, source: str, query: str) -> DelegateAction:
     return DelegateAction(
         type="delegate",
         fact=Span(
             event_id=event_id,
-            start_utf16=0,
-            end_utf16=utf16_len(query),
+            start_utf16=utf16_len(source[: source.index(query)]),
+            end_utf16=utf16_len(source[: source.index(query)]) + utf16_len(query),
             text=query,
         ),
         tool=ToolName.LOOKUP,
