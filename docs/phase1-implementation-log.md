@@ -826,3 +826,25 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   teacher canary plus disagreement/semantic review and the project owner's blinded 20-pair
   judgment. The final Phase 1 report and tag remain intentionally uncreated until those records
   exist.
+
+## 2026-07-17 — Owner blind replay judgment
+
+- The project owner completed all 20 blinded pair judgments before the private mapping was opened.
+  The filled record is `review/phase1/blind-replay-owner-judgment.md`, kept outside the
+  generator-owned public packet so deterministic packet verification remains exact.
+- After the single unblinding, the recorded side had been selected in 13/20 pairs (65%); the
+  synthetic side had been selected as more plausibly recorded in 7/20 (35%). There were no
+  `indistinguishable` selections. By regime, recorded-side identification was cursor/selection
+  3/3, short-command 3/3, revision-heavy 3/4, natural drafting 2/4, copied/scripted 1/3, and
+  pauses/resumptions 1/3.
+- Cursor/selection behavior is the clearest repeated artifact: all three cursor pairs were
+  identified, and the owner's notes described the synthetic sides as too fast or unnatural.
+  Missing visible interaction/revision was also noted, but it was not synthetic-specific: one
+  such note referred to a synthetic side and another to a recorded side. Per the process freeze,
+  this finding is recorded for the final report's `found, deferred` section and triggers no new
+  simulator work in Phase 1.
+- This was deliberately non-binding documentation and does not alter the Option-B G-1 verdict.
+  The forced-choice form measured which side looked *more recorded*; it did not independently ask
+  whether each synthetic trace was plausible, so the former >=16/20 plausibility criterion cannot
+  be reconstructed honestly. The owner also reported that text redaction made the judgment hard;
+  that loss of semantic context is a limitation of this privacy-preserving packet.
