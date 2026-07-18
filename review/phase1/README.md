@@ -15,16 +15,21 @@
    validator pointers; the former external acceptance ledger is no longer load-bearing.
 
 Asset approval, split sealing, C5 pilot acceptance, and sealed G-7 readiness validation are complete.
-Teacher labeling and template promotion have not started; the post-teacher response gate remains
-mandatory.
+Full teacher labeling and template promotion have not started; the post-teacher response gate
+remains mandatory.
 
 The trace-resampled G-1 population closes under Option B as a quantitative fail against the frozen
 single-user reference profile. The unchanged measured result is
 [`calibration-trace-analysis.json`](calibration-trace-analysis.json); no further population,
 analyzer, band, or tuning iteration is authorized. The direct 20-pair replay is assembled as
 non-binding documentation in [`blind-replay-documentation/`](blind-replay-documentation/), with its
-answer key physically separate; project-owner judgment is pending and cannot alter G-1.
+answer key physically separate. The completed owner judgment selected the recorded side in 13/20
+pairs and found cursor/selection the clearest repeated synthetic artifact; the result cannot alter
+G-1.
 
-The frozen WP1-9 canary packet is prepared and the WP1-8 shell is integrated. Live teacher
-execution and disagreement review remain pending; no provider call has been made since the owner
-asked the task to stop before live model calls.
+The frozen WP1-9 canary ran in five Batch shards for `$1.6182388750` and failed closed: 263/265
+responses validated, while two schedule actions had invalid UTF-16 spans. The quarantined
+[`review-only/`](teacher-canary-execution/sharded/review-only/) evidence let WP1-8 review all 84
+valid disagreements without publishing an official label corpus. Final valid-decision outcomes
+are 7 accept, 32 reject, and 45 flag; the two invalid outputs are separate rejects. Template/oracle
+repair and a separately authorized re-canary are required before the full Phase 2 labeling spend.

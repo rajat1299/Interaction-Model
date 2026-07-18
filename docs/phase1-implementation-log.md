@@ -900,3 +900,31 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   contract leaves no complete label file for WP1-8. The project owner must decide whether the
   retained valid responses may be materialized as an explicitly quarantined review-only artifact
   or whether this first-pass failure closes WP1-9 without further provider calls.
+
+## 2026-07-18 — Quarantined WP1-8 disagreement review
+
+- With project-owner authorization, the 263 valid retained responses were materialized once as
+  `review/phase1/teacher-canary-execution/sharded/review-only/teacher-labels.review-only.jsonl`.
+  The directory states plainly that the canary failed and that its labels are review evidence only,
+  never training data or an official teacher-label corpus. It binds the failed-run plan, failure
+  record, and five provider-output files by SHA-256. No provider call, credential read, response
+  repair, oracle substitution, or model retry occurred during materialization or review.
+- The live file imported through WP1-8 with exactly 263 labels and 84 unresolved disagreements;
+  the two invalid schedule decisions remained visibly absent. Two primary full-stream reviews and
+  one adversarial adjudication reviewed every disagreement. Final valid-decision outcomes are seven
+  `accept`, 32 `reject`, and 45 `flag`; the two malformed teacher outputs are recorded separately as
+  rejects. The completed 114-record sidecar then imported through WP1-8 and reduced the unresolved
+  count from 84 to zero without changing packet bytes.
+- Applying D2 whole-stream semantics to the 28 affected streams produces six accepts, 20 rejects,
+  and two flags. A rejected stream has at least one clearly non-equivalent teacher action; a flagged
+  stream requires oracle/template repair. An accepted disagreement is limited to faithful
+  same-reference response wording. None of these review decisions overrides the official canary's
+  all-or-nothing failure.
+- The 45 flags cluster in five systemic findings: incorrect `no_trigger` oracles for quoted command
+  controls; ambiguous bare lookup triggers; retained-need, topic-change, stale-result, and conflict-
+  order errors; two nested-versus-wrapper schedule-span ambiguities; and one unquoted behavioral-
+  filler stream treated as inert by the oracle. These are precisely the template/oracle problems
+  the canary was intended to catch. They block the full Phase 2 labeling spend.
+- No template was repaired and no re-canary was submitted at this log point. Any new model call
+  requires separate project-owner authorization after the affected template/oracle shapes are
+  repaired offline.
