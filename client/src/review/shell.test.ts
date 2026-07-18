@@ -149,7 +149,7 @@ describe("review shell", () => {
     expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
     expect(await loadTeacherLabelsText(loadCanaryTeacherLabels())).toBeNull();
     expect(document.getElementById("progress")!.textContent).toContain(
-      "unresolved disagreements: 55",
+      "unresolved disagreements: 50",
     );
   });
 

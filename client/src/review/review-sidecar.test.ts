@@ -118,7 +118,7 @@ describe("review sidecar export/import", () => {
     const merged = mergeReviewRecords(new Map(), parsed.records, knownStreams, knownSeqs);
     expect(merged.ok).toBe(true);
     if (!merged.ok) return;
-    expect(merged.added).toBe(83);
-    expect(parsed.records.filter((record) => record.decision_policy_seq !== null)).toHaveLength(55);
+    expect(merged.added).toBe(77);
+    expect(parsed.records.filter((record) => record.decision_policy_seq !== null)).toHaveLength(50);
   });
 });

@@ -10,7 +10,7 @@ import type { PacketEntry } from "./packet-loader";
 /** client/ cwd → current repaired teacher-canary packet */
 export const CANARY_ROOT = join(
   process.cwd(),
-  "../review/phase1/teacher-canary-recanary/packet-rebound",
+  "../review/phase1/teacher-canary-recanary/packet-final",
 );
 const CANARY_LABELS = join(
   process.cwd(),

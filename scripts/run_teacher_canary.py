@@ -70,7 +70,7 @@ def _arguments() -> argparse.Namespace:
 async def _run(args: argparse.Namespace) -> None:
     repository = args.repository.resolve()
     load_dotenv(repository / ".env", override=False)
-    packet = repository / "review/phase1/teacher-canary-recanary/packet-rebound"
+    packet = repository / "review/phase1/teacher-canary-recanary/packet-final"
     execution_root = repository / "review/phase1/teacher-canary-recanary/execution"
     output = execution_root / "sharded"
     plan = plan_teacher_canary(

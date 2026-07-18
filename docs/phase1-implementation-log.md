@@ -1106,3 +1106,46 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   `git diff --check` pass. The single-process Python suite was also attempted and was killed by the
   operating system with exit 137 after 32 percent; sharding covered every test file without that
   memory spike.
+
+## 2026-07-18 — Final teacher-canary repair rebind and D2 completion
+
+- The corrected production-readiness population regenerated offline from repair commit `eaead8e`.
+  All five 2,000-action batches completed, the 417-stream manifest and 10,000 selected actions
+  verified, and all 5,751 checksum entries passed. Its canonical manifest is
+  `sha256:60fdc35feb4357b06d35678d0f05f3f85e9e506f76aef945a88110d642957f06`;
+  the complete checksum inventory is
+  `sha256:93e852a8ed8967e62274d3690043c470ca61dc12781baaab5a95dd4a43a694d9`.
+  No provider, network, model, or credential call occurred.
+- The ordinary digest-ranked 10% selector would choose six different source units and only 261
+  decisions, so that derived packet was rejected as non-comparable. The repaired full batch still
+  contains one exact raw-source match for every one of the historical canary's 27 source units.
+  Pinning those existing identities preserves all 38 parent streams and 265 decisions in
+  `review/phase1/teacher-canary-recanary/packet-final/`. The packet checksum-inventory identity is
+  `sha256:caf3dbfef78774ae5e73e72fcbc7cb03229d55730060009c4a6bef1a1bcb37a8`,
+  its manifest identity is
+  `sha256:25198f64df9a9c16b30094d5f16db580468bf5061903b44f3196a65bde6e4179`,
+  and its source-index identity is
+  `sha256:9e84983a0f80a811c16139ce9ff2d1970b7a535811413acf5f0552466b3bfbdc`.
+- Replanning the completed packet and the corrected packet proved exact teacher-input equivalence:
+  all 265 custom IDs, observed policy sequences, visible prefix bytes, request bodies, and all five
+  Batch input files are byte-for-byte identical, with the same five shard SHA-256 identities. Only
+  the five reviewed oracle actions changed. Reusing the already-completed responses is therefore
+  an offline comparison rebind, not response reuse across different prompts; no replacement Batch
+  or other provider request was submitted.
+- All five retained raw Batch shards re-parse fail-closed against the final plan: 265/265 completed
+  valid actions, exact normalized teacher-action agreement, no provider-error rows, and complete
+  usage of 3,745,178 input tokens, 3,176,790 cached-input tokens, 124,580 cache-write tokens, 65,116
+  output tokens, and 55,415 reasoning tokens. The original `$1.634885000` cost remains the only
+  teacher-canary charge. The corrected comparison has 215 exact `auto_pass`, 43
+  `causal_disagreement`, and seven `semantic_review_required` decisions.
+- The five repaired actions are now exact automatic passes. The remaining 50 normalized label
+  objects are unchanged and retain their completed WP1-8 judgments across 27 streams: seven
+  decision accepts, 43 rejects, zero flags; six whole-stream accepts, 21 rejects, zero flags. The
+  final 77-record review sidecar exactly covers the 50 unresolved decisions plus their 27 streams,
+  imports through the WP1-8 shell, and passes its checksum inventory. D2 disagreement review and
+  re-canary are complete; the narrow idle-reason defect no longer blocks the Phase 2 labeling
+  spend.
+- Focused Python canary tests pass. All 113 WP1-8 client tests and the production build pass against
+  the final packet, and the final packet, normalized labels, comparison, review coverage, raw
+  provider artifacts, and usage totals all verify independently. The runner and WP1-8 fixture now
+  bind the final packet; no further teacher call is required or authorized.

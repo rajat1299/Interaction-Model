@@ -21,7 +21,7 @@ from im.probes.harness.cache import HarnessCache
 from im.probes.harness.models import BatchJobRecord
 
 ROOT = Path(__file__).parents[1]
-PACKET = ROOT / "review/phase1/teacher-canary-recanary/packet-rebound"
+PACKET = ROOT / "review/phase1/teacher-canary-recanary/packet-final"
 SHARD_CAP = 890_000
 
 
