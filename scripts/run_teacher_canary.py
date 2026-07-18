@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan, run, or resume the approved one-Batch WP1-9 teacher canary."""
+"""Plan, run, or resume the approved sharded-Batch WP1-9 teacher canary."""
 
 from __future__ import annotations
 
@@ -40,13 +40,30 @@ def _positive_seconds(value: str) -> float:
     return seconds
 
 
+def _positive_integer(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("value must be a positive integer") from error
+    if number <= 0:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+    return number
+
+
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("plan", "run", "resume", "adopt"), default="plan")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--approve-live-ceiling-usd", type=_amount)
+    parser.add_argument(
+        "--batch-max-enqueued-tokens",
+        required=True,
+        type=_positive_integer,
+        help="explicit per-shard prompt-token ceiling",
+    )
     parser.add_argument("--batch-poll-seconds", type=_positive_seconds, default=15)
     parser.add_argument("--batch-id")
+    parser.add_argument("--input-sha256")
     return parser.parse_args()
 
 
@@ -54,18 +71,28 @@ async def _run(args: argparse.Namespace) -> None:
     repository = args.repository.resolve()
     load_dotenv(repository / ".env", override=False)
     packet = repository / "review/phase1/teacher-canary"
-    output = repository / "review/phase1/teacher-canary-execution"
-    plan = plan_teacher_canary(repository, packet)
+    execution_root = repository / "review/phase1/teacher-canary-execution"
+    output = execution_root / "sharded"
+    plan = plan_teacher_canary(
+        repository,
+        packet,
+        max_enqueued_tokens=args.batch_max_enqueued_tokens,
+    )
     print(json.dumps(plan.as_json(), indent=2, sort_keys=True), flush=True)
     if args.mode == "plan":
         return
-    cache_path = output / "ledger.sqlite"
+    cache_path = execution_root / "ledger.sqlite"
     if args.mode == "adopt":
-        if not args.batch_id:
-            raise TeacherCanaryRunError("adopt requires --batch-id from reconciliation")
+        if not args.batch_id or not args.input_sha256:
+            raise TeacherCanaryRunError(
+                "adopt requires --batch-id and --input-sha256 from reconciliation"
+            )
+        planned_digests = {shard.input_sha256 for shard in plan.shards}
+        if args.input_sha256 not in planned_digests:
+            raise TeacherCanaryRunError("adopt input is not one of this canary's planned shards")
         with _exclusive_lock(cache_path):
             with HarnessCache(cache_path) as cache:
-                record = cache.get_batch_job(plan.shard.input_sha256)
+                record = cache.get_batch_job(args.input_sha256)
                 if record is None or record.status not in {
                     "create_uncertain",
                     "adopted_unverified",
@@ -75,7 +102,7 @@ async def _run(args: argparse.Namespace) -> None:
                     )
                 adopted = adopt_uncertain_batch(
                     cache,
-                    input_sha256=plan.shard.input_sha256,
+                    input_sha256=args.input_sha256,
                     batch_id=args.batch_id,
                 )
         print(
@@ -112,7 +139,9 @@ async def _run(args: argparse.Namespace) -> None:
     try:
         with _exclusive_lock(cache_path):
             with HarnessCache(cache_path) as cache:
-                if args.mode == "resume" and cache.get_batch_job(plan.shard.input_sha256) is None:
+                if args.mode == "resume" and not cache.batch_jobs(
+                    stage=plan.shards[0].stage
+                ):
                     raise TeacherCanaryRunError(
                         "resume requires the existing teacher-canary ledger"
                     )
@@ -129,7 +158,7 @@ async def _run(args: argparse.Namespace) -> None:
         json.dumps(
             {
                 "api_call_performed": True,
-                "batch_id": execution.job.batch_id,
+                "batch_ids": [job.batch_id for job in execution.jobs],
                 "comparison": str(output / "comparison.json"),
                 "causal_disagreement_count": execution.report["causal_disagreement_count"],
                 "provider_usage": execution.provider_usage.as_json(),

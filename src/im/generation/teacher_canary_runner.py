@@ -1,4 +1,4 @@
-"""Fail-closed WP1-9 teacher-canary planning and one-Batch execution."""
+"""Fail-closed WP1-9 teacher-canary planning and sharded Batch execution."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from im.policy.prompted import (
     ResponsesRequestBuilder,
 )
 from im.probes.harness.batch import (
+    BatchArtifactError,
     BatchDecoder,
     BatchShard,
     BatchWorkItem,
@@ -25,7 +26,8 @@ from im.probes.harness.batch import (
     parse_batch_artifacts,
     shard_work,
 )
-from im.probes.harness.batch_api import BatchGateway, execute_batch_shard
+from im.probes.harness.batch_api import BatchGateway, BatchLifecycleError
+from im.probes.harness.batch_runner import BatchHarnessConfig, materialize_batch_stage
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.client import response_usage
 from im.probes.harness.cost import usage_cost
@@ -38,6 +40,7 @@ from im.serialize import EventSerializationError, parse_event, render_event
 _EXPECTED_DECISIONS = 265
 _EXPECTED_OUTPUT_TOKENS = 300
 _MAX_OUTPUT_TOKENS = 8_192
+_PROVIDER_ENQUEUED_TOKEN_LIMIT = 900_000
 _PACKET_SHA256 = (
     "sha256:869461d4b411fe6813916c8d19de2ce7ae877b151dfd78bd1669aca5cc05927b"
 )
@@ -87,7 +90,7 @@ class TeacherCanaryDecision:
 
 @dataclass(frozen=True, slots=True)
 class TeacherCanaryPlan:
-    """The exact one-shard provider plan derived from the frozen packet."""
+    """The exact sharded provider plan derived from the frozen packet."""
 
     packet: Path
     packet_sha256: str
@@ -96,7 +99,8 @@ class TeacherCanaryPlan:
     pricing: ModelPricing
     decisions: tuple[TeacherCanaryDecision, ...]
     cost: TeacherCanaryCost
-    shard: BatchShard
+    max_enqueued_tokens: int
+    shards: tuple[BatchShard, ...]
 
     @property
     def items(self) -> tuple[BatchWorkItem, ...]:
@@ -113,14 +117,18 @@ class TeacherCanaryPlan:
             "packet_sha256": self.packet_sha256,
             "reasoning_effort": self.builder.config.reasoning_effort,
             "requests": len(self.items),
-            "shard": {
-                "estimated_input_tokens": self.shard.estimated_input_tokens,
-                "input_bytes": len(self.shard.input_jsonl),
-                "input_sha256": self.shard.input_sha256,
-                "request_count": len(self.shard.items),
-                "shard_index": self.shard.shard_index,
-                "stage": self.shard.stage,
-            },
+            "max_enqueued_tokens": self.max_enqueued_tokens,
+            "shards": [
+                {
+                    "estimated_input_tokens": shard.estimated_input_tokens,
+                    "input_bytes": len(shard.input_jsonl),
+                    "input_sha256": shard.input_sha256,
+                    "request_count": len(shard.items),
+                    "shard_index": shard.shard_index,
+                    "stage": shard.stage,
+                }
+                for shard in self.shards
+            ],
         }
 
 
@@ -128,7 +136,7 @@ class TeacherCanaryPlan:
 class TeacherCanaryExecution:
     """Completed provider evidence and its canonical all-decision comparison."""
 
-    job: BatchJobRecord
+    jobs: tuple[BatchJobRecord, ...]
     provider_usage: ProviderUsage
     report: dict[str, object]
 
@@ -142,8 +150,17 @@ class _Segment:
     sequences: tuple[int, ...]
 
 
-def plan_teacher_canary(repository: Path, packet: Path) -> TeacherCanaryPlan:
+def plan_teacher_canary(
+    repository: Path,
+    packet: Path,
+    *,
+    max_enqueued_tokens: int,
+) -> TeacherCanaryPlan:
     """Verify the frozen packet and render exactly its 265 sealed decision prefixes."""
+    if max_enqueued_tokens >= _PROVIDER_ENQUEUED_TOKEN_LIMIT:
+        raise TeacherCanaryRunError(
+            "teacher-canary shard ceiling must stay below the known 900000-token provider limit"
+        )
     repository = repository.resolve()
     packet = packet.resolve()
     try:
@@ -257,11 +274,10 @@ def plan_teacher_canary(repository: Path, packet: Path) -> TeacherCanaryPlan:
     shards = shard_work(
         _STAGE,
         items,
-        max_enqueued_tokens=input_tokens,
-        max_requests=len(items),
+        max_enqueued_tokens=max_enqueued_tokens,
     )
-    if len(shards) != 1 or len(shards[0].items) != _EXPECTED_DECISIONS:
-        raise TeacherCanaryRunError("teacher-canary must produce exactly one complete Batch shard")
+    if sum(len(shard.items) for shard in shards) != _EXPECTED_DECISIONS:
+        raise TeacherCanaryRunError("teacher-canary Batch shards do not cover every decision")
     cost = _cost(input_tokens, pricing)
     return TeacherCanaryPlan(
         packet=packet,
@@ -271,7 +287,8 @@ def plan_teacher_canary(repository: Path, packet: Path) -> TeacherCanaryPlan:
         pricing=pricing,
         decisions=tuple(decisions),
         cost=cost,
-        shard=shards[0],
+        max_enqueued_tokens=max_enqueued_tokens,
+        shards=shards,
     )
 
 
@@ -283,45 +300,85 @@ async def execute_teacher_canary(
     poll_seconds: float,
     output: Path,
 ) -> TeacherCanaryExecution:
-    """Run or resume the single sealed Batch and materialize a complete comparison."""
+    """Run or resume the sealed shards and materialize one complete comparison."""
     _write_plan_artifact(output, plan)
-    job = await execute_batch_shard(
-        plan.shard,
-        cache=cache,
-        gateway=gateway,
-        poll_seconds=poll_seconds,
-    )
-    if job.status != "completed" or not job.batch_id:
-        message = f"teacher-canary Batch did not complete: {job.status}"
-        usage = _available_provider_usage(plan, job)
+    try:
+        await materialize_batch_stage(
+            _STAGE,
+            plan.items,
+            cache=cache,
+            gateway=gateway,
+            config=BatchHarnessConfig(
+                max_enqueued_tokens=plan.max_enqueued_tokens,
+                poll_seconds=poll_seconds,
+            ),
+        )
+    except (BatchArtifactError, BatchLifecycleError) as error:
+        message = (
+            "teacher-canary provider artifacts are incomplete"
+            if isinstance(error, BatchArtifactError)
+            else f"teacher-canary Batch transport did not complete: {error}"
+        )
+        jobs = cache.batch_jobs(stage=_STAGE)
+        usage = _available_provider_usage(plan, jobs)
         _write_failure_artifacts(
             output,
-            job,
+            jobs,
             _failure_report(
                 plan,
-                job,
+                jobs,
                 message,
                 usage,
                 usage_complete=False,
-                usage_errors=(f"Batch terminal status is {job.status}",),
+                usage_errors=(str(error),),
+            ),
+        )
+        raise TeacherCanaryRunError(message) from error
+    jobs_by_digest = {
+        job.input_sha256: job for job in cache.batch_jobs(stage=_STAGE)
+    }
+    jobs = tuple(
+        jobs_by_digest[shard.input_sha256]
+        for shard in plan.shards
+        if shard.input_sha256 in jobs_by_digest
+    )
+    if len(jobs) != len(plan.shards) or any(
+        job.status != "completed" or not job.batch_id for job in jobs
+    ):
+        message = "teacher-canary Batch shards are incomplete"
+        usage = _available_provider_usage(plan, jobs)
+        _write_failure_artifacts(
+            output,
+            jobs,
+            _failure_report(
+                plan,
+                jobs,
+                message,
+                usage,
+                usage_complete=False,
+                usage_errors=(message,),
             ),
         )
         raise TeacherCanaryRunError(message)
     try:
-        artifacts = parse_batch_artifacts(
-            plan.items,
-            output_jsonl=job.output_jsonl,
-            error_jsonl=job.error_jsonl,
-        )
+        artifacts = {
+            custom_id: artifact
+            for shard, job in zip(plan.shards, jobs, strict=True)
+            for custom_id, artifact in parse_batch_artifacts(
+                shard.items,
+                output_jsonl=job.output_jsonl,
+                error_jsonl=job.error_jsonl,
+            ).items()
+        }
     except ValueError as error:
         message = "teacher-canary provider artifacts are incomplete"
-        usage = _available_provider_usage(plan, job)
+        usage = _available_provider_usage(plan, jobs)
         _write_failure_artifacts(
             output,
-            job,
+            jobs,
             _failure_report(
                 plan,
-                job,
+                jobs,
                 message,
                 usage,
                 usage_complete=False,
@@ -334,10 +391,10 @@ async def execute_teacher_canary(
         message = "teacher-canary provider usage is incomplete or malformed"
         _write_failure_artifacts(
             output,
-            job,
+            jobs,
             _failure_report(
                 plan,
-                job,
+                jobs,
                 message,
                 usage,
                 usage_complete=False,
@@ -346,13 +403,19 @@ async def execute_teacher_canary(
         )
         raise TeacherCanaryRunError(message)
     comparisons: list[dict[str, object]] = []
+    shard_by_custom_id = {
+        item.custom_id: (shard, job)
+        for shard, job in zip(plan.shards, jobs, strict=True)
+        for item in shard.items
+    }
     for decision in plan.decisions:
+        shard, job = shard_by_custom_id[decision.item.custom_id]
         decoded = decode_batch_completion(
             decision.item,
             artifacts[decision.item.custom_id],
-            batch_id=job.batch_id,
-            stage=plan.shard.stage,
-            shard_index=plan.shard.shard_index,
+            batch_id=job.batch_id or "",
+            stage=shard.stage,
+            shard_index=shard.shard_index,
         )
         if decoded.completion.outcome != "completed" or decoded.validation_error is not None:
             message = (
@@ -360,8 +423,8 @@ async def execute_teacher_canary(
             )
             _write_failure_artifacts(
                 output,
-                job,
-                _failure_report(plan, job, message, usage, usage_complete=True),
+                jobs,
+                _failure_report(plan, jobs, message, usage, usage_complete=True),
             )
             raise TeacherCanaryRunError(message)
         try:
@@ -372,8 +435,8 @@ async def execute_teacher_canary(
             message = f"teacher-canary action {decision.item.custom_id} is invalid"
             _write_failure_artifacts(
                 output,
-                job,
-                _failure_report(plan, job, message, usage, usage_complete=True),
+                jobs,
+                _failure_report(plan, jobs, message, usage, usage_complete=True),
             )
             raise TeacherCanaryRunError(message) from error
         resolution = _comparison_resolution(teacher_action, decision.oracle_action)
@@ -393,9 +456,9 @@ async def execute_teacher_canary(
                 "unresolved": resolution != "auto_pass",
             }
         )
-    report = _report(plan, job, comparisons, usage)
-    _write_artifacts(output, job, report)
-    return TeacherCanaryExecution(job=job, provider_usage=usage, report=report)
+    report = _report(plan, jobs, comparisons, usage)
+    _write_artifacts(output, jobs, report)
+    return TeacherCanaryExecution(jobs=jobs, provider_usage=usage, report=report)
 
 
 def _segments(root: Path) -> tuple[_Segment, ...]:
@@ -503,7 +566,7 @@ def _comparison_resolution(
 
 def _report(
     plan: TeacherCanaryPlan,
-    job: BatchJobRecord,
+    jobs: tuple[BatchJobRecord, ...],
     comparisons: list[dict[str, object]],
     usage: ProviderUsage,
 ) -> dict[str, object]:
@@ -513,14 +576,7 @@ def _report(
     auto_passes = sum(bool(item["auto_pass"]) for item in comparisons)
     actual_cost = usage_cost(usage, plan.pricing, billing_multiplier=plan.pricing.batch_multiplier)
     return {
-        "batch": {
-            "batch_id": job.batch_id,
-            "error_file_id": job.error_file_id,
-            "input_file_id": job.input_file_id,
-            "input_sha256": job.input_sha256,
-            "output_file_id": job.output_file_id,
-            "status": job.status,
-        },
+        "batch": _batch_summary(jobs),
         "comparison_count": len(comparisons),
         "cost_estimate": plan.cost.as_json(),
         "decisions": comparisons,
@@ -541,7 +597,7 @@ def _report(
 
 def _failure_report(
     plan: TeacherCanaryPlan,
-    job: BatchJobRecord,
+    jobs: tuple[BatchJobRecord, ...],
     message: str,
     usage: ProviderUsage,
     *,
@@ -557,14 +613,7 @@ def _failure_report(
     return {
         "available_provider_cost_usd": format(available_cost, "f"),
         "available_provider_usage": usage.as_json(),
-        "batch": {
-            "batch_id": job.batch_id,
-            "error_file_id": job.error_file_id,
-            "input_file_id": job.input_file_id,
-            "input_sha256": job.input_sha256,
-            "output_file_id": job.output_file_id,
-            "status": job.status,
-        },
+        "batch": _batch_summary(jobs),
         "cost_estimate": plan.cost.as_json(),
         "failure": {"message": message, "usage_errors": list(usage_errors)},
         "format_version": 2,
@@ -594,29 +643,37 @@ def _usage_from_artifacts(
     return usage, errors
 
 
-def _available_provider_usage(plan: TeacherCanaryPlan, job: BatchJobRecord) -> ProviderUsage:
+def _available_provider_usage(
+    plan: TeacherCanaryPlan,
+    jobs: tuple[BatchJobRecord, ...],
+) -> ProviderUsage:
     """Salvage only uniquely identified, well-formed usage from malformed artifacts."""
     expected = {decision.item.custom_id for decision in plan.decisions}
     seen: set[str] = set()
     usage = ProviderUsage()
-    for artifact_jsonl in (job.output_jsonl, job.error_jsonl):
-        for line in artifact_jsonl.splitlines():
-            try:
-                artifact = json.loads(line)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                continue
-            if not isinstance(artifact, dict):
-                continue
-            custom_id = artifact.get("custom_id")
-            if not isinstance(custom_id, str) or custom_id not in expected or custom_id in seen:
-                continue
-            seen.add(custom_id)
-            response = artifact.get("response")
-            body = response.get("body") if isinstance(response, dict) else None
-            try:
-                usage += _strict_provider_usage(body)
-            except ValueError:
-                continue
+    for job in jobs:
+        for artifact_jsonl in (job.output_jsonl, job.error_jsonl):
+            for line in artifact_jsonl.splitlines():
+                try:
+                    artifact = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    continue
+                if not isinstance(artifact, dict):
+                    continue
+                custom_id = artifact.get("custom_id")
+                if (
+                    not isinstance(custom_id, str)
+                    or custom_id not in expected
+                    or custom_id in seen
+                ):
+                    continue
+                seen.add(custom_id)
+                response = artifact.get("response")
+                body = response.get("body") if isinstance(response, dict) else None
+                try:
+                    usage += _strict_provider_usage(body)
+                except ValueError:
+                    continue
     return usage
 
 
@@ -672,12 +729,16 @@ def _validate_usage_integer(mapping: dict[str, object], key: str) -> None:
         raise ValueError(f"usage {key} is malformed")
 
 
-def _write_artifacts(output: Path, job: BatchJobRecord, report: dict[str, object]) -> None:
+def _write_artifacts(
+    output: Path,
+    jobs: tuple[BatchJobRecord, ...],
+    report: dict[str, object],
+) -> None:
     output.mkdir(parents=True, exist_ok=True)
     (output / "failure.json").unlink(missing_ok=True)
     (output / "comparison.json").unlink(missing_ok=True)
     (output / "teacher-labels.jsonl").unlink(missing_ok=True)
-    _write_raw_artifacts(output, job)
+    _write_raw_artifacts(output, jobs)
     _atomic_write(output / "comparison.json", canonical_artifact_bytes(report))
     decisions = report["decisions"]
     if not isinstance(decisions, list):
@@ -703,23 +764,48 @@ def _write_artifacts(output: Path, job: BatchJobRecord, report: dict[str, object
 
 def _write_failure_artifacts(
     output: Path,
-    job: BatchJobRecord,
+    jobs: tuple[BatchJobRecord, ...],
     failure: dict[str, object],
 ) -> None:
     output.mkdir(parents=True, exist_ok=True)
     (output / "comparison.json").unlink(missing_ok=True)
     (output / "teacher-labels.jsonl").unlink(missing_ok=True)
     (output / "failure.json").unlink(missing_ok=True)
-    _write_raw_artifacts(output, job)
+    _write_raw_artifacts(output, jobs)
     _atomic_write(output / "failure.json", canonical_artifact_bytes(failure))
 
 
-def _write_raw_artifacts(output: Path, job: BatchJobRecord) -> None:
-    output.mkdir(parents=True, exist_ok=True)
-    _atomic_write(output / "batch-input.jsonl", job.input_jsonl)
-    _atomic_write(output / "provider-batch.json", job.latest_batch_json)
-    _atomic_write(output / "provider-output.jsonl", job.output_jsonl)
-    _atomic_write(output / "provider-error.jsonl", job.error_jsonl)
+def _write_raw_artifacts(output: Path, jobs: tuple[BatchJobRecord, ...]) -> None:
+    for job in jobs:
+        suffix = job.input_sha256.removeprefix("sha256:")[:12]
+        shard_output = output / "shards" / f"{job.stage}-{job.shard_index:04d}-{suffix}"
+        shard_output.mkdir(parents=True, exist_ok=True)
+        _atomic_write(shard_output / "batch-input.jsonl", job.input_jsonl)
+        _atomic_write(shard_output / "provider-batch.json", job.latest_batch_json)
+        _atomic_write(shard_output / "provider-output.jsonl", job.output_jsonl)
+        _atomic_write(shard_output / "provider-error.jsonl", job.error_jsonl)
+
+
+def _batch_summary(jobs: tuple[BatchJobRecord, ...]) -> dict[str, object]:
+    return {
+        "jobs": [
+            {
+                "batch_id": job.batch_id,
+                "error_file_id": job.error_file_id,
+                "input_file_id": job.input_file_id,
+                "input_sha256": job.input_sha256,
+                "output_file_id": job.output_file_id,
+                "shard_index": job.shard_index,
+                "status": job.status,
+            }
+            for job in jobs
+        ],
+        "status": (
+            "completed"
+            if jobs and all(job.status == "completed" for job in jobs)
+            else "incomplete"
+        ),
+    }
 
 
 def _write_plan_artifact(output: Path, plan: TeacherCanaryPlan) -> None:

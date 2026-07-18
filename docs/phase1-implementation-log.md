@@ -848,3 +848,28 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   whether each synthetic trace was plausible, so the former >=16/20 plausibility criterion cannot
   be reconstructed honestly. The owner also reported that text redaction made the judgment hard;
   that loss of semantic context is a limitation of this privacy-preserving packet.
+
+## 2026-07-17 — Teacher canary Batch capacity recovery
+
+- After explicit project-owner approval to upload the sealed synthetic request file, the original
+  265-request Batch `batch_6a5b05b32c08819082af100efd5d3020` failed provider validation with
+  `token_limit_exceeded` against the organization's 900,000 enqueued-token limit. Its retained
+  input is `sha256:8043c866207f5e81cb3f2f484fa83d9204a9dd07b422a3192e3639d68660ca0d`.
+  Provider request counts total/completed/failed are all zero, reported usage is zero, and no
+  output or error file exists. The attempt therefore cost `$0` and produced no teacher result.
+- Recovery reuses the established WP15 Batch lifecycle rather than adding a second retry path. The
+  failed oversized job remains append-only in the same SQLite ledger; its exact input is recovered
+  and validated, its calls remain unmaterialized, and only the existing conjunction of
+  `token_limit_exceeded`, zero request counts, zero usage, and absent output/error artifacts permits
+  deterministic smaller-cap resharding. Any other transport or provider failure stops.
+- The explicit 890,000-token ceiling produces five sequential `tc0` shards: 59 requests/881,586
+  estimated tokens, 58/889,517, 53/888,658, 53/881,148, and 42/706,507. Together they cover the
+  same 265 sealed requests, model, high reasoning setting, prompts, and `$5.9055200` expected /
+  `$21.5908700` approved maximum-output cost boundary. The canonical planner rejects ceilings at
+  or above the known 900,000-token limit.
+- Per-shard raw provider artifacts are retained while strict per-response usage validation and
+  all-or-nothing 265-label publication remain global. A CLI-level regression starts from the exact
+  zero-execution oversized state and completes the five smaller shards without duplicating the
+  failed job. Twenty-two canary tests, the shared Batch suites, repository-wide Ruff, and diff
+  checks pass; the independent thermo-nuclear reviewer approved the repaired transport. No
+  replacement provider Batch had been submitted at this log point.

@@ -15,12 +15,14 @@ from im.generation.teacher_canary_runner import (
     execute_teacher_canary,
     plan_teacher_canary,
 )
+from im.probes.harness.batch import BatchShard, shard_work
 from im.probes.harness.batch_api import BatchApiObservation
 from im.probes.harness.cache import HarnessCache
 from im.probes.harness.models import BatchJobRecord
 
 ROOT = Path(__file__).parents[1]
 PACKET = ROOT / "review/phase1/teacher-canary"
+SHARD_CAP = 890_000
 
 
 def _observation(payload: dict[str, object]) -> BatchApiObservation:
@@ -41,6 +43,10 @@ class _Gateway:
         terminal_status: str = "completed",
     ) -> None:
         self.plan = plan
+        self.shards_by_input = {shard.input_jsonl: shard for shard in plan.shards}
+        self.shards_by_file: dict[str, BatchShard] = {}
+        self.shards_by_batch: dict[str, BatchShard] = {}
+        self.shards_by_output: dict[str, BatchShard] = {}
         self.omit_last = omit_last
         self.invalid_last = invalid_last
         self.alternate_wording = alternate_wording
@@ -53,25 +59,29 @@ class _Gateway:
         self.retrieve_calls = 0
 
     async def upload(self, input_jsonl: bytes, filename: str) -> BatchApiObservation:
-        assert input_jsonl == self.plan.shard.input_jsonl
+        shard = self.shards_by_input[input_jsonl]
         assert filename.endswith(".jsonl")
         self.upload_calls += 1
-        return _observation({"id": "file_teacher_canary"})
+        file_id = f"file_teacher_canary_{shard.shard_index}"
+        self.shards_by_file[file_id] = shard
+        return _observation({"id": file_id})
 
     async def create(
         self, input_file_id: str, metadata: dict[str, str]
     ) -> BatchApiObservation:
-        assert input_file_id == "file_teacher_canary"
+        shard = self.shards_by_file[input_file_id]
         assert metadata == {
-            "im_input_sha256": self.plan.shard.input_sha256.removeprefix("sha256:"),
-            "im_shard": "0",
+            "im_input_sha256": shard.input_sha256.removeprefix("sha256:"),
+            "im_shard": str(shard.shard_index),
             "im_stage": "tc0",
         }
         self.create_calls += 1
+        batch_id = f"batch_teacher_canary_{shard.shard_index}"
+        self.shards_by_batch[batch_id] = shard
         return _observation(
             {
                 "endpoint": "/v1/responses",
-                "id": "batch_teacher_canary",
+                "id": batch_id,
                 "input_file_id": input_file_id,
                 "metadata": metadata,
                 "status": "validating",
@@ -79,26 +89,35 @@ class _Gateway:
         )
 
     async def retrieve(self, batch_id: str) -> BatchApiObservation:
-        assert batch_id == "batch_teacher_canary"
+        shard = self.shards_by_batch[batch_id]
         self.retrieve_calls += 1
+        output_file_id = f"file_output_{shard.shard_index}"
+        self.shards_by_output[output_file_id] = shard
         return _observation(
             {
                 "endpoint": "/v1/responses",
                 "id": batch_id,
-                "input_file_id": "file_teacher_canary",
+                "input_file_id": f"file_teacher_canary_{shard.shard_index}",
                 "metadata": {
-                    "im_input_sha256": self.plan.shard.input_sha256.removeprefix("sha256:"),
-                    "im_shard": "0",
+                    "im_input_sha256": shard.input_sha256.removeprefix("sha256:"),
+                    "im_shard": str(shard.shard_index),
                     "im_stage": "tc0",
                 },
-                "output_file_id": "file_output",
+                "output_file_id": output_file_id,
                 "status": self.terminal_status,
             }
         )
 
     async def download(self, file_id: str) -> bytes:
-        assert file_id == "file_output"
-        decisions = self.plan.decisions[:-1] if self.omit_last else self.plan.decisions
+        shard = self.shards_by_output[file_id]
+        custom_ids = {item.custom_id for item in shard.items}
+        decisions = tuple(
+            decision
+            for decision in self.plan.decisions
+            if decision.item.custom_id in custom_ids
+            and not (self.omit_last and decision is self.plan.decisions[-1])
+        )
+
         def teacher_action(decision):
             action = dict(decision.oracle_action)
             if self.type_mismatch_last and decision is self.plan.decisions[-1]:
@@ -148,12 +167,43 @@ class _Gateway:
             for decision in reversed(decisions)
         )
 
+    async def aclose(self) -> None:
+        return None
 
-def test_plan_reconstructs_the_sealed_one_shard_canary() -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+
+def _oversized_failure(plan) -> BatchJobRecord:
+    oversized = shard_work(
+        "tc0",
+        plan.items,
+        max_enqueued_tokens=plan.cost.input_tokens,
+    )[0]
+    return BatchJobRecord(
+        input_sha256=oversized.input_sha256,
+        stage=oversized.stage,
+        shard_index=oversized.shard_index,
+        input_jsonl=oversized.input_jsonl,
+        request_count=len(oversized.items),
+        estimated_input_tokens=oversized.estimated_input_tokens,
+        status="failed",
+        input_file_id="file_oversized",
+        batch_id="batch_oversized",
+        latest_batch_json=canonical_artifact_bytes(
+            {
+                "errors": {"data": [{"code": "token_limit_exceeded"}]},
+                "request_counts": {"completed": 0, "failed": 0, "total": 0},
+                "status": "failed",
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            }
+        ),
+    )
+
+
+def test_plan_reconstructs_the_sealed_sharded_canary() -> None:
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
 
     assert len(plan.decisions) == 265
-    assert len(plan.shard.items) == 265
+    assert [len(shard.items) for shard in plan.shards] == [59, 58, 53, 53, 42]
+    assert max(shard.estimated_input_tokens for shard in plan.shards) <= SHARD_CAP
     assert plan.builder.config.model == "gpt-5.6-terra"
     assert plan.builder.config.reasoning_effort == "high"
     assert plan.builder.config.max_output_tokens == 8_192
@@ -173,13 +223,21 @@ def test_plan_rejects_a_changed_packet_checksum(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(canary_runner, "_PACKET_SHA256", "sha256:" + "0" * 64)
 
     with pytest.raises(TeacherCanaryRunError, match="packet checksums changed"):
-        plan_teacher_canary(ROOT, PACKET)
+        plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
+
+
+@pytest.mark.parametrize("unsafe_cap", (900_000, 10_000_000))
+def test_plan_rejects_a_ceiling_at_or_above_the_known_provider_limit(
+    unsafe_cap: int,
+) -> None:
+    with pytest.raises(TeacherCanaryRunError, match="below the known 900000-token"):
+        plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=unsafe_cap)
 
 
 async def test_completed_batch_writes_complete_canonical_comparison_and_resumes(
     tmp_path: Path,
 ) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan)
     output = tmp_path / "execution"
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
@@ -213,10 +271,14 @@ async def test_completed_batch_writes_complete_canonical_comparison_and_resumes(
         "output_tokens": 265 * 7,
         "reasoning_tokens": 0,
     }
-    assert (output / "batch-input.jsonl").read_bytes() == plan.shard.input_jsonl
+    shard_outputs = sorted((output / "shards").iterdir())
+    assert len(shard_outputs) == len(plan.shards)
+    assert b"".join(
+        (path / "batch-input.jsonl").read_bytes() for path in shard_outputs
+    ) == b"".join(shard.input_jsonl for shard in plan.shards)
     assert canonical_artifact_bytes(comparison) == (output / "comparison.json").read_bytes()
     assert (output / "plan.json").is_file()
-    assert (output / "provider-output.jsonl").is_file()
+    assert all((path / "provider-output.jsonl").is_file() for path in shard_outputs)
     labels = [
         json.loads(line)
         for line in (output / "teacher-labels.jsonl").read_text().splitlines()
@@ -230,14 +292,41 @@ async def test_completed_batch_writes_complete_canonical_comparison_and_resumes(
         "stream_sha256",
     }
     assert {label["label"] for label in labels} == {"auto_pass"}
-    assert gateway.upload_calls == 1
-    assert gateway.create_calls == 1
+    assert gateway.upload_calls == len(plan.shards)
+    assert gateway.create_calls == len(plan.shards)
+
+
+async def test_zero_execution_oversized_attempt_is_retained_and_resharded(
+    tmp_path: Path,
+) -> None:
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
+    oversized = _oversized_failure(plan)
+    gateway = _Gateway(plan)
+    cache_path = tmp_path / "ledger.sqlite"
+    with HarnessCache(cache_path) as cache:
+        cache.put_batch_job(oversized)
+        execution = await execute_teacher_canary(
+            plan,
+            cache=cache,
+            gateway=gateway,
+            poll_seconds=1,
+            output=tmp_path / "execution",
+        )
+        jobs = cache.batch_jobs(stage="tc0")
+
+    assert cache_path.is_file()
+    assert len(jobs) == len(plan.shards) + 1
+    retained = next(job for job in jobs if job.input_sha256 == oversized.input_sha256)
+    assert retained.status == "failed"
+    assert retained.latest_batch_json == oversized.latest_batch_json
+    assert all(job.status == "completed" for job in execution.jobs)
+    assert gateway.create_calls == len(plan.shards)
 
 
 async def test_alternative_integrate_and_respond_wording_requires_semantic_review(
     tmp_path: Path,
 ) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, alternate_wording=True)
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
         execution = await execute_teacher_canary(
@@ -278,7 +367,7 @@ def test_type_or_reference_mismatch_is_a_causal_disagreement() -> None:
 
 
 async def test_type_mismatch_is_counted_as_a_causal_disagreement(tmp_path: Path) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, type_mismatch_last=True)
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
         execution = await execute_teacher_canary(
@@ -294,7 +383,7 @@ async def test_type_mismatch_is_counted_as_a_causal_disagreement(tmp_path: Path)
 
 
 async def test_incomplete_provider_artifacts_fail_closed(tmp_path: Path) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, omit_last=True)
     output = tmp_path / "execution"
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
@@ -314,18 +403,22 @@ async def test_incomplete_provider_artifacts_fail_closed(tmp_path: Path) -> None
     assert failure["available_provider_usage"]["input_tokens"] == 264 * 11
     assert failure["available_provider_cost_usd"] != "0"
     assert not (output / "teacher-labels.jsonl").exists()
-    for name in (
-        "batch-input.jsonl",
-        "provider-batch.json",
-        "provider-output.jsonl",
-        "provider-error.jsonl",
-    ):
-        assert (output / name).is_file()
-    assert (output / "batch-input.jsonl").read_bytes() == plan.shard.input_jsonl
+    shard_outputs = sorted((output / "shards").iterdir())
+    assert len(shard_outputs) == len(plan.shards)
+    assert all(
+        (path / name).is_file()
+        for path in shard_outputs
+        for name in (
+            "batch-input.jsonl",
+            "provider-batch.json",
+            "provider-output.jsonl",
+            "provider-error.jsonl",
+        )
+    )
 
 
 async def test_invalid_provider_action_fails_closed(tmp_path: Path) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, invalid_last=True)
     output = tmp_path / "execution"
     output.mkdir()
@@ -348,11 +441,11 @@ async def test_invalid_provider_action_fails_closed(tmp_path: Path) -> None:
 
 
 async def test_terminal_failed_batch_salvages_available_usage(tmp_path: Path) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, terminal_status="failed")
     output = tmp_path / "execution"
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
-        with pytest.raises(TeacherCanaryRunError, match="did not complete: failed"):
+        with pytest.raises(TeacherCanaryRunError, match="transport did not complete"):
             await execute_teacher_canary(
                 plan,
                 cache=cache,
@@ -364,7 +457,9 @@ async def test_terminal_failed_batch_salvages_available_usage(tmp_path: Path) ->
     failure = json.loads((output / "failure.json").read_bytes())
     assert failure["provider_usage"] is None
     assert failure["provider_usage_complete"] is False
-    assert failure["available_provider_usage"]["input_tokens"] == 265 * 11
+    assert failure["available_provider_usage"]["input_tokens"] == (
+        len(plan.shards[0].items) * 11
+    )
     assert failure["available_provider_cost_usd"] != "0"
     assert not (output / "teacher-labels.jsonl").exists()
 
@@ -374,7 +469,7 @@ async def test_missing_or_malformed_usage_fails_without_zeroing_actuals(
     tmp_path: Path,
     usage_failure: str,
 ) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     gateway = _Gateway(plan, **{usage_failure: True})
     output = tmp_path / "execution"
     with HarnessCache(tmp_path / "ledger.sqlite") as cache:
@@ -409,40 +504,76 @@ def test_run_requires_the_maximum_output_spend_ceiling(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     script = _teacher_canary_script()
     monkeypatch.setattr(script, "load_dotenv", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(script, "plan_teacher_canary", lambda *_args: plan)
+    monkeypatch.setattr(script, "plan_teacher_canary", lambda *_args, **_kwargs: plan)
     args = argparse.Namespace(
         mode="run",
         repository=tmp_path,
         approve_live_ceiling_usd=plan.cost.expected_usd,
+        batch_max_enqueued_tokens=SHARD_CAP,
         batch_poll_seconds=1,
         batch_id=None,
+        input_sha256=None,
     )
 
     with pytest.raises(TeacherCanaryRunError, match="maximum 8192-token output ceiling"):
         asyncio.run(script._run(args))
 
 
+def test_resume_accepts_the_preserved_oversized_stage_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
+    repository = tmp_path / "repository"
+    cache_path = repository / "review/phase1/teacher-canary-execution/ledger.sqlite"
+    with HarnessCache(cache_path) as cache:
+        cache.put_batch_job(_oversized_failure(plan))
+    gateway = _Gateway(plan)
+    script = _teacher_canary_script()
+    monkeypatch.setattr(script, "load_dotenv", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(script, "plan_teacher_canary", lambda *_args, **_kwargs: plan)
+    monkeypatch.setattr(script, "OpenAIBatchGateway", lambda **_kwargs: gateway)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    args = argparse.Namespace(
+        mode="resume",
+        repository=repository,
+        approve_live_ceiling_usd=plan.cost.approval_ceiling_usd,
+        batch_max_enqueued_tokens=SHARD_CAP,
+        batch_poll_seconds=1,
+        batch_id=None,
+        input_sha256=None,
+    )
+
+    asyncio.run(script._run(args))
+
+    assert gateway.create_calls == len(plan.shards)
+    assert (
+        repository / "review/phase1/teacher-canary-execution/sharded/comparison.json"
+    ).is_file()
+
+
 def test_adopt_reconciles_only_this_create_uncertain_batch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    plan = plan_teacher_canary(ROOT, PACKET)
+    plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     repository = tmp_path / "repository"
     output = repository / "review/phase1/teacher-canary-execution"
     cache_path = output / "ledger.sqlite"
     output.mkdir(parents=True)
+    shard = plan.shards[0]
     with HarnessCache(cache_path) as cache:
         cache.put_batch_job(
             BatchJobRecord(
-                input_sha256=plan.shard.input_sha256,
-                stage=plan.shard.stage,
-                shard_index=plan.shard.shard_index,
-                input_jsonl=plan.shard.input_jsonl,
-                request_count=len(plan.shard.items),
-                estimated_input_tokens=plan.shard.estimated_input_tokens,
+                input_sha256=shard.input_sha256,
+                stage=shard.stage,
+                shard_index=shard.shard_index,
+                input_jsonl=shard.input_jsonl,
+                request_count=len(shard.items),
+                estimated_input_tokens=shard.estimated_input_tokens,
                 status="create_uncertain",
                 input_file_id="file_teacher_canary",
             )
@@ -450,7 +581,7 @@ def test_adopt_reconciles_only_this_create_uncertain_batch(
 
     script = _teacher_canary_script()
     monkeypatch.setattr(script, "load_dotenv", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(script, "plan_teacher_canary", lambda *_args: plan)
+    monkeypatch.setattr(script, "plan_teacher_canary", lambda *_args, **_kwargs: plan)
     monkeypatch.setattr(
         script,
         "OpenAIBatchGateway",
@@ -460,14 +591,16 @@ def test_adopt_reconciles_only_this_create_uncertain_batch(
         mode="adopt",
         repository=repository,
         approve_live_ceiling_usd=None,
+        batch_max_enqueued_tokens=SHARD_CAP,
         batch_poll_seconds=1,
         batch_id="batch_reconciled",
+        input_sha256=shard.input_sha256,
     )
 
     asyncio.run(script._run(args))
 
     with HarnessCache(cache_path) as cache:
-        adopted = cache.get_batch_job(plan.shard.input_sha256)
+        adopted = cache.get_batch_job(shard.input_sha256)
     assert adopted is not None
     assert adopted.status == "adopted_unverified"
     assert adopted.batch_id == "batch_reconciled"
@@ -476,12 +609,14 @@ def test_adopt_reconciles_only_this_create_uncertain_batch(
         mode="adopt",
         repository=repository,
         approve_live_ceiling_usd=None,
+        batch_max_enqueued_tokens=SHARD_CAP,
         batch_poll_seconds=1,
         batch_id="batch_corrected",
+        input_sha256=shard.input_sha256,
     )
     asyncio.run(script._run(corrected_args))
     with HarnessCache(cache_path) as cache:
-        corrected = cache.get_batch_job(plan.shard.input_sha256)
+        corrected = cache.get_batch_job(shard.input_sha256)
     assert corrected is not None
     assert corrected.status == "adopted_unverified"
     assert corrected.batch_id == "batch_corrected"
@@ -526,7 +661,7 @@ def test_artifact_state_transitions_remove_opposing_state_before_io(
         estimated_input_tokens=1,
     )
 
-    def interrupt(_output: Path, _job: BatchJobRecord) -> None:
+    def interrupt(_output: Path, _jobs: tuple[BatchJobRecord, ...]) -> None:
         assert not (_output / "failure.json").exists()
         assert not (_output / "comparison.json").exists()
         assert not (_output / "teacher-labels.jsonl").exists()
@@ -536,9 +671,9 @@ def test_artifact_state_transitions_remove_opposing_state_before_io(
     for name in ("failure.json", "comparison.json", "teacher-labels.jsonl"):
         (output / name).write_text("stale")
     with pytest.raises(RuntimeError, match="simulated interruption"):
-        canary_runner._write_artifacts(output, job, {"decisions": []})
+        canary_runner._write_artifacts(output, (job,), {"decisions": []})
 
     for name in ("failure.json", "comparison.json", "teacher-labels.jsonl"):
         (output / name).write_text("stale")
     with pytest.raises(RuntimeError, match="simulated interruption"):
-        canary_runner._write_failure_artifacts(output, job, {"failure": {}})
+        canary_runner._write_failure_artifacts(output, (job,), {"failure": {}})
