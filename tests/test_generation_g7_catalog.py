@@ -291,12 +291,9 @@ def test_fresh_timer_schedule_sources_have_one_canonical_direct_command(split: S
             assert len(sources) == 1
             (source,) = sources
             assert len(timer_command.findall(source)) == 1
-            assert (
-                source == command
-                or source.startswith(f"{command}\n")
-                or source.endswith(f"\n{command}")
-            )
             offset = source.index(command)
+            context = source[:offset]
+            assert not context or (context.startswith("The ") and context.endswith("\n"))
             assert action.instruction.start_utf16 == utf16_len(source[:offset])
             assert action.instruction.end_utf16 == utf16_len(source[:offset]) + utf16_len(command)
 

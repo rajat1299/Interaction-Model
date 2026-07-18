@@ -603,7 +603,7 @@ def _timer_contention_control(
         master_seed,
         "timer-contention-control",
         tuple(render_timer_instruction_v1(item.interval_ms, item.message) for item in semantics),
-        contextual=False,
+        contextual=True,
     )
     opening = f"{texts[0]}\n{mark_text}"
     target_text = _multi_target_text(mark_text, target, 2)
