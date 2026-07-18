@@ -21,7 +21,7 @@ from im.probes.harness.cache import HarnessCache
 from im.probes.harness.models import BatchJobRecord
 
 ROOT = Path(__file__).parents[1]
-PACKET = ROOT / "review/phase1/teacher-canary"
+PACKET = ROOT / "review/phase1/teacher-canary-recanary/packet-rebound"
 SHARD_CAP = 890_000
 
 
@@ -111,6 +111,15 @@ class _Gateway:
     async def download(self, file_id: str) -> bytes:
         shard = self.shards_by_output[file_id]
         custom_ids = {item.custom_id for item in shard.items}
+        mismatch_target = (
+            next(
+                decision
+                for decision in reversed(self.plan.decisions)
+                if decision.oracle_action["type"] != "idle"
+            )
+            if self.type_mismatch_last
+            else None
+        )
         decisions = tuple(
             decision
             for decision in self.plan.decisions
@@ -120,7 +129,7 @@ class _Gateway:
 
         def teacher_action(decision):
             action = dict(decision.oracle_action)
-            if self.type_mismatch_last and decision is self.plan.decisions[-1]:
+            if self.type_mismatch_last and decision is mismatch_target:
                 return {"type": "idle", "reason": "no_trigger", "related_event_id": None}
             if self.alternate_wording and action.get("type") in {"integrate", "respond"}:
                 action["text"] = f"Alternative faithful wording for call {decision.call_index}."
@@ -202,7 +211,7 @@ def test_plan_reconstructs_the_sealed_sharded_canary() -> None:
     plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
 
     assert len(plan.decisions) == 265
-    assert [len(shard.items) for shard in plan.shards] == [59, 58, 53, 53, 42]
+    assert [len(shard.items) for shard in plan.shards] == [56, 58, 54, 53, 44]
     assert max(shard.estimated_input_tokens for shard in plan.shards) <= SHARD_CAP
     assert plan.builder.config.model == "gpt-5.6-terra"
     assert plan.builder.config.reasoning_effort == "high"
@@ -528,7 +537,7 @@ def test_resume_accepts_the_preserved_oversized_stage_job(
 ) -> None:
     plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     repository = tmp_path / "repository"
-    cache_path = repository / "review/phase1/teacher-canary-execution/ledger.sqlite"
+    cache_path = repository / "review/phase1/teacher-canary-recanary/execution/ledger.sqlite"
     with HarnessCache(cache_path) as cache:
         cache.put_batch_job(_oversized_failure(plan))
     gateway = _Gateway(plan)
@@ -551,7 +560,8 @@ def test_resume_accepts_the_preserved_oversized_stage_job(
 
     assert gateway.create_calls == len(plan.shards)
     assert (
-        repository / "review/phase1/teacher-canary-execution/sharded/comparison.json"
+        repository
+        / "review/phase1/teacher-canary-recanary/execution/sharded/comparison.json"
     ).is_file()
 
 
@@ -561,7 +571,7 @@ def test_adopt_reconciles_only_this_create_uncertain_batch(
 ) -> None:
     plan = plan_teacher_canary(ROOT, PACKET, max_enqueued_tokens=SHARD_CAP)
     repository = tmp_path / "repository"
-    output = repository / "review/phase1/teacher-canary-execution"
+    output = repository / "review/phase1/teacher-canary-recanary/execution"
     cache_path = output / "ledger.sqlite"
     output.mkdir(parents=True)
     shard = plan.shards[0]

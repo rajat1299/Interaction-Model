@@ -999,3 +999,44 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   under `review/phase1/teacher-canary-recanary/response-generation/`. The detached launchd job and
   ten-minute heartbeat were stopped after final verification. No 265-request teacher re-canary was
   uploaded; the remaining work is offline packet regeneration and a separate owner approval.
+
+## 2026-07-18 — Repaired teacher-canary packet rebound
+
+- The complete readiness packet was regenerated offline from clean producer commit `0b8383b`.
+  All five 2,000-action batches completed, the 417-stream manifest and 10,000-action throughput
+  record verified, all 5,751 checksum entries passed, and the final response-delta record contains
+  31 text changes. No provider call or credential read occurred during this rebuild.
+- Re-running the original digest-ranked selector would have silently changed the canary sample to
+  261 decisions because repaired source bytes change selection ordering. That derived packet is
+  non-final. Instead, the original 27 selected source units were rebound to the repaired full batch:
+  20 matched by unchanged raw-source identity and the seven repaired units matched uniquely by
+  `(family, shape_id, master_seed, source_kind)`. This preserves the original family counts,
+  38 complete parent streams, and exactly 265 archived decisions.
+- The sealed offline rebound packet is
+  `review/phase1/teacher-canary-recanary/packet-rebound/`. Its checksum-inventory identity is
+  `sha256:dfb52b71e7c4d3a808fad01102622ef356a5cf02677005cf58988ed6e777c87d`,
+  manifest identity is
+  `sha256:b40a131a802d59e91bb9e3ffb60e2f1d12dc86196d76628b93d856f4201719c2`,
+  and source-index identity is
+  `sha256:b0c397e67dc72a56b78cac0f157b2c7b8c3dfadf0ba0ccc676388b08b5e4d077`.
+  Independent packet verification and every listed SHA-256 checksum pass; the report records
+  27 source units, 38 parents, 265 decisions, and zero teacher invocations.
+- The current runner remains bound to the original packet identity and therefore cannot execute
+  this repaired packet accidentally. Offline run planning and the replacement 265-request upload
+  remain stopped pending a separately reviewed identity rebind and explicit project-owner upload
+  authorization.
+
+## 2026-07-18 — Replacement teacher-canary authorization and sealed plan
+
+- The project owner explicitly authorized uploading the exact repaired 265-request rebound packet.
+  The existing fail-closed runner now binds its checksum-inventory identity and writes to a new
+  `review/phase1/teacher-canary-recanary/execution/` ledger, preserving the original failed canary
+  and its raw artifacts unchanged.
+- The 890,000-token cap produces five sequential shards of 56, 58, 54, 53, and 44 requests, with
+  estimated input-token loads of 882,397, 885,393, 885,142, 881,665, and 713,811. The sealed plan
+  remains `gpt-5.6-terra`, high reasoning, one attempt, and 8,192 maximum output tokens.
+- The repaired plan estimates 4,248,408 input and 79,500 output tokens at `$5.9067600` Batch cost;
+  its explicit maximum-output approval ceiling is `$21.5921100`. Twenty-two scoped runner tests,
+  Ruff, checksum verification, and diff checks pass before launch. The thermo-nuclear review found
+  no structural regression: the production change is one packet identity plus two artifact paths,
+  with the test mutation repaired to target a non-idle decision instead of relying on packet order.
