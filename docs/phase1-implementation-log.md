@@ -873,3 +873,30 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   failed job. Twenty-two canary tests, the shared Batch suites, repository-wide Ruff, and diff
   checks pass; the independent thermo-nuclear reviewer approved the repaired transport. No
   replacement provider Batch had been submitted at this log point.
+
+## 2026-07-18 — Teacher canary Batch result: failed closed on teacher output
+
+- The five replacement shards completed sequentially with provider statuses `completed` and no
+  provider error files. Together they returned all 265 sealed requests. Complete reported usage is
+  3,748,263 input tokens, 3,139,416 cached-input tokens, 161,954 cache-write tokens, 55,219 output
+  tokens, and 45,549 reasoning tokens; the pinned Batch cost is `$1.6182388750`.
+- Automated action validation accepted 263 responses and rejected two. Both rejected responses are
+  `timer_creation_normal_fire` call-4 schedule actions whose returned UTF-16 start offset is exactly
+  one code unit below the span implied by their returned text and end offset. They therefore fail
+  the action schema's span-length invariant. This is a repeated mechanical teacher-output error,
+  not a Batch transport or provider-capacity failure.
+- The runner failed closed as designed: it retained every raw shard artifact and complete usage,
+  emitted `review/phase1/teacher-canary-execution/sharded/failure.json`, and emitted no importable
+  `teacher-labels.jsonl` or comparison report. No response was repaired, no oracle action was
+  substituted, no partial label set was published, and no corrective request was submitted.
+- Read-only classification of the 263 valid responses against the frozen oracle produced 179
+  `auto_pass`, 77 `causal_disagreement`, and seven `semantic_review_required` outcomes. Separately
+  from the two invalid responses, those 84 valid actions differ from the oracle and require the D2
+  disagreement review before any template-repair or re-canary decision. The concentration in
+  lookup-lifecycle and duplicate-pressure families is a substantive canary finding; retrying only
+  the two malformed schedule actions would not resolve it.
+- Live model execution is stopped. The evidence is sufficient to show that the current teacher
+  configuration is not ready for the full Phase 2 labeling spend, but the all-or-nothing output
+  contract leaves no complete label file for WP1-8. The project owner must decide whether the
+  retained valid responses may be materialized as an explicitly quarantined review-only artifact
+  or whether this first-pass failure closes WP1-9 without further provider calls.
