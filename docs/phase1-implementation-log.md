@@ -959,3 +959,21 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   `git diff --check` pass on the complete repair. The original failed canary and quarantined review
   evidence remain append-only. Repaired canary regeneration is offline-only; a replacement OpenAI
   Batch upload remains stopped behind a new project-owner authorization.
+
+## 2026-07-18 — Repaired-canary offline regeneration stop
+
+- Deterministic production-readiness regeneration at clean producer commit `77b5777` stopped before
+  publishing any packet. The 80 ordinary reviewed response assets still bind their exact recaptured
+  prefixes, but the first repaired failed-response twin correctly tripped the closed neutral-
+  generation request-hash check. No partial readiness packet was written and the original readiness,
+  canary, failed Batch, and quarantined review evidence were not changed.
+- Read-only recapture confirmed that all ten failed-tool response profiles now have new exact
+  request hashes, as expected: their visible prefixes contain the approved explicit-request and
+  lifecycle repairs. Reusing the old candidate sentences by merely changing their hashes would
+  falsely claim model provenance and is prohibited. The existing integrity check remains intact.
+- Completing the repaired packet therefore requires ten fresh `gpt-5.6-terra`, high-reasoning
+  neutral-response generations against those exact requests before the readiness packet and
+  265-decision teacher canary can be regenerated offline. No generation request, credential read,
+  network call, response rebinding, or replacement teacher Batch occurred. Both the ten-response
+  generation and the later teacher re-canary remain stopped behind explicit project-owner
+  authorization.
