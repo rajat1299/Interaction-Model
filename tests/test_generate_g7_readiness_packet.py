@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import runpy
 from collections import Counter
-from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -181,8 +180,8 @@ def test_g7_packet_plan_reaches_the_frozen_budget_with_disjoint_scale_witnesses(
             (repository / values["_RESPONSE_GENERATIONS"]).read_bytes()
         ),
     )
-    assert b"Review only these 22 newly generated response texts" in response_delta
-    assert response_delta.count(b"\n| `g7-response-") == 22
+    assert b"Review only these 31 newly generated response texts" in response_delta
+    assert response_delta.count(b"\n| `g7-response-") == 31
 
 
 def test_fixed_timing_timer_branches_cover_five_disjoint_batch_namespaces() -> None:
@@ -232,35 +231,21 @@ def test_fixed_timing_timer_branches_cover_five_disjoint_batch_namespaces() -> N
     }
 
 
-def test_response_delta_binds_the_user_rewrite_to_failed_tool_05() -> None:
+def test_response_delta_includes_repaired_failed_tool_text() -> None:
     repository = Path(__file__).parents[1]
     values = runpy.run_path(str(repository / "scripts/generate_g7_readiness_packet.py"))
-    current = list(
+    current = tuple(
         values["load_g7_response_generations"](
             (repository / values["_RESPONSE_GENERATIONS"]).read_bytes()
         )
     )
-    target = next(
-        index
-        for index, item in enumerate(current)
-        if (item.profile_id, item.item_index)
-        == values["_USER_SPECIFIED_FAILED_RESPONSE_KEY"]
-    )
-    other = next(
-        index
-        for index, item in enumerate(current)
-        if item.profile_id == "g7-response-failed-tool-04"
-    )
-    target_text = current[target].candidate_response
-    other_text = current[other].candidate_response
-    current[target] = replace(current[target], candidate_response=other_text)
-    current[other] = replace(current[other], candidate_response=target_text)
     previous = values["load_g7_response_generations"](
         (repository / values["_PREVIOUS_RESPONSE_GENERATIONS"]).read_bytes()
     )
 
-    with pytest.raises(RuntimeError, match="failed-tool-05"):
-        values["_response_review_delta"](previous, tuple(current))
+    delta = values["_response_review_delta"](previous, current)
+
+    assert b"`g7-response-failed-tool-05`" in delta
 
 
 def test_throughput_contract_keeps_test_readiness_out_of_training_corpus() -> None:

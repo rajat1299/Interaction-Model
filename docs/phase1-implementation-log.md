@@ -977,3 +977,25 @@ interpretations, tradeoffs, deviations, and open questions without restating tho
   network call, response rebinding, or replacement teacher Batch occurred. Both the ten-response
   generation and the later teacher re-canary remain stopped behind explicit project-owner
   authorization.
+
+## 2026-07-18 — Exact-prefix neutral-response Batch result
+
+- After explicit project-owner authorization, the ten repaired failed-tool requests were sealed as
+  one Batch shard at input digest
+  `sha256:add409aa28cb82a4875c89feec9693d2bd6b07d3caf9fac6dec38ddb5c10b782`
+  and submitted as Batch `batch_6a5ba63fe6948190bd37f6383ddc41d5`. The Batch completed with ten
+  output rows, zero error rows, no retry, and no missing or duplicate request identity.
+- Provider-reported usage is 34,797 input tokens, zero cached-input or cache-write tokens, 369
+  output tokens, and 94 reasoning tokens. The pinned Batch charge is `$0.046263750`, below the
+  `$0.058446250` estimate and `$0.129246250` approved ceiling.
+- All ten outputs are non-empty, trimmed failed-tool notices that pass their existing answer
+  contracts against the exact repaired visible prefixes. The resulting complete 90-record response
+  artifact is
+  `sha256:be73afe059fbaaf1f5fdf247ef3ac712ccf6e4cda800a8df74a28312f641e9f9`:
+  exactly the ten failed-tool records changed, while the other 80 records remain byte-for-byte
+  unchanged in content and provenance.
+- The ten accepted records now replace their stale predecessors in
+  `review/phase1/g7-response-generations.json`. Raw provider and lifecycle artifacts remain retained
+  under `review/phase1/teacher-canary-recanary/response-generation/`. The detached launchd job and
+  ten-minute heartbeat were stopped after final verification. No 265-request teacher re-canary was
+  uploaded; the remaining work is offline packet regeneration and a separate owner approval.

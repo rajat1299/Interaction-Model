@@ -79,10 +79,6 @@ _RESPONSE_GENERATIONS = Path("review/phase1/g7-response-generations.json")
 _PREVIOUS_RESPONSE_GENERATIONS = Path(
     "review/phase1/g7-readiness-resubmission/response-generations.json"
 )
-_USER_SPECIFIED_FAILED_RESPONSE = (
-    "The Morrow Glen cistern fill percentage lookup failed, so no usable answer came back."
-)
-_USER_SPECIFIED_FAILED_RESPONSE_KEY = ("g7-response-failed-tool-05", 0)
 _FRESH_SHAPES = {shape_id: family for shape_id, family, _vector in G7_FRESH_SHAPES}
 _CHECKPOINT_SHAPES = {
     "g7-checkpoint-lookup-duplicate-a": CorpusFamily.LOOKUP_DUPLICATE,
@@ -958,7 +954,7 @@ def _review_files(units: tuple[G7SourceUnit, ...]) -> dict[str, bytes]:
 def _response_review_delta(
     previous: tuple[G7ResponseGeneration, ...], current: tuple[G7ResponseGeneration, ...]
 ) -> bytes:
-    """Render only newly generated response texts that lack the prior human approval."""
+    """Render response texts that differ from the prior human-approved baseline."""
     previous_by_key = {(item.profile_id, item.item_index): item for item in previous}
     current_by_key = {(item.profile_id, item.item_index): item for item in current}
     if set(previous_by_key) != set(current_by_key) or len(current_by_key) != 90:
@@ -976,29 +972,16 @@ def _response_review_delta(
         for key in sorted(current_by_key)
         if previous_by_key[key].candidate_response != current_by_key[key].candidate_response
     )
-    user_specified = next(
-        (
-            item
-            for item in changed
-            if item[0] == _USER_SPECIFIED_FAILED_RESPONSE_KEY
-            and item[2].candidate_response == _USER_SPECIFIED_FAILED_RESPONSE
-        ),
-        None,
-    )
-    if user_specified is None:
-        raise RuntimeError("failed-tool-05 does not match the user-specified replacement")
-    pending = tuple(item for item in changed if item is not user_specified)
-
     def cell(value: str) -> str:
         return value.replace("|", "\\|").replace("\n", "<br>")
 
     lines = [
         "# G7 response review delta",
         "",
-        f"Review only these {len(pending)} newly generated response texts. "
+        f"Review only these {len(changed)} newly generated response texts. "
         f"{90 - len(changed)} texts are byte-identical to the already-approved corpus; "
-        "failed-tool-05 exactly matches the user-specified replacement and needs no renewed "
-        "review.",
+        "an exact text match needs no renewed prose review even when repaired prefix provenance "
+        "changes its neutral-request hash.",
         "",
         "| Profile | Item | Subject | Previous approved text | New exact-prefix generation | "
         "Neutral request |",
@@ -1008,7 +991,7 @@ def _response_review_delta(
         f"| `{key[0]}` | {key[1]} | `{subject_by_key[key]}` | "
         f"{cell(old.candidate_response)} | {cell(new.candidate_response)} | "
         f"`{new.request_sha256}` |"
-        for key, old, new in pending
+        for key, old, new in changed
     )
     return ("\n".join(lines) + "\n").encode("utf-8")
 

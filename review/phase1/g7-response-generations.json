@@ -73,61 +73,61 @@
     {
       "profile_id": "g7-response-failed-tool-00",
       "item_index": 0,
-      "request_sha256": "4d590aad520117c6938ba240d98c237a47f89a9d79276d33de91bb81aa4b985f",
-      "candidate_response": "No—the Fable Station platform lookup failed, so it didn’t produce a usable answer."
+      "request_sha256": "36061149d81f8e1f1c3ec06e440f6f1012c8435967b691ba3d32f37e97d93ce7",
+      "candidate_response": "No—the Fable Station platform lookup failed and produced no usable answer."
     },
     {
       "profile_id": "g7-response-failed-tool-01",
       "item_index": 0,
-      "request_sha256": "4b0422456be020d82bbde27ef433b96f3c32335504371b01f88698e000099916",
-      "candidate_response": "The Morrow Glen cistern fill percentage lookup failed and returned no usable answer."
+      "request_sha256": "69e8c76da6b8bc7a3f0e40c8c1d789e80ece7c0a044671c670be068cb1d5d085",
+      "candidate_response": "The Morrow Glen cistern fill percentage lookup failed; no result was available."
     },
     {
       "profile_id": "g7-response-failed-tool-02",
       "item_index": 0,
-      "request_sha256": "f3bfba8a49e92febd5982a2eff3148cccbdfa4e72e6ee40da75d4b06335ca20c",
-      "candidate_response": "The Alder Loop registry lookup failed, so there’s no usable answer."
+      "request_sha256": "e12d9018928f2076c1de97ac611ad9b1e998df38a9e693bb16fc6c7b6b95803d",
+      "candidate_response": "The Alder Loop registry lookup failed; no usable answer was returned."
     },
     {
       "profile_id": "g7-response-failed-tool-03",
       "item_index": 0,
-      "request_sha256": "dfcf600187d6c0d0c46395cd7c5a246496817e7d4b69f522ab983c3eb3319501",
-      "candidate_response": "The Thistle Row gallery wing lookup failed, so there was no usable answer."
+      "request_sha256": "ac036c67955f4a2edba46b6b7d99385c368bfcddef1c075bf8b515c6a712a894",
+      "candidate_response": "The Thistle Row gallery wing lookup failed and produced no usable answer."
     },
     {
       "profile_id": "g7-response-failed-tool-04",
       "item_index": 0,
-      "request_sha256": "e86ca23b6786d6e45976c4b326be0e1db108f072d6d6d3afa0de06acb6e77559",
-      "candidate_response": "The Fable Station platform lookup failed, so there was no usable answer."
+      "request_sha256": "d8947370de906ddb7eccac2a51d1fd08c5b70783b6e58b5e1f706abfb95193d0",
+      "candidate_response": "The Fable Station platform lookup failed and returned no usable answer."
     },
     {
       "profile_id": "g7-response-failed-tool-05",
       "item_index": 0,
-      "request_sha256": "0a2e7507f077d997c26cb9c47bffc00ae28c145960a064d96a0deaa641886fc7",
-      "candidate_response": "The Morrow Glen cistern fill percentage lookup failed, so no usable answer came back."
+      "request_sha256": "7f47ff28d02889b075df4d9afb5977b08f29003dcbbc21fa8a41b848960bba3a",
+      "candidate_response": "The lookup for Morrow Glen cistern fill percentage failed; no result was returned."
     },
     {
       "profile_id": "g7-response-failed-tool-06",
       "item_index": 0,
-      "request_sha256": "5113861411aaf1e3746f37e0d3d1ad7550339640103059aaf020423f5f35a5e8",
-      "candidate_response": "The lookup failed for Alder Loop registry; no usable answer is available."
+      "request_sha256": "f0ea39a75dd7ac731d8adaa97307993ae292810daeccd9e5abac0f30b24e6e38",
+      "candidate_response": "The lookup for Alder Loop registry failed; no usable answer was returned."
     },
     {
       "profile_id": "g7-response-failed-tool-07",
       "item_index": 0,
-      "request_sha256": "05cb1bc479a829eb88291615f296be7faa3ed9e22612a03708caa12c89a3cd78",
-      "candidate_response": "The Thistle Row gallery wing lookup failed."
+      "request_sha256": "f1e2d6b9f2d0d003b655cac866309520742dbb96f99ec5d120cac0c70605ebcd",
+      "candidate_response": "No. The Thistle Row gallery wing lookup failed and returned no usable answer."
     },
     {
       "profile_id": "g7-response-failed-tool-08",
       "item_index": 0,
-      "request_sha256": "c6c7690ff25db0c338bfc197edbe92df894f252e760df2488a2b032db1b76668",
-      "candidate_response": "The lookup for Fable Station platform failed, so there is no usable answer."
+      "request_sha256": "d09119f1ad2dd7e1eeb6c75b4f306df9ff8116c5cb464159659d2e621c76edd0",
+      "candidate_response": "The lookup for Fable Station platform failed; no usable answer is available."
     },
     {
       "profile_id": "g7-response-failed-tool-09",
       "item_index": 0,
-      "request_sha256": "a4e25f7fcd50d7e8670002a57c3f50a85f66af663480a444e128b9f7bc0265e4",
+      "request_sha256": "f76204a39d0011cb0f28d9176cd183da64c29bc772739fac45c5c14ba97fd48a",
       "candidate_response": "Morrow Glen cistern fill percentage: lookup failed; no usable answer was returned."
     },
     {
