@@ -108,30 +108,43 @@ authoritative.
 
 ### Decisions
 
-- Added a stdlib-only native-chat filter for the already-sampled replay pool. It requires the
-  measured `assistant_token_count`, frozen backbone/rendering metadata, disabled tools, and a
-  non-teacher answer provenance; it never renders, acquires prompts, or calls a model.
+- Added a stdlib-only native-chat filter for the already-sampled replay pool. Each accepted row
+  carries one closed immutable provenance record: `backbone_self_replay`, the exact model and
+  tokenizer revision, renderer, temperature, tools-disabled state, completion cardinality/index,
+  and prompt/request/completion SHA-256 identities. The measured token count separately names the
+  same tokenizer revision. No duplicated top-level generation truth is accepted.
+- The raw-only planner runs filtering internally, limits the pool to two dataset-source/revision
+  pairs, and mechanically rejects duplicate completion IDs, prompt IDs, and normalized prompt
+  fingerprints before the deterministic allocation. A caller-provided filter report cannot select
+  data.
 - Filtering is cheap checks first, then exact digest deduplication, then deterministic pairwise
-  token-Jaccard near-deduplication (`0.8`) for the small (~1,250-row) pool. Every outcome retains
-  the raw row plus rejection reasons and review flags.
+  token and three-word-shingle near-deduplication (`0.8`) for the small (~1,250-row) pool. It also
+  rejects normalized substring/near overlaps with approved, interaction, development, test, demo,
+  heldout-asset, nonce, and explicitly supplied project-vocabulary references.
 - The closed selector uses deterministic SHA-256 ranks and a small max-flow allocation over
-  task-family × length-band × turn type. It either satisfies all 1,000/length/composition/200
-  multi-turn constraints together or raises a deficit report.
+  task-family × length-band × turn type. It enforces all 1,000/length/composition/200 multi-turn
+  constraints and a 100,000–130,000 supervised-token total, or raises a deficit report.
 - Human review is a deterministic 100-row round-robin over populated family/length/turn strata;
-  every flagged selected row is appended to its review queue.
+  every flagged selected row is appended to its review queue. Finalization requires an explicit
+  approval for every queued completion. Failed rows are removed and deterministically replaced in
+  a new plan that must itself be reviewed before freezing.
 
 ### Tradeoffs
 
-- Exact content and approved-response overlap checks are deliberately conservative equality checks.
-  The pairwise near-duplicate pass provides the broader similarity check without adding embedding
-  dependencies or a second model authority.
+- Pairwise token/shingle scanning is intentionally O(n²), bounded by the planned ~1,250 rows. The
+  module records the MinHash/LSH upgrade path if that ceiling changes; it does not add embeddings,
+  NeMo, Ray, or a second model authority now.
 
-### Deviations
+### Rejected spec pass and correction
 
-- None. NeMo Curator's filtering/dedup ordering informed the battery, but NeMo/Ray are not imported
-  because this fixed small pool does not justify their runtime or dependency surface.
+- The first replay-filter implementation was rejected because its provenance was forgeable and
+  duplicated at the top level, its public selector trusted caller-built reports, overlap checks
+  were equality-only, prompts and dataset sources were not mechanically closed, refusal and
+  boilerplate handling was unsafe, token totals were unconstrained, and review approval did not
+  gate finalization. This correction moves those checks to the raw-row/planning boundary and adds
+  adversarial raw-slice tests for each failure.
 
 ### Open questions
 
-- Review the first raw flagged and near-duplicate slices before changing the documented thresholds;
-  selection remains fail-closed until then.
+- Review the first raw flagged, near-overlap, and replacement-review slices before changing the
+  documented thresholds; selection remains fail-closed until then.
