@@ -7,7 +7,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
-from math import ceil
+from math import ceil, isfinite
 from re import fullmatch
 
 from pydantic import BaseModel
@@ -18,6 +18,8 @@ from im.schema.actions import ACTION_ADAPTER, IdleReason
 from im.schema.events import EVENT_ADAPTER
 
 _DIGEST = r"sha256:[0-9a-f]{64}"
+
+
 class Phase2ReviewError(ValueError):
     """Phase 2 review evidence is invalid or unsafe to route."""
 
@@ -160,9 +162,10 @@ class DecisionEvidence:
     rollover: bool = False
 
     def __post_init__(self) -> None:
-        if not isinstance(self.stream_sha256, str) or fullmatch(
-            _DIGEST, self.stream_sha256
-        ) is None:
+        if (
+            not isinstance(self.stream_sha256, str)
+            or fullmatch(_DIGEST, self.stream_sha256) is None
+        ):
             raise Phase2ReviewError("stream_sha256 must be a sha256 digest")
         if (
             isinstance(self.decision_policy_seq, bool)
@@ -202,9 +205,7 @@ class DecisionEvidence:
             TeacherComparison.DISAGREEMENT,
         }
         if non_equivalent != ("oracle_teacher_non_equivalence" in self.risk_flags):
-            raise Phase2ReviewError(
-                "teacher non-equivalence and its risk flag must agree"
-            )
+            raise Phase2ReviewError("teacher non-equivalence and its risk flag must agree")
         required_risk = _BOUNDARY_RISK_FLAGS.get(self.boundary_class)
         if required_risk is not None and required_risk not in self.risk_flags:
             raise Phase2ReviewError(
@@ -336,6 +337,36 @@ class ReviewRoute:
     reasons: tuple[str, ...]
     provisional_label_origin: LabelOrigin | None
 
+    def __post_init__(self) -> None:
+        if not _nonempty_text(self.identity):
+            raise Phase2ReviewError("review route identity must be non-empty")
+        if type(self.review_required) is not bool or type(self.mandatory) is not bool:
+            raise Phase2ReviewError("review route flags must be exact bools")
+        if (
+            isinstance(self.sample_rate, bool)
+            or not isinstance(self.sample_rate, (int, float))
+            or not isfinite(self.sample_rate)
+            or not 0 <= self.sample_rate <= 1
+        ):
+            raise Phase2ReviewError("review route sample_rate must be finite within [0, 1]")
+        if (
+            not isinstance(self.reasons, tuple)
+            or not all(_nonempty_text(reason) for reason in self.reasons)
+            or len(self.reasons) != len(set(self.reasons))
+        ):
+            raise Phase2ReviewError("review route reasons must be unique non-empty strings")
+        if self.mandatory and (not self.review_required or self.sample_rate != 1):
+            raise Phase2ReviewError("mandatory review routes must require review at sample_rate 1")
+        if self.review_required:
+            if not self.reasons or self.provisional_label_origin is not None:
+                raise Phase2ReviewError(
+                    "required review routes need reasons and no provisional origin"
+                )
+        elif self.reasons or not isinstance(self.provisional_label_origin, LabelOrigin):
+            raise Phase2ReviewError(
+                "non-required review routes need no reasons and a closed provisional origin"
+            )
+
 
 def route_wave(
     decisions: tuple[DecisionEvidence, ...],
@@ -355,9 +386,7 @@ def route_wave(
 
     mandatory: dict[str, tuple[str, ...]] = {}
     sample_rates: dict[str, float] = {}
-    grouped: defaultdict[
-        tuple[TrustCellKey, float], list[DecisionEvidence]
-    ] = defaultdict(list)
+    grouped: defaultdict[tuple[TrustCellKey, float], list[DecisionEvidence]] = defaultdict(list)
     for decision in decisions:
         status = cell_statuses.get(decision.cell, TrustCellStatus(decision.cell))
         if status.key != decision.cell:
@@ -557,16 +586,14 @@ def evaluate_trust_cell(
     if status.locked_uncleared:
         return status
     if any(
-        item.decision.cell == status.key
-        and item.category is DisagreementCategory.TEACHER_ERROR
+        item.decision.cell == status.key and item.category is DisagreementCategory.TEACHER_ERROR
         for item in evidence
     ):
         return TrustCellStatus(status.key, TrustState.UNCLEARED, locked_uncleared=True)
     current = tuple(item for item in family_window if item.decision.cell == status.key)
     categories = {item.category for item in current}
     if any(
-        item.decision.permanently_uncleared or item.known_directional_failure
-        for item in current
+        item.decision.permanently_uncleared or item.known_directional_failure for item in current
     ):
         return TrustCellStatus(status.key, TrustState.UNCLEARED)
     if categories & {DisagreementCategory.ORACLE_ERROR, DisagreementCategory.TEMPLATE_ERROR}:
@@ -599,19 +626,30 @@ def disagreement_cluster_signature(decision: DecisionEvidence) -> str:
     value = {
         "causal_state_class": decision.causal_state_class,
         "boundary_class": decision.boundary_class.value,
+        "comparison": decision.comparison.value,
         "family": decision.cell.family.value,
         "floor": decision.cell.floor.value,
-        "oracle_action": decision.action_type,
-        "oracle_reason": decision.action_reason,
+        "oracle_action": _semantic_action_skeleton(decision.oracle_action),
         "protocol": decision.cell.protocol.value,
         "risk_flags": list(decision.risk_flags),
         "idle_boundary": decision.idle_boundary,
         "rollover": decision.rollover,
-        "teacher_action": decision.teacher_action_type,
-        "teacher_reason": decision.teacher_action_reason,
+        "teacher_action": (
+            _semantic_action_skeleton(decision.teacher_action)
+            if decision.teacher_action is not None
+            else None
+        ),
         "template": decision.template_id,
     }
     return f"sha256:{sha256(canonical_artifact_bytes(value)).hexdigest()}"
+
+
+def _semantic_action_skeleton(action: object) -> dict[str, object]:
+    """Retain causal references while ignoring only free text for semantic actions."""
+    value = _action_json(action)
+    if value["type"] in {"respond", "integrate"}:
+        value.pop("text", None)
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -650,9 +688,10 @@ class ReservoirRecord:
     risk_flags: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.stream_sha256, str) or fullmatch(
-            _DIGEST, self.stream_sha256
-        ) is None:
+        if (
+            not isinstance(self.stream_sha256, str)
+            or fullmatch(_DIGEST, self.stream_sha256) is None
+        ):
             raise Phase2ReviewError("reservoir stream identity must be a sha256 digest")
         if (
             isinstance(self.decision_policy_seq, bool)
@@ -681,10 +720,9 @@ class ReservoirRecord:
         if not isinstance(self.trust_cell, TrustCellKey):
             raise Phase2ReviewError("reservoir trust cell is invalid")
         prefix_sequences = tuple(getattr(event, "seq") for event in self.policy_prefix)
-        if (
-            any(isinstance(seq, bool) or not isinstance(seq, int) for seq in prefix_sequences)
-            or prefix_sequences != tuple(range(self.decision_policy_seq + 1))
-        ):
+        if any(
+            isinstance(seq, bool) or not isinstance(seq, int) for seq in prefix_sequences
+        ) or prefix_sequences != tuple(range(self.decision_policy_seq + 1)):
             raise Phase2ReviewError(
                 "reservoir prefix must be complete and ordered through policy seq"
             )

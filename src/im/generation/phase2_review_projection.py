@@ -128,23 +128,20 @@ def _action_json(action: object) -> dict[str, object]:
         raise Phase2ReviewProjectionError("candidate action is not canonical") from error
 
 
-def _candidate_order(input_: DecisionProjectionInput, blind_seed: str) -> tuple[str, str]:
-    """Stable Python-owned A/B order. The browser receives positions, never a seed."""
+def _origin_order(blind_commitment: str, identity: str) -> tuple[str, str]:
+    rank = sha256(f"{blind_commitment}|{identity}".encode()).digest()
+    return ("oracle", "teacher") if rank[0] % 2 == 0 else ("teacher", "oracle")
+
+
+def _candidate_order(input_: DecisionProjectionInput, blind_commitment: str) -> tuple[str, str]:
+    """Stable A/B order derived from the emitted public seed commitment."""
     if input_.decision.teacher_action is None:  # pragma: no cover - guarded by caller
         raise Phase2ReviewProjectionError("candidate ordering requires a teacher action")
     oracle = canonical_artifact_bytes(_action_json(input_.decision.oracle_action))
     teacher = canonical_artifact_bytes(_action_json(input_.decision.teacher_action))
     if oracle == teacher:
         raise Phase2ReviewProjectionError("blinded candidates must be distinct")
-    rank = sha256(f"{blind_seed}|{input_.decision.identity}".encode()).digest()
-    return (
-        ("oracle", "teacher")
-        if rank[0] % 2 == 0
-        else (
-            "teacher",
-            "oracle",
-        )
-    )
+    return _origin_order(blind_commitment, input_.decision.identity)
 
 
 def _candidate_json(
@@ -173,7 +170,7 @@ def _candidate_json(
     }
 
 
-def _decision_json(input_: DecisionProjectionInput, blind_seed: str) -> dict[str, object]:
+def _decision_json(input_: DecisionProjectionInput, blind_commitment: str) -> dict[str, object]:
     decision = input_.decision
     non_equivalent = decision.comparison in _NON_EQUIVALENT
     candidates: list[dict[str, object]] = []
@@ -181,7 +178,7 @@ def _decision_json(input_: DecisionProjectionInput, blind_seed: str) -> dict[str
     if non_equivalent:
         if decision.teacher_action is None:
             raise Phase2ReviewProjectionError("non-equivalent decision requires two candidates")
-        order = _candidate_order(input_, blind_seed)
+        order = _candidate_order(input_, blind_commitment)
         candidates = [
             _candidate_json(input_, order[0], "A"),
             _candidate_json(input_, order[1], "B"),
@@ -230,7 +227,7 @@ def _identity_json(value: tuple[str, int]) -> dict[str, object]:
 
 def _build_clusters(
     decisions: list[tuple[DecisionProjectionInput, dict[str, object]]],
-    blind_seed: str,
+    blind_commitment: str,
 ) -> list[dict[str, object]]:
     by_signature: defaultdict[str, list[tuple[DecisionProjectionInput, dict[str, object]]]] = (
         defaultdict(list)
@@ -249,7 +246,7 @@ def _build_clusters(
         confirmation_pool = sorted(
             ordered[1:],
             key=lambda item: sha256(
-                f"{blind_seed}|{signature}|{item[0].decision.identity}".encode()
+                f"{blind_commitment}|{signature}|{item[0].decision.identity}".encode()
             ).digest(),
         )
         for member in confirmation_pool:
@@ -344,14 +341,15 @@ def project_phase2_review_evidence(
     if ranks != list(range(len(inputs))):
         raise Phase2ReviewProjectionError("priority ranks must be a closed zero-based order")
 
+    blind_commitment = "sha256:" + sha256(blind_seed.encode()).hexdigest()
     ordered = sorted(inputs, key=lambda input_: input_.priority_rank)
-    decision_records = [(input_, _decision_json(input_, blind_seed)) for input_ in ordered]
-    clusters = _build_clusters(decision_records, blind_seed)
+    decision_records = [(input_, _decision_json(input_, blind_commitment)) for input_ in ordered]
+    clusters = _build_clusters(decision_records, blind_commitment)
     payload = {
         "clusters": clusters,
         "decisions": [record for _input, record in decision_records],
         "format_version": _FORMAT_VERSION,
-        "blind_seed_sha256": "sha256:" + sha256(blind_seed.encode()).hexdigest(),
+        "blind_seed_sha256": blind_commitment,
         "mechanical_invariants": {
             "all_packet_decisions_included": True,
             "decision_identity_count": len(decision_records),
@@ -384,7 +382,11 @@ def _raw_identity(value: object, label: str) -> tuple[str, int]:
 
 
 def _raw_candidate_action(
-    candidates: object, oracle_action: object, comparison: str
+    candidates: object,
+    oracle_action: object,
+    comparison: str,
+    identity: tuple[str, int],
+    blind_commitment: str,
 ) -> object | None:
     if comparison not in {item.value for item in _NON_EQUIVALENT}:
         if candidates != []:
@@ -392,16 +394,13 @@ def _raw_candidate_action(
         return oracle_action if comparison == TeacherComparison.EQUIVALENT.value else None
     if not isinstance(candidates, list) or len(candidates) != 2:
         raise Phase2ReviewProjectionError("non-equivalent decision requires two candidates")
-    origins: set[str] = set()
-    ids: set[str] = set()
+    expected_origins = _origin_order(blind_commitment, identity[0] + "\x00" + str(identity[1]))
     teacher_action: object | None = None
-    oracle_matches = 0
-    for candidate in candidates:
+    for index, candidate in enumerate(candidates):
         record = _record(candidate, "candidate")
         candidate_id = record.get("candidate_id")
-        if candidate_id not in {"A", "B"}:
-            raise Phase2ReviewProjectionError("candidate ids must be A and B")
-        ids.add(candidate_id)
+        if candidate_id != ("A" if index == 0 else "B"):
+            raise Phase2ReviewProjectionError("candidate order must be canonical A then B")
         license_ = _record(record.get("license"), "candidate license")
         result = license_.get("result")
         codes = license_.get("codes")
@@ -419,24 +418,30 @@ def _raw_candidate_action(
         origin = reveal.get("origin")
         provenance = _record(reveal.get("provenance"), "candidate provenance")
         _provenance(provenance, "candidate provenance")
-        if origin not in {"oracle", "teacher"}:
-            raise Phase2ReviewProjectionError("candidate origin is invalid")
-        origins.add(origin)
+        if origin != expected_origins[index]:
+            raise Phase2ReviewProjectionError(
+                "candidate A/B order does not match the blind seed commitment"
+            )
         action = record.get("action")
         try:
             action_bytes = canonical_artifact_bytes(action)
         except TypeError as error:
             raise Phase2ReviewProjectionError("candidate action is invalid") from error
-        if action_bytes == canonical_artifact_bytes(oracle_action):
-            oracle_matches += 1
+        oracle_bytes = canonical_artifact_bytes(oracle_action)
+        if origin == "oracle" and action_bytes != oracle_bytes:
+            raise Phase2ReviewProjectionError("oracle candidate does not match the packet action")
+        if origin == "teacher" and action_bytes == oracle_bytes:
+            raise Phase2ReviewProjectionError("blinded candidates must be distinct")
         if origin == "teacher":
             teacher_action = action
-    if ids != {"A", "B"} or origins != {"oracle", "teacher"} or oracle_matches != 1:
-        raise Phase2ReviewProjectionError("blinded candidate actions do not close")
+    if teacher_action is None:  # pragma: no cover - commitment order is exhaustive
+        raise Phase2ReviewProjectionError("teacher candidate is missing")
     return teacher_action
 
 
-def _decision_from_raw(value: object) -> tuple[DecisionEvidence, int, str | None]:
+def _decision_from_raw(
+    value: object, blind_commitment: str
+) -> tuple[DecisionEvidence, int, str | None]:
     record = _record(value, "decision")
     identity = _raw_identity(record, "decision identity")
     priority = record.get("priority_rank")
@@ -447,7 +452,13 @@ def _decision_from_raw(value: object) -> tuple[DecisionEvidence, int, str | None
     if comparison not in {item.value for item in TeacherComparison}:
         raise Phase2ReviewProjectionError("decision comparison is invalid")
     oracle_action = record.get("oracle_action")
-    teacher_action = _raw_candidate_action(record.get("candidates"), oracle_action, comparison)
+    teacher_action = _raw_candidate_action(
+        record.get("candidates"),
+        oracle_action,
+        comparison,
+        identity,
+        blind_commitment,
+    )
     evidence = _record(record.get("review_evidence"), "review evidence")
     cell = _record(evidence.get("trust_cell"), "trust cell")
     route = _record(evidence.get("review_route"), "review route")
@@ -514,10 +525,8 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
         or fullmatch(_DIGEST, value["teacher_evidence_identity"]) is None
     ):
         raise Phase2ReviewProjectionError("teacher evidence identity is invalid")
-    if (
-        not isinstance(value.get("blind_seed_sha256"), str)
-        or fullmatch(_DIGEST, value["blind_seed_sha256"]) is None
-    ):
+    blind_commitment = value.get("blind_seed_sha256")
+    if not isinstance(blind_commitment, str) or fullmatch(_DIGEST, blind_commitment) is None:
         raise Phase2ReviewProjectionError("blind seed identity is invalid")
     decisions = value.get("decisions")
     clusters = value.get("clusters")
@@ -535,7 +544,7 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
     priority_by_identity: dict[tuple[str, int], int] = {}
     ranks: list[int] = []
     for decision in decisions:
-        parsed, rank, signature = _decision_from_raw(decision)
+        parsed, rank, signature = _decision_from_raw(decision, blind_commitment)
         identity = parsed.stream_sha256, parsed.decision_policy_seq
         if identity in identities:
             raise Phase2ReviewProjectionError("decision identities repeat")
@@ -601,6 +610,25 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
         if len(set(selected_sources)) != 3:
             raise Phase2ReviewProjectionError(
                 "D7 selections do not use three distinct source units"
+            )
+        expected_confirmations: list[tuple[str, int]] = []
+        seen_sources = {decisions_by_identity[representative_id].source_unit_id}
+        confirmation_pool = sorted(
+            member_list[1:],
+            key=lambda identity: sha256(
+                (f"{blind_commitment}|{signature}|{identity[0]}\x00{identity[1]}").encode()
+            ).digest(),
+        )
+        for identity in confirmation_pool:
+            source = decisions_by_identity[identity].source_unit_id
+            if source not in seen_sources:
+                seen_sources.add(source)
+                expected_confirmations.append(identity)
+            if len(expected_confirmations) == 2:
+                break
+        if confirmation_list != expected_confirmations:
+            raise Phase2ReviewProjectionError(
+                "D7 confirmations do not match the blind seed commitment"
             )
         expected_priority_digest = (
             "sha256:"

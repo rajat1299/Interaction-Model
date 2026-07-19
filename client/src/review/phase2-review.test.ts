@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { recordKey, type ReviewMap } from "./review-sidecar";
 import {
   applyClusterDisposition,
+  clusterEvidenceCases,
   textEquivalentAllowed,
 } from "./phase2-review";
 import type { Phase2Cluster, Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
 
 const stream = (letter: string) => `sha256:${letter.repeat(64)}`;
+const evidenceSha = stream("f");
 
 function decision(letter: string, choiceForOracle: "A" | "B", rank: number): Phase2DecisionEvidence {
   const oracle = { type: "respond" as const, reply_to_event_id: "e_1", text: "oracle" };
@@ -59,15 +61,49 @@ describe("Phase 2 cluster adjudication", () => {
       mechanical_invariants: { all_packet_decisions_included: true, decision_identity_count: 4, non_equivalent_decision_count: 4 },
     };
     const reviews: ReviewMap = new Map([
-      [recordKey(members[0]), { stream_sha256: members[0].stream_sha256, decision_policy_seq: 0, decision: "flag", reason_code: "review", note: "Representative rationale", candidate_choice: "A", disagreement_category: "teacher_error" }],
+      [recordKey(members[0]), { stream_sha256: members[0].stream_sha256, decision_policy_seq: 0, decision: "flag", reason_code: "review", note: "Representative rationale", candidate_choice: "A", disagreement_category: "teacher_error", phase2_evidence_sha256: evidenceSha }],
       [recordKey(outsider), { stream_sha256: outsider.stream_sha256, decision_policy_seq: 3, decision: "accept", reason_code: "ordinary", note: "keep" }],
     ]);
 
-    const applied = applyClusterDisposition(reviews, evidence, cluster, "teacher_error", "Shared D7 diagnosis.");
+    const acknowledged = new Set(clusterEvidenceCases(cluster).map(recordKey));
+    const applied = applyClusterDisposition(reviews, evidence, evidenceSha, cluster, "teacher_error", "Shared D7 diagnosis.", acknowledged);
 
     expect(members.map((member) => applied.get(recordKey(member))?.candidate_choice)).toEqual(["A", "B", "A"]);
     expect(members.every((member) => applied.get(recordKey(member))?.disagreement_category === "teacher_error")).toBe(true);
     expect(applied.get(recordKey(outsider))?.note).toBe("keep");
+    expect(applied.get(recordKey(members[0]))?.cluster_review?.reviewed_evidence.map((item) => item.role)).toEqual([
+      "representative", "confirmation_1", "confirmation_2",
+    ]);
+  });
+
+  it("requires exactly three acknowledgments and validates category eligibility before writes", () => {
+    const members = [decision("a", "A", 0), decision("b", "B", 1), decision("c", "A", 2)];
+    const cluster: Phase2Cluster = {
+      signature: stream("c"),
+      priority_rank: 0,
+      representative: members[0],
+      confirmations: [members[1], members[2]],
+      member_identities: members,
+      mechanical_invariants: { all_members_non_equivalent: true, distinct_source_unit_count: 3, member_count: 3, priority_order_sha256: stream("e"), three_distinct_source_units: true },
+    };
+    const evidence: Phase2ReviewEvidence = {
+      format_version: 1, teacher_evidence_identity: stream("d"), blind_seed_sha256: stream("b"),
+      decisions: members, clusters: [cluster],
+      mechanical_invariants: { all_packet_decisions_included: true, decision_identity_count: 3, non_equivalent_decision_count: 3 },
+    };
+    const reviews: ReviewMap = new Map([[recordKey(members[0]), {
+      stream_sha256: members[0].stream_sha256, decision_policy_seq: 0, decision: "flag",
+      reason_code: "review", note: "Representative rationale", candidate_choice: "A",
+      disagreement_category: "teacher_error", phase2_evidence_sha256: evidenceSha,
+    }]]);
+    const onlyRepresentative = new Set([recordKey(members[0])]);
+    expect(() => applyClusterDisposition(reviews, evidence, evidenceSha, cluster, "teacher_error", "Shared.", onlyRepresentative)).toThrow("exactly three");
+    expect(reviews.size).toBe(1);
+
+    members[2].candidates[1].action = { type: "respond", reply_to_event_id: "e_2", text: "teacher" };
+    const acknowledged = new Set(clusterEvidenceCases(cluster).map(recordKey));
+    expect(() => applyClusterDisposition(reviews, evidence, evidenceSha, cluster, "text_equivalent", "Shared.", acknowledged)).toThrow("not valid for every");
+    expect(reviews.size).toBe(1);
   });
 
   it("only licenses text_equivalent for same-reference respond or integrate candidates", () => {

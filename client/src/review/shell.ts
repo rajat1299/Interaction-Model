@@ -18,11 +18,13 @@ import {
 import {
   buildStreamQueue,
   collectDisagreementKeys,
-  listActionTypes,
-  listFamilies,
   type QueueFilters,
   type StreamQueueItem,
 } from "./queue";
+import {
+  populateReviewFilters,
+  setWorkspaceLoaded,
+} from "./review-workspace";
 import { renderViewport } from "./viewport";
 import {
   exportReviewSidecar,
@@ -35,6 +37,17 @@ import {
   type ReviewRecord,
 } from "./review-sidecar";
 import {
+  clusterEvidenceReady,
+  persistClusterProgress,
+  persistReviewDraft,
+  phase2ReviewContext,
+  progressForCluster,
+  restoreClusterProgress,
+  restoreReviewDraft,
+  reviewDraftKey,
+  type ClusterProgressMap,
+} from "./phase2-review-draft";
+import {
   lookupTeacherLabel,
   parseTeacherLabels,
   teacherReviewStatus,
@@ -42,6 +55,7 @@ import {
 } from "./teacher-labels";
 import {
   applyClusterDisposition,
+  clusterEvidenceCases,
   isPhase2Revealed,
   phase2DecisionFor,
   phase2IsBlinded,
@@ -55,6 +69,7 @@ import type {
   Action,
   LoadedPacket,
   Phase2Cluster,
+  Phase2DecisionIdentity,
   SidecarDecision,
 } from "./types";
 
@@ -75,6 +90,7 @@ type ShellState = {
   playSpeed: keyof typeof PLAYBACK_MS;
   playTimer: number | null;
   selectedCluster: string | null;
+  clusterProgress: ClusterProgressMap;
 };
 
 const state: ShellState = {
@@ -92,6 +108,7 @@ const state: ShellState = {
   playSpeed: "1x",
   playTimer: null,
   selectedCluster: null,
+  clusterProgress: new Map(),
 };
 
 function $(id: string): HTMLElement {
@@ -104,53 +121,19 @@ function streamKey(sha: string): string {
   return sha.startsWith("sha256:") ? sha : `sha256:${sha}`;
 }
 
-function draftKey(index: PacketIndex): string {
-  const integrity = index.packet.integrity;
-  return (
-    "wp1-8-review-draft:v1:" +
-    `${integrity.manifestSha256}:${integrity.sourceIndexSha256}:${state.teacherEvidenceId}`
-  );
-}
-
-function persistReviewDraft(): void {
-  if (!state.packetDraftKey) return;
-  try {
-    window.localStorage.setItem(
-      state.packetDraftKey,
-      exportReviewSidecar(recordsFromMap(state.reviews)),
-    );
-  } catch {
-    // beforeunload/packet-replacement guards still protect an unexported review.
-  }
-}
-
 function markReviewChanged(): void {
   state.dirty = true;
-  persistReviewDraft();
+  persistReviewDraft(window.localStorage, state.packetDraftKey, state.reviews);
 }
 
-function restoreReviewDraft(index: PacketIndex): ReviewMap {
-  const key = draftKey(index);
-  state.packetDraftKey = key;
-  let text: string | null = null;
-  try {
-    text = window.localStorage.getItem(key);
-  } catch {
-    return new Map();
-  }
-  if (!text) return new Map();
-  const parsed = parseReviewSidecar(text);
-  if (!parsed.ok) return new Map();
-  const knownStreams = new Set(index.order.map(streamKey));
-  const knownSeqs = new Map<string, Set<number>>();
-  for (const [sha, indexed] of index.bySha) {
-    knownSeqs.set(
-      streamKey(sha),
-      new Set(indexed.stream.sidecar.decisions.map((decision) => decision.observed_policy_seq)),
-    );
-  }
-  const restored = mergeReviewRecords(new Map(), parsed.records, knownStreams, knownSeqs);
-  return restored.ok ? restored.merged : new Map();
+function restorePacketDrafts(index: PacketIndex): void {
+  state.packetDraftKey = reviewDraftKey(index, state.teacherEvidenceId);
+  state.reviews = restoreReviewDraft(window.localStorage, index, state.packetDraftKey);
+  state.clusterProgress = restoreClusterProgress(
+    window.localStorage,
+    state.packetDraftKey,
+    index,
+  );
 }
 
 function confirmReviewReplacement(): boolean {
@@ -355,6 +338,15 @@ function selectedCluster(): Phase2Cluster | null {
   ) ?? null;
 }
 
+function phase2EvidenceSha256(): string | null {
+  return state.index?.packet.integrity.phase2EvidenceSha256 ?? null;
+}
+
+function currentPhase2IdentityKey(): string | null {
+  const decision = currentPhase2Decision();
+  return decision ? recordKey(decision) : null;
+}
+
 function renderDivergence(blinded = false): void {
   const box = $("divergence");
   const indexed = currentIndexed();
@@ -417,15 +409,19 @@ function renderAll(): void {
   const indexed = currentIndexed();
   if (!state.index || !indexed) {
     status.textContent = "No packet loaded.";
+    setWorkspaceLoaded(false);
     return;
   }
+  setWorkspaceLoaded(true);
 
   const vis = stateAtEvent(indexed, state.eventIndex);
   const decision = currentDecision();
   const oracle = currentOracleAction();
   const counts = progressCounts();
   const phase2Decision = currentPhase2Decision();
-  const phase2Revealed = phase2Decision ? isPhase2Revealed(state.reviews, phase2Decision) : false;
+  const phase2Revealed = phase2Decision
+    ? isPhase2Revealed(state.reviews, phase2Decision, phase2EvidenceSha256())
+    : false;
   const phase2Blinded = phase2IsBlinded(phase2Decision, phase2Revealed);
 
   status.textContent =
@@ -535,7 +531,21 @@ function renderAll(): void {
   const cluster = selectedCluster();
   $("cluster-context").hidden = cluster === null;
   $("cluster-batch").hidden = cluster === null;
-  renderClusterContext($("cluster-context"), cluster);
+  const progress = cluster
+    ? progressForCluster(state.clusterProgress, phase2EvidenceSha256(), cluster)
+    : { opened: new Set<string>(), acknowledged: new Set<string>() };
+  renderClusterContext(
+    $("cluster-context"),
+    cluster,
+    currentPhase2IdentityKey(),
+    progress.opened,
+    progress.acknowledged,
+    openClusterEvidence,
+    acknowledgeClusterEvidence,
+  );
+  const clusterSave = $("btn-save-cluster") as HTMLButtonElement;
+  clusterSave.disabled = !cluster || !clusterEvidenceReady(progress, cluster);
+  clusterSave.setAttribute("aria-disabled", String(clusterSave.disabled));
   renderInspector(indexed, vis, phase2Active && !phase2Revealed);
 }
 
@@ -558,19 +568,53 @@ function saveStreamReview(): void {
 
 function selectCluster(cluster: Phase2Cluster): void {
   state.selectedCluster = cluster.signature;
-  const indexed = state.index?.bySha.get(cluster.representative.stream_sha256.slice(7));
-  if (!indexed) return renderAll();
+  openClusterEvidence(cluster.representative);
+}
+
+function openClusterEvidence(item: Phase2DecisionIdentity): void {
+  const cluster = selectedCluster();
+  if (!cluster || !clusterEvidenceCases(cluster).some((candidate) => recordKey(candidate) === recordKey(item))) return;
+  const indexed = state.index?.bySha.get(item.stream_sha256.slice(7));
+  if (!indexed) {
+    ($("cluster-status") as HTMLElement).textContent = "The selected evidence case is not present in this packet.";
+    return renderAll();
+  }
+  progressForCluster(state.clusterProgress, phase2EvidenceSha256(), cluster).opened.add(recordKey(item));
+  persistClusterProgress(window.localStorage, state.packetDraftKey, state.clusterProgress);
   setStream(
     indexed.stream.sha256,
-    eventIndexForPolicySeq(indexed, cluster.representative.decision_policy_seq),
+    eventIndexForPolicySeq(indexed, item.decision_policy_seq),
   );
+}
+
+function acknowledgeClusterEvidence(item: Phase2DecisionIdentity, checked: boolean): void {
+  const cluster = selectedCluster();
+  if (!cluster) return;
+  const progress = progressForCluster(state.clusterProgress, phase2EvidenceSha256(), cluster);
+  const identity = recordKey(item);
+  if (!progress.opened.has(identity)) return;
+  if (checked) progress.acknowledged.add(identity);
+  else progress.acknowledged.delete(identity);
+  persistClusterProgress(window.localStorage, state.packetDraftKey, state.clusterProgress);
+  if (checked && clusterEvidenceReady(progress, cluster)) {
+    ($("cluster-status") as HTMLElement).textContent = "Three evidence cases acknowledged. Returned to the representative for the batch disposition.";
+    openClusterEvidence(cluster.representative);
+    return;
+  }
+  renderAll();
 }
 
 function saveClusterDisposition(): void {
   const cluster = selectedCluster();
   const evidence = state.index?.packet.phase2ReviewEvidence;
+  const evidenceSha = phase2EvidenceSha256();
   const phase2 = currentPhase2Decision();
-  if (!cluster || !evidence || !phase2) return;
+  if (!cluster || !evidence || !evidenceSha || !phase2) return;
+  const progress = progressForCluster(state.clusterProgress, evidenceSha, cluster);
+  if (!clusterEvidenceReady(progress, cluster)) {
+    ($("cluster-status") as HTMLElement).textContent = "Open and acknowledge all three selected evidence cases before applying a batch disposition.";
+    return;
+  }
   const selection = validatePhase2Selection(
     phase2,
     document.querySelector<HTMLInputElement>('input[name="phase2-choice"]:checked'),
@@ -586,6 +630,7 @@ function saveClusterDisposition(): void {
     note: selection.rationale,
     candidate_choice: selection.candidate_choice,
     disagreement_category: selection.disagreement_category,
+    phase2_evidence_sha256: evidenceSha,
   };
   try {
     const staged = new Map(state.reviews);
@@ -593,9 +638,11 @@ function saveClusterDisposition(): void {
     state.reviews = applyClusterDisposition(
       staged,
       evidence,
+      evidenceSha,
       cluster,
       selection.disagreement_category,
       selection.rationale,
+      progress.acknowledged,
     );
   } catch (error) {
     ($("cluster-status") as HTMLElement).textContent = error instanceof Error ? error.message : String(error);
@@ -623,6 +670,8 @@ function saveDecisionReview(): void {
       )
     : null;
   if (phase2 && phase2.candidates.length === 2 && !selection) return;
+  const evidenceSha = phase2EvidenceSha256();
+  if (selection && !evidenceSha) return;
   const rec: ReviewRecord = {
     stream_sha256: streamKey(indexed.stream.sha256),
     decision_policy_seq: policySeq,
@@ -632,6 +681,7 @@ function saveDecisionReview(): void {
     ...(selection ? {
       candidate_choice: selection.candidate_choice,
       disagreement_category: selection.disagreement_category,
+      phase2_evidence_sha256: evidenceSha!,
     } : {}),
   };
   state.reviews.set(recordKey(rec), rec);
@@ -649,7 +699,7 @@ function exportReviews(): void {
   a.click();
   URL.revokeObjectURL(url);
   state.dirty = false;
-  persistReviewDraft();
+  persistReviewDraft(window.localStorage, state.packetDraftKey, state.reviews);
 }
 
 async function importReviews(file: File): Promise<void> {
@@ -671,7 +721,13 @@ async function importReviews(file: File): Promise<void> {
       new Set(indexed.stream.sidecar.decisions.map((d) => d.observed_policy_seq)),
     );
   }
-  const merged = mergeReviewRecords(state.reviews, parsed.records, knownStreams, knownSeqs);
+  const merged = mergeReviewRecords(
+    state.reviews,
+    parsed.records,
+    knownStreams,
+    knownSeqs,
+    state.index ? phase2ReviewContext(state.index) : null,
+  );
   if (!merged.ok) {
     alert(`Import conflicts/unknown identities:\n${merged.errors.join("\n")}`);
     return;
@@ -693,7 +749,7 @@ export async function loadTeacherLabelsText(text: string): Promise<string | null
   if (!parsed.ok) {
     return parsed.errors.join("\n");
   }
-  persistReviewDraft();
+  persistReviewDraft(window.localStorage, state.packetDraftKey, state.reviews);
   const normalized = [...parsed.labels.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([, label]) => JSON.stringify(label))
@@ -701,7 +757,7 @@ export async function loadTeacherLabelsText(text: string): Promise<string | null
   state.teacherEvidenceId = await sha256Hex(normalized);
   state.teacherLabels = parsed.labels;
   if (state.index) {
-    state.reviews = restoreReviewDraft(state.index);
+    restorePacketDrafts(state.index);
     state.dirty = false;
   }
   rebuildQueue();
@@ -719,13 +775,14 @@ async function onPacketSelected(files: FileList | null): Promise<void> {
     statusMessage(`BLOCKED:\n${result.errors.slice(0, 20).join("\n")}`);
     state.index = null;
     state.streamSha = null;
+    setWorkspaceLoaded(false);
     return;
   }
   state.index = indexPacket(result.packet);
-  state.reviews = restoreReviewDraft(state.index);
+  restorePacketDrafts(state.index);
   state.dirty = false;
   rebuildQueue();
-  populateFilters();
+  populateReviewFilters(state.index.packet.streams);
   const first = state.queue[0]?.streamSha256 ?? state.index.order[0];
   const firstItem = state.queue.find((item) => item.streamSha256 === first);
   if (firstItem) setQueueItem(firstItem);
@@ -734,34 +791,6 @@ async function onPacketSelected(files: FileList | null): Promise<void> {
 
 function statusMessage(msg: string): void {
   $("load-status").textContent = msg;
-}
-
-function populateFilters(): void {
-  if (!state.index) return;
-  const fam = $("filter-family") as HTMLSelectElement;
-  const act = $("filter-action") as HTMLSelectElement;
-  fam.replaceChildren();
-  act.replaceChildren();
-  const allFam = document.createElement("option");
-  allFam.value = "";
-  allFam.textContent = "All families";
-  fam.appendChild(allFam);
-  for (const f of listFamilies(state.index.packet.streams)) {
-    const o = document.createElement("option");
-    o.value = f;
-    o.textContent = f;
-    fam.appendChild(o);
-  }
-  const allAct = document.createElement("option");
-  allAct.value = "";
-  allAct.textContent = "All actions";
-  act.appendChild(allAct);
-  for (const a of listActionTypes(state.index.packet.streams)) {
-    const o = document.createElement("option");
-    o.value = a;
-    o.textContent = a;
-    act.appendChild(o);
-  }
 }
 
 function applyFilters(): void {
@@ -860,10 +889,11 @@ function adoptPacket(packet: LoadedPacket): void {
   stopPlayback();
   state.selectedCluster = null;
   state.index = indexPacket(packet);
-  state.reviews = restoreReviewDraft(state.index);
+  setWorkspaceLoaded(true);
+  restorePacketDrafts(state.index);
   state.dirty = false;
   rebuildQueue();
-  populateFilters();
+  populateReviewFilters(state.index.packet.streams);
   const first = state.queue[0]?.streamSha256 ?? state.index.order[0];
   const firstItem = state.queue.find((item) => item.streamSha256 === first);
   if (firstItem) setQueueItem(firstItem);
@@ -879,6 +909,7 @@ export async function loadPacketEntries(entries: PacketEntry[]): Promise<string 
     statusMessage(`BLOCKED:\n${result.errors.slice(0, 20).join("\n")}`);
     state.index = null;
     state.streamSha = null;
+    setWorkspaceLoaded(false);
     return result.errors.join("\n");
   }
   adoptPacket(result.packet);
@@ -907,8 +938,10 @@ export function mountReviewShell(root: HTMLElement): () => void {
     playSpeed: "1x",
     playTimer: null,
     selectedCluster: null,
+    clusterProgress: new Map(),
   });
   root.innerHTML = REVIEW_SHELL_HTML;
+  setWorkspaceLoaded(false);
 
   const packetInput = $("packet-dir") as HTMLInputElement;
   packetInput.addEventListener("change", () => void onPacketSelected(packetInput.files));

@@ -9,7 +9,12 @@ import { loadPacketFromEntries } from "./packet-loader";
 import { loadCanaryEntries, loadCanaryTeacherLabels } from "./test-fixtures";
 import type { LoadedPacket } from "./types";
 
-function phase2Packet(packet: LoadedPacket): LoadedPacket {
+const PHASE2_EVIDENCE_SHA = `sha256:${"f".repeat(64)}`;
+
+function phase2Packet(
+  packet: LoadedPacket,
+  phase2EvidenceSha256 = PHASE2_EVIDENCE_SHA,
+): LoadedPacket {
   const targets = packet.streams.slice(0, 3).map((stream, index) => ({
     stream: stream.sidecar.stream_sha256,
     seq: stream.sidecar.decisions[0].observed_policy_seq,
@@ -49,6 +54,7 @@ function phase2Packet(packet: LoadedPacket): LoadedPacket {
   const identities = targets.map((target) => ({ stream_sha256: target.stream, decision_policy_seq: target.seq }));
   return {
     ...packet,
+    integrity: { ...packet.integrity, phase2EvidenceSha256 },
     phase2ReviewEvidence: {
       format_version: 1,
       teacher_evidence_identity: `sha256:${"d".repeat(64)}`,
@@ -97,6 +103,25 @@ describe("review shell", () => {
     cleanup = null;
     window.localStorage.clear();
     document.body.innerHTML = "";
+  });
+
+  it("starts as a checksum intake state and reveals the workspace only after load", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+
+    expect(document.getElementById("empty-state")!.hidden).toBe(false);
+    expect(document.getElementById("empty-state")!.textContent).toContain("Load a checksum-verified packet to begin");
+    expect(document.getElementById("review-workspace")!.hidden).toBe(true);
+    expect((document.getElementById("btn-save-cluster") as HTMLButtonElement).disabled).toBe(true);
+    expect((document.getElementById("import-review") as HTMLInputElement).disabled).toBe(true);
+    expect((document.getElementById("btn-export") as HTMLButtonElement).disabled).toBe(true);
+
+    expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
+    expect(document.getElementById("empty-state")!.hidden).toBe(true);
+    expect(document.getElementById("review-workspace")!.hidden).toBe(false);
+    expect((document.getElementById("import-review") as HTMLInputElement).disabled).toBe(false);
+    expect((document.getElementById("btn-export") as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("supports essential keyboard navigation after load", async () => {
@@ -310,7 +335,27 @@ describe("review shell", () => {
     expect(preSave).not.toMatch(/oracle|teacher|request_sha256/i);
     expect(document.querySelector(".vp-action-row")?.hasAttribute("hidden")).toBe(true);
     expect(document.getElementById("cluster-context")!.hidden).toBe(false);
-    expect(document.querySelectorAll("#cluster-context li")).toHaveLength(2);
+    expect(document.querySelectorAll(".cluster-evidence-cases li")).toHaveLength(3);
+    const batch = document.getElementById("btn-save-cluster") as HTMLButtonElement;
+    expect(batch.disabled).toBe(true);
+    batch.click();
+    expect(document.getElementById("cluster-status")!.textContent).not.toContain("saved");
+
+    const acknowledgeCase = (index: number) => {
+      const row = document.querySelectorAll<HTMLElement>(".cluster-evidence-cases li")[index];
+      const checkbox = row.querySelector<HTMLInputElement>(".cluster-acknowledge")!;
+      expect(checkbox.disabled).toBe(false);
+      checkbox.click();
+    };
+    acknowledgeCase(0);
+    expect(batch.disabled).toBe(true);
+    document.querySelectorAll<HTMLButtonElement>(".cluster-open-evidence")[1].click();
+    acknowledgeCase(1);
+    expect(batch.disabled).toBe(true);
+    document.querySelectorAll<HTMLButtonElement>(".cluster-open-evidence")[2].click();
+    acknowledgeCase(2);
+    expect((document.getElementById("btn-save-cluster") as HTMLButtonElement).disabled).toBe(false);
+    expect(document.getElementById("cluster-status")!.textContent).toContain("Returned to the representative");
 
     (document.getElementById("decision-decision") as HTMLSelectElement).value = "flag";
     (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
@@ -320,6 +365,15 @@ describe("review shell", () => {
     expect(document.getElementById("cluster-status")!.textContent).toContain("saved for its members");
     expect(document.getElementById("phase2-reveal")!.textContent).toContain("origins and provenance");
     expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
+    const exportedDraft = [...Array(window.localStorage.length).keys()]
+      .map((index) => window.localStorage.key(index)!)
+      .filter((key) => !key.endsWith(":cluster-evidence"))
+      .map((key) => window.localStorage.getItem(key) ?? "")
+      .find((text) => text.includes("cluster_review"))!;
+    const auditRecord = exportedDraft.trim().split("\n").map((line) => JSON.parse(line)).find((record) => record.cluster_review);
+    expect(auditRecord.cluster_review.reviewed_evidence.map((item: { role: string }) => item.role)).toEqual([
+      "representative", "confirmation_1", "confirmation_2",
+    ]);
 
     cleanup();
     cleanup = null;
@@ -330,6 +384,34 @@ describe("review shell", () => {
     adoptLoadedPacket(phase2Packet(loaded.packet));
     document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
     expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
+  });
+
+  it("never restores or reveals a paired decision from a replaced Phase 2 evidence hash", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(phase2Packet(loaded.packet, `sha256:${"1".repeat(64)}`));
+    document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
+    (document.getElementById("decision-decision") as HTMLSelectElement).value = "flag";
+    (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
+    (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Bound to the first evidence root.";
+    document.getElementById("btn-save-decision")!.click();
+    expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
+
+    cleanup();
+    cleanup = null;
+    document.body.innerHTML = "";
+    const remount = document.createElement("div");
+    document.body.appendChild(remount);
+    cleanup = mountReviewShell(remount);
+    adoptLoadedPacket(phase2Packet(loaded.packet, `sha256:${"2".repeat(64)}`));
+    document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
+    expect(document.getElementById("phase2-compare")!.textContent).not.toContain("Origin:");
+    expect((document.getElementById("phase2-choice-A") as HTMLInputElement).checked).toBe(false);
   });
 
   it("keeps equivalent Phase 2 decisions on the legacy save path", async () => {

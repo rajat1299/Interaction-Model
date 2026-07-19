@@ -137,3 +137,27 @@ def test_projection_parser_recomputes_root_counts_and_rejects_duplicate_clusters
     payload["clusters"].append(payload["clusters"][0])
     with pytest.raises(Phase2ReviewProjectionError, match="signatures must be unique"):
         parse_phase2_review_evidence(canonical_artifact_bytes(payload))
+
+
+def test_projection_parser_rejects_mutated_blind_order_and_confirmation_order() -> None:
+    inputs = (_input(1, "source-a", 0), _input(2, "source-b", 1), _input(3, "source-c", 2))
+    payload = parse_phase2_review_evidence(_project(inputs))
+    payload["decisions"][0]["candidates"].reverse()
+    with pytest.raises(Phase2ReviewProjectionError, match="canonical A then B"):
+        parse_phase2_review_evidence(canonical_artifact_bytes(payload))
+
+    payload = parse_phase2_review_evidence(_project(inputs))
+    (
+        payload["decisions"][0]["candidates"][0]["reveal"],
+        payload["decisions"][0]["candidates"][1]["reveal"],
+    ) = (
+        payload["decisions"][0]["candidates"][1]["reveal"],
+        payload["decisions"][0]["candidates"][0]["reveal"],
+    )
+    with pytest.raises(Phase2ReviewProjectionError, match="blind seed commitment"):
+        parse_phase2_review_evidence(canonical_artifact_bytes(payload))
+
+    payload = parse_phase2_review_evidence(_project(inputs))
+    payload["clusters"][0]["confirmations"].reverse()
+    with pytest.raises(Phase2ReviewProjectionError, match="confirmations do not match"):
+        parse_phase2_review_evidence(canonical_artifact_bytes(payload))

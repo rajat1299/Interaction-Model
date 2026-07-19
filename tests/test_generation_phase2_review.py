@@ -13,8 +13,10 @@ from im.generation.phase2_review import (
     DisagreementCategory,
     FloorClass,
     LabelAuditMetadata,
+    LabelOrigin,
     Phase2ReviewError,
     ReservoirRecord,
+    ReviewRoute,
     TeacherComparison,
     TrustCellKey,
     TrustCellStatus,
@@ -32,9 +34,7 @@ def _action(action_type: str, reason: str | None, index: int) -> dict[str, objec
     event_id = f"e_{index:06d}"
     if action_type == "idle":
         related = (
-            event_id
-            if reason in {"awaiting_tool", "awaiting_opening", "already_handled"}
-            else None
+            event_id if reason in {"awaiting_tool", "awaiting_opening", "already_handled"} else None
         )
         return {"type": "idle", "reason": reason, "related_event_id": related}
     if action_type == "respond":
@@ -65,7 +65,8 @@ def _decision(index: int, **overrides: object) -> DecisionEvidence:
     teacher_action_reason = overrides.pop("teacher_action_reason", action_reason)
     expected_comparison = overrides.pop("comparison", TeacherComparison.EQUIVALENT)
     oracle_action = overrides.pop(
-        "oracle_action", _action(action_type, action_reason, index)  # type: ignore[arg-type]
+        "oracle_action",
+        _action(action_type, action_reason, index),  # type: ignore[arg-type]
     )
     teacher_action = overrides.pop(
         "teacher_action",
@@ -211,6 +212,35 @@ def test_teacher_comparison_is_derived_and_cannot_bypass_review() -> None:
     assert all(route.mandatory for route in routes)
 
 
+def test_review_route_closes_flags_rate_reasons_and_origin() -> None:
+    required = {
+        "identity": "decision-1",
+        "review_required": True,
+        "mandatory": True,
+        "sample_rate": 1.0,
+        "reasons": ("mandatory_action",),
+        "provisional_label_origin": None,
+    }
+    ReviewRoute(**required)
+    ReviewRoute(
+        "decision-2",
+        False,
+        False,
+        0.25,
+        (),
+        LabelOrigin.ORACLE_TEACHER_AGREEMENT,
+    )
+
+    with pytest.raises(Phase2ReviewError, match="sample_rate"):
+        ReviewRoute(**{**required, "sample_rate": 2.5})
+    with pytest.raises(Phase2ReviewError, match="mandatory"):
+        ReviewRoute(**{**required, "review_required": False})
+    with pytest.raises(Phase2ReviewError, match="provisional origin"):
+        ReviewRoute(**{**required, "mandatory": False, "reasons": ()})
+    with pytest.raises(Phase2ReviewError, match="unique non-empty"):
+        ReviewRoute(**{**required, "reasons": ("same", "same")})
+
+
 def test_non_equivalent_human_review_requires_a_disposition() -> None:
     with pytest.raises(Phase2ReviewError, match="disposition"):
         TrustReviewEvidence(
@@ -254,9 +284,7 @@ def test_cleared_cell_audit_is_deterministic_and_stratified() -> None:
     first = route_wave(decisions, status, sampling_seed="audit-v1")
     second = route_wave(decisions, status, sampling_seed="audit-v1")
     selected = [
-        decision
-        for decision, route in zip(decisions, first, strict=True)
-        if route.review_required
+        decision for decision, route in zip(decisions, first, strict=True) if route.review_required
     ]
 
     assert first == second
@@ -283,22 +311,25 @@ def test_teacher_error_locks_cell_and_contract_gap_halts_family() -> None:
         qualification_window_id="window-1",
     )
     assert locked == TrustCellStatus(decision.cell, TrustState.UNCLEARED, True)
-    assert evaluate_trust_cell(
-        locked,
-        tuple(
-            TrustReviewEvidence(
-                _decision(index),
-                None,
-                "phase2-v1",
-                "window-1",
-                True,
-                "review-1",
-            )
-            for index in range(30, 60)
-        ),
-        matrix_version="phase2-v1",
-        qualification_window_id="window-1",
-    ) == locked
+    assert (
+        evaluate_trust_cell(
+            locked,
+            tuple(
+                TrustReviewEvidence(
+                    _decision(index),
+                    None,
+                    "phase2-v1",
+                    "window-1",
+                    True,
+                    "review-1",
+                )
+                for index in range(30, 60)
+            ),
+            matrix_version="phase2-v1",
+            qualification_window_id="window-1",
+        )
+        == locked
+    )
 
     contract_gap = TrustReviewEvidence(
         decision,
@@ -332,12 +363,15 @@ def test_promotion_requires_thirty_decisions_five_sources_three_templates() -> N
         for decision in decisions
     )
 
-    assert evaluate_trust_cell(
-        status,
-        evidence,
-        matrix_version="phase2-v1",
-        qualification_window_id="window-1",
-    ).state is TrustState.CLEARED
+    assert (
+        evaluate_trust_cell(
+            status,
+            evidence,
+            matrix_version="phase2-v1",
+            qualification_window_id="window-1",
+        ).state
+        is TrustState.CLEARED
+    )
 
 
 def test_promotion_rejects_duplicate_review_records() -> None:
@@ -480,12 +514,15 @@ def test_permanent_boundary_cannot_promote_and_contract_gap_halts_sibling_cell()
         )
         for index in range(30)
     )
-    assert evaluate_trust_cell(
-        TrustCellStatus(permanent.cell),
-        permanent_evidence,
-        matrix_version="phase2-v1",
-        qualification_window_id="window-1",
-    ).state is TrustState.UNCLEARED
+    assert (
+        evaluate_trust_cell(
+            TrustCellStatus(permanent.cell),
+            permanent_evidence,
+            matrix_version="phase2-v1",
+            qualification_window_id="window-1",
+        ).state
+        is TrustState.UNCLEARED
+    )
 
     sibling_gap = TrustReviewEvidence(
         _decision(
@@ -567,6 +604,60 @@ def test_cluster_signature_and_reservoir_preserve_full_boundary_evidence() -> No
         replace(typing, idle_boundary="lexical_boundary")
     )
 
+    semantic_respond = _decision(
+        41,
+        oracle_action={"type": "respond", "reply_to_event_id": "e_000001", "text": "A"},
+        teacher_action={"type": "respond", "reply_to_event_id": "e_000001", "text": "B"},
+        comparison=TeacherComparison.SEMANTIC_REVIEW,
+        template_id="semantic-template",
+        boundary_class=BoundaryClass.ACTIVE_FLOOR_RESPONSE,
+        risk_flags=("active_floor_response_boundary", "oracle_teacher_non_equivalence"),
+    )
+    wording_only = _decision(
+        42,
+        oracle_action={"type": "respond", "reply_to_event_id": "e_000001", "text": "C"},
+        teacher_action={"type": "respond", "reply_to_event_id": "e_000001", "text": "D"},
+        comparison=TeacherComparison.SEMANTIC_REVIEW,
+        template_id="semantic-template",
+        boundary_class=BoundaryClass.ACTIVE_FLOOR_RESPONSE,
+        risk_flags=("active_floor_response_boundary", "oracle_teacher_non_equivalence"),
+    )
+    different_reference = _decision(
+        43,
+        oracle_action={"type": "respond", "reply_to_event_id": "e_000001", "text": "A"},
+        teacher_action={"type": "respond", "reply_to_event_id": "e_000002", "text": "B"},
+        comparison=TeacherComparison.DISAGREEMENT,
+        template_id="semantic-template",
+        boundary_class=BoundaryClass.ACTIVE_FLOOR_RESPONSE,
+        risk_flags=("active_floor_response_boundary", "oracle_teacher_non_equivalence"),
+    )
+    assert disagreement_cluster_signature(semantic_respond) == disagreement_cluster_signature(
+        wording_only
+    )
+    assert disagreement_cluster_signature(semantic_respond) != disagreement_cluster_signature(
+        different_reference
+    )
+
+    integrate_a = _decision(
+        44,
+        oracle_action={"type": "integrate", "result_event_id": "e_000003", "text": "A"},
+        teacher_action={"type": "integrate", "result_event_id": "e_000003", "text": "B"},
+        comparison=TeacherComparison.SEMANTIC_REVIEW,
+        template_id="integrate-template",
+        risk_flags=("oracle_teacher_non_equivalence",),
+    )
+    integrate_b = _decision(
+        45,
+        oracle_action={"type": "integrate", "result_event_id": "e_000004", "text": "A"},
+        teacher_action={"type": "integrate", "result_event_id": "e_000004", "text": "B"},
+        comparison=TeacherComparison.SEMANTIC_REVIEW,
+        template_id="integrate-template",
+        risk_flags=("oracle_teacher_non_equivalence",),
+    )
+    assert disagreement_cluster_signature(integrate_a) != disagreement_cluster_signature(
+        integrate_b
+    )
+
     prefix = tuple(
         {
             "v": 1,
@@ -600,9 +691,7 @@ def test_cluster_signature_and_reservoir_preserve_full_boundary_evidence() -> No
     assert payload["policy_prefix"]
 
     truncated = prefix[1:]
-    truncated_sha256 = (
-        f"sha256:{sha256(canonical_artifact_bytes(list(truncated))).hexdigest()}"
-    )
+    truncated_sha256 = f"sha256:{sha256(canonical_artifact_bytes(list(truncated))).hexdigest()}"
     with pytest.raises(Phase2ReviewError, match="complete"):
         ReservoirRecord(
             decision.stream_sha256,

@@ -923,9 +923,9 @@ async function loadPacketUnchecked(entries: PacketEntry[]): Promise<PacketLoadRe
       return { ok: false, errors: [`missing ${PHASE2_REVIEW_EVIDENCE_PATH}`] };
     }
     try {
-      phase2ReviewEvidence = parsePhase2ReviewEvidence(JSON.parse(phase2Text), action);
+      phase2ReviewEvidence = await parsePhase2ReviewEvidence(JSON.parse(phase2Text), action);
       errors.push(
-        ...validatePhase2EvidenceClosure(phase2ReviewEvidence, streams).map(
+        ...(await validatePhase2EvidenceClosure(phase2ReviewEvidence, streams)).map(
           (error) => `${PHASE2_REVIEW_EVIDENCE_PATH}: ${error}`,
         ),
       );
@@ -945,6 +945,9 @@ async function loadPacketUnchecked(entries: PacketEntry[]): Promise<PacketLoadRe
       integrity: {
         manifestSha256: shaSums.get("manifest.json")!,
         sourceIndexSha256: shaSums.get("source-index.json")!,
+        phase2EvidenceSha256: shaSums.has(PHASE2_REVIEW_EVIDENCE_PATH)
+          ? `sha256:${shaSums.get(PHASE2_REVIEW_EVIDENCE_PATH)!}`
+          : null,
       },
     },
   };

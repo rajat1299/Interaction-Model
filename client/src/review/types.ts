@@ -565,5 +565,6 @@ export type LoadedPacket = {
   integrity: {
     manifestSha256: string;
     sourceIndexSha256: string;
+    phase2EvidenceSha256: string | null;
   };
 };

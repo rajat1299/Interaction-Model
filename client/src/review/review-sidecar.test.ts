@@ -4,10 +4,12 @@ import {
   mergeReviewRecords,
   parseReviewSidecar,
   recordKey,
+  type Phase2ClusterReviewAudit,
   type ReviewRecord,
 } from "./review-sidecar";
 import { loadPacketFromEntries } from "./packet-loader";
 import { loadCanaryEntries, loadCanaryReviewDecisions } from "./test-fixtures";
+import type { Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
 
 const sample: ReviewRecord[] = [
   {
@@ -32,6 +34,7 @@ const sample: ReviewRecord[] = [
     note: "a",
   },
 ];
+const phase2EvidenceSha = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 describe("review sidecar export/import", () => {
   it("exports lexicographically sorted deterministic JSONL", () => {
@@ -67,6 +70,7 @@ describe("review sidecar export/import", () => {
       ...sample[2],
       candidate_choice: "B",
       disagreement_category: "teacher_error",
+      phase2_evidence_sha256: phase2EvidenceSha,
       note: "Candidate B preserves the causal reference.",
     };
     const parsed = parseReviewSidecar(exportReviewSidecar([phase2]));
@@ -75,6 +79,7 @@ describe("review sidecar export/import", () => {
     expect(parsed.records[0]).toMatchObject({
       candidate_choice: "B",
       disagreement_category: "teacher_error",
+      phase2_evidence_sha256: phase2EvidenceSha,
     });
     expect(parseReviewSidecar(JSON.stringify({ ...phase2, disagreement_category: undefined }))).toMatchObject({
       ok: false,
@@ -111,11 +116,63 @@ describe("review sidecar export/import", () => {
     const badSeq = mergeReviewRecords(existing, [unknownSeq], knownStreams, knownSeqs);
     expect(badSeq.ok).toBe(false);
 
-    const conflict: ReviewRecord = { ...first, candidate_choice: "A", disagreement_category: "teacher_error" };
+    const conflict: ReviewRecord = { ...first, candidate_choice: "A", disagreement_category: "teacher_error", phase2_evidence_sha256: phase2EvidenceSha };
     const conflicted = mergeReviewRecords(existing, [conflict], knownStreams, knownSeqs);
     expect(conflicted.ok).toBe(false);
     // Existing must remain unchanged.
     expect(existing.get(recordKey(first))?.note).toBe("a");
+  });
+
+  it("closes imported cluster audit roles, membership, category, and evidence hash", () => {
+    const identity = (letter: string, decision_policy_seq: number) => ({
+      stream_sha256: `sha256:${letter.repeat(64)}`,
+      decision_policy_seq,
+    });
+    const identities = [identity("a", 1), identity("b", 2), identity("c", 3)];
+    const decisions = identities.map((item, index) => ({
+      ...item,
+      comparison: "causal_disagreement",
+      candidates: [
+        { candidate_id: "A", action: { type: "idle", reason: "no_trigger", related_event_id: null } },
+        { candidate_id: "B", action: { type: "nudge", fire_event_id: "e_1" } },
+      ],
+      priority_rank: index,
+    })) as Phase2DecisionEvidence[];
+    const signature = `sha256:${"c".repeat(64)}`;
+    const cluster = {
+      signature,
+      representative: identities[0],
+      confirmations: [identities[1], identities[2]],
+      member_identities: identities,
+    };
+    const evidence = { decisions, clusters: [cluster] } as Phase2ReviewEvidence;
+    const reviewed_evidence: Phase2ClusterReviewAudit["reviewed_evidence"] = [
+      { role: "representative" as const, ...identities[0] },
+      { role: "confirmation_1" as const, ...identities[1] },
+      { role: "confirmation_2" as const, ...identities[2] },
+    ];
+    const record: ReviewRecord = {
+      ...identities[0],
+      decision: "flag",
+      reason_code: "cluster_disposition",
+      note: "Audited cluster disposition.",
+      candidate_choice: "A",
+      disagreement_category: "teacher_error",
+      phase2_evidence_sha256: phase2EvidenceSha,
+      cluster_review: { cluster_signature: signature, reviewed_evidence },
+    };
+    const knownStreams = new Set(identities.map((item) => item.stream_sha256));
+    const knownSeqs = new Map(identities.map((item) => [item.stream_sha256, new Set([item.decision_policy_seq])]));
+    const context = { evidenceSha256: phase2EvidenceSha, evidence };
+    expect(mergeReviewRecords(new Map(), [record], knownStreams, knownSeqs, context).ok).toBe(true);
+
+    const wrongRoles = structuredClone(record);
+    wrongRoles.cluster_review!.reviewed_evidence.reverse();
+    expect(mergeReviewRecords(new Map(), [wrongRoles], knownStreams, knownSeqs, context).ok).toBe(false);
+    const wrongCategory = { ...record, disagreement_category: "text_equivalent" as const };
+    expect(mergeReviewRecords(new Map(), [wrongCategory], knownStreams, knownSeqs, context).ok).toBe(false);
+    const wrongHash = { ...record, phase2_evidence_sha256: `sha256:${"0".repeat(64)}` };
+    expect(mergeReviewRecords(new Map(), [wrongHash], knownStreams, knownSeqs, context).ok).toBe(false);
   });
 
   it("accepts the repaired canary's completed WP1-8 sidecar", async () => {

@@ -209,10 +209,11 @@ authoritative.
   `DecisionEvidence` and `ReviewRoute` context needed by D4/D7, and records the teacher-evidence
   identity plus a digest of the frozen blind/confirmation seed. It creates no manifest authority or
   format bump.
-- A/B order is derived in Python from the frozen blind seed and canonical decision identity; the
-  browser only renders that order. The raw inspector, replay action row, and divergence copy stay
-  neutral before a valid paired decision record exists. A valid restored paired record reveals the
-  origin/provenance with an aria-live announcement.
+- A/B order is derived in Python from the public commitment to the frozen blind seed and canonical
+  decision identity; the browser recomputes and validates that order before rendering it. The raw
+  inspector, replay action row, and divergence copy stay neutral before a valid evidence-bound
+  paired decision record exists. A valid restored record reveals the origin/provenance with an
+  aria-live announcement.
 - D3 uses the frozen seven-value selector. Paired `candidate_choice` and
   `disagreement_category` sidecar fields require a trimmed human rationale on import as well as in
   the form. `text_equivalent` is offered only for same-reference `respond`/`integrate` semantic
@@ -241,6 +242,30 @@ authoritative.
 
 - None from the ratified WP2-0 behavior. The production Phase 2 wave writer remains deliberately
   deferred as documented above; this scope supplies its tested checksum-bound projection contract.
+
+### Rejected spec pass and correction
+
+- The first WP2-0 pass was rejected because D7 grouped some distinct semantic cases, the emitted
+  blind order was not independently committed and recomputed, `ReviewRoute` accepted inconsistent
+  state, and a checksum-valid packet could still restore or import a paired decision without the
+  exact Phase 2 evidence identity. The correction retains non-text semantic action context in each
+  cluster signature, derives and validates A/B order, confirmations, signatures, and priority from
+  the public seed commitment in both Python and TypeScript, closes route enums/invariants, and binds
+  every paired record, draft key, import, reveal, and cluster audit to the exact evidence SHA-256.
+- The same pass exposed cluster batch actions before reviewers had opened and explicitly
+  acknowledged the representative plus two confirmations, copied no durable audit trail, and did
+  not validate category eligibility for every affected member before writing. The correction gates
+  the action on three distinct evidence acknowledgements, returns to the representative after the
+  third acknowledgement, validates the entire batch before mutation, maps the winning hidden origin
+  to each member's local A/B order, and stores the exact representative/confirmation identities and
+  roles with every affected record. Adversarial tests cover reversed candidates, reveals, and
+  confirmations; stale/imported evidence identities; route contradictions; category mismatch; and
+  remount behavior.
+- The rejected UI also used non-semantic cluster navigation and showed an inert review shell before
+  packet verification. The correction uses list/button navigation, keeps the workspace and portable
+  review actions unavailable until checksum verification succeeds, and provides one restrained
+  intake state. Browser checks at 1280 and 620 pixels and DOM width checks found no horizontal
+  overflow; the 980-pixel layout is covered by the same intermediate responsive grid rule.
 
 ### Open questions
 

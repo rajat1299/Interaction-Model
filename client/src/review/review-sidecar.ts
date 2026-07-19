@@ -3,9 +3,28 @@
  * Canonical packet files are never touched; review decisions are a separate sidecar.
  */
 
-import type { D3DisagreementCategory } from "./types";
+import type {
+  D3DisagreementCategory,
+  Phase2ReviewEvidence,
+} from "./types";
+import { phase2CategoryAllowed } from "./phase2-review-policy";
 
 export type ReviewDecision = "accept" | "reject" | "flag";
+
+export type Phase2ReviewedEvidenceCase = {
+  role: "representative" | "confirmation_1" | "confirmation_2";
+  stream_sha256: string;
+  decision_policy_seq: number;
+};
+
+export type Phase2ClusterReviewAudit = {
+  cluster_signature: string;
+  reviewed_evidence: [
+    Phase2ReviewedEvidenceCase,
+    Phase2ReviewedEvidenceCase,
+    Phase2ReviewedEvidenceCase,
+  ];
+};
 
 export type ReviewRecord = {
   stream_sha256: string;
@@ -15,6 +34,8 @@ export type ReviewRecord = {
   note: string;
   candidate_choice?: "A" | "B";
   disagreement_category?: D3DisagreementCategory;
+  phase2_evidence_sha256?: string;
+  cluster_review?: Phase2ClusterReviewAudit;
 };
 
 const D3_CATEGORIES = new Set<D3DisagreementCategory>([
@@ -36,6 +57,11 @@ export type ConflictResult =
   | { ok: false; errors: string[] };
 
 export type ReviewMap = Map<string, ReviewRecord>;
+
+export type Phase2ReviewContext = {
+  evidenceSha256: string;
+  evidence: Phase2ReviewEvidence;
+};
 
 export function recordKey(r: { stream_sha256: string; decision_policy_seq: number | null }): string {
   return `${r.stream_sha256}\x00${r.decision_policy_seq === null ? "null" : r.decision_policy_seq}`;
@@ -104,12 +130,33 @@ function validateRecord(r: unknown): string | null {
   if (typeof rec.note !== "string") return "note must be a string";
   const hasChoice = rec.candidate_choice !== undefined;
   const hasCategory = rec.disagreement_category !== undefined;
-  if (hasChoice !== hasCategory) return "candidate_choice and disagreement_category must be paired";
+  const hasEvidence = rec.phase2_evidence_sha256 !== undefined;
+  if (new Set([hasChoice, hasCategory, hasEvidence]).size !== 1) {
+    return "candidate_choice, disagreement_category, and phase2_evidence_sha256 must be paired";
+  }
   if (hasChoice) {
     if (rec.decision_policy_seq === null) return "paired Phase 2 fields require a decision identity";
     if (rec.candidate_choice !== "A" && rec.candidate_choice !== "B") return "candidate_choice must be A or B";
     if (!D3_CATEGORIES.has(rec.disagreement_category as D3DisagreementCategory)) return "disagreement_category is not a frozen D3 value";
+    if (typeof rec.phase2_evidence_sha256 !== "string" || !/^sha256:[0-9a-f]{64}$/.test(rec.phase2_evidence_sha256)) return "phase2_evidence_sha256 must be a sha256: digest";
     if (rec.note.trim() === "") return "paired Phase 2 fields require a nonblank rationale note";
+  }
+  if (rec.cluster_review !== undefined) {
+    if (!hasChoice || typeof rec.cluster_review !== "object" || rec.cluster_review === null || Array.isArray(rec.cluster_review)) return "cluster_review requires paired Phase 2 fields";
+    const audit = rec.cluster_review as Record<string, unknown>;
+    if (typeof audit.cluster_signature !== "string" || !/^sha256:[0-9a-f]{64}$/.test(audit.cluster_signature)) return "cluster_review.cluster_signature must be a sha256: digest";
+    if (!Array.isArray(audit.reviewed_evidence) || audit.reviewed_evidence.length !== 3) return "cluster_review must audit exactly three evidence cases";
+    const roles = ["representative", "confirmation_1", "confirmation_2"];
+    const identities = new Set<string>();
+    for (const [index, value] of audit.reviewed_evidence.entries()) {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return "cluster_review evidence case must be an object";
+      const item = value as Record<string, unknown>;
+      if (item.role !== roles[index]) return "cluster_review evidence roles must be representative then two confirmations";
+      if (typeof item.stream_sha256 !== "string" || !/^sha256:[0-9a-f]{64}$/.test(item.stream_sha256)) return "cluster_review evidence stream must be a sha256: digest";
+      if (!Number.isInteger(item.decision_policy_seq) || (item.decision_policy_seq as number) < 0) return "cluster_review evidence policy seq must be a non-negative integer";
+      identities.add(`${item.stream_sha256}\x00${item.decision_policy_seq}`);
+    }
+    if (identities.size !== 3) return "cluster_review evidence identities must be distinct";
   }
   return null;
 }
@@ -123,6 +170,7 @@ export function mergeReviewRecords(
   imported: ReviewRecord[],
   knownStreams: Set<string>,
   knownSeqsByStream: Map<string, Set<number>>,
+  phase2Context: Phase2ReviewContext | null = null,
 ): ConflictResult {
   const errors: string[] = [];
   const merged = new Map(existing);
@@ -130,6 +178,11 @@ export function mergeReviewRecords(
   let skipped = 0;
 
   for (const r of imported) {
+    if (r.candidate_choice && r.phase2_evidence_sha256 !== phase2Context?.evidenceSha256) {
+      errors.push(`Phase 2 evidence hash mismatch for ${recordKey(r)}`);
+      skipped++;
+      continue;
+    }
     const streamKey = r.stream_sha256;
     if (!knownStreams.has(streamKey)) {
       errors.push(`unknown stream: ${streamKey}`);
@@ -144,6 +197,40 @@ export function mergeReviewRecords(
         continue;
       }
     }
+    if (r.candidate_choice && phase2Context) {
+      const phase2Decision = phase2Context.evidence.decisions.find(
+        (decision) => recordKey(decision) === recordKey(r),
+      );
+      if (!phase2Decision || !phase2Decision.candidates.some((candidate) => candidate.candidate_id === r.candidate_choice)) {
+        errors.push(`Phase 2 candidate choice does not close over evidence for ${recordKey(r)}`);
+        skipped++;
+        continue;
+      }
+      if (!phase2CategoryAllowed(phase2Decision, r.disagreement_category!)) {
+        errors.push(`Phase 2 category is not allowed for ${recordKey(r)}`);
+        skipped++;
+        continue;
+      }
+      if (r.cluster_review) {
+        const cluster = phase2Context.evidence.clusters.find(
+          (item) => item.signature === r.cluster_review!.cluster_signature,
+        );
+        const expected = cluster ? [
+          { role: "representative", ...cluster.representative },
+          { role: "confirmation_1", ...cluster.confirmations[0] },
+          { role: "confirmation_2", ...cluster.confirmations[1] },
+        ] : null;
+        if (
+          !cluster ||
+          !cluster.member_identities.some((identity) => recordKey(identity) === recordKey(r)) ||
+          JSON.stringify(r.cluster_review.reviewed_evidence) !== JSON.stringify(expected)
+        ) {
+          errors.push(`Phase 2 cluster audit does not close over evidence for ${recordKey(r)}`);
+          skipped++;
+          continue;
+        }
+      }
+    }
     const key = recordKey(r);
     const prev = merged.get(key);
     if (prev) {
@@ -152,7 +239,9 @@ export function mergeReviewRecords(
         prev.reason_code !== r.reason_code ||
         prev.note !== r.note ||
         prev.candidate_choice !== r.candidate_choice ||
-        prev.disagreement_category !== r.disagreement_category
+        prev.disagreement_category !== r.disagreement_category ||
+        prev.phase2_evidence_sha256 !== r.phase2_evidence_sha256 ||
+        JSON.stringify(prev.cluster_review) !== JSON.stringify(r.cluster_review)
       ) {
         errors.push(`conflicting record for ${key}: existing differs from imported (not overwriting)`);
         skipped++;

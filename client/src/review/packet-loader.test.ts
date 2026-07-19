@@ -5,6 +5,10 @@ import {
   type PacketEntry,
 } from "./packet-loader";
 import { loadCanaryEntries } from "./test-fixtures";
+import {
+  phase2CandidateOriginOrder,
+  phase2ClusterSignature,
+} from "./phase2-review-evidence";
 
 function cloneEntries(): PacketEntry[] {
   return loadCanaryEntries().map((entry) => ({ ...entry }));
@@ -37,47 +41,64 @@ async function addHashed(entries: PacketEntry[], path: string, text: string): Pr
 }
 
 async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
-  const chosen = entries
+  const commitment = `sha256:${"b".repeat(64)}`;
+  const sidecars = entries
     .filter((entry) => entry.path.endsWith("/sidecar.json"))
-    .slice(0, 3)
-    .map((entry, index) => {
-      const sidecar = JSON.parse(entry.text) as { stream_sha256: string; decisions: unknown[] };
-      return { sidecar, decision: sidecar.decisions[0], source: `source-${index}` };
+    .map((entry) => JSON.parse(entry.text) as {
+      stream_sha256: string;
+      decisions: Array<{ action: unknown; observed_policy_seq: number }>;
     });
+  const actionGroups = new Map<string, Array<{
+    sidecar: (typeof sidecars)[number];
+    decision: (typeof sidecars)[number]["decisions"][number];
+  }>>();
+  sidecars.forEach((sidecar) => sidecar.decisions.forEach((decision) => {
+    const group = actionGroups.get(JSON.stringify(decision.action)) ?? [];
+    group.push({ sidecar, decision });
+    actionGroups.set(JSON.stringify(decision.action), group);
+  }));
+  const repeated = [...actionGroups.values()].find(
+    (group) => new Set(group.map((item) => item.sidecar.stream_sha256)).size >= 3,
+  );
+  if (!repeated) throw new Error("fixture has no repeated action across three streams");
+  const chosen: Array<(typeof repeated)[number] & { source: string }> = [];
+  for (const item of repeated) {
+    if (chosen.some((existing) => existing.sidecar.stream_sha256 === item.sidecar.stream_sha256)) continue;
+    chosen.push({ ...item, source: `source-${chosen.length}` });
+    if (chosen.length === 3) break;
+  }
   let rank = 0;
-  const decisions = entries
-    .filter((entry) => entry.path.endsWith("/sidecar.json"))
-    .flatMap((entry) => {
-      const sidecar = JSON.parse(entry.text) as {
-        stream_sha256: string;
-        decisions: Array<{ action: unknown; observed_policy_seq: number }>;
-      };
-      return sidecar.decisions.map((decision) => {
+  const decisions = [];
+  for (const sidecar of sidecars) {
+    for (const decision of sidecar.decisions) {
         const selected = chosen.find(
           (item) => item.sidecar.stream_sha256 === sidecar.stream_sha256 &&
-            (item.decision as { observed_policy_seq: number }).observed_policy_seq === decision.observed_policy_seq,
+            item.decision.observed_policy_seq === decision.observed_policy_seq,
         );
         const alternate = (decision.action as { type: string }).type === "nudge"
           ? { type: "idle", reason: "no_trigger", related_event_id: null }
           : { type: "nudge", fire_event_id: "e_000001" };
-        return {
-          candidates: selected
-            ? [
-                {
-                  candidate_id: "A",
-                  action: decision.action,
-                  license: { result: "licensed", codes: [] },
-                  reveal: { origin: "oracle", provenance: { request_sha256: "sha256:" + "1".repeat(64) } },
-                },
-                {
-                  candidate_id: "B",
-                  action: alternate,
-                  license: { result: "blocked", codes: ["reason_mismatch"] },
-                  reveal: { origin: "teacher", provenance: { request_sha256: "sha256:" + "2".repeat(64) } },
-                },
-              ]
-            : [],
-          cluster_signature: selected ? `sha256:${"c".repeat(64)}` : null,
+        const identity = {
+          stream_sha256: sidecar.stream_sha256,
+          decision_policy_seq: decision.observed_policy_seq,
+        };
+        const origins = selected
+          ? await phase2CandidateOriginOrder(commitment, identity)
+          : [];
+        const candidate = (candidate_id: "A" | "B", origin: "oracle" | "teacher") => ({
+          candidate_id,
+          action: origin === "oracle" ? decision.action : alternate,
+          license: origin === "oracle"
+            ? { result: "licensed" as const, codes: [] }
+            : { result: "blocked" as const, codes: ["reason_mismatch"] },
+          reveal: {
+            origin,
+            provenance: { request_sha256: `sha256:${(origin === "oracle" ? "1" : "2").repeat(64)}` },
+          },
+        });
+        decisions.push({
+          candidates: selected ? [candidate("A", origins[0]!), candidate("B", origins[1]!)] : [],
+          cluster_signature: null as string | null,
           comparison: selected ? "causal_disagreement" : "equivalent",
           decision_policy_seq: decision.observed_policy_seq,
           oracle_action: decision.action,
@@ -90,40 +111,55 @@ async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
             risk_flags: selected ? ["oracle_teacher_non_equivalence"] : [],
             idle_boundary: null,
             rollover: false,
-            trust_cell: { protocol: "generation", family: "neutral_typing", floor: "closed" },
+            trust_cell: { protocol: "generation", family: "neutral_typing_revision_pause", floor: "closed" },
             review_route: {
               review_required: Boolean(selected),
               mandatory: Boolean(selected),
               sample_rate: selected ? 1 : 0,
               reasons: selected ? ["teacher_oracle_disagreement"] : [],
-              provisional_label_origin: null,
+              provisional_label_origin: selected ? null : "oracle_teacher_agreement",
             },
           },
           source_unit_id: selected?.source ?? "ordinary-source",
           stream_sha256: sidecar.stream_sha256,
-        };
-      });
-    });
-  const member_identities = chosen.map((item) => ({
-    stream_sha256: item.sidecar.stream_sha256,
-    decision_policy_seq: (item.decision as { observed_policy_seq: number }).observed_policy_seq,
+        });
+    }
+  }
+  const selectedDecisions = decisions
+    .filter((item) => item.comparison === "causal_disagreement")
+    .sort((left, right) => left.priority_rank - right.priority_rank);
+  const signature = await phase2ClusterSignature(selectedDecisions[0] as never);
+  selectedDecisions.forEach((decision) => { decision.cluster_signature = signature; });
+  const member_identities = selectedDecisions.map((item) => ({
+    stream_sha256: item.stream_sha256,
+    decision_policy_seq: item.decision_policy_seq,
   }));
+  const confirmationRanks = await Promise.all(selectedDecisions.slice(1).map(async (item) => ({
+    item,
+    rank: await sha256Hex(`${commitment}|${signature}|${item.stream_sha256}\x00${item.decision_policy_seq}`),
+  })));
+  confirmationRanks.sort((left, right) => left.rank.localeCompare(right.rank));
+  const confirmations = confirmationRanks.map(({ item }) => ({
+    stream_sha256: item.stream_sha256,
+    decision_policy_seq: item.decision_policy_seq,
+  }));
+  const priorityJson = `[${member_identities.map((item) => `{"decision_policy_seq":${item.decision_policy_seq},"stream_sha256":${JSON.stringify(item.stream_sha256)}}`).join(",")}]`;
   const evidence = {
     format_version: 1,
     teacher_evidence_identity: `sha256:${"d".repeat(64)}`,
-    blind_seed_sha256: `sha256:${"b".repeat(64)}`,
+    blind_seed_sha256: commitment,
     decisions,
     clusters: [{
-      signature: `sha256:${"c".repeat(64)}`,
-      priority_rank: 0,
+      signature,
+      priority_rank: selectedDecisions[0].priority_rank,
       representative: member_identities[0],
-      confirmations: member_identities.slice(1),
+      confirmations,
       member_identities,
       mechanical_invariants: {
         all_members_non_equivalent: true,
         distinct_source_unit_count: 3,
         member_count: 3,
-        priority_order_sha256: `sha256:${"e".repeat(64)}`,
+        priority_order_sha256: `sha256:${await sha256Hex(priorityJson)}`,
         three_distinct_source_units: true,
       },
     }],
@@ -352,7 +388,7 @@ describe("packet loader", () => {
     await replaceHashed(entries, path, JSON.stringify(evidence));
     const actionResult = await loadPacketFromEntries(entries);
     expect(actionResult.ok).toBe(false);
-    if (!actionResult.ok) expect(actionResult.errors.join("\n")).toContain("candidates do not close over actions");
+    if (!actionResult.ok) expect(actionResult.errors.join("\n")).toContain("candidate origin does not close");
 
     const sourceEntries = cloneEntries();
     await addPhase2Evidence(sourceEntries);
@@ -370,6 +406,65 @@ describe("packet loader", () => {
     await replaceHashed(sourceEntries, path, JSON.stringify(sourceEvidence));
     const sourceResult = await loadPacketFromEntries(sourceEntries);
     expect(sourceResult.ok).toBe(false);
-    if (!sourceResult.ok) expect(sourceResult.errors.join("\n")).toContain("three distinct source units");
+    if (!sourceResult.ok) expect(sourceResult.errors.join("\n")).toContain("confirmations do not match");
+  });
+
+  it("rejects reversed A/B origins and confirmation commitment order", async () => {
+    const candidateEntries = cloneEntries();
+    await addPhase2Evidence(candidateEntries);
+    const path = "phase2-review-evidence.json";
+    const candidateEvidence = JSON.parse(candidateEntries.find((entry) => entry.path === path)!.text);
+    const target = candidateEvidence.decisions.find((item: { candidates: unknown[] }) => item.candidates.length === 2);
+    target.candidates.reverse();
+    await replaceHashed(candidateEntries, path, JSON.stringify(candidateEvidence));
+    const candidateResult = await loadPacketFromEntries(candidateEntries);
+    expect(candidateResult.ok).toBe(false);
+    if (!candidateResult.ok) expect(candidateResult.errors.join("\n")).toContain("canonical A then B");
+
+    const revealEntries = cloneEntries();
+    await addPhase2Evidence(revealEntries);
+    const revealEvidence = JSON.parse(revealEntries.find((entry) => entry.path === path)!.text);
+    const revealTarget = revealEvidence.decisions.find((item: { candidates: unknown[] }) => item.candidates.length === 2);
+    [revealTarget.candidates[0].reveal, revealTarget.candidates[1].reveal] = [
+      revealTarget.candidates[1].reveal,
+      revealTarget.candidates[0].reveal,
+    ];
+    await replaceHashed(revealEntries, path, JSON.stringify(revealEvidence));
+    const revealResult = await loadPacketFromEntries(revealEntries);
+    expect(revealResult.ok).toBe(false);
+    if (!revealResult.ok) expect(revealResult.errors.join("\n")).toContain("blind seed commitment");
+
+    const confirmationEntries = cloneEntries();
+    await addPhase2Evidence(confirmationEntries);
+    const confirmationEvidence = JSON.parse(confirmationEntries.find((entry) => entry.path === path)!.text);
+    confirmationEvidence.clusters[0].confirmations.reverse();
+    await replaceHashed(confirmationEntries, path, JSON.stringify(confirmationEvidence));
+    const confirmationResult = await loadPacketFromEntries(confirmationEntries);
+    expect(confirmationResult.ok).toBe(false);
+    if (!confirmationResult.ok) expect(confirmationResult.errors.join("\n")).toContain("confirmations do not match");
+  });
+
+  it("rejects out-of-range and inconsistent Phase 2 review routes", async () => {
+    const rateEntries = cloneEntries();
+    await addPhase2Evidence(rateEntries);
+    const path = "phase2-review-evidence.json";
+    const rateEvidence = JSON.parse(rateEntries.find((entry) => entry.path === path)!.text);
+    rateEvidence.decisions[0].review_evidence.review_route.sample_rate = 2.5;
+    await replaceHashed(rateEntries, path, JSON.stringify(rateEvidence));
+    const rateResult = await loadPacketFromEntries(rateEntries);
+    expect(rateResult.ok).toBe(false);
+    if (!rateResult.ok) expect(rateResult.errors.join("\n")).toContain("within [0, 1]");
+
+    const mandatoryEntries = cloneEntries();
+    await addPhase2Evidence(mandatoryEntries);
+    const mandatoryEvidence = JSON.parse(mandatoryEntries.find((entry) => entry.path === path)!.text);
+    const mandatory = mandatoryEvidence.decisions.find(
+      (item: { review_evidence: { review_route: { mandatory: boolean } } }) => item.review_evidence.review_route.mandatory,
+    );
+    mandatory.review_evidence.review_route.review_required = false;
+    await replaceHashed(mandatoryEntries, path, JSON.stringify(mandatoryEvidence));
+    const mandatoryResult = await loadPacketFromEntries(mandatoryEntries);
+    expect(mandatoryResult.ok).toBe(false);
+    if (!mandatoryResult.ok) expect(mandatoryResult.errors.join("\n")).toContain("mandatory routes");
   });
 });
