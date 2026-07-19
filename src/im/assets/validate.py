@@ -461,10 +461,29 @@ def validate_registry(
 
 
 def _seal_entries(registry: AssetRegistry, split: Split) -> tuple[SealEntry, ...]:
-    """Return the current nonempty approved subset for one corpus split."""
-    assets = tuple(
-        asset for asset in registry.pool(split).corpus_records if registry.is_approved(asset)
-    )
+    """Return entries under the split's explicit approval-completeness policy.
+
+    D14 permits a cumulative TRAIN seal over the approved subset while reviews are
+    still in progress.  Heldout corpus seals (TEST and DEMO) remain complete, and
+    DEV follows that strict policy until D14's later DEV-readiness workflow says
+    otherwise.  This is deliberately a seal-membership rule, not an inference
+    from the presence of approvals.
+    """
+    corpus = registry.pool(split).corpus_records
+    if split is Split.TRAIN:
+        assets = tuple(asset for asset in corpus if registry.is_approved(asset))
+    else:
+        approved = tuple(asset for asset in corpus if registry.is_approved(asset))
+        pending = tuple(asset.asset_id for asset in corpus if not registry.is_approved(asset))
+        if not approved:
+            raise AssetValidationError(
+                "sealed split pool has no approved assets (all are unapproved)"
+            )
+        if pending:
+            raise AssetValidationError(
+                f"{split.value} seal requires every corpus record to be approved: {list(pending)}"
+            )
+        assets = corpus
     if not assets:
         raise AssetValidationError("sealed split pool has no approved assets (all are unapproved)")
     return tuple(
@@ -473,7 +492,7 @@ def _seal_entries(registry: AssetRegistry, split: Split) -> tuple[SealEntry, ...
 
 
 def create_split_seal(registry: AssetRegistry, split: Split | str) -> SplitSeal:
-    """Seal the current nonempty approved subset of one validated split."""
+    """Seal a validated split under its D14 approval-completeness policy."""
     selected = Split(split)
     entries = _seal_entries(registry, selected)
     sealed_ids = {entry.asset_id for entry in entries}

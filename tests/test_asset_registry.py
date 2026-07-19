@@ -384,6 +384,36 @@ def test_train_seal_allows_unapproved_records_but_remains_membership_bound() -> 
         )
 
 
+@pytest.mark.parametrize("split", (Split.TEST, Split.DEMO))
+def test_heldout_seals_refuse_any_pending_corpus_record(split: Split) -> None:
+    reviewed = asset(
+        f"a_{split.value}_approved",
+        split,
+        "approved heldout text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    pending = asset(f"a_{split.value}_pending", split, "pending heldout text")
+    registry = AssetRegistry(assets=(reviewed, pending), reviews=(approved(reviewed),))
+
+    with pytest.raises(AssetValidationError, match=f"{split.value} seal requires every"):
+        create_split_seal(registry, split)
+
+
+def test_dev_seals_remain_strict_until_dev_readiness_is_authorized() -> None:
+    reviewed = asset(
+        "a_dev_approved_strict",
+        Split.DEV,
+        "approved dev text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    pending = asset("a_dev_pending_strict", Split.DEV, "pending dev text")
+
+    with pytest.raises(AssetValidationError, match="dev seal requires every"):
+        create_split_seal(
+            AssetRegistry(assets=(reviewed, pending), reviews=(approved(reviewed),)), Split.DEV
+        )
+
+
 def test_seals_ignore_errors_confined_to_omitted_unapproved_records() -> None:
     approved_train = asset(
         "a_train_good",

@@ -21,6 +21,23 @@ def test_frozen_selection_contract_matches_phase2_allocation() -> None:
     assert contract.target_decisions == 2_000
     assert contract.action_totals["idle"] == 1_000
     assert sum(contract.action_totals.values()) == 2_000
+    assert set(contract.family_action_quotas) == {
+        "neutral_typing_revision_pause",
+        "mark_activation_positive",
+        "mark_lifecycle_negative",
+        "live_lookup_lifecycle",
+        "lookup_latency_duplicate_pressure",
+        "stale_result_opening_boundary",
+        "timer_creation_normal_fire",
+        "timer_cancel_quoting_stale_fire",
+        "timer_contention_backpressure",
+        "rollover_continuity",
+        "reserved_annotation_unknown_kind",
+    }
+    assert sum(
+        count for quotas in contract.family_action_quotas.values() for count in quotas.values()
+    ) == 2_000
+    assert contract.family_action_quotas["neutral_typing_revision_pause"]["idle"] == 250
     assert sum(contract.idle_reason_quotas.values()) == 1_000
     assert json.loads(canonical_selection_contract_bytes(CONTRACT))["target_decisions"] == 2_000
 

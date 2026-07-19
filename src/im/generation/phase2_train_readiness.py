@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections import Counter
 from dataclasses import dataclass
 from hashlib import sha256
@@ -23,10 +22,7 @@ from im.assets.model import (
 from im.assets.registry import AssetRegistry, load_registry_jsonl
 from im.assets.validate import ValidationIssue, ValidationReport, validate_registry
 from im.generation.g7_response_assets import ResponseDraftSpec
-from im.generation.phase2_selection import (
-    canonical_selection_contract_bytes,
-    load_selection_contract,
-)
+from im.generation.phase2_selection import SelectionContract, load_selection_contract
 from im.generation.response_contracts import AnswerContract, RequiredAnswerPoint, ResponseKind
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -125,6 +121,7 @@ def build_train_readiness_artifacts(
 
     asset_index = {asset.asset_id: asset for asset in train}
     status = _train_status(validate_registry(registry), train)
+    contract = load_selection_contract(selection_contract_path)
     structural = _structural_units(train)
     usage = _usage_units(train, used_ids=_asset_ids(structural))
     flagged = _flagged_units(registry, train, status, _asset_ids((*structural, *usage)))
@@ -133,8 +130,6 @@ def build_train_readiness_artifacts(
     units = (*base_units, expansion) if expansion is not None else base_units
     reviewed_ids = _asset_ids(units)
 
-    contract = load_selection_contract(selection_contract_path)
-    quotas = _family_quotas(selection_contract_path)
     response = _response_request(asset_index["a_0a86fd6dd35ddf5743c1f5c1"])
     packet = {
         "format_version": 2,
@@ -196,7 +191,7 @@ def build_train_readiness_artifacts(
         ],
         "coverage_matrix_file": "coverage-matrix.json",
     }
-    coverage = _coverage_matrix(registry, train, status, quotas, contract.sha256)
+    coverage = _coverage_matrix(registry, train, status, contract)
     review = _review_markdown(status, units, asset_index, response).encode()
     artifacts = {
         "REVIEW.md": review,
@@ -353,7 +348,12 @@ def _flagged_units(
     used_ids: tuple[str, ...],
 ) -> tuple[ReviewUnit, ...]:
     train_index = {asset.asset_id: asset for asset in train}
-    flagged = {asset_id for issue in status.review_flags for asset_id in issue.asset_ids}
+    flagged = {
+        asset_id
+        for issue in status.review_flags
+        for asset_id in issue.asset_ids
+        if asset_id in train_index
+    }
     flagged.update(
         asset.asset_id
         for asset in train
@@ -424,8 +424,7 @@ def _coverage_matrix(
     registry: AssetRegistry,
     train: tuple[AssetRecord, ...],
     status: TrainStatus,
-    quotas: dict[str, dict[str, int]],
-    selection_sha256: str,
+    contract: SelectionContract,
 ) -> dict[str, object]:
     rows = []
     for family in CorpusFamily:
@@ -433,7 +432,7 @@ def _coverage_matrix(
         atomics = tuple(
             asset for asset in records if not isinstance(asset.payload, TemplateAssetPayload)
         )
-        action_quotas = quotas[family.value]
+        action_quotas = contract.family_action_quotas[family.value]
         rows.append(
             {
                 "family": family.value,
@@ -455,9 +454,7 @@ def _coverage_matrix(
                     (sum(action_quotas.values()) + 9) // 10,
                     sum(action_quotas.values()) // 5,
                 ],
-                "coverage_status": "blocked_by_train_validation"
-                if status.errors
-                else "battery_passing_but_unapproved_unsealed",
+                "coverage_status": _coverage_status(status),
             }
         )
     return {
@@ -465,8 +462,9 @@ def _coverage_matrix(
         "kind": "wp2-0a-provisional-train-coverage-matrix",
         "status": "provisional_pending_owner_approval_and_train_seal",
         "train_status": status.as_json(),
-        "selection_contract_sha256": selection_sha256,
-        "battery_passing_train_records": len(train) if not status.errors else 0,
+        "selection_contract_sha256": contract.sha256,
+        "mechanically_valid_train_records": len(train) if not status.errors else 0,
+        "train_record_readiness": status.result,
         "train_approved_records": sum(registry.is_approved(asset) for asset in train),
         "train_seal": "absent",
         "frozen_scenario_slots": 2000,
@@ -477,7 +475,7 @@ def _coverage_matrix(
         },
         "global_reserve": {"minimum": 200, "target": 250, "maximum": 300},
         "families": rows,
-        "tranche_2_triggers": _tranche_two_triggers(),
+        "tranche_2_triggers": _tranche_two_triggers(train),
         "decision": (
             "Do not build tranche 2 now. After owner approval and TRAIN sealing, trigger 3 requires "  # noqa: E501
             "targeted additions for every family still over 10% concentration."
@@ -485,7 +483,15 @@ def _coverage_matrix(
     }
 
 
-def _tranche_two_triggers() -> list[dict[str, object]]:
+def _coverage_status(status: TrainStatus) -> str:
+    return {
+        "blocked": "blocked_by_train_validation",
+        "review_required": "review_required",
+        "pass": "mechanically_valid_but_unapproved_unsealed",
+    }[status.result]
+
+
+def _tranche_two_triggers(train: tuple[AssetRecord, ...]) -> list[dict[str, object]]:
     families = [family.value for family in CorpusFamily]
     return [
         {
@@ -517,11 +523,16 @@ def _tranche_two_triggers() -> list[dict[str, object]]:
         {
             "trigger": 4,
             "condition": "timer, mark, lookup, idle, or response subtype lacks lexical diversity",
-            "status": "pending_subtype_allocation",
+            "status": "fired_current_inventory_lexical_diversity",
             "condition_observed_now": (
-                "Current TRAIN atomics provide seven distinct sources in each timer, mark, lookup, "
-                "and idle-associated family. Response text is deliberately deferred to WP2-5, so no "  # noqa: E501
-                "response subtype allocation exists to assess yet."
+                "MARK_NEGATIVE text:quoted, text:code, and text:partial each have exactly one "
+                "atomic source. TIMER_CANCEL timer:quoted has two atomic sources and is not "
+                "an affected subtype."
+            ),
+            "affected_subtypes": _thin_lexical_subtypes(train),
+            "required_next_step": (
+                "After approval and TRAIN sealing, add targeted distinct lexical sources for the "
+                "listed MARK_NEGATIVE subtypes; do not build them now."
             ),
         },
         {
@@ -619,10 +630,10 @@ def _asset_markdown(asset: AssetRecord, asset_index: dict[str, AssetRecord]) -> 
             *lines,
             f"expands_kind: `{payload.expands_kind.value}`",
             f"raw grammar: `{_markdown_text(payload.grammar)}`",
-            "full seed IDs: " + ", ".join(f"`{seed_id}`" for seed_id in payload.seed_asset_ids),
-            "full offline rendered input:",
+            "all seed IDs: " + ", ".join(f"`{seed_id}`" for seed_id in payload.seed_asset_ids),
+            "representative offline rendered input:",
             "```text",
-            _render_template(payload, asset_index),
+            _representative_rendered_template_input(payload, asset_index),
             "```",
         ]
     raise AssertionError(f"unhandled asset payload: {type(payload).__name__}")
@@ -640,30 +651,49 @@ def _asset_json(asset: AssetRecord, asset_index: dict[str, AssetRecord]) -> dict
             "expands_kind": asset.payload.expands_kind.value,
             "raw_grammar": asset.payload.grammar,
             "seed_asset_ids": list(asset.payload.seed_asset_ids),
-            "offline_rendered_input": _render_template(asset.payload, asset_index),
+            "representative_offline_rendered_input": _representative_rendered_template_input(
+                asset.payload, asset_index
+            ),
         }
     else:
         value["payload"] = asset.payload.model_dump(mode="json")
     return value
 
 
-def _render_template(template: TemplateAssetPayload, asset_index: dict[str, AssetRecord]) -> str:
+def _representative_rendered_template_input(
+    template: TemplateAssetPayload, asset_index: dict[str, AssetRecord]
+) -> str:
     seed = asset_index[template.seed_asset_ids[0]]
     return template.grammar.replace(
         "{seed}", canonical_artifact_bytes(seed.payload.model_dump(mode="json")).decode()
     )
 
 
-def _family_quotas(selection_contract_path: Path) -> dict[str, dict[str, int]]:
-    value = json.loads(canonical_selection_contract_bytes(selection_contract_path))
-    quotas = value["family_action_quotas"]
-    if not isinstance(quotas, dict):
-        raise TrainReadinessError("selection family quotas are invalid")
-    return {
-        family: {action: count for action, count in actions.items() if isinstance(count, int)}
-        for family, actions in quotas.items()
-        if isinstance(family, str) and isinstance(actions, dict)
-    }
+def _thin_lexical_subtypes(train: tuple[AssetRecord, ...]) -> list[dict[str, object]]:
+    expected = (
+        (CorpusFamily.MARK_NEGATIVE, "text", "quoted"),
+        (CorpusFamily.MARK_NEGATIVE, "text", "code"),
+        (CorpusFamily.MARK_NEGATIVE, "text", "partial"),
+    )
+    evidence = []
+    for family, kind, form in expected:
+        assets = tuple(
+            asset
+            for asset in train
+            if family in asset.coverage
+            and isinstance(asset.payload, TextAssetPayload)
+            and asset.payload.kind.value == kind
+            and asset.payload.form.value == form
+        )
+        evidence.append(
+            {
+                "family": family.value,
+                "subtype": f"{kind}:{form}",
+                "atomic_source_count": len(assets),
+                "asset_ids": [asset.asset_id for asset in assets],
+            }
+        )
+    return evidence
 
 
 def _asset_ids(units: tuple[ReviewUnit, ...]) -> tuple[str, ...]:

@@ -428,3 +428,28 @@ authoritative.
   and sealing, targeted additions are required for each family still above 10%. Trigger 4 remains
   pending until subtype allocation; deferred WP2-5 response text is not falsely called a present
   lexical-diversity failure.
+
+## 2026-07-19 — WP2-0a second rejected-pass correction
+
+- Rejected the prior correction because it made partial approval membership implicit for every
+  split. The seal policy is now explicit: only TRAIN may seal its approved subset under D14; TEST,
+  DEMO, and deliberately-late DEV require every corpus record to be approved. TEST and DEMO bytes
+  remain fixed and their strictness is exercised directly. TRAIN still ignores validation errors
+  confined to omitted unapproved records while blocking global errors or errors involving a sealed
+  record.
+- TRAIN readiness now intersects every mixed-split validation review flag with the TRAIN index
+  before selection. A cross-split near-duplicate fixture proves the packet adds only the TRAIN
+  asset and cannot attempt a heldout lookup.
+- Trigger 4 is fired from current lexical evidence: MARK_NEGATIVE has one atomic `text:quoted`,
+  `text:code`, and `text:partial` source each. The matrix names the exact asset evidence and the
+  post-approval/seal targeted-addition step; TIMER_CANCEL `timer:quoted` has two sources and is
+  recorded as non-affected. No tranche is created.
+- One template substitution is now called a **representative offline rendered input**, never a
+  complete expansion. Raw grammar, expansion kind, and every seed identity remain in the review
+  packet and Markdown evidence.
+- `TrainStatus.result` is the coverage status authority. A review flag leaves records mechanically
+  valid but marks every coverage row `review_required`; packet, battery, coverage, and REVIEW text
+  expose the same result instead of claiming battery-passing readiness.
+- The typed `SelectionContract` now owns validated family/action quotas as well as its digest.
+  Readiness loads it once and passes that object through coverage construction, removing the second
+  JSON read and the parallel quota parser.

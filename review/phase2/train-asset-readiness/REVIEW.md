@@ -88,8 +88,8 @@ Role: `quota_weighted_neutral_typing_revision_pause` (quota_weighted_provisional
 Asset `a_fac3874e81fa3f510b29a562` — digest `sha256:53d60c68f2a8cbf2690d5014e7911870862bf820e2a8accef078927cbea3b6bd`.
 expands_kind: `text`
 raw grammar: `Use {seed} as the factual subject; construct a natural drafting scenario in which an ordinary revision continues after a quiet pause; place it during a sentence revision.`
-full seed IDs: `a_0a86fd6dd35ddf5743c1f5c1`, `a_1fac3cb0c0ab2e4c3274ce17`, `a_925e8f56a405335c1622ab7c`, `a_a84c08c816ea620b935c58fa`, `a_bac0d5ac8c3be1075ff65976`, `a_d0a35f5f140d791a52af02fa`, `a_f9de5705e1b34cc0980d8fb8`
-full offline rendered input:
+all seed IDs: `a_0a86fd6dd35ddf5743c1f5c1`, `a_1fac3cb0c0ab2e4c3274ce17`, `a_925e8f56a405335c1622ab7c`, `a_a84c08c816ea620b935c58fa`, `a_bac0d5ac8c3be1075ff65976`, `a_d0a35f5f140d791a52af02fa`, `a_f9de5705e1b34cc0980d8fb8`
+representative offline rendered input:
 ```text
 Use {"form":"neutral","kind":"text","text":"A blue cursor paused after the phrase about cedar shelves."} as the factual subject; construct a natural drafting scenario in which an ordinary revision continues after a quiet pause; place it during a sentence revision.
 ```
@@ -101,8 +101,8 @@ Role: `quota_weighted_live_lookup_lifecycle` (quota_weighted_provisional).
 Asset `a_93beb83846363b159a8f8f67` — digest `sha256:4811820409a4fa09856e5c719c6a0527bf2307db220d0696b10e635b0343847d`.
 expands_kind: `lookup`
 raw grammar: `Use {seed} as the factual subject; construct a natural drafting scenario in which an unresolved factual lookup receives one of two value-only results; place it inside a revised notebook entry.`
-full seed IDs: `a_1cf8a5df42e379dcb0fc2472`, `a_23b3d0a6cc4216d09016c9c2`, `a_7960c7b84f8755e53ee4941e`, `a_9cb5bcdbda0a0ab215869885`, `a_adeb16c7dd41c777848bda5d`, `a_b48a45684dfbda39d18a4593`, `a_bc0c6abcb2b7aa943ed3bd0c`
-full offline rendered input:
+all seed IDs: `a_1cf8a5df42e379dcb0fc2472`, `a_23b3d0a6cc4216d09016c9c2`, `a_7960c7b84f8755e53ee4941e`, `a_9cb5bcdbda0a0ab215869885`, `a_adeb16c7dd41c777848bda5d`, `a_b48a45684dfbda39d18a4593`, `a_bc0c6abcb2b7aa943ed3bd0c`
+representative offline rendered input:
 ```text
 Use {"kind":"lookup","no_result_code":"brindle_port_absent","query":"Brindle Port tide color","result_a":"Brindle Port reports violet water.","result_b":"Brindle Port reports copper water."} as the factual subject; construct a natural drafting scenario in which an unresolved factual lookup receives one of two value-only results; place it inside a revised notebook entry.
 ```
@@ -145,8 +145,8 @@ Role: `quota_weighted_timer_cancel_quoting_stale_fire` (quota_weighted_provision
 Asset `a_e35790e7d64ca17bc1e3b4d9` — digest `sha256:302f9ac5bbff9b8f2f5a77e0c391553df6876061b13293e93bb99091bfcace20`.
 expands_kind: `text`
 raw grammar: `Use {seed} as the factual subject; construct a natural drafting scenario in which the cancellation wording retains the direct, quoted, or negated form shown; place it inside a revised notebook entry.`
-full seed IDs: `a_297508c00e4e7beb6a08d268`, `a_75e22cef6576f69ea8c4dc5c`, `a_be4de3b8613309556044650f`, `a_bf731987afd0a3c98844fc61`, `a_d874ff53c5b9ba946bd23bc0`
-full offline rendered input:
+all seed IDs: `a_297508c00e4e7beb6a08d268`, `a_75e22cef6576f69ea8c4dc5c`, `a_be4de3b8613309556044650f`, `a_bf731987afd0a3c98844fc61`, `a_d874ff53c5b9ba946bd23bc0`
+representative offline rendered input:
 ```text
 Use {"form":"direct","kind":"text","text":"Cancel the green harbor reminder."} as the factual subject; construct a natural drafting scenario in which the cancellation wording retains the direct, quoted, or negated form shown; place it inside a revised notebook entry.
 ```
@@ -185,8 +185,8 @@ Text (ambiguous): `Highlight the specimen beside the margin.`
 Asset `a_cf3fb85cbef8786d98724b33` — digest `sha256:3d09300d59e1a73f1bb3f9164abefaa0ea2c222a75994f4ae339507bc6e598c0`.
 expands_kind: `text`
 raw grammar: `Use {seed} as the factual subject; construct a natural drafting scenario in which mark wording appears only in the ambiguous, quoted, code, or partial form shown; place it after a writer returns to the page.`
-full seed IDs: `a_047297e7827179204b66c329`, `a_1e24348f52635e4451ccf7ec`, `a_76f996251354c25a3c5d4a1d`, `a_87a385b4ca57e3d7c0cf237b`, `a_e2dd083f4916def2a997d4bf`, `a_f23b664ce3f705453eb63437`, `a_f474eca1aed953454b2fcdc7`
-full offline rendered input:
+all seed IDs: `a_047297e7827179204b66c329`, `a_1e24348f52635e4451ccf7ec`, `a_76f996251354c25a3c5d4a1d`, `a_87a385b4ca57e3d7c0cf237b`, `a_e2dd083f4916def2a997d4bf`, `a_f23b664ce3f705453eb63437`, `a_f474eca1aed953454b2fcdc7`
+representative offline rendered input:
 ```text
 Use {"form":"ambiguous","kind":"text","text":"Switch from animal labels to color labels."} as the factual subject; construct a natural drafting scenario in which mark wording appears only in the ambiguous, quoted, code, or partial form shown; place it after a writer returns to the page.
 ```

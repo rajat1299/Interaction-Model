@@ -94,6 +94,7 @@ class SelectionContract:
     seed: str
     target_decisions: int
     action_totals: dict[str, int]
+    family_action_quotas: dict[str, dict[str, int]]
     idle_reason_quotas: dict[str, int]
 
 
@@ -107,6 +108,11 @@ def load_selection_contract(path: Path) -> SelectionContract:
         seed=str(value["seed"]),
         target_decisions=int(value["target_decisions"]),
         action_totals=_action_totals(value),
+        family_action_quotas={
+            family: {action: int(count) for action, count in quotas.items()}
+            for family, quotas in _mapping(value, "family_action_quotas").items()
+            if isinstance(family, str) and isinstance(quotas, dict)
+        },
         idle_reason_quotas={
             str(reason): int(count)
             for reason, count in _mapping(value, "idle_reason_quotas").items()
