@@ -8,7 +8,7 @@ import {
   recordsFromMap,
   type ReviewMap,
 } from "./review-sidecar";
-import { clusterEvidenceCases } from "./phase2-review";
+import { clusterEvidenceCases } from "./phase2-review-policy";
 import type { PacketIndex } from "./stream-cache";
 import type { Phase2Cluster } from "./types";
 

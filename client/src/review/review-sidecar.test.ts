@@ -4,9 +4,9 @@ import {
   mergeReviewRecords,
   parseReviewSidecar,
   recordKey,
-  type Phase2ClusterReviewAudit,
   type ReviewRecord,
 } from "./review-sidecar";
+import type { Phase2ClusterReviewAudit } from "./phase2-review-policy";
 import { loadPacketFromEntries } from "./packet-loader";
 import { loadCanaryEntries, loadCanaryReviewDecisions } from "./test-fixtures";
 import type { Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
@@ -175,12 +175,34 @@ describe("review sidecar export/import", () => {
     const context = { evidenceSha256: phase2EvidenceSha, evidence };
     expect(mergeReviewRecords(new Map(), records, knownStreams, knownSeqs, context).ok).toBe(true);
 
+    const portableText = records.map((record) => JSON.stringify({
+      ...record,
+      cluster_review: {
+        reviewed_evidence: record.cluster_review!.reviewed_evidence.map((item) => ({
+          decision_policy_seq: item.decision_policy_seq,
+          stream_sha256: item.stream_sha256,
+          role: item.role,
+        })),
+        cluster_signature: record.cluster_review!.cluster_signature,
+      },
+    })).join("\n");
+    const portable = parseReviewSidecar(portableText);
+    expect(portable.ok).toBe(true);
+    if (!portable.ok) return;
+    const existing = new Map(records.map((record) => [recordKey(record), record]));
+    const reordered = mergeReviewRecords(existing, portable.records, knownStreams, knownSeqs, context);
+    expect(reordered).toMatchObject({ ok: true, added: 0, skipped: 3 });
+
     const partial = mergeReviewRecords(new Map(), [records[0]], knownStreams, knownSeqs, context);
     expect(partial.ok).toBe(false);
     if (!partial.ok) expect(partial.errors.join("\n")).toContain("membership-complete");
 
     const wrongRoles = structuredClone(records);
-    wrongRoles[0].cluster_review!.reviewed_evidence.reverse();
+    const [representative, confirmation1, confirmation2] = wrongRoles[0].cluster_review!.reviewed_evidence;
+    wrongRoles[0].cluster_review = {
+      ...wrongRoles[0].cluster_review!,
+      reviewed_evidence: [confirmation2, confirmation1, representative],
+    };
     expect(mergeReviewRecords(new Map(), wrongRoles, knownStreams, knownSeqs, context).ok).toBe(false);
     const wrongCategory = structuredClone(records);
     wrongCategory[1].disagreement_category = "oracle_error";

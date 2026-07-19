@@ -2,16 +2,17 @@
 
 import {
   recordKey,
-  type Phase2ClusterReviewAudit,
-  type Phase2ReviewedEvidenceCase,
   type ReviewMap,
   type ReviewRecord,
 } from "./review-sidecar";
 import {
   categoriesFor,
+  clusterEvidenceCases,
+  clusterReviewAudit,
+  type D3DisagreementCategory,
+  type Phase2ReviewedEvidenceCase,
 } from "./phase2-review-policy";
 import type {
-  D3DisagreementCategory,
   Phase2Cluster,
   Phase2DecisionEvidence,
   Phase2ReviewEvidence,
@@ -80,7 +81,7 @@ export function phase2DecisionFor(
   ) ?? null;
 }
 
-export { categoriesFor, textEquivalentAllowed } from "./phase2-review-policy";
+export { categoriesFor, clusterEvidenceCases, textEquivalentAllowed } from "./phase2-review-policy";
 
 export function isPhase2Revealed(
   reviews: ReviewMap,
@@ -228,16 +229,6 @@ export function renderClusterRail(
   target.append(title, list);
 }
 
-export function clusterEvidenceCases(
-  cluster: Phase2Cluster,
-): [Phase2ReviewedEvidenceCase, Phase2ReviewedEvidenceCase, Phase2ReviewedEvidenceCase] {
-  return [
-    { role: "representative", ...cluster.representative },
-    { role: "confirmation_1", ...cluster.confirmations[0] },
-    { role: "confirmation_2", ...cluster.confirmations[1] },
-  ];
-}
-
 export function renderClusterContext(
   target: HTMLElement,
   cluster: Phase2Cluster | null,
@@ -297,6 +288,7 @@ export function applyClusterDisposition(
   evidence: Phase2ReviewEvidence,
   phase2EvidenceSha256: string,
   cluster: Phase2Cluster,
+  representativeChoice: "A" | "B",
   category: D3DisagreementCategory,
   rationale: string,
   acknowledgedIdentities: ReadonlySet<string>,
@@ -307,28 +299,23 @@ export function applyClusterDisposition(
   if (!evidence.clusters.some((item) => item.signature === cluster.signature)) throw new Error("cluster is not part of the loaded evidence");
   const byKey = new Map(evidence.decisions.map((decision) => [recordKey(decision), decision]));
   const representative = byKey.get(recordKey(cluster.representative));
-  const representativeRecord = reviews.get(recordKey(cluster.representative));
   const reviewedEvidence = clusterEvidenceCases(cluster);
   const requiredAcknowledgments = new Set(reviewedEvidence.map(recordKey));
   if (acknowledgedIdentities.size !== 3 || [...requiredAcknowledgments].some((item) => !acknowledgedIdentities.has(item))) throw new Error("open and acknowledge exactly three selected evidence cases first");
   const members = cluster.member_identities.map((identity) => byKey.get(recordKey(identity)));
   if (members.some((decision) => !decision)) throw new Error("cluster member evidence is missing");
   if (members.some((decision) => !categoriesFor(decision!).includes(category))) throw new Error("disagreement category is not valid for every cluster member");
-  if (!representative || !representativeRecord?.candidate_choice || !isPhase2Revealed(reviews, representative, phase2EvidenceSha256)) throw new Error("save the representative candidate choice first");
+  if (!representative || (representativeChoice !== "A" && representativeChoice !== "B")) throw new Error("representative candidate choice is invalid");
   const winningOrigin = representative.candidates.find(
-    (candidate) => candidate.candidate_id === representativeRecord.candidate_choice,
+    (candidate) => candidate.candidate_id === representativeChoice,
   )?.reveal.origin;
   if (!winningOrigin) throw new Error("representative candidate origin is unavailable");
-  const audit: Phase2ClusterReviewAudit = {
-    cluster_signature: cluster.signature,
-    reviewed_evidence: reviewedEvidence,
-  };
-  const next = new Map(reviews);
-  for (const identity of cluster.member_identities) {
+  const audit = clusterReviewAudit(cluster);
+  const records = cluster.member_identities.map((identity): ReviewRecord => {
     const decision = byKey.get(recordKey(identity));
     const localChoice = decision?.candidates.find((candidate) => candidate.reveal.origin === winningOrigin)?.candidate_id;
     if (!decision || !localChoice) throw new Error("cluster member does not carry the representative origin");
-    const record: ReviewRecord = {
+    return {
       stream_sha256: identity.stream_sha256,
       decision_policy_seq: identity.decision_policy_seq,
       decision: "flag",
@@ -339,7 +326,8 @@ export function applyClusterDisposition(
       phase2_evidence_sha256: phase2EvidenceSha256,
       cluster_review: audit,
     };
-    next.set(recordKey(record), record);
-  }
+  });
+  const next = new Map(reviews);
+  records.forEach((record) => next.set(recordKey(record), record));
   return next;
 }

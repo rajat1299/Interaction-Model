@@ -622,24 +622,13 @@ function saveClusterDisposition(): void {
     $("decision-note") as HTMLTextAreaElement,
   );
   if (!selection) return;
-  const representative: ReviewRecord = {
-    stream_sha256: phase2.stream_sha256,
-    decision_policy_seq: phase2.decision_policy_seq,
-    decision: "flag",
-    reason_code: "cluster_disposition",
-    note: selection.rationale,
-    candidate_choice: selection.candidate_choice,
-    disagreement_category: selection.disagreement_category,
-    phase2_evidence_sha256: evidenceSha,
-  };
   try {
-    const staged = new Map(state.reviews);
-    staged.set(recordKey(representative), representative);
     state.reviews = applyClusterDisposition(
-      staged,
+      state.reviews,
       evidence,
       evidenceSha,
       cluster,
+      selection.candidate_choice,
       selection.disagreement_category,
       selection.rationale,
       progress.acknowledged,

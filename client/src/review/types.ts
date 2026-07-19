@@ -472,14 +472,7 @@ export type LoadedStream = {
   checkpointSelection: CheckpointSelection | null;
 };
 
-export type D3DisagreementCategory =
-  | "teacher_error"
-  | "oracle_error"
-  | "template_error"
-  | "asset_ambiguity"
-  | "contract_gap"
-  | "text_equivalent"
-  | "both_legal_but_oracle_preferred";
+export type { D3DisagreementCategory } from "./phase2-review-policy";
 
 export type Phase2CandidateLicense = {
   result: "licensed" | "blocked";

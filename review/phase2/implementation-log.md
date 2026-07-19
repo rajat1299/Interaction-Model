@@ -275,6 +275,14 @@ authoritative.
   Python and TypeScript; and emits, parses, and renders clusters in deterministic priority order.
   Focused adversarial tests reject partial/inconsistent batches, zero-rate invented routes, semantic
   reason mismatches, and reversed cluster priority order.
+- The final code-quality pass removed duplicated contract logic without changing the desk behavior.
+  One dependency-light policy module now owns the frozen D3 tuple and derived type/membership, the
+  canonical representative-plus-confirmations evidence cases, and field-wise cluster-audit equality.
+  Portable imports therefore accept semantically identical audits regardless of JSON object key
+  order while still rejecting changed roles or identities. Cluster application now receives the
+  representative candidate choice directly and constructs its returned review map once, eliminating
+  the shell's synthetic staged record. Direct draft tests cover valid progress persistence, stale
+  evidence identity, corrupt JSON, and filtering acknowledgements whose evidence was never opened.
 
 ### Open questions
 
