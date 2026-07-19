@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from im.assets.model import CorpusFamily, canonical_artifact_bytes
@@ -9,6 +11,7 @@ from im.generation.phase2_review import (
     FloorClass,
     ReviewRoute,
     TrustCellKey,
+    disagreement_cluster_signature,
 )
 from im.generation.phase2_review_projection import (
     CandidateLicense,
@@ -21,7 +24,12 @@ from im.probes.harness.models import HarnessProtocol
 from im.schema.common import LicenseBlockCode
 
 
-def _input(index: int, source: str, priority: int) -> DecisionProjectionInput:
+def _input(
+    index: int,
+    source: str,
+    priority: int,
+    causal_state: str = "same-causal-state",
+) -> DecisionProjectionInput:
     decision = DecisionEvidence(
         stream_sha256=f"sha256:{index:064x}",
         decision_policy_seq=index,
@@ -35,7 +43,7 @@ def _input(index: int, source: str, priority: int) -> DecisionProjectionInput:
         source_unit_id=source,
         oracle_action={"type": "idle", "reason": "no_trigger", "related_event_id": None},
         teacher_action={"type": "nudge", "fire_event_id": "e_000001"},
-        causal_state_class="same-causal-state",
+        causal_state_class=causal_state,
         boundary_class=BoundaryClass.ORDINARY,
         risk_flags=("oracle_teacher_non_equivalence",),
     )
@@ -46,7 +54,7 @@ def _input(index: int, source: str, priority: int) -> DecisionProjectionInput:
             review_required=True,
             mandatory=True,
             sample_rate=1.0,
-            reasons=("teacher_oracle_disagreement",),
+            reasons=("teacher_oracle_disagreement", "risk_flag"),
             provisional_label_origin=None,
         ),
         oracle_license=CandidateLicense("licensed", ()),
@@ -87,6 +95,31 @@ def test_projection_is_canonical_and_clusters_three_distinct_sources() -> None:
     }
     assert cluster["mechanical_invariants"]["three_distinct_source_units"] is True
     assert len(cluster["confirmations"]) == 2
+
+
+def test_projection_emits_and_requires_cluster_priority_order() -> None:
+    first_group = tuple(
+        _input(index, f"source-a-{index}", index - 10, "causal-a") for index in range(10, 13)
+    )
+    second_group = tuple(
+        _input(index, f"source-b-{index}", index - 20, "causal-b") for index in range(20, 23)
+    )
+    groups = sorted(
+        (first_group, second_group),
+        key=lambda group: disagreement_cluster_signature(group[0].decision),
+        reverse=True,
+    )
+    inputs = tuple(
+        replace(item, priority_rank=priority)
+        for priority, item in enumerate((*groups[0], *groups[1]))
+    )
+
+    payload = parse_phase2_review_evidence(_project(inputs))
+    assert [cluster["priority_rank"] for cluster in payload["clusters"]] == [0, 3]
+
+    payload["clusters"].reverse()
+    with pytest.raises(Phase2ReviewProjectionError, match="priority order"):
+        parse_phase2_review_evidence(canonical_artifact_bytes(payload))
 
 
 def test_projection_fails_closed_for_missing_packet_decision_or_source_reuse() -> None:

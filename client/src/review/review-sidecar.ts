@@ -177,6 +177,51 @@ export function mergeReviewRecords(
   let added = 0;
   let skipped = 0;
 
+  const auditedSignatures = new Set(
+    imported.flatMap((record) => record.cluster_review ? [record.cluster_review.cluster_signature] : []),
+  );
+  for (const signature of auditedSignatures) {
+    const cluster = phase2Context?.evidence.clusters.find((item) => item.signature === signature);
+    const audited = imported.filter((record) => record.cluster_review?.cluster_signature === signature);
+    const expectedKeys = new Set(cluster?.member_identities.map(recordKey) ?? []);
+    const auditedKeys = new Set(audited.map(recordKey));
+    if (
+      !cluster || audited.length !== cluster.member_identities.length ||
+      auditedKeys.size !== expectedKeys.size || [...expectedKeys].some((key) => !auditedKeys.has(key))
+    ) {
+      errors.push(`Phase 2 cluster import is not membership-complete for ${signature}`);
+      continue;
+    }
+
+    const expectedAudit = [
+      { role: "representative", ...cluster.representative },
+      { role: "confirmation_1", ...cluster.confirmations[0] },
+      { role: "confirmation_2", ...cluster.confirmations[1] },
+    ];
+    const decisions = new Map(phase2Context!.evidence.decisions.map((decision) => [recordKey(decision), decision]));
+    const chosenOrigins = new Set<string>();
+    const categories = new Set(audited.map((record) => record.disagreement_category));
+    const rationales = new Set(audited.map((record) => record.note));
+    let consistent = categories.size === 1 && rationales.size === 1;
+    for (const record of audited) {
+      const decision = decisions.get(recordKey(record));
+      const candidate = decision?.candidates.find((item) => item.candidate_id === record.candidate_choice);
+      if (candidate) chosenOrigins.add(candidate.reveal.origin);
+      else consistent = false;
+      if (
+        record.decision !== "flag" || record.reason_code !== "cluster_disposition" ||
+        record.phase2_evidence_sha256 !== phase2Context!.evidenceSha256 ||
+        JSON.stringify(record.cluster_review?.reviewed_evidence) !== JSON.stringify(expectedAudit)
+      ) {
+        consistent = false;
+      }
+    }
+    if (!consistent || chosenOrigins.size !== 1) {
+      errors.push(`Phase 2 cluster import disposition is inconsistent for ${signature}`);
+    }
+  }
+  if (errors.length > 0) return { ok: false, errors };
+
   for (const r of imported) {
     if (r.candidate_choice && r.phase2_evidence_sha256 !== phase2Context?.evidenceSha256) {
       errors.push(`Phase 2 evidence hash mismatch for ${recordKey(r)}`);

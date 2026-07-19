@@ -266,6 +266,15 @@ authoritative.
   review actions unavailable until checksum verification succeeds, and provides one restrained
   intake state. Browser checks at 1280 and 620 pixels and DOM width checks found no horizontal
   overflow; the 980-pixel layout is covered by the same intermediate responsive grid rule.
+- A follow-up review found three remaining fail-open edges: an imported cluster audit could cover
+  only one member, route evidence accepted invented or decision-impossible reasons, and cluster
+  worklists were emitted by signature rather than representative priority. The correction now
+  preflights every imported audited cluster as one membership-complete batch with a shared category,
+  rationale, hidden winning origin, evidence hash, and exact disposition metadata; validates the
+  closed router reason vocabulary and the exact mandatory reasons implied by each decision in both
+  Python and TypeScript; and emits, parses, and renders clusters in deterministic priority order.
+  Focused adversarial tests reject partial/inconsistent batches, zero-rate invented routes, semantic
+  reason mismatches, and reversed cluster priority order.
 
 ### Open questions
 

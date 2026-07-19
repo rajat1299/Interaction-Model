@@ -215,7 +215,7 @@ export function renderClusterRail(
   const title = document.createElement("h2");
   title.textContent = "D7 cluster worklist";
   const list = document.createElement("ul");
-  for (const cluster of evidence.clusters) {
+  for (const cluster of [...evidence.clusters].sort((left, right) => left.priority_rank - right.priority_rank)) {
     const row = document.createElement("li");
     const button = document.createElement("button");
     button.type = "button";

@@ -235,10 +235,33 @@ def test_review_route_closes_flags_rate_reasons_and_origin() -> None:
         ReviewRoute(**{**required, "sample_rate": 2.5})
     with pytest.raises(Phase2ReviewError, match="mandatory"):
         ReviewRoute(**{**required, "review_required": False})
-    with pytest.raises(Phase2ReviewError, match="provisional origin"):
+    with pytest.raises(Phase2ReviewError, match="sampled review routes"):
         ReviewRoute(**{**required, "mandatory": False, "reasons": ()})
     with pytest.raises(Phase2ReviewError, match="unique non-empty"):
         ReviewRoute(**{**required, "reasons": ("same", "same")})
+    with pytest.raises(Phase2ReviewError, match="closed router vocabulary"):
+        ReviewRoute(**{**required, "reasons": ("invented_reason",)})
+    with pytest.raises(Phase2ReviewError, match="positive rate"):
+        ReviewRoute(
+            "decision-3",
+            True,
+            False,
+            0.0,
+            ("stratified_sample",),
+            None,
+        )
+
+    ordinary = _decision(3)
+    impossible = ReviewRoute(
+        ordinary.identity,
+        True,
+        True,
+        1.0,
+        ("teacher_oracle_disagreement",),
+        None,
+    )
+    with pytest.raises(Phase2ReviewError, match="canonical router"):
+        impossible.validate_for(ordinary)
 
 
 def test_non_equivalent_human_review_requires_a_disposition() -> None:

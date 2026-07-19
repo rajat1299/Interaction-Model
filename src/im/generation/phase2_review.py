@@ -113,6 +113,16 @@ _MANDATORY_ACTIONS = frozenset({"schedule", "cancel", "skip", "nudge"})
 _POSITIVE_ACTIONS = frozenset({"mark", "delegate", "integrate", "respond"})
 _FULL_IDLE_REVIEW = frozenset({"awaiting_opening", "already_handled"})
 _EDGE_IDLE_BOUNDARIES = frozenset({"partial_instruction", "lexical_boundary", "ime_edge"})
+_MANDATORY_REVIEW_REASONS = (
+    "mandatory_action",
+    "rollover",
+    "teacher_oracle_disagreement",
+    "teacher_low_confidence",
+    "risk_flag",
+    "idle_reason_100_percent",
+    "idle_boundary_100_percent",
+)
+_REVIEW_ROUTE_REASONS = frozenset((*_MANDATORY_REVIEW_REASONS, "stratified_sample"))
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -355,17 +365,41 @@ class ReviewRoute:
             or len(self.reasons) != len(set(self.reasons))
         ):
             raise Phase2ReviewError("review route reasons must be unique non-empty strings")
+        if any(reason not in _REVIEW_ROUTE_REASONS for reason in self.reasons):
+            raise Phase2ReviewError("review route reason is not in the closed router vocabulary")
         if self.mandatory and (not self.review_required or self.sample_rate != 1):
             raise Phase2ReviewError("mandatory review routes must require review at sample_rate 1")
-        if self.review_required:
-            if not self.reasons or self.provisional_label_origin is not None:
+        if self.mandatory:
+            canonical = tuple(
+                reason for reason in _MANDATORY_REVIEW_REASONS if reason in self.reasons
+            )
+            if not self.reasons or self.reasons != canonical:
                 raise Phase2ReviewError(
-                    "required review routes need reasons and no provisional origin"
+                    "mandatory review route reasons must be canonical router reasons"
+                )
+            if self.provisional_label_origin is not None:
+                raise Phase2ReviewError("required review routes need no provisional origin")
+        elif self.review_required:
+            if (
+                self.sample_rate <= 0
+                or self.reasons != ("stratified_sample",)
+                or self.provisional_label_origin is not None
+            ):
+                raise Phase2ReviewError(
+                    "sampled review routes require a positive rate and only stratified_sample"
                 )
         elif self.reasons or not isinstance(self.provisional_label_origin, LabelOrigin):
             raise Phase2ReviewError(
                 "non-required review routes need no reasons and a closed provisional origin"
             )
+
+    def validate_for(self, decision: DecisionEvidence) -> None:
+        """Close mandatory routing reasons over the decision that caused them."""
+        if not isinstance(decision, DecisionEvidence) or self.identity != decision.identity:
+            raise Phase2ReviewError("review route does not match its decision")
+        expected = _mandatory_reasons(decision)
+        if self.mandatory != bool(expected) or (self.mandatory and self.reasons != expected):
+            raise Phase2ReviewError("review route reasons do not match the canonical router")
 
 
 def route_wave(
@@ -439,6 +473,7 @@ def route_wave(
                 provisional_label_origin=origin,
             )
         )
+        routes[-1].validate_for(decision)
     return tuple(routes)
 
 

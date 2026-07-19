@@ -129,15 +129,24 @@ describe("review sidecar export/import", () => {
       decision_policy_seq,
     });
     const identities = [identity("a", 1), identity("b", 2), identity("c", 3)];
-    const decisions = identities.map((item, index) => ({
-      ...item,
-      comparison: "causal_disagreement",
-      candidates: [
-        { candidate_id: "A", action: { type: "idle", reason: "no_trigger", related_event_id: null } },
-        { candidate_id: "B", action: { type: "nudge", fire_event_id: "e_1" } },
-      ],
-      priority_rank: index,
-    })) as Phase2DecisionEvidence[];
+    const decisions = identities.map((item, index) => {
+      const candidate = (candidate_id: "A" | "B", origin: "oracle" | "teacher") => ({
+        candidate_id,
+        action: origin === "oracle"
+          ? { type: "idle" as const, reason: "no_trigger" as const, related_event_id: null }
+          : { type: "nudge" as const, fire_event_id: "e_1" },
+        license: { result: "licensed" as const, codes: [] },
+        reveal: { origin, provenance: { request_sha256: phase2EvidenceSha } },
+      });
+      return {
+        ...item,
+        comparison: "causal_disagreement",
+        candidates: index === 1
+          ? [candidate("A", "teacher"), candidate("B", "oracle")]
+          : [candidate("A", "oracle"), candidate("B", "teacher")],
+        priority_rank: index,
+      };
+    }) as unknown as Phase2DecisionEvidence[];
     const signature = `sha256:${"c".repeat(64)}`;
     const cluster = {
       signature,
@@ -151,28 +160,37 @@ describe("review sidecar export/import", () => {
       { role: "confirmation_1" as const, ...identities[1] },
       { role: "confirmation_2" as const, ...identities[2] },
     ];
-    const record: ReviewRecord = {
-      ...identities[0],
+    const records: ReviewRecord[] = identities.map((item, index) => ({
+      ...item,
       decision: "flag",
       reason_code: "cluster_disposition",
       note: "Audited cluster disposition.",
-      candidate_choice: "A",
+      candidate_choice: index === 1 ? "B" : "A",
       disagreement_category: "teacher_error",
       phase2_evidence_sha256: phase2EvidenceSha,
       cluster_review: { cluster_signature: signature, reviewed_evidence },
-    };
+    }));
     const knownStreams = new Set(identities.map((item) => item.stream_sha256));
     const knownSeqs = new Map(identities.map((item) => [item.stream_sha256, new Set([item.decision_policy_seq])]));
     const context = { evidenceSha256: phase2EvidenceSha, evidence };
-    expect(mergeReviewRecords(new Map(), [record], knownStreams, knownSeqs, context).ok).toBe(true);
+    expect(mergeReviewRecords(new Map(), records, knownStreams, knownSeqs, context).ok).toBe(true);
 
-    const wrongRoles = structuredClone(record);
-    wrongRoles.cluster_review!.reviewed_evidence.reverse();
-    expect(mergeReviewRecords(new Map(), [wrongRoles], knownStreams, knownSeqs, context).ok).toBe(false);
-    const wrongCategory = { ...record, disagreement_category: "text_equivalent" as const };
-    expect(mergeReviewRecords(new Map(), [wrongCategory], knownStreams, knownSeqs, context).ok).toBe(false);
-    const wrongHash = { ...record, phase2_evidence_sha256: `sha256:${"0".repeat(64)}` };
-    expect(mergeReviewRecords(new Map(), [wrongHash], knownStreams, knownSeqs, context).ok).toBe(false);
+    const partial = mergeReviewRecords(new Map(), [records[0]], knownStreams, knownSeqs, context);
+    expect(partial.ok).toBe(false);
+    if (!partial.ok) expect(partial.errors.join("\n")).toContain("membership-complete");
+
+    const wrongRoles = structuredClone(records);
+    wrongRoles[0].cluster_review!.reviewed_evidence.reverse();
+    expect(mergeReviewRecords(new Map(), wrongRoles, knownStreams, knownSeqs, context).ok).toBe(false);
+    const wrongCategory = structuredClone(records);
+    wrongCategory[1].disagreement_category = "oracle_error";
+    expect(mergeReviewRecords(new Map(), wrongCategory, knownStreams, knownSeqs, context).ok).toBe(false);
+    const wrongChoice = structuredClone(records);
+    wrongChoice[1].candidate_choice = "A";
+    expect(mergeReviewRecords(new Map(), wrongChoice, knownStreams, knownSeqs, context).ok).toBe(false);
+    const wrongHash = structuredClone(records);
+    wrongHash[2].phase2_evidence_sha256 = `sha256:${"0".repeat(64)}`;
+    expect(mergeReviewRecords(new Map(), wrongHash, knownStreams, knownSeqs, context).ok).toBe(false);
   });
 
   it("accepts the repaired canary's completed WP1-8 sidecar", async () => {

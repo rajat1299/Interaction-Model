@@ -74,6 +74,10 @@ class DecisionProjectionInput:
             raise Phase2ReviewProjectionError("projection decision and route are required")
         if self.route.identity != self.decision.identity:
             raise Phase2ReviewProjectionError("projection route does not match decision identity")
+        try:
+            self.route.validate_for(self.decision)
+        except Phase2ReviewError as error:
+            raise Phase2ReviewProjectionError("projection route is not canonical") from error
         if not isinstance(self.oracle_license, CandidateLicense) or (
             self.teacher_license is not None
             and not isinstance(self.teacher_license, CandidateLicense)
@@ -303,7 +307,7 @@ def _build_clusters(
                 "signature": signature,
             }
         )
-    return clusters
+    return sorted(clusters, key=lambda cluster: cluster["priority_rank"])
 
 
 def project_phase2_review_evidence(
@@ -484,7 +488,7 @@ def _decision_from_raw(
             idle_boundary=evidence.get("idle_boundary"),
             rollover=evidence.get("rollover"),
         )
-        ReviewRoute(
+        parsed_route = ReviewRoute(
             identity=identity[0] + "\x00" + str(identity[1]),
             review_required=route.get("review_required"),
             mandatory=route.get("mandatory"),
@@ -496,6 +500,7 @@ def _decision_from_raw(
                 else None
             ),
         )
+        parsed_route.validate_for(decision)
     except (Phase2ReviewError, TypeError, ValueError) as error:
         raise Phase2ReviewProjectionError("closed review evidence is invalid") from error
     if decision.comparison.value != comparison:
@@ -561,6 +566,7 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
     ) != sum(len(members) for members in non_equivalent.values()):
         raise Phase2ReviewProjectionError("root mechanical counts do not close over decisions")
     clustered: dict[str, set[tuple[str, int]]] = defaultdict(set)
+    cluster_priority_ranks: list[int] = []
     for cluster in clusters:
         if not isinstance(cluster, dict) or not isinstance(cluster.get("confirmations"), list):
             raise Phase2ReviewProjectionError("cluster record is invalid")
@@ -644,7 +650,10 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
             != len({decisions_by_identity[identity].source_unit_id for identity in member_ids})
         ):
             raise Phase2ReviewProjectionError("D7 mechanical source counts do not match members")
+        cluster_priority_ranks.append(priority_by_identity[representative_id])
         clustered[signature] = member_ids
+    if cluster_priority_ranks != sorted(cluster_priority_ranks):
+        raise Phase2ReviewProjectionError("D7 clusters are not in priority order")
     if clustered != non_equivalent:
         raise Phase2ReviewProjectionError(
             "D7 clusters do not close exactly over non-equivalent decisions"

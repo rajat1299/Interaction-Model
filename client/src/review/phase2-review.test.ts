@@ -3,6 +3,7 @@ import { recordKey, type ReviewMap } from "./review-sidecar";
 import {
   applyClusterDisposition,
   clusterEvidenceCases,
+  renderClusterRail,
   textEquivalentAllowed,
 } from "./phase2-review";
 import type { Phase2Cluster, Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
@@ -32,7 +33,7 @@ function decision(letter: string, choiceForOracle: "A" | "B", rank: number): Pha
       wave_id: "wave", template_id: "template", causal_state_class: "state", boundary_class: "ordinary",
       risk_flags: ["oracle_teacher_non_equivalence"], idle_boundary: null, rollover: false,
       trust_cell: { protocol: "generation", family: "neutral_typing", floor: "closed" },
-      review_route: { review_required: true, mandatory: true, sample_rate: 1, reasons: ["disagreement"], provisional_label_origin: null },
+      review_route: { review_required: true, mandatory: true, sample_rate: 1, reasons: ["teacher_oracle_disagreement", "risk_flag"], provisional_label_origin: null },
     },
   };
 }
@@ -111,5 +112,34 @@ describe("Phase 2 cluster adjudication", () => {
     const mismatch = decision("b", "A", 1);
     mismatch.candidates[1].action = { type: "respond", reply_to_event_id: "e_2", text: "teacher" };
     expect(textEquivalentAllowed(mismatch)).toBe(false);
+  });
+
+  it("renders the cluster worklist in deterministic priority order", () => {
+    const member = { stream_sha256: stream("a"), decision_policy_seq: 0 };
+    const cluster = (signature: string, priority_rank: number): Phase2Cluster => ({
+      signature,
+      priority_rank,
+      representative: member,
+      confirmations: [member, member],
+      member_identities: [member, member, member],
+      mechanical_invariants: {
+        all_members_non_equivalent: true,
+        distinct_source_unit_count: 3,
+        member_count: 3,
+        priority_order_sha256: stream("e"),
+        three_distinct_source_units: true,
+      },
+    });
+    const evidence = {
+      clusters: [cluster(stream("1"), 7), cluster(stream("2"), 2)],
+    } as Phase2ReviewEvidence;
+    const target = document.createElement("section");
+
+    renderClusterRail(target, evidence, null, () => undefined);
+
+    expect([...target.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "Priority 3 · 3 decisions · 2 confirmations",
+      "Priority 8 · 3 decisions · 2 confirmations",
+    ]);
   });
 });

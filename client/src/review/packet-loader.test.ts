@@ -96,6 +96,14 @@ async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
             provenance: { request_sha256: `sha256:${(origin === "oracle" ? "1" : "2").repeat(64)}` },
           },
         });
+        const action = decision.action as { type: string; reason?: string };
+        const routeReasons = [
+          ...(["schedule", "cancel", "skip", "nudge"].includes(action.type) ? ["mandatory_action"] : []),
+          ...(selected ? ["teacher_oracle_disagreement", "risk_flag"] : []),
+          ...(action.type === "idle" && ["awaiting_opening", "already_handled"].includes(action.reason ?? "")
+            ? ["idle_reason_100_percent"] : []),
+        ];
+        const mandatory = routeReasons.length > 0;
         decisions.push({
           candidates: selected ? [candidate("A", origins[0]!), candidate("B", origins[1]!)] : [],
           cluster_signature: null as string | null,
@@ -113,11 +121,11 @@ async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
             rollover: false,
             trust_cell: { protocol: "generation", family: "neutral_typing_revision_pause", floor: "closed" },
             review_route: {
-              review_required: Boolean(selected),
-              mandatory: Boolean(selected),
-              sample_rate: selected ? 1 : 0,
-              reasons: selected ? ["teacher_oracle_disagreement"] : [],
-              provisional_label_origin: selected ? null : "oracle_teacher_agreement",
+              review_required: mandatory,
+              mandatory,
+              sample_rate: mandatory ? 1 : 0,
+              reasons: routeReasons,
+              provisional_label_origin: mandatory ? null : "oracle_teacher_agreement",
             },
           },
           source_unit_id: selected?.source ?? "ordinary-source",
@@ -465,6 +473,21 @@ describe("packet loader", () => {
     await replaceHashed(mandatoryEntries, path, JSON.stringify(mandatoryEvidence));
     const mandatoryResult = await loadPacketFromEntries(mandatoryEntries);
     expect(mandatoryResult.ok).toBe(false);
-    if (!mandatoryResult.ok) expect(mandatoryResult.errors.join("\n")).toContain("mandatory routes");
+    if (!mandatoryResult.ok) expect(mandatoryResult.errors.join("\n")).toContain("canonical mandatory router");
+
+    const inventedEntries = cloneEntries();
+    await addPhase2Evidence(inventedEntries);
+    const inventedEvidence = JSON.parse(inventedEntries.find((entry) => entry.path === path)!.text);
+    inventedEvidence.decisions[0].review_evidence.review_route = {
+      review_required: true,
+      mandatory: false,
+      sample_rate: 0,
+      reasons: ["invented_reason"],
+      provisional_label_origin: null,
+    };
+    await replaceHashed(inventedEntries, path, JSON.stringify(inventedEvidence));
+    const inventedResult = await loadPacketFromEntries(inventedEntries);
+    expect(inventedResult.ok).toBe(false);
+    if (!inventedResult.ok) expect(inventedResult.errors.join("\n")).toContain("closed router vocabulary");
   });
 });

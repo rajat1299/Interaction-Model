@@ -41,6 +41,14 @@ const LABEL_ORIGINS = new Set([
   "human", "human_authored", "teacher_auto_trusted", "teacher_human_confirmed",
   "oracle_teacher_agreement",
 ]);
+const MANDATORY_ACTIONS = new Set(["schedule", "cancel", "skip", "nudge"]);
+const FULL_IDLE_REVIEW = new Set(["awaiting_opening", "already_handled"]);
+const EDGE_IDLE_BOUNDARIES = new Set(["partial_instruction", "lexical_boundary", "ime_edge"]);
+const MANDATORY_REVIEW_REASONS = [
+  "mandatory_action", "rollover", "teacher_oracle_disagreement", "teacher_low_confidence",
+  "risk_flag", "idle_reason_100_percent", "idle_boundary_100_percent",
+] as const;
+const REVIEW_ROUTE_REASONS = new Set([...MANDATORY_REVIEW_REASONS, "stratified_sample"]);
 const BOUNDARY_RISK = new Map([
   ["active_floor_response", "active_floor_response_boundary"],
   ["schedule_similar_distinct", "schedule_semantic_duplicate_boundary"],
@@ -189,7 +197,7 @@ async function rankConfirmations(
   return selected;
 }
 
-function validateRoute(value: unknown, label: string): void {
+function validateRoute(value: unknown, label: string, expectedMandatoryReasons: string[]): void {
   const route = record(value, label);
   const reviewRequired = bool(route.review_required, `${label}.review_required`);
   const mandatory = bool(route.mandatory, `${label}.mandatory`);
@@ -199,12 +207,22 @@ function validateRoute(value: unknown, label: string): void {
   }
   const reasons = stringList(route.reasons, `${label}.reasons`);
   if (new Set(reasons).size !== reasons.length) throw new Error(`${label}.reasons must be unique`);
-  if (mandatory && (!reviewRequired || rate !== 1)) {
-    throw new Error(`${label} mandatory routes must require review at sample_rate 1`);
+  if (reasons.some((reason) => !REVIEW_ROUTE_REASONS.has(reason))) {
+    throw new Error(`${label}.reasons contain a value outside the closed router vocabulary`);
   }
+  if (expectedMandatoryReasons.length) {
+    if (
+      !mandatory || !reviewRequired || rate !== 1 || route.provisional_label_origin !== null ||
+      reasons.join("\x00") !== expectedMandatoryReasons.join("\x00")
+    ) {
+      throw new Error(`${label} reasons do not match the canonical mandatory router`);
+    }
+    return;
+  }
+  if (mandatory) throw new Error(`${label} is mandatory without a canonical router reason`);
   if (reviewRequired) {
-    if (!reasons.length || route.provisional_label_origin !== null) {
-      throw new Error(`${label} required routes need reasons and no provisional origin`);
+    if (rate <= 0 || reasons.length !== 1 || reasons[0] !== "stratified_sample" || route.provisional_label_origin !== null) {
+      throw new Error(`${label} sampled routes require a positive rate and only stratified_sample`);
     }
   } else if (reasons.length || !LABEL_ORIGINS.has(route.provisional_label_origin as string)) {
     throw new Error(`${label} non-required routes need no reasons and a closed provisional origin`);
@@ -256,6 +274,8 @@ export async function parsePhase2ReviewEvidence(
     if (identities.has(decisionKey)) throw new Error(`${decisionLabel} has duplicate identity`);
     identities.add(decisionKey);
     validateAction(decision.oracle_action, `${decisionLabel}.oracle_action`);
+    const oracleAction = record(decision.oracle_action, `${decisionLabel}.oracle_action`);
+    const actionType = string(oracleAction.type, `${decisionLabel}.oracle_action.type`);
     const comparison = oneOf(decision.comparison, `${decisionLabel}.comparison`, COMPARISONS);
     const candidates = list(decision.candidates, `${decisionLabel}.candidates`);
     const nonEquivalentDecision = comparison === "semantic_review_required" || comparison === "causal_disagreement";
@@ -280,8 +300,8 @@ export async function parsePhase2ReviewEvidence(
     const review = record(decision.review_evidence, `${decisionLabel}.review_evidence`);
     ["wave_id", "template_id", "causal_state_class"].forEach((name) => string(review[name], `${decisionLabel}.review_evidence.${name}`));
     const boundary = oneOf(review.boundary_class, `${decisionLabel}.review_evidence.boundary_class`, BOUNDARIES);
-    if (review.idle_boundary !== null) string(review.idle_boundary, `${decisionLabel}.review_evidence.idle_boundary`);
-    bool(review.rollover, `${decisionLabel}.review_evidence.rollover`);
+    const idleBoundary = review.idle_boundary === null ? null : string(review.idle_boundary, `${decisionLabel}.review_evidence.idle_boundary`);
+    const rollover = bool(review.rollover, `${decisionLabel}.review_evidence.rollover`);
     const flags = stringList(review.risk_flags, `${decisionLabel}.review_evidence.risk_flags`);
     if (flags.some((flag) => !RISK_FLAGS.has(flag)) || flags.join("\x00") !== [...new Set(flags)].sort().join("\x00")) throw new Error(`${decisionLabel}.review_evidence.risk_flags are not closed, sorted, and unique`);
     if (nonEquivalentDecision !== flags.includes("oracle_teacher_non_equivalence")) throw new Error(`${decisionLabel} non-equivalence risk flag is inconsistent`);
@@ -291,7 +311,16 @@ export async function parsePhase2ReviewEvidence(
     oneOf(cell.protocol, `${decisionLabel}.review_evidence.trust_cell.protocol`, PROTOCOLS);
     oneOf(cell.family, `${decisionLabel}.review_evidence.trust_cell.family`, FAMILIES);
     oneOf(cell.floor, `${decisionLabel}.review_evidence.trust_cell.floor`, FLOORS);
-    validateRoute(review.review_route, `${decisionLabel}.review_evidence.review_route`);
+    const expectedMandatoryReasons = MANDATORY_REVIEW_REASONS.filter((reason) => {
+      if (reason === "mandatory_action") return MANDATORY_ACTIONS.has(actionType);
+      if (reason === "rollover") return rollover || flags.includes("rollover_or_checkpoint_projection");
+      if (reason === "teacher_oracle_disagreement") return comparison !== "equivalent";
+      if (reason === "teacher_low_confidence") return flags.includes("teacher_low_confidence");
+      if (reason === "risk_flag") return flags.length > 0;
+      if (reason === "idle_reason_100_percent") return actionType === "idle" && FULL_IDLE_REVIEW.has(oracleAction.reason as string);
+      return actionType === "idle" && idleBoundary !== null && EDGE_IDLE_BOUNDARIES.has(idleBoundary);
+    });
+    validateRoute(review.review_route, `${decisionLabel}.review_evidence.review_route`, expectedMandatoryReasons);
   }
 
   if (ranks.slice().sort((a, b) => a - b).some((rank, index) => rank !== index)) throw new Error(`${label}.decisions must carry a closed priority order`);
@@ -311,6 +340,7 @@ export async function parsePhase2ReviewEvidence(
   }
   if (groups.size !== rawClusters.length) throw new Error(`${label} clusters do not close over non-equivalent decisions`);
   const signatures = new Set<string>();
+  const clusterPriorityRanks: number[] = [];
   for (const [index, rawCluster] of rawClusters.entries()) {
     const clusterLabel = `${label}.clusters[${index}]`;
     const cluster = record(rawCluster, clusterLabel);
@@ -323,7 +353,9 @@ export async function parsePhase2ReviewEvidence(
     if (canonicalJson(members.map(key)) !== canonicalJson(expected.map(key))) throw new Error(`${clusterLabel} members are not in priority order`);
     const representative = identity(cluster.representative, `${clusterLabel}.representative`);
     if (key(representative) !== key(expected[0])) throw new Error(`${clusterLabel} representative is not the first priority member`);
-    if (integer(cluster.priority_rank, `${clusterLabel}.priority_rank`) !== expected[0].priority_rank) throw new Error(`${clusterLabel} priority rank is inconsistent`);
+    const clusterPriorityRank = integer(cluster.priority_rank, `${clusterLabel}.priority_rank`);
+    if (clusterPriorityRank !== expected[0].priority_rank) throw new Error(`${clusterLabel} priority rank is inconsistent`);
+    clusterPriorityRanks.push(clusterPriorityRank);
     const confirmations = list(cluster.confirmations, `${clusterLabel}.confirmations`).map((item, confirmationIndex) => identity(item, `${clusterLabel}.confirmations[${confirmationIndex}]`));
     if (confirmations.length !== 2) throw new Error(`${clusterLabel} must have exactly two confirmations`);
     const expectedConfirmations = await rankConfirmations(commitment, signature, expected);
@@ -335,6 +367,9 @@ export async function parsePhase2ReviewEvidence(
     if (integer(report.member_count, `${clusterLabel}.mechanical_invariants.member_count`, 1) !== members.length || integer(report.distinct_source_unit_count, `${clusterLabel}.mechanical_invariants.distinct_source_unit_count`, 1) !== new Set(expected.map((item) => item.source_unit_id)).size) throw new Error(`${clusterLabel} source counts do not match members`);
     const priorityDigest = await sha256Canonical(members);
     if (digest(report.priority_order_sha256, `${clusterLabel}.mechanical_invariants.priority_order_sha256`) !== priorityDigest) throw new Error(`${clusterLabel} priority digest does not match members`);
+  }
+  if (clusterPriorityRanks.some((rank, index) => index > 0 && rank <= clusterPriorityRanks[index - 1])) {
+    throw new Error(`${label}.clusters are not in deterministic priority order`);
   }
   return result;
 }
