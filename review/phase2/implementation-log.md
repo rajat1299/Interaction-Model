@@ -113,27 +113,50 @@ authoritative.
   tokenizer revision, renderer, temperature, tools-disabled state, completion cardinality/index,
   and prompt/request/completion SHA-256 identities. The measured token count separately names the
   same tokenizer revision. No duplicated top-level generation truth is accepted.
-- The raw-only planner runs filtering internally, limits the pool to two dataset-source/revision
-  pairs, and mechanically rejects duplicate completion IDs, prompt IDs, and normalized prompt
-  fingerprints before the deterministic allocation. A caller-provided filter report cannot select
-  data.
+- Every review round and finalization replays filtering and allocation from raw candidate mappings,
+  a required closed reference manifest, the seed, and recorded review decisions. `ReplayPlan` is an
+  inspection artifact only and is never accepted as a finalization input. The manifest validates
+  every reference category (including explicit empty categories), normalizes each value, and records
+  its digest in the plan.
+- The raw-only planner limits the pool to two source IDs, requires one frozen revision and one
+  consistent closed role for each source, and requires exactly one `primary` source identity. It
+  mechanically rejects duplicate completion IDs, prompt IDs, and normalized native-chat-prefix
+  fingerprints before allocation. A caller-provided filter report cannot select data.
 - Filtering is cheap checks first, then exact digest deduplication, then deterministic pairwise
   token and three-word-shingle near-deduplication (`0.8`) for the small (~1,250-row) pool. It also
   rejects normalized substring/near overlaps with approved, interaction, development, test, demo,
   heldout-asset, nonce, and explicitly supplied project-vocabulary references.
-- The closed selector uses deterministic SHA-256 ranks and a small max-flow allocation over
-  task-family × length-band × turn type. It enforces all 1,000/length/composition/200 multi-turn
-  constraints and a 100,000–130,000 supervised-token total, or raises a deficit report.
+- The closed selector enumerates every feasible multi-turn-by-length-band allocation and uses a
+  deterministic max-cost flow for each task-family × length-band × turn allocation. It chooses the
+  globally maximum supervised-token feasible corpus, with SHA-256 candidate rank as the tie-break,
+  and enforces all 1,000/length/composition/200 multi-turn constraints and the 100,000–130,000
+  supervised-token total, or raises a deficit report.
+- Prompt provenance and duplicate-prompt identity both hash the canonical native-chat prefix
+  (`messages[:-1]`) with roles and prior assistant turns retained. The protocol detector uses a
+  closed project field/action list; ordinary language such as “timer”, “mark”, and “idle” remains
+  eligible outside protocol-shaped content.
 - Human review is a deterministic 100-row round-robin over populated family/length/turn strata;
-  every flagged selected row is appended to its review queue. Finalization requires an explicit
-  approval for every queued completion. Failed rows are removed and deterministically replaced in
-  a new plan that must itself be reviewed before freezing.
+  every flagged selected row is appended to its review queue. Review evidence is an ordered sequence
+  of complete, exact queue mappings: each historical mapping must contain a `False`, which excludes
+  only those recorded rows before deriving the next queue. Finalization accepts only an all-`True`
+  final mapping for the freshly derived current queue; earlier `True` values never satisfy a later,
+  overlapping queue.
 
 ### Tradeoffs
 
 - Pairwise token/shingle scanning is intentionally O(n²), bounded by the planned ~1,250 rows. The
   module records the MinHash/LSH upgrade path if that ceiling changes; it does not add embeddings,
   NeMo, Ray, or a second model authority now.
+- The global token objective adds a small stdlib max-cost-flow helper rather than a solver dependency.
+  Enumerating feasible turn/band allocations is practical at the planned pool size and avoids a
+  sequential quota fill that can falsely report the 100,000-token floor infeasible.
+
+### Deviations
+
+- The former plan-based finalization entry point is deliberately removed rather than retained as a
+  compatibility shim: accepting any caller-constructed `ReplayPlan` would reintroduce the rejected
+  trust boundary. The new raw-input API is a necessary fail-closed correction, not a change to the
+  corpus contract.
 
 ### Rejected spec pass and correction
 
@@ -143,8 +166,21 @@ authoritative.
   boilerplate handling was unsafe, token totals were unconstrained, and review approval did not
   gate finalization. This correction moves those checks to the raw-row/planning boundary and adds
   adversarial raw-slice tests for each failure.
+- The second replay-filter spec pass rejected the first correction because finalization could still
+  trust a caller-held plan; prompt provenance and prompt deduplication omitted prior assistant
+  turns; the token floor was checked after a sequential quota fill; protocol filtering was a broad
+  regex; reference categories were optional; and source roles/frozen identities were not closed.
+  The correction makes finalization stateless over raw inputs and decisions, binds hashes to the
+  full native-chat prefix, globally optimizes every feasible turn/band allocation (including the
+  1,002-row 100,208-token regression), installs a static project protocol list, requires and hashes
+  the complete manifest, and closes source roles/revisions/primary identity. The replacement round
+  test proves every newly selected row must be re-reviewed, including IDs that also appeared in an
+  earlier queue. A final all-`True` round is terminal and cannot be supplied as later history.
 
 ### Open questions
 
 - Review the first raw flagged, near-overlap, and replacement-review slices before changing the
   documented thresholds; selection remains fail-closed until then.
+- The required reference manifest intentionally permits explicit empty categories for a run with no
+  material in that category. Before any production replay, the owner should review the manifest
+  digest and confirm that each empty category is genuinely empty rather than omitted upstream.
