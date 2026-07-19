@@ -326,3 +326,28 @@ authoritative.
   provider/model call or upload needs an owner-authorized pinned-teacher run plan with the real
   scenario inputs, shard count, preservation path, model, and cost estimate. This preliminary gate
   does not supply or infer any of those inputs.
+
+## 2026-07-19 — WP2-1 executable-pack stop
+
+### Blocker
+
+- The approved registry contains 77 TRAIN assets and zero approved TRAIN records. All twelve
+  selected WP2-1 TRAIN templates/assets are present but unapproved, so the required
+  `ScenarioProgram.select` path stops at `template is not approved`; no generated stream can
+  truthfully carry the requested TRAIN provenance.
+- The two persisted G7 response corpora each contain 90 records marked
+  `human_review_status: pending`. Their visible prefixes are TEST-bound, and no owner-approved,
+  human-approved TRAIN response text/prefix binding exists. Constructing the open-floor response
+  would therefore either invent text or weaken the frozen provenance boundary.
+
+### Decision
+
+- Stopped before scenario execution, request planning, packet materialization, or provider use.
+  The existing sentinel plan remains offline preparation only: it is neither WP2-1 exit evidence
+  nor authorization.
+
+### Owner action needed
+
+- Publish reviewed approval records for the named TRAIN inputs and one explicit TRAIN-bound,
+  owner-approved response text/prefix binding. Then the normal selection path can build the six
+  streams and eight target-only requests without a provenance exception.
