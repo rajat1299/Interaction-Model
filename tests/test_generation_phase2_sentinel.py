@@ -32,6 +32,8 @@ def test_sentinel_plan_is_deterministic_and_closes_the_exact_d6_inventory() -> N
     payload = first.as_json_object()
 
     assert first.canonical_bytes == second.canonical_bytes
+    payload["targets"].clear()
+    payload = first.as_json_object()
     assert len(payload["planned_streams"]) == 6
     assert len({stream["source_unit_id"] for stream in payload["planned_streams"]}) == 5
     assert payload["teacher_invocation_count"] == 0
@@ -70,41 +72,33 @@ def test_sentinel_plan_is_deterministic_and_closes_the_exact_d6_inventory() -> N
 
 
 @pytest.mark.parametrize(
-    "mutate,match",
+    "mutate",
     [
-        (lambda value: value["targets"].pop(), "eight D6 targets"),
-        (
-            lambda value: value["targets"].append(value["targets"][0].copy()),
-            "eight D6 targets",
+        lambda value: value["targets"].pop(),
+        lambda value: value["targets"].append(value["targets"][0].copy()),
+        lambda value: value["targets"][0]["oracle_action"].update(
+            {"reason": "no_trigger"}
         ),
-        (
-            lambda value: value["targets"][0].update(
-                {
-                    "oracle_action": {
-                        "type": "idle",
-                        "reason": "no_trigger",
-                        "related_event_id": None,
-                    }
-                }
-            ),
-            "action, risk flag, or cell",
+        lambda value: value["targets"][1].update({"risk_flags": []}),
+        lambda value: value["targets"][2]["cell"].update({"floor": "closed"}),
+        lambda value: value["targets"][2]["oracle_action"].update({"text": "changed"}),
+        lambda value: value["targets"][2]["oracle_action"].update(
+            {"reply_to_event_id": "e_999999"}
         ),
-        (
-            lambda value: value["targets"][1].update({"risk_flags": []}),
-            "action, risk flag, or cell",
-        ),
-        (
-            lambda value: value["targets"][2]["cell"].update({"floor": "closed"}),
-            "action, risk flag, or cell",
-        ),
+        lambda value: value["targets"][3]["oracle_action"].update({"interval_ms": 1}),
+        lambda value: value["targets"][0]["cell"].update({"protocol": "pairwise"}),
+        lambda value: value["targets"][0].update({"causal_state_class": "changed"}),
+        lambda value: value["streams"][0].update({"source_unit_id": "changed-source"}),
+        lambda value: value["streams"][0].update({"template_id": "changed-template"}),
+        lambda value: value.update({"format_version": True}),
+        lambda value: value.update({"teacher_invocation_count": True}),
+        lambda value: value["targets"][0].update({"decision_policy_seq": True}),
     ],
 )
-def test_closed_contract_rejects_missing_duplicate_and_mismatched_targets(
-    tmp_path: Path, mutate: object, match: str
-) -> None:
+def test_digest_lock_rejects_any_v1_contract_drift(tmp_path: Path, mutate: object) -> None:
     path = _contract_copy(tmp_path, mutate)
 
-    with pytest.raises(SentinelContractError, match=match):
+    with pytest.raises(SentinelContractError, match="expected SHA-256"):
         build_sentinel_plan(path)
 
 
@@ -153,7 +147,7 @@ def test_verifier_rejects_checksum_tampering_and_unsafe_paths(tmp_path: Path) ->
 
     plan_path = tampered / "sentinel-plan.json"
     plan_path.write_bytes(plan_path.read_bytes() + b" ")
-    with pytest.raises(SentinelPlanError, match="digest mismatch"):
+    with pytest.raises(SentinelPlanError, match="tampered"):
         verify_sentinel_plan(tampered)
 
     (unsafe / "SHA256SUMS").write_text(

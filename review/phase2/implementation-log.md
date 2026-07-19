@@ -314,6 +314,11 @@ authoritative.
   `REVIEW.md`, and closed `SHA256SUMS` prove routing without extending the fixed Phase 1 canary
   path. The output directory is atomically reserved with `mkdir`; a failed write can leave an
   incomplete directory, which verification rejects rather than overwriting it.
+- The canonical v1 contract is locked by one expected SHA-256. Any byte or semantic change must
+  use a new version and digest. This replaces the duplicated per-target validation table; parsed
+  contract values now flow unchanged through the existing action and router models. The plan
+  retains immutable canonical/REVIEW bytes, and verification exact-compares the three expected
+  files instead of maintaining a second checksum parser.
 
 ### Open question
 
