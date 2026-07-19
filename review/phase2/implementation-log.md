@@ -103,3 +103,35 @@ authoritative.
 - No provider request is authorized or needed for WP2-0. Before WP2-1 calls the pinned teacher, the
   run plan will surface the exact sentinel request count/shards, crossing inputs, expected output,
   preservation path, model, and estimated cost for owner authorization.
+
+## 2026-07-18 — WP2-0 replay-filter battery
+
+### Decisions
+
+- Added a stdlib-only native-chat filter for the already-sampled replay pool. It requires the
+  measured `assistant_token_count`, frozen backbone/rendering metadata, disabled tools, and a
+  non-teacher answer provenance; it never renders, acquires prompts, or calls a model.
+- Filtering is cheap checks first, then exact digest deduplication, then deterministic pairwise
+  token-Jaccard near-deduplication (`0.8`) for the small (~1,250-row) pool. Every outcome retains
+  the raw row plus rejection reasons and review flags.
+- The closed selector uses deterministic SHA-256 ranks and a small max-flow allocation over
+  task-family × length-band × turn type. It either satisfies all 1,000/length/composition/200
+  multi-turn constraints together or raises a deficit report.
+- Human review is a deterministic 100-row round-robin over populated family/length/turn strata;
+  every flagged selected row is appended to its review queue.
+
+### Tradeoffs
+
+- Exact content and approved-response overlap checks are deliberately conservative equality checks.
+  The pairwise near-duplicate pass provides the broader similarity check without adding embedding
+  dependencies or a second model authority.
+
+### Deviations
+
+- None. NeMo Curator's filtering/dedup ordering informed the battery, but NeMo/Ray are not imported
+  because this fixed small pool does not justify their runtime or dependency surface.
+
+### Open questions
+
+- Review the first raw flagged and near-duplicate slices before changing the documented thresholds;
+  selection remains fail-closed until then.
