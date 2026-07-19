@@ -29,6 +29,113 @@ async function replaceHashed(entries: PacketEntry[], path: string, text: string)
   if (!found) throw new Error(`missing SHA256SUMS entry: ${path}`);
 }
 
+async function addHashed(entries: PacketEntry[], path: string, text: string): Promise<void> {
+  const sums = entries.find((item) => item.path === "SHA256SUMS");
+  if (!sums) throw new Error("missing SHA256SUMS");
+  entries.push({ path, text });
+  sums.text = `${sums.text.trimEnd()}\n${await sha256Hex(text)}  ${path}\n`;
+}
+
+async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
+  const chosen = entries
+    .filter((entry) => entry.path.endsWith("/sidecar.json"))
+    .slice(0, 3)
+    .map((entry, index) => {
+      const sidecar = JSON.parse(entry.text) as { stream_sha256: string; decisions: unknown[] };
+      return { sidecar, decision: sidecar.decisions[0], source: `source-${index}` };
+    });
+  let rank = 0;
+  const decisions = entries
+    .filter((entry) => entry.path.endsWith("/sidecar.json"))
+    .flatMap((entry) => {
+      const sidecar = JSON.parse(entry.text) as {
+        stream_sha256: string;
+        decisions: Array<{ action: unknown; observed_policy_seq: number }>;
+      };
+      return sidecar.decisions.map((decision) => {
+        const selected = chosen.find(
+          (item) => item.sidecar.stream_sha256 === sidecar.stream_sha256 &&
+            (item.decision as { observed_policy_seq: number }).observed_policy_seq === decision.observed_policy_seq,
+        );
+        const alternate = (decision.action as { type: string }).type === "nudge"
+          ? { type: "idle", reason: "no_trigger", related_event_id: null }
+          : { type: "nudge", fire_event_id: "e_000001" };
+        return {
+          candidates: selected
+            ? [
+                {
+                  candidate_id: "A",
+                  action: decision.action,
+                  license: { result: "licensed", codes: [] },
+                  reveal: { origin: "oracle", provenance: { request_sha256: "sha256:" + "1".repeat(64) } },
+                },
+                {
+                  candidate_id: "B",
+                  action: alternate,
+                  license: { result: "blocked", codes: ["reason_mismatch"] },
+                  reveal: { origin: "teacher", provenance: { request_sha256: "sha256:" + "2".repeat(64) } },
+                },
+              ]
+            : [],
+          cluster_signature: selected ? `sha256:${"c".repeat(64)}` : null,
+          comparison: selected ? "causal_disagreement" : "equivalent",
+          decision_policy_seq: decision.observed_policy_seq,
+          oracle_action: decision.action,
+          priority_rank: rank++,
+          review_evidence: {
+            wave_id: "sentinel-0",
+            template_id: "packet-template",
+            causal_state_class: "packet-state",
+            boundary_class: "ordinary",
+            risk_flags: selected ? ["oracle_teacher_non_equivalence"] : [],
+            idle_boundary: null,
+            rollover: false,
+            trust_cell: { protocol: "generation", family: "neutral_typing", floor: "closed" },
+            review_route: {
+              review_required: Boolean(selected),
+              mandatory: Boolean(selected),
+              sample_rate: selected ? 1 : 0,
+              reasons: selected ? ["teacher_oracle_disagreement"] : [],
+              provisional_label_origin: null,
+            },
+          },
+          source_unit_id: selected?.source ?? "ordinary-source",
+          stream_sha256: sidecar.stream_sha256,
+        };
+      });
+    });
+  const member_identities = chosen.map((item) => ({
+    stream_sha256: item.sidecar.stream_sha256,
+    decision_policy_seq: (item.decision as { observed_policy_seq: number }).observed_policy_seq,
+  }));
+  const evidence = {
+    format_version: 1,
+    teacher_evidence_identity: `sha256:${"d".repeat(64)}`,
+    blind_seed_sha256: `sha256:${"b".repeat(64)}`,
+    decisions,
+    clusters: [{
+      signature: `sha256:${"c".repeat(64)}`,
+      priority_rank: 0,
+      representative: member_identities[0],
+      confirmations: member_identities.slice(1),
+      member_identities,
+      mechanical_invariants: {
+        all_members_non_equivalent: true,
+        distinct_source_unit_count: 3,
+        member_count: 3,
+        priority_order_sha256: `sha256:${"e".repeat(64)}`,
+        three_distinct_source_units: true,
+      },
+    }],
+    mechanical_invariants: {
+      all_packet_decisions_included: true,
+      decision_identity_count: decisions.length,
+      non_equivalent_decision_count: 3,
+    },
+  };
+  await addHashed(entries, "phase2-review-evidence.json", JSON.stringify(evidence));
+}
+
 describe("packet loader", () => {
   it("loads teacher-canary with verified SHA256SUMS", async () => {
     const result = await loadPacketFromEntries(loadCanaryEntries());
@@ -208,5 +315,61 @@ describe("packet loader", () => {
     expect(await sha256Hex("abc")).toBe(
       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
     );
+  });
+
+  it("loads checksum-bound Phase 2 evidence only when it closes over sidecar actions", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const result = await loadPacketFromEntries(entries);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.packet.phase2ReviewEvidence?.clusters[0].confirmations).toHaveLength(2);
+    expect(result.packet.phase2ReviewEvidence?.decisions).toHaveLength(
+      result.packet.streams.reduce((total, stream) => total + stream.sidecar.decisions.length, 0),
+    );
+  });
+
+  it("rejects Phase 2 evidence not listed in the checksum inventory", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const sums = entries.find((entry) => entry.path === "SHA256SUMS")!;
+    sums.text = sums.text
+      .split("\n")
+      .filter((line) => !line.endsWith("  phase2-review-evidence.json"))
+      .join("\n");
+    const result = await loadPacketFromEntries(entries);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContain("undeclared file not in SHA256SUMS: phase2-review-evidence.json");
+  });
+
+  it("rejects Phase 2 action or three-source cluster mismatches", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const path = "phase2-review-evidence.json";
+    const evidence = JSON.parse(entries.find((entry) => entry.path === path)!.text);
+    evidence.decisions[0].oracle_action = { type: "nudge", fire_event_id: "e_bad" };
+    await replaceHashed(entries, path, JSON.stringify(evidence));
+    const actionResult = await loadPacketFromEntries(entries);
+    expect(actionResult.ok).toBe(false);
+    if (!actionResult.ok) expect(actionResult.errors.join("\n")).toContain("candidates do not close over actions");
+
+    const sourceEntries = cloneEntries();
+    await addPhase2Evidence(sourceEntries);
+    const sourceEvidence = JSON.parse(sourceEntries.find((entry) => entry.path === path)!.text);
+    const member = sourceEvidence.clusters[0].member_identities[1];
+    const record = sourceEvidence.decisions.find(
+      (item: { stream_sha256: string; decision_policy_seq: number }) =>
+        item.stream_sha256 === member.stream_sha256 && item.decision_policy_seq === member.decision_policy_seq,
+    );
+    record.source_unit_id = sourceEvidence.decisions.find(
+      (item: { stream_sha256: string; decision_policy_seq: number }) =>
+        item.stream_sha256 === sourceEvidence.clusters[0].representative.stream_sha256 &&
+        item.decision_policy_seq === sourceEvidence.clusters[0].representative.decision_policy_seq,
+    ).source_unit_id;
+    await replaceHashed(sourceEntries, path, JSON.stringify(sourceEvidence));
+    const sourceResult = await loadPacketFromEntries(sourceEntries);
+    expect(sourceResult.ok).toBe(false);
+    if (!sourceResult.ok) expect(sourceResult.errors.join("\n")).toContain("three distinct source units");
   });
 });

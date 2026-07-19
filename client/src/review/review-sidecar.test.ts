@@ -62,6 +62,26 @@ describe("review sidecar export/import", () => {
     expect(result.errors.some((e) => e.includes("duplicate"))).toBe(true);
   });
 
+  it("round-trips the paired Phase 2 candidate choice and D3 category", () => {
+    const phase2: ReviewRecord = {
+      ...sample[2],
+      candidate_choice: "B",
+      disagreement_category: "teacher_error",
+      note: "Candidate B preserves the causal reference.",
+    };
+    const parsed = parseReviewSidecar(exportReviewSidecar([phase2]));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.records[0]).toMatchObject({
+      candidate_choice: "B",
+      disagreement_category: "teacher_error",
+    });
+    expect(parseReviewSidecar(JSON.stringify({ ...phase2, disagreement_category: undefined }))).toMatchObject({
+      ok: false,
+      errors: [expect.stringContaining("paired")],
+    });
+  });
+
   it("rejects unknown streams/sequences and conflicting records", () => {
     const knownStreams = new Set([
       "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -91,7 +111,7 @@ describe("review sidecar export/import", () => {
     const badSeq = mergeReviewRecords(existing, [unknownSeq], knownStreams, knownSeqs);
     expect(badSeq.ok).toBe(false);
 
-    const conflict: ReviewRecord = { ...first, note: "changed" };
+    const conflict: ReviewRecord = { ...first, candidate_choice: "A", disagreement_category: "teacher_error" };
     const conflicted = mergeReviewRecords(existing, [conflict], knownStreams, knownSeqs);
     expect(conflicted.ok).toBe(false);
     // Existing must remain unchanged.

@@ -10,10 +10,15 @@ import type {
   LoadedSegment,
   LoadedStream,
   Manifest,
+  Phase2ReviewEvidence,
   RuntimeLedger,
   Sidecar,
   SourceIndex,
 } from "./types";
+import {
+  parsePhase2ReviewEvidence,
+  validatePhase2EvidenceClosure,
+} from "./phase2-review-evidence";
 
 export type PacketLoadResult =
   | { ok: true; packet: LoadedPacket }
@@ -46,6 +51,7 @@ const ACTION_TYPES = new Set([
   "nudge",
   "idle",
 ]);
+const PHASE2_REVIEW_EVIDENCE_PATH = "phase2-review-evidence.json";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -910,12 +916,32 @@ async function loadPacketUnchecked(entries: PacketEntry[]): Promise<PacketLoadRe
     };
   }
 
+  let phase2ReviewEvidence: Phase2ReviewEvidence | null = null;
+  if (shaSums.has(PHASE2_REVIEW_EVIDENCE_PATH)) {
+    const phase2Text = byPath.get(PHASE2_REVIEW_EVIDENCE_PATH);
+    if (phase2Text === undefined) {
+      return { ok: false, errors: [`missing ${PHASE2_REVIEW_EVIDENCE_PATH}`] };
+    }
+    try {
+      phase2ReviewEvidence = parsePhase2ReviewEvidence(JSON.parse(phase2Text), action);
+      errors.push(
+        ...validatePhase2EvidenceClosure(phase2ReviewEvidence, streams).map(
+          (error) => `${PHASE2_REVIEW_EVIDENCE_PATH}: ${error}`,
+        ),
+      );
+    } catch (e) {
+      errors.push(`${PHASE2_REVIEW_EVIDENCE_PATH}: ${problem(e)}`);
+    }
+  }
+  if (errors.length > 0) return { ok: false, errors };
+
   return {
     ok: true,
     packet: {
       manifest,
       sourceIndex,
       streams,
+      phase2ReviewEvidence,
       integrity: {
         manifestSha256: shaSums.get("manifest.json")!,
         sourceIndexSha256: shaSums.get("source-index.json")!,

@@ -199,3 +199,51 @@ authoritative.
 - Before production review begins, the owner should archive each emitted review-plan digest with its
   human decision record; an approval record whose digest cannot be recomputed from the retained raw
   candidate set remains invalid by design.
+
+## 2026-07-19 — WP2-0 review evidence and control desk
+
+### Design decisions
+
+- `phase2-review-evidence.json` is the one optional, checksum-listed packet root for WP2-0. Its
+  canonical projection closes exactly over every packet sidecar decision/action, carries the full
+  `DecisionEvidence` and `ReviewRoute` context needed by D4/D7, and records the teacher-evidence
+  identity plus a digest of the frozen blind/confirmation seed. It creates no manifest authority or
+  format bump.
+- A/B order is derived in Python from the frozen blind seed and canonical decision identity; the
+  browser only renders that order. The raw inspector, replay action row, and divergence copy stay
+  neutral before a valid paired decision record exists. A valid restored paired record reveals the
+  origin/provenance with an aria-live announcement.
+- D3 uses the frozen seven-value selector. Paired `candidate_choice` and
+  `disagreement_category` sidecar fields require a trimmed human rationale on import as well as in
+  the form. `text_equivalent` is offered only for same-reference `respond`/`integrate` semantic
+  comparisons.
+- D7 representative selection uses precomputed priority; its two confirmations are deterministic
+  seed-ranked choices from distinct source units. The implementation adopts the conservative
+  interpretation that the representative and both confirmations must span three source units.
+  A short cluster fails closed rather than reusing a source. The batch disposition maps the
+  representative's hidden winning origin to each member's local A/B position; it never copies a
+  literal A/B across independently blinded rows.
+- The desk uses a warm graphite field, restrained amber blind state, and cool focus ring so the
+  dense review surface reads as an editorial control desk. It stays flat and no-gradient, retains
+  semantic/native controls and 44px targets, and collapses to a single responsive column without
+  hiding the review form or keyboard path.
+
+### Tradeoffs
+
+- The future Phase 2 wave writer is intentionally absent in WP2-0. It will add the already-tested
+  root evidence bytes to its normal files map before the existing SHA-256 generation step. Phase 1
+  packets remain valid when the root is absent.
+- The cluster worklist is an ordered compact rail, not a dashboard. It exposes the complete
+  representative, exactly two confirmations, and the invariant report without adding D8 triage or
+  per-cell reporting.
+
+### Deviations
+
+- None from the ratified WP2-0 behavior. The production Phase 2 wave writer remains deliberately
+  deferred as documented above; this scope supplies its tested checksum-bound projection contract.
+
+### Open questions
+
+- Before the first production wave, confirm the frozen blind/confirmation seed identifier and the
+  exact closed license inputs supplied by the wave writer. The packet will retain only the seed
+  digest so reviewers cannot infer the ordering seed.

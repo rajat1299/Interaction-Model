@@ -472,10 +472,96 @@ export type LoadedStream = {
   checkpointSelection: CheckpointSelection | null;
 };
 
+export type D3DisagreementCategory =
+  | "teacher_error"
+  | "oracle_error"
+  | "template_error"
+  | "asset_ambiguity"
+  | "contract_gap"
+  | "text_equivalent"
+  | "both_legal_but_oracle_preferred";
+
+export type Phase2CandidateLicense = {
+  result: "licensed" | "blocked";
+  codes: string[];
+};
+
+export type Phase2Candidate = {
+  candidate_id: "A" | "B";
+  action: Action;
+  license: Phase2CandidateLicense;
+  reveal: {
+    origin: "oracle" | "teacher";
+    provenance: Record<string, string>;
+  };
+};
+
+export type Phase2DecisionEvidence = {
+  stream_sha256: string;
+  decision_policy_seq: number;
+  oracle_action: Action;
+  comparison: "equivalent" | "semantic_review_required" | "causal_disagreement" | "teacher_label_missing";
+  candidates: Phase2Candidate[];
+  cluster_signature: string | null;
+  priority_rank: number;
+  review_evidence: {
+    wave_id: string;
+    template_id: string;
+    causal_state_class: string;
+    boundary_class: string;
+    risk_flags: string[];
+    idle_boundary: string | null;
+    rollover: boolean;
+    trust_cell: { protocol: string; family: string; floor: string };
+    review_route: {
+      review_required: boolean;
+      mandatory: boolean;
+      sample_rate: number;
+      reasons: string[];
+      provisional_label_origin: string | null;
+    };
+  };
+  source_unit_id: string;
+};
+
+export type Phase2DecisionIdentity = {
+  stream_sha256: string;
+  decision_policy_seq: number;
+};
+
+export type Phase2Cluster = {
+  signature: string;
+  priority_rank: number;
+  representative: Phase2DecisionIdentity;
+  confirmations: [Phase2DecisionIdentity, Phase2DecisionIdentity];
+  member_identities: Phase2DecisionIdentity[];
+  mechanical_invariants: {
+    all_members_non_equivalent: true;
+    distinct_source_unit_count: number;
+    member_count: number;
+    priority_order_sha256: string;
+    three_distinct_source_units: true;
+  };
+};
+
+export type Phase2ReviewEvidence = {
+  format_version: 1;
+  teacher_evidence_identity: string;
+  blind_seed_sha256: string;
+  decisions: Phase2DecisionEvidence[];
+  clusters: Phase2Cluster[];
+  mechanical_invariants: {
+    all_packet_decisions_included: true;
+    decision_identity_count: number;
+    non_equivalent_decision_count: number;
+  };
+};
+
 export type LoadedPacket = {
   manifest: Manifest;
   sourceIndex: SourceIndex;
   streams: LoadedStream[];
+  phase2ReviewEvidence: Phase2ReviewEvidence | null;
   integrity: {
     manifestSha256: string;
     sourceIndexSha256: string;

@@ -1,0 +1,79 @@
+import { describe, expect, it } from "vitest";
+import { recordKey, type ReviewMap } from "./review-sidecar";
+import {
+  applyClusterDisposition,
+  textEquivalentAllowed,
+} from "./phase2-review";
+import type { Phase2Cluster, Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
+
+const stream = (letter: string) => `sha256:${letter.repeat(64)}`;
+
+function decision(letter: string, choiceForOracle: "A" | "B", rank: number): Phase2DecisionEvidence {
+  const oracle = { type: "respond" as const, reply_to_event_id: "e_1", text: "oracle" };
+  const teacher = { type: "respond" as const, reply_to_event_id: "e_1", text: "teacher" };
+  const candidate = (candidate_id: "A" | "B", isOracle: boolean) => ({
+    candidate_id,
+    action: isOracle ? oracle : teacher,
+    license: { result: "licensed" as const, codes: [] },
+    reveal: { origin: isOracle ? "oracle" as const : "teacher" as const, provenance: { request_sha256: stream(isOracle ? "1" : "2") } },
+  });
+  return {
+    stream_sha256: stream(letter),
+    decision_policy_seq: rank,
+    oracle_action: oracle,
+    comparison: "semantic_review_required",
+    candidates: choiceForOracle === "A" ? [candidate("A", true), candidate("B", false)] : [candidate("A", false), candidate("B", true)],
+    cluster_signature: `sha256:${"c".repeat(64)}`,
+    priority_rank: rank,
+    source_unit_id: `source-${letter}`,
+    review_evidence: {
+      wave_id: "wave", template_id: "template", causal_state_class: "state", boundary_class: "ordinary",
+      risk_flags: ["oracle_teacher_non_equivalence"], idle_boundary: null, rollover: false,
+      trust_cell: { protocol: "generation", family: "neutral_typing", floor: "closed" },
+      review_route: { review_required: true, mandatory: true, sample_rate: 1, reasons: ["disagreement"], provisional_label_origin: null },
+    },
+  };
+}
+
+describe("Phase 2 cluster adjudication", () => {
+  it("maps a batch disposition to each member's local A/B order only", () => {
+    const members = [decision("a", "A", 0), decision("b", "B", 1), decision("c", "A", 2)];
+    const outsider = decision("d", "B", 3);
+    const cluster: Phase2Cluster = {
+      signature: `sha256:${"c".repeat(64)}`,
+      priority_rank: 0,
+      representative: { stream_sha256: members[0].stream_sha256, decision_policy_seq: 0 },
+      confirmations: [
+        { stream_sha256: members[1].stream_sha256, decision_policy_seq: 1 },
+        { stream_sha256: members[2].stream_sha256, decision_policy_seq: 2 },
+      ],
+      member_identities: members.map((item) => ({ stream_sha256: item.stream_sha256, decision_policy_seq: item.decision_policy_seq })),
+      mechanical_invariants: { all_members_non_equivalent: true as const, distinct_source_unit_count: 3, member_count: 3, priority_order_sha256: stream("e"), three_distinct_source_units: true as const },
+    };
+    const evidence: Phase2ReviewEvidence = {
+      format_version: 1,
+      teacher_evidence_identity: stream("d"),
+      blind_seed_sha256: stream("b"),
+      decisions: [...members, outsider],
+      clusters: [cluster],
+      mechanical_invariants: { all_packet_decisions_included: true, decision_identity_count: 4, non_equivalent_decision_count: 4 },
+    };
+    const reviews: ReviewMap = new Map([
+      [recordKey(members[0]), { stream_sha256: members[0].stream_sha256, decision_policy_seq: 0, decision: "flag", reason_code: "review", note: "Representative rationale", candidate_choice: "A", disagreement_category: "teacher_error" }],
+      [recordKey(outsider), { stream_sha256: outsider.stream_sha256, decision_policy_seq: 3, decision: "accept", reason_code: "ordinary", note: "keep" }],
+    ]);
+
+    const applied = applyClusterDisposition(reviews, evidence, cluster, "teacher_error", "Shared D7 diagnosis.");
+
+    expect(members.map((member) => applied.get(recordKey(member))?.candidate_choice)).toEqual(["A", "B", "A"]);
+    expect(members.every((member) => applied.get(recordKey(member))?.disagreement_category === "teacher_error")).toBe(true);
+    expect(applied.get(recordKey(outsider))?.note).toBe("keep");
+  });
+
+  it("only licenses text_equivalent for same-reference respond or integrate candidates", () => {
+    expect(textEquivalentAllowed(decision("a", "A", 0))).toBe(true);
+    const mismatch = decision("b", "A", 1);
+    mismatch.candidates[1].action = { type: "respond", reply_to_event_id: "e_2", text: "teacher" };
+    expect(textEquivalentAllowed(mismatch)).toBe(false);
+  });
+});

@@ -40,7 +40,23 @@ import {
   teacherReviewStatus,
   type TeacherLabelMap,
 } from "./teacher-labels";
-import type { Action, LoadedPacket, SidecarDecision } from "./types";
+import {
+  applyClusterDisposition,
+  isPhase2Revealed,
+  phase2DecisionFor,
+  phase2IsBlinded,
+  REVIEW_SHELL_HTML,
+  renderPhase2Shell,
+  renderClusterContext,
+  renderClusterRail,
+  validatePhase2Selection,
+} from "./phase2-review";
+import type {
+  Action,
+  LoadedPacket,
+  Phase2Cluster,
+  SidecarDecision,
+} from "./types";
 
 const PLAYBACK_MS: Record<string, number> = { "1x": 400, "4x": 100, "16x": 25 };
 
@@ -58,6 +74,7 @@ type ShellState = {
   playing: boolean;
   playSpeed: keyof typeof PLAYBACK_MS;
   playTimer: number | null;
+  selectedCluster: string | null;
 };
 
 const state: ShellState = {
@@ -74,6 +91,7 @@ const state: ShellState = {
   playing: false,
   playSpeed: "1x",
   playTimer: null,
+  selectedCluster: null,
 };
 
 function $(id: string): HTMLElement {
@@ -322,10 +340,30 @@ function currentOracleAction(): Action | null {
   return currentDecision()?.action ?? null;
 }
 
-function renderDivergence(): void {
+function currentPhase2Decision() {
+  const indexed = currentIndexed();
+  return phase2DecisionFor(
+    state.index?.packet.phase2ReviewEvidence ?? null,
+    indexed ? streamKey(indexed.stream.sha256) : "",
+    currentDecision()?.observed_policy_seq ?? null,
+  );
+}
+
+function selectedCluster(): Phase2Cluster | null {
+  return state.index?.packet.phase2ReviewEvidence?.clusters.find(
+    (cluster) => cluster.signature === state.selectedCluster,
+  ) ?? null;
+}
+
+function renderDivergence(blinded = false): void {
   const box = $("divergence");
   const indexed = currentIndexed();
   if (!indexed) {
+    box.hidden = true;
+    box.textContent = "";
+    return;
+  }
+  if (blinded) {
     box.hidden = true;
     box.textContent = "";
     return;
@@ -346,7 +384,11 @@ function renderDivergence(): void {
       .join(" | ");
 }
 
-function renderInspector(indexed: IndexedStream, vis: ReturnType<typeof stateAtEvent>): void {
+function renderInspector(
+  indexed: IndexedStream,
+  vis: ReturnType<typeof stateAtEvent>,
+  blinded: boolean,
+): void {
   const event = indexed.stream.segments
     .flatMap((s) => s.events)
     .find((e) => e.seq === vis.eventSeq);
@@ -361,8 +403,12 @@ function renderInspector(indexed: IndexedStream, vis: ReturnType<typeof stateAtE
     teacher = label ?? "teacher label not loaded";
   }
   ($("inspect-event") as HTMLPreElement).textContent = JSON.stringify(event ?? null, null, 2);
-  ($("inspect-oracle") as HTMLPreElement).textContent = JSON.stringify(oracleRec, null, 2);
-  ($("inspect-teacher") as HTMLPreElement).textContent = JSON.stringify(teacher, null, 2);
+  ($("inspect-oracle") as HTMLPreElement).textContent = blinded
+    ? "Blinded candidate origin and provenance are unavailable until a valid Phase 2 disposition is saved."
+    : JSON.stringify(oracleRec, null, 2);
+  ($("inspect-teacher") as HTMLPreElement).textContent = blinded
+    ? "Blinded candidate origin and provenance are unavailable until a valid Phase 2 disposition is saved."
+    : JSON.stringify(teacher, null, 2);
   ($("inspect-state") as HTMLPreElement).textContent = JSON.stringify(vis, null, 2);
 }
 
@@ -378,6 +424,9 @@ function renderAll(): void {
   const decision = currentDecision();
   const oracle = currentOracleAction();
   const counts = progressCounts();
+  const phase2Decision = currentPhase2Decision();
+  const phase2Revealed = phase2Decision ? isPhase2Revealed(state.reviews, phase2Decision) : false;
+  const phase2Blinded = phase2IsBlinded(phase2Decision, phase2Revealed);
 
   status.textContent =
     `Packet OK · ${state.index.order.length} streams · ` +
@@ -395,15 +444,24 @@ function renderAll(): void {
     `decision ${currentDecisionIdx() !== null ? currentDecisionIdx()! + 1 : "—"}/` +
     `${indexed.stream.sidecar.decisions.length}`;
 
-  renderDivergence();
+  renderDivergence(phase2Blinded);
   const oracleEvidence = decision
     ? {
         floorOpen: decision.floor_open,
         staleToolResultEventIds: decision.stale_tool_result_event_ids,
       }
     : null;
-  renderViewport($("viewport"), vis, oracle, oracleEvidence);
+  renderViewport($("viewport"), vis, phase2Blinded ? null : oracle, phase2Blinded ? null : oracleEvidence);
+  const actionRow = $("viewport").querySelector<HTMLElement>(".vp-action-row");
+  if (actionRow) {
+    actionRow.hidden = phase2Blinded;
+    actionRow.setAttribute("aria-hidden", String(phase2Blinded));
+  }
 
+  const phase2Active = renderPhase2Shell(phase2Decision, phase2Revealed, {
+    comparison: $("phase2-compare"), oraclePanel: $("oracle-panel"), teacherPanel: $("teacher-panel"),
+    fields: $("phase2-fields"), announcement: $("phase2-reveal"), category: $("phase2-category") as HTMLSelectElement,
+  });
   const teacherBox = $("teacher-panel");
   if (decision) {
     const label = lookupTeacherLabel(
@@ -453,6 +511,12 @@ function renderAll(): void {
   ($("decision-decision") as HTMLSelectElement).value = decRec?.decision ?? "";
   ($("decision-reason") as HTMLInputElement).value = decRec?.reason_code ?? "";
   ($("decision-note") as HTMLTextAreaElement).value = decRec?.note ?? "";
+  if (phase2Active) {
+    const choice = decRec?.candidate_choice;
+    for (const input of document.querySelectorAll<HTMLInputElement>('input[name="phase2-choice"]')) input.checked = input.value === choice;
+    const category = $("phase2-category") as HTMLSelectElement;
+    if (decRec?.disagreement_category && [...category.options].some((option) => option.value === decRec.disagreement_category)) category.value = decRec.disagreement_category;
+  }
 
   // Stream list
   const list = $("stream-list");
@@ -467,7 +531,12 @@ function renderAll(): void {
     list.appendChild(btn);
   }
 
-  renderInspector(indexed, vis);
+  renderClusterRail($("cluster-rail"), state.index.packet.phase2ReviewEvidence, state.selectedCluster, selectCluster);
+  const cluster = selectedCluster();
+  $("cluster-context").hidden = cluster === null;
+  $("cluster-batch").hidden = cluster === null;
+  renderClusterContext($("cluster-context"), cluster);
+  renderInspector(indexed, vis, phase2Active && !phase2Revealed);
 }
 
 function saveStreamReview(): void {
@@ -487,6 +556,56 @@ function saveStreamReview(): void {
   renderAll();
 }
 
+function selectCluster(cluster: Phase2Cluster): void {
+  state.selectedCluster = cluster.signature;
+  const indexed = state.index?.bySha.get(cluster.representative.stream_sha256.slice(7));
+  if (!indexed) return renderAll();
+  setStream(
+    indexed.stream.sha256,
+    eventIndexForPolicySeq(indexed, cluster.representative.decision_policy_seq),
+  );
+}
+
+function saveClusterDisposition(): void {
+  const cluster = selectedCluster();
+  const evidence = state.index?.packet.phase2ReviewEvidence;
+  const phase2 = currentPhase2Decision();
+  if (!cluster || !evidence || !phase2) return;
+  const selection = validatePhase2Selection(
+    phase2,
+    document.querySelector<HTMLInputElement>('input[name="phase2-choice"]:checked'),
+    $("phase2-category") as HTMLSelectElement,
+    $("decision-note") as HTMLTextAreaElement,
+  );
+  if (!selection) return;
+  const representative: ReviewRecord = {
+    stream_sha256: phase2.stream_sha256,
+    decision_policy_seq: phase2.decision_policy_seq,
+    decision: "flag",
+    reason_code: "cluster_disposition",
+    note: selection.rationale,
+    candidate_choice: selection.candidate_choice,
+    disagreement_category: selection.disagreement_category,
+  };
+  try {
+    const staged = new Map(state.reviews);
+    staged.set(recordKey(representative), representative);
+    state.reviews = applyClusterDisposition(
+      staged,
+      evidence,
+      cluster,
+      selection.disagreement_category,
+      selection.rationale,
+    );
+  } catch (error) {
+    ($("cluster-status") as HTMLElement).textContent = error instanceof Error ? error.message : String(error);
+    return;
+  }
+  markReviewChanged();
+  ($("cluster-status") as HTMLElement).textContent = "Cluster disposition saved for its members.";
+  renderAll();
+}
+
 function saveDecisionReview(): void {
   const indexed = currentIndexed();
   const decisionIdx = currentDecisionIdx();
@@ -494,12 +613,26 @@ function saveDecisionReview(): void {
   const decision = ($("decision-decision") as HTMLSelectElement).value as ReviewDecision | "";
   if (!decision) return;
   const policySeq = indexed.stream.sidecar.decisions[decisionIdx].observed_policy_seq;
+  const phase2 = currentPhase2Decision();
+  const selection = phase2 && (phase2.comparison === "semantic_review_required" || phase2.comparison === "causal_disagreement")
+    ? validatePhase2Selection(
+        phase2,
+        document.querySelector<HTMLInputElement>('input[name="phase2-choice"]:checked'),
+        $("phase2-category") as HTMLSelectElement,
+        $("decision-note") as HTMLTextAreaElement,
+      )
+    : null;
+  if (phase2 && phase2.candidates.length === 2 && !selection) return;
   const rec: ReviewRecord = {
     stream_sha256: streamKey(indexed.stream.sha256),
     decision_policy_seq: policySeq,
     decision,
     reason_code: ($("decision-reason") as HTMLInputElement).value,
-    note: ($("decision-note") as HTMLTextAreaElement).value,
+    note: selection?.rationale ?? ($("decision-note") as HTMLTextAreaElement).value,
+    ...(selection ? {
+      candidate_choice: selection.candidate_choice,
+      disagreement_category: selection.disagreement_category,
+    } : {}),
   };
   state.reviews.set(recordKey(rec), rec);
   markReviewChanged();
@@ -725,6 +858,7 @@ function onKey(e: KeyboardEvent): void {
 
 function adoptPacket(packet: LoadedPacket): void {
   stopPlayback();
+  state.selectedCluster = null;
   state.index = indexPacket(packet);
   state.reviews = restoreReviewDraft(state.index);
   state.dirty = false;
@@ -772,8 +906,9 @@ export function mountReviewShell(root: HTMLElement): () => void {
     playing: false,
     playSpeed: "1x",
     playTimer: null,
+    selectedCluster: null,
   });
-  root.innerHTML = SHELL_HTML;
+  root.innerHTML = REVIEW_SHELL_HTML;
 
   const packetInput = $("packet-dir") as HTMLInputElement;
   packetInput.addEventListener("change", () => void onPacketSelected(packetInput.files));
@@ -794,6 +929,7 @@ export function mountReviewShell(root: HTMLElement): () => void {
   $("filter-action").addEventListener("change", () => applyFilters());
   $("btn-save-stream").addEventListener("click", () => saveStreamReview());
   $("btn-save-decision").addEventListener("click", () => saveDecisionReview());
+  $("btn-save-cluster").addEventListener("click", () => saveClusterDisposition());
   $("btn-export").addEventListener("click", () => exportReviews());
   ($("import-review") as HTMLInputElement).addEventListener("change", (e) => {
     const f = (e.target as HTMLInputElement).files?.[0];
@@ -823,114 +959,3 @@ export function mountReviewShell(root: HTMLElement): () => void {
     window.removeEventListener("beforeunload", onUnload);
   };
 }
-
-const SHELL_HTML = `
-<header class="shell-header">
-  <h1>WP1-8 Review Shell</h1>
-  <p class="shell-sub">Local diagnostic instrument · packet bytes are never mutated</p>
-</header>
-
-<section class="shell-load" aria-label="Packet load">
-  <label for="packet-dir">Packet directory</label>
-  <input id="packet-dir" type="file" webkitdirectory directory multiple />
-  <label for="import-review">Import review sidecar</label>
-  <input id="import-review" type="file" accept=".jsonl,application/x-ndjson,text/plain" />
-  <label for="import-teacher">Import teacher labels</label>
-  <input id="import-teacher" type="file" accept=".jsonl,application/x-ndjson,text/plain" />
-  <button type="button" id="btn-export">Export review sidecar</button>
-  <pre id="load-status" class="status" role="status" aria-live="polite"></pre>
-  <p id="progress" class="status" role="status"></p>
-</section>
-
-<div id="divergence" class="divergence" hidden></div>
-
-<div class="shell-layout">
-  <aside class="shell-sidebar" aria-label="Streams">
-    <label for="filter-family">Family</label>
-    <select id="filter-family"></select>
-    <label for="filter-action">Action</label>
-    <select id="filter-action"></select>
-    <div id="stream-list" class="stream-list"></div>
-  </aside>
-
-  <main class="shell-main">
-    <div class="shell-nav" aria-label="Navigation">
-      <button type="button" id="btn-prev-event">Prev event (k)</button>
-      <button type="button" id="btn-next-event">Next event (j)</button>
-      <button type="button" id="btn-prev-decision">Prev decision (p)</button>
-      <button type="button" id="btn-next-decision">Next decision (n)</button>
-      <button type="button" id="btn-play" aria-pressed="false">Play</button>
-      <label for="play-speed">Speed</label>
-      <select id="play-speed">
-        <option value="1x">1×</option>
-        <option value="4x">4×</option>
-        <option value="16x">16×</option>
-      </select>
-      <span id="nav-meta"></span>
-    </div>
-
-    <div id="viewport"></div>
-
-    <section class="compare" aria-label="Oracle vs teacher">
-      <div id="oracle-panel" class="panel"></div>
-      <div id="teacher-panel" class="panel"></div>
-    </section>
-
-    <section class="review-forms" aria-label="Review decisions">
-      <fieldset>
-        <legend>Stream-level accept/reject/flag</legend>
-        <label>Decision
-          <select id="stream-decision">
-            <option value="">—</option>
-            <option value="accept">accept</option>
-            <option value="reject">reject</option>
-            <option value="flag">flag</option>
-          </select>
-        </label>
-        <label>Reason code <input id="stream-reason" type="text" /></label>
-        <label>Note <textarea id="stream-note" rows="2"></textarea></label>
-        <button type="button" id="btn-save-stream">Save stream review</button>
-      </fieldset>
-      <fieldset>
-        <legend>Per-decision note</legend>
-        <label>Decision
-          <select id="decision-decision">
-            <option value="">—</option>
-            <option value="accept">accept</option>
-            <option value="reject">reject</option>
-            <option value="flag">flag</option>
-          </select>
-        </label>
-        <label>Reason code <input id="decision-reason" type="text" /></label>
-        <label>Note <textarea id="decision-note" rows="2"></textarea></label>
-        <button type="button" id="btn-save-decision">Save decision review</button>
-      </fieldset>
-    </section>
-
-    <details class="inspector">
-      <summary>Raw JSON inspector</summary>
-      <h3>Current event</h3>
-      <pre id="inspect-event"></pre>
-      <h3>Oracle record</h3>
-      <pre id="inspect-oracle"></pre>
-      <h3>Teacher record</h3>
-      <pre id="inspect-teacher"></pre>
-      <h3>Derived reducer state</h3>
-      <pre id="inspect-state"></pre>
-    </details>
-  </main>
-
-  <aside class="shell-help" aria-label="Keyboard shortcuts">
-    <h2>Shortcuts</h2>
-    <ul>
-      <li><kbd>j</kbd>/<kbd>↓</kbd> next event</li>
-      <li><kbd>k</kbd>/<kbd>↑</kbd> prev event</li>
-      <li><kbd>n</kbd> next decision</li>
-      <li><kbd>p</kbd> prev decision</li>
-      <li><kbd>space</kbd> play/pause</li>
-      <li><kbd>1</kbd>/<kbd>4</kbd> playback speed</li>
-      <li><kbd>[</kbd>/<kbd>]</kbd> prev/next stream</li>
-    </ul>
-  </aside>
-</div>
-`;

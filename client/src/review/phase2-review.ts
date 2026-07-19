@@ -1,0 +1,294 @@
+/** Blinded comparison, D3 gating, and D7 batch review controls. */
+
+import {
+  recordKey,
+  type ReviewMap,
+  type ReviewRecord,
+} from "./review-sidecar";
+import type {
+  D3DisagreementCategory,
+  Phase2Cluster,
+  Phase2DecisionEvidence,
+  Phase2ReviewEvidence,
+} from "./types";
+
+const D3_CATEGORIES: D3DisagreementCategory[] = [
+  "teacher_error",
+  "oracle_error",
+  "template_error",
+  "asset_ambiguity",
+  "contract_gap",
+  "text_equivalent",
+  "both_legal_but_oracle_preferred",
+];
+
+export const PHASE2_COMPARE_HTML = `
+  <div id="phase2-compare" hidden></div>
+  <p id="phase2-reveal" class="status"></p>`;
+
+export const PHASE2_DECISION_FIELDS_HTML = `
+  <div id="phase2-fields" hidden>
+    <p>Choose the stronger candidate, frozen category, and human rationale.</p>
+    <div role="radiogroup" aria-label="Candidate choice">
+      <label><input id="phase2-choice-A" type="radio" name="phase2-choice" value="A" /> Candidate A</label>
+      <label><input id="phase2-choice-B" type="radio" name="phase2-choice" value="B" /> Candidate B</label>
+    </div>
+    <label for="phase2-category">Disagreement category</label>
+    <select id="phase2-category"></select>
+  </div>`;
+
+export const PHASE2_CLUSTER_HTML = `
+  <section id="cluster-context" class="cluster-context" aria-label="D7 cluster evidence"></section>
+  <section id="cluster-batch" class="cluster-batch" aria-label="Cluster batch disposition">
+    <p>Use the representative candidate choice, category, and rationale above for this cluster.</p>
+    <button type="button" id="btn-save-cluster">Apply disposition to cluster</button>
+    <p id="cluster-status" class="status" role="status"></p>
+  </section>`;
+
+export const REVIEW_SHELL_HTML = `
+<header class="shell-header"><h1>Interaction Review Desk</h1><p class="shell-sub">Phase 1-compatible, Phase 2-capable · packet bytes are never mutated</p></header>
+<section class="shell-load" aria-label="Packet load">
+  <label for="packet-dir">Packet directory</label><input id="packet-dir" type="file" webkitdirectory directory multiple />
+  <label for="import-review">Import review sidecar</label><input id="import-review" type="file" accept=".jsonl,application/x-ndjson,text/plain" />
+  <label for="import-teacher">Import comparison labels</label><input id="import-teacher" type="file" accept=".jsonl,application/x-ndjson,text/plain" />
+  <button type="button" id="btn-export">Export review sidecar</button><pre id="load-status" class="status" role="status" aria-live="polite"></pre><p id="progress" class="status" role="status"></p>
+</section>
+<div id="divergence" class="divergence" hidden></div>
+<div class="shell-layout">
+  <aside class="shell-sidebar" aria-label="Streams"><label for="filter-family">Family</label><select id="filter-family"></select><label for="filter-action">Action</label><select id="filter-action"></select><div id="stream-list" class="stream-list"></div><section id="cluster-rail" class="cluster-rail" aria-label="D7 cluster worklist"></section></aside>
+  <main class="shell-main">
+    <div class="shell-nav" aria-label="Navigation"><button type="button" id="btn-prev-event">Prev event (k)</button><button type="button" id="btn-next-event">Next event (j)</button><button type="button" id="btn-prev-decision">Prev decision (p)</button><button type="button" id="btn-next-decision">Next decision (n)</button><button type="button" id="btn-play" aria-pressed="false">Play</button><label for="play-speed">Speed</label><select id="play-speed"><option value="1x">1×</option><option value="4x">4×</option><option value="16x">16×</option></select><span id="nav-meta"></span></div>
+    <div id="viewport"></div>
+    <section class="compare" aria-label="Candidate comparison">${PHASE2_COMPARE_HTML}<div id="oracle-panel" class="panel"></div><div id="teacher-panel" class="panel"></div></section>
+    <section class="review-forms" aria-label="Review decisions">
+      <fieldset><legend>Stream-level accept/reject/flag</legend><label>Decision <select id="stream-decision"><option value="">—</option><option value="accept">accept</option><option value="reject">reject</option><option value="flag">flag</option></select></label><label>Reason code <input id="stream-reason" type="text" /></label><label>Note <textarea id="stream-note" rows="2"></textarea></label><button type="button" id="btn-save-stream">Save stream review</button></fieldset>
+      <fieldset><legend>Per-decision note</legend><label>Decision <select id="decision-decision"><option value="">—</option><option value="accept">accept</option><option value="reject">reject</option><option value="flag">flag</option></select></label><label>Reason code <input id="decision-reason" type="text" /></label><label>Note <textarea id="decision-note" rows="2"></textarea></label>${PHASE2_DECISION_FIELDS_HTML}<button type="button" id="btn-save-decision">Save decision review</button></fieldset>
+    </section>
+    ${PHASE2_CLUSTER_HTML}
+    <details class="inspector"><summary>Raw JSON inspector</summary><h3>Current event</h3><pre id="inspect-event"></pre><h3>Decision record</h3><pre id="inspect-oracle"></pre><h3>Candidate evidence</h3><pre id="inspect-teacher"></pre><h3>Derived reducer state</h3><pre id="inspect-state"></pre></details>
+  </main>
+  <aside class="shell-help" aria-label="Keyboard shortcuts"><h2>Shortcuts</h2><ul><li><kbd>j</kbd>/<kbd>↓</kbd> next event</li><li><kbd>k</kbd>/<kbd>↑</kbd> prev event</li><li><kbd>n</kbd> next decision</li><li><kbd>p</kbd> prev decision</li><li><kbd>space</kbd> play/pause</li><li><kbd>1</kbd>/<kbd>4</kbd> playback speed</li><li><kbd>[</kbd>/<kbd>]</kbd> prev/next stream</li></ul></aside>
+</div>`;
+
+export function phase2DecisionFor(
+  evidence: Phase2ReviewEvidence | null,
+  streamSha256: string,
+  policySeq: number | null,
+): Phase2DecisionEvidence | null {
+  if (!evidence || policySeq === null) return null;
+  return evidence.decisions.find(
+    (decision) => decision.stream_sha256 === streamSha256 && decision.decision_policy_seq === policySeq,
+  ) ?? null;
+}
+
+export function textEquivalentAllowed(decision: Phase2DecisionEvidence): boolean {
+  if (decision.comparison !== "semantic_review_required" || decision.candidates.length !== 2) return false;
+  const [first, second] = decision.candidates.map((candidate) => candidate.action);
+  if (first.type === "respond" && second.type === "respond") return first.reply_to_event_id === second.reply_to_event_id;
+  if (first.type === "integrate" && second.type === "integrate") return first.result_event_id === second.result_event_id;
+  return false;
+}
+
+export function categoriesFor(decision: Phase2DecisionEvidence): D3DisagreementCategory[] {
+  return D3_CATEGORIES.filter((category) => category !== "text_equivalent" || textEquivalentAllowed(decision));
+}
+
+export function isPhase2Revealed(reviews: ReviewMap, decision: Phase2DecisionEvidence): boolean {
+  const record = reviews.get(recordKey(decision));
+  return Boolean(
+    record &&
+    (record.candidate_choice === "A" || record.candidate_choice === "B") &&
+    record.disagreement_category &&
+    categoriesFor(decision).includes(record.disagreement_category) &&
+    record.note.trim(),
+  );
+}
+
+function actionText(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+/** Renders only neutral Candidate A/B copy until a decision record exists. */
+export function renderBlindedComparison(
+  target: HTMLElement,
+  decision: Phase2DecisionEvidence | null,
+  revealed: boolean,
+): boolean {
+  if (!decision || (decision.comparison !== "semantic_review_required" && decision.comparison !== "causal_disagreement")) return false;
+  target.replaceChildren();
+  target.className = "phase2-candidates";
+  for (const candidate of decision.candidates) {
+    const panel = document.createElement("article");
+    panel.className = "phase2-candidate";
+    const heading = document.createElement("h3");
+    heading.textContent = `Candidate ${candidate.candidate_id}`;
+    const license = document.createElement("p");
+    license.className = "candidate-license";
+    license.textContent = candidate.license.codes.length
+      ? `License: ${candidate.license.result} (${candidate.license.codes.join(", ")})`
+      : `License: ${candidate.license.result}`;
+    const action = document.createElement("pre");
+    action.textContent = actionText(candidate.action);
+    panel.append(heading, license, action);
+    if (revealed) {
+      const origin = document.createElement("p");
+      origin.className = "candidate-origin";
+      origin.textContent = `Origin: ${candidate.reveal.origin} · ${Object.entries(candidate.reveal.provenance).map(([name, value]) => `${name}=${value}`).join(" · ")}`;
+      panel.append(origin);
+    }
+    target.append(panel);
+  }
+  return true;
+}
+
+export function phase2IsBlinded(decision: Phase2DecisionEvidence | null, revealed: boolean): boolean {
+  return Boolean(
+    decision &&
+    (decision.comparison === "semantic_review_required" || decision.comparison === "causal_disagreement") &&
+    !revealed,
+  );
+}
+
+export function renderPhase2Shell(
+  decision: Phase2DecisionEvidence | null,
+  revealed: boolean,
+  controls: {
+    comparison: HTMLElement;
+    oraclePanel: HTMLElement;
+    teacherPanel: HTMLElement;
+    fields: HTMLElement;
+    announcement: HTMLElement;
+    category: HTMLSelectElement;
+  },
+): boolean {
+  const active = renderBlindedComparison(controls.comparison, decision, revealed);
+  controls.comparison.hidden = !active;
+  controls.oraclePanel.hidden = active;
+  controls.teacherPanel.hidden = active;
+  controls.fields.hidden = !active;
+  if (!active || !decision) return false;
+  controls.announcement.textContent = revealed
+    ? "Disposition saved. Candidate origins and provenance are now revealed."
+    : "Candidates remain blinded until a valid disposition is saved.";
+  controls.announcement.setAttribute("aria-live", "polite");
+  controls.category.replaceChildren(new Option("Choose a category", "", true, true));
+  controls.category.options[0].disabled = true;
+  categoriesFor(decision).forEach((value) => controls.category.add(new Option(value.replaceAll("_", " "), value)));
+  return true;
+}
+
+export type Phase2Selection = {
+  candidate_choice: "A" | "B";
+  disagreement_category: D3DisagreementCategory;
+  rationale: string;
+};
+
+/** Native controls, with the first missing field focused for rapid adjudication. */
+export function validatePhase2Selection(
+  decision: Phase2DecisionEvidence,
+  choice: HTMLInputElement | null,
+  category: HTMLSelectElement,
+  rationale: HTMLTextAreaElement,
+): Phase2Selection | null {
+  const selected = choice?.value === "A" || choice?.value === "B" ? choice.value : null;
+  const validCategories = categoriesFor(decision);
+  const categoryValue = category.value as D3DisagreementCategory;
+  const reason = rationale.value.trim();
+  for (const [control, valid, message] of [
+    [choice, selected !== null, "Choose Candidate A or Candidate B."],
+    [category, validCategories.includes(categoryValue), "Choose a frozen disagreement category."],
+    [rationale, reason.length > 0, "Enter the human rationale before saving."],
+  ] as const) {
+    if (!valid) {
+      control?.setCustomValidity(message);
+      control?.focus();
+      return null;
+    }
+    control?.setCustomValidity("");
+  }
+  return { candidate_choice: selected!, disagreement_category: categoryValue, rationale: reason };
+}
+
+export function renderClusterRail(
+  target: HTMLElement,
+  evidence: Phase2ReviewEvidence | null,
+  selected: string | null,
+  onSelect: (cluster: Phase2Cluster) => void,
+): void {
+  target.replaceChildren();
+  if (!evidence || evidence.clusters.length === 0) return;
+  const title = document.createElement("h2");
+  title.textContent = "D7 cluster worklist";
+  const list = document.createElement("div");
+  list.setAttribute("role", "list");
+  for (const cluster of evidence.clusters) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `cluster-item${cluster.signature === selected ? " active" : ""}`;
+    button.setAttribute("role", "listitem");
+    button.textContent = `Priority ${cluster.priority_rank + 1} · ${cluster.member_identities.length} decisions · 2 confirmations`;
+    button.addEventListener("click", () => onSelect(cluster));
+    list.append(button);
+  }
+  target.append(title, list);
+}
+
+export function renderClusterContext(target: HTMLElement, cluster: Phase2Cluster | null): void {
+  target.replaceChildren();
+  if (!cluster) return;
+  const title = document.createElement("h2");
+  title.textContent = "Cluster evidence";
+  const representative = document.createElement("p");
+  representative.textContent = `Representative: ${cluster.representative.stream_sha256.slice(0, 16)}… / ${cluster.representative.decision_policy_seq}`;
+  const confirmations = document.createElement("ol");
+  confirmations.setAttribute("aria-label", "Two confirmations");
+  cluster.confirmations.forEach((item) => {
+    const row = document.createElement("li");
+    row.textContent = `${item.stream_sha256.slice(0, 16)}… / ${item.decision_policy_seq}`;
+    confirmations.append(row);
+  });
+  const report = document.createElement("pre");
+  report.className = "cluster-invariants";
+  report.textContent = JSON.stringify(cluster.mechanical_invariants, null, 2);
+  target.append(title, representative, confirmations, report);
+}
+
+/**
+ * Batch disposition follows the representative's selected hidden origin, then
+ * uses every member's local A/B position. It never copies a literal A/B.
+ */
+export function applyClusterDisposition(
+  reviews: ReviewMap,
+  evidence: Phase2ReviewEvidence,
+  cluster: Phase2Cluster,
+  category: D3DisagreementCategory,
+  rationale: string,
+): ReviewMap {
+  const reason = rationale.trim();
+  if (!reason) throw new Error("cluster rationale must be nonblank");
+  const byKey = new Map(evidence.decisions.map((decision) => [recordKey(decision), decision]));
+  const representative = byKey.get(recordKey(cluster.representative));
+  const representativeRecord = reviews.get(recordKey(cluster.representative));
+  if (!representative || !representativeRecord?.candidate_choice || !isPhase2Revealed(reviews, representative)) throw new Error("save the representative candidate choice first");
+  const winningOrigin = representative.candidates.find(
+    (candidate) => candidate.candidate_id === representativeRecord.candidate_choice,
+  )?.reveal.origin;
+  if (!winningOrigin) throw new Error("representative candidate origin is unavailable");
+  const next = new Map(reviews);
+  for (const identity of cluster.member_identities) {
+    const decision = byKey.get(recordKey(identity));
+    const localChoice = decision?.candidates.find((candidate) => candidate.reveal.origin === winningOrigin)?.candidate_id;
+    if (!decision || !localChoice) throw new Error("cluster member does not carry the representative origin");
+    const record: ReviewRecord = {
+      stream_sha256: identity.stream_sha256,
+      decision_policy_seq: identity.decision_policy_seq,
+      decision: "flag",
+      reason_code: "cluster_disposition",
+      note: reason,
+      candidate_choice: localChoice,
+      disagreement_category: category,
+    };
+    next.set(recordKey(record), record);
+  }
+  return next;
+}

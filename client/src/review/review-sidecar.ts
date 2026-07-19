@@ -3,6 +3,8 @@
  * Canonical packet files are never touched; review decisions are a separate sidecar.
  */
 
+import type { D3DisagreementCategory } from "./types";
+
 export type ReviewDecision = "accept" | "reject" | "flag";
 
 export type ReviewRecord = {
@@ -11,7 +13,19 @@ export type ReviewRecord = {
   decision: ReviewDecision;
   reason_code: string;
   note: string;
+  candidate_choice?: "A" | "B";
+  disagreement_category?: D3DisagreementCategory;
 };
+
+const D3_CATEGORIES = new Set<D3DisagreementCategory>([
+  "teacher_error",
+  "oracle_error",
+  "template_error",
+  "asset_ambiguity",
+  "contract_gap",
+  "text_equivalent",
+  "both_legal_but_oracle_preferred",
+]);
 
 export type ImportResult =
   | { ok: true; records: ReviewRecord[] }
@@ -88,6 +102,15 @@ function validateRecord(r: unknown): string | null {
   }
   if (typeof rec.reason_code !== "string") return "reason_code must be a string";
   if (typeof rec.note !== "string") return "note must be a string";
+  const hasChoice = rec.candidate_choice !== undefined;
+  const hasCategory = rec.disagreement_category !== undefined;
+  if (hasChoice !== hasCategory) return "candidate_choice and disagreement_category must be paired";
+  if (hasChoice) {
+    if (rec.decision_policy_seq === null) return "paired Phase 2 fields require a decision identity";
+    if (rec.candidate_choice !== "A" && rec.candidate_choice !== "B") return "candidate_choice must be A or B";
+    if (!D3_CATEGORIES.has(rec.disagreement_category as D3DisagreementCategory)) return "disagreement_category is not a frozen D3 value";
+    if (rec.note.trim() === "") return "paired Phase 2 fields require a nonblank rationale note";
+  }
   return null;
 }
 
@@ -127,7 +150,9 @@ export function mergeReviewRecords(
       if (
         prev.decision !== r.decision ||
         prev.reason_code !== r.reason_code ||
-        prev.note !== r.note
+        prev.note !== r.note ||
+        prev.candidate_choice !== r.candidate_choice ||
+        prev.disagreement_category !== r.disagreement_category
       ) {
         errors.push(`conflicting record for ${key}: existing differs from imported (not overwriting)`);
         skipped++;

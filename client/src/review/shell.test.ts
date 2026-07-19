@@ -7,6 +7,87 @@ import {
 } from "./shell";
 import { loadPacketFromEntries } from "./packet-loader";
 import { loadCanaryEntries, loadCanaryTeacherLabels } from "./test-fixtures";
+import type { LoadedPacket } from "./types";
+
+function phase2Packet(packet: LoadedPacket): LoadedPacket {
+  const targets = packet.streams.slice(0, 3).map((stream, index) => ({
+    stream: stream.sidecar.stream_sha256,
+    seq: stream.sidecar.decisions[0].observed_policy_seq,
+    source: `source-${index}`,
+  }));
+  let rank = 0;
+  const decisions = packet.streams.flatMap((stream) => stream.sidecar.decisions.map((sidecar) => {
+    const target = targets.find((item) => item.stream === stream.sidecar.stream_sha256 && item.seq === sidecar.observed_policy_seq);
+    const alternate = sidecar.action.type === "nudge"
+      ? { type: "idle" as const, reason: "no_trigger" as const, related_event_id: null }
+      : { type: "nudge" as const, fire_event_id: "e_000001" };
+    const oracleFirst = rank % 2 === 0;
+    const candidate = (id: "A" | "B", oracle: boolean) => ({
+      candidate_id: id,
+      action: oracle ? sidecar.action : alternate,
+      license: { result: "licensed" as const, codes: [] },
+      reveal: { origin: oracle ? "oracle" as const : "teacher" as const, provenance: { request_sha256: `sha256:${(oracle ? "1" : "2").repeat(64)}` } },
+    });
+    const record = {
+      stream_sha256: stream.sidecar.stream_sha256,
+      decision_policy_seq: sidecar.observed_policy_seq,
+      oracle_action: sidecar.action,
+      comparison: target ? "causal_disagreement" as const : "equivalent" as const,
+      candidates: target ? (oracleFirst ? [candidate("A", true), candidate("B", false)] : [candidate("A", false), candidate("B", true)]) : [],
+      cluster_signature: target ? `sha256:${"c".repeat(64)}` : null,
+      priority_rank: rank++,
+      source_unit_id: target?.source ?? "ordinary-source",
+      review_evidence: {
+        wave_id: "sentinel", template_id: "template", causal_state_class: "state", boundary_class: "ordinary",
+        risk_flags: target ? ["oracle_teacher_non_equivalence"] : [], idle_boundary: null, rollover: false,
+        trust_cell: { protocol: "generation", family: "neutral_typing", floor: "closed" },
+        review_route: { review_required: Boolean(target), mandatory: Boolean(target), sample_rate: target ? 1 : 0, reasons: target ? ["disagreement"] : [], provisional_label_origin: null },
+      },
+    };
+    return record;
+  }));
+  const identities = targets.map((target) => ({ stream_sha256: target.stream, decision_policy_seq: target.seq }));
+  return {
+    ...packet,
+    phase2ReviewEvidence: {
+      format_version: 1,
+      teacher_evidence_identity: `sha256:${"d".repeat(64)}`,
+      blind_seed_sha256: `sha256:${"b".repeat(64)}`,
+      decisions,
+      clusters: [{
+        signature: `sha256:${"c".repeat(64)}`,
+        priority_rank: decisions.find((decision) => decision.cluster_signature !== null)!.priority_rank,
+        representative: identities[0],
+        confirmations: [identities[1], identities[2]],
+        member_identities: identities,
+        mechanical_invariants: { all_members_non_equivalent: true, distinct_source_unit_count: 3, member_count: 3, priority_order_sha256: `sha256:${"e".repeat(64)}`, three_distinct_source_units: true },
+      }],
+      mechanical_invariants: { all_packet_decisions_included: true, decision_identity_count: decisions.length, non_equivalent_decision_count: 3 },
+    },
+  } as LoadedPacket;
+}
+
+function phase2LegacyPacket(packet: LoadedPacket): LoadedPacket {
+  const phase2 = phase2Packet(packet);
+  const evidence = phase2.phase2ReviewEvidence!;
+  return {
+    ...phase2,
+    phase2ReviewEvidence: {
+      ...evidence,
+      decisions: evidence.decisions.map((decision) => ({
+        ...decision,
+        comparison: "equivalent" as const,
+        candidates: [],
+        cluster_signature: null,
+      })),
+      clusters: [],
+      mechanical_invariants: {
+        ...evidence.mechanical_invariants,
+        non_equivalent_decision_count: 0,
+      },
+    },
+  } as LoadedPacket;
+}
 
 describe("review shell", () => {
   let cleanup: (() => void) | null = null;
@@ -207,5 +288,67 @@ describe("review shell", () => {
     expect(box.getAttribute("role")).toBe("alert");
     expect(box.textContent).toContain("DIVERGENCE");
     expect(box.textContent).toContain("active_timer_ids");
+  });
+
+  it("keeps Phase 2 origin evidence blind until a valid saved disposition, then restores it", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(phase2Packet(loaded.packet));
+
+    document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
+    const preSave = [
+      document.getElementById("phase2-compare")!.textContent ?? "",
+      [...document.querySelectorAll<HTMLElement>("#viewport .vp-root > :not([hidden])")].map((node) => node.textContent ?? "").join("\n"),
+      document.getElementById("inspect-oracle")!.textContent ?? "",
+      document.getElementById("inspect-teacher")!.textContent ?? "",
+    ]
+      .join("\n");
+    expect(preSave).not.toMatch(/oracle|teacher|request_sha256/i);
+    expect(document.querySelector(".vp-action-row")?.hasAttribute("hidden")).toBe(true);
+    expect(document.getElementById("cluster-context")!.hidden).toBe(false);
+    expect(document.querySelectorAll("#cluster-context li")).toHaveLength(2);
+
+    (document.getElementById("decision-decision") as HTMLSelectElement).value = "flag";
+    (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
+    (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Candidate A preserves the evidence.";
+    document.getElementById("btn-save-cluster")!.click();
+    expect(document.getElementById("cluster-status")!.textContent).toContain("saved for its members");
+    expect(document.getElementById("phase2-reveal")!.textContent).toContain("origins and provenance");
+    expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
+
+    cleanup();
+    cleanup = null;
+    document.body.innerHTML = "";
+    const remount = document.createElement("div");
+    document.body.appendChild(remount);
+    cleanup = mountReviewShell(remount);
+    adoptLoadedPacket(phase2Packet(loaded.packet));
+    document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
+    expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
+  });
+
+  it("keeps equivalent Phase 2 decisions on the legacy save path", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(phase2LegacyPacket(loaded.packet));
+
+    expect(document.getElementById("phase2-compare")!.hidden).toBe(true);
+    expect(document.getElementById("phase2-fields")!.hidden).toBe(true);
+    expect(document.getElementById("oracle-panel")!.hidden).toBe(false);
+    (document.getElementById("decision-decision") as HTMLSelectElement).value = "accept";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "legacy compatible";
+    document.getElementById("btn-save-decision")!.click();
+
+    expect((document.getElementById("decision-decision") as HTMLSelectElement).value).toBe("accept");
+    expect(document.getElementById("phase2-compare")!.hidden).toBe(true);
   });
 });
