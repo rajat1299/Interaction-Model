@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from hashlib import sha256
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -20,7 +23,10 @@ from im.assets import (
     TextForm,
     create_split_seal,
     load_registry_jsonl,
+    load_split_seal_json,
+    load_verified_registry_seals,
     render_registry_jsonl,
+    render_split_seal_json,
     verify_split_seal,
 )
 
@@ -317,3 +323,67 @@ def test_seals_reject_empty_invalid_and_no_longer_approved_pools() -> None:
         assert "unapproved" in str(error)
     else:
         raise AssertionError("a seal verified after its approval was removed")
+
+
+def test_train_seal_allows_unapproved_records_but_remains_membership_bound() -> None:
+    approved_train = asset(
+        "a_train_approved",
+        Split.TRAIN,
+        "approved train text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    pending_train = asset("a_train_pending", Split.TRAIN, "pending train text")
+    registry = AssetRegistry(
+        assets=(approved_train, pending_train), reviews=(approved(approved_train),)
+    )
+
+    seal = create_split_seal(registry, Split.TRAIN)
+    assert [entry.asset_id for entry in seal.entries] == [approved_train.asset_id]
+    verify_split_seal(registry, seal)
+    loaded_registry, loaded_seals = load_verified_registry_seals(
+        render_registry_jsonl(registry),
+        (render_split_seal_json(seal),),
+        required_splits=(Split.TRAIN,),
+    )
+    assert loaded_registry.assets == registry.assets
+    assert loaded_seals == (seal,)
+
+    after_approval = AssetRegistry(
+        assets=(approved_train, pending_train),
+        reviews=(approved(approved_train), approved(pending_train)),
+    )
+    with pytest.raises(AssetValidationError, match="membership"):
+        verify_split_seal(after_approval, seal)
+
+
+def test_full_split_enum_allows_a_fully_approved_dev_seal() -> None:
+    dev = asset(
+        "a_dev_approved",
+        Split.DEV,
+        "approved dev text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    seal = create_split_seal(AssetRegistry(assets=(dev,), reviews=(approved(dev),)), Split.DEV)
+    assert seal.split is Split.DEV
+
+
+def test_phase1_seal_bytes_and_hashes_are_unchanged() -> None:
+    root = Path(__file__).parents[1] / "review" / "phase1" / "approved"
+    expected = {
+        "test-seal.json": "10dd0f547cddaf7556734791f0f7c3b78419d64bfe253a2a8839805cb5a34bda",
+        "demo-seal.json": "1ed5a625a6af19d82ebae576be614082539f2dd3e19e940b44ed0f488f923d86",
+    }
+    seal_bytes = tuple((root / name).read_bytes() for name in expected)
+    assert {sha256(data).hexdigest() for data in seal_bytes} == set(expected.values())
+    assert all(render_split_seal_json(load_split_seal_json(data)) == data for data in seal_bytes)
+
+    registry = load_registry_jsonl((root / "registry.jsonl").read_bytes())
+    for name, data in zip(expected, seal_bytes, strict=True):
+        actual = render_split_seal_json(
+            create_split_seal(registry, load_split_seal_json(data).split)
+        )
+        assert actual == data
+    _registry, seals = load_verified_registry_seals(
+        (root / "registry.jsonl").read_bytes(), seal_bytes
+    )
+    assert {seal.split for seal in seals} == {Split.TEST, Split.DEMO}

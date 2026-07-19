@@ -1,0 +1,34 @@
+# WP2-0a TRAIN asset-readiness review
+
+Status: **pending owner review**. The offline battery passed all 89 canonical TRAIN records. No record is approved or sealed by this packet.
+
+For each row, record `approved`, `flagged`, or `rejected` against the immutable content SHA-256 in `review-packet.json`. A sampled defect expands review to its semantic stratum; it does not approve unrelated records.
+
+Sampling seed: `wp2-0a-train-asset-review-v1-2026-07-19`.
+
+| Review role | Asset / content SHA-256 | Canonical content to review | Disposition |
+| --- | --- | --- | --- |
+| `supported_recurring_timer_instruction` | `a_067f59d6c56633412a0d45b4`<br>`sha256:d4279ad46c989c063c7c4e05b3fa11e1fcf1d25fe9fbdb0dcd74d4714702d50d` | timer form `supported`; instruction: `Remind me every thirty-seven minutes to open the fern ledger.`<br>interval_ms: `2220000`; message: `open the fern ledger` | __________________ |
+| `quoted_timer_instruction` | `a_4cea8a70a0bc3d075a6d7402`<br>`sha256:fbc184f2e14fbe71dd3056a382f8dfb5d559dc751c5c60a99f92a50f3ff2b25a` | timer form `quoted`; instruction: `Oren said, "remind me every nine minutes to water juniper."`<br>interval_ms: `None`; message: `None` | __________________ |
+| `negated_or_unsupported_timer_instruction` | `a_69ad488600511102654b9745`<br>`sha256:774a14267e2b38dbc80c2a7552fb90eff1f91df7f9de596e821f1c1bdebe3b2c` | timer form `quoted`; instruction: `The request says, "do not remind me every forty-one minutes to reset the copper dial."`<br>interval_ms: `None`; message: `None` | __________________ |
+| `partial_timer_or_control_fragment` | `a_87a385b4ca57e3d7c0cf237b`<br>`sha256:3f6b752fe34fd91dcbec31c4179a9813a4088a889c66076838df2152552f9d63` | text form `partial`: `Underli` | __________________ |
+| `direct_mark_control` | `a_fd6da4920d7808b5fa348adb`<br>`sha256:149b43ae3e3856a65823deb2978f28a3c915eaf10f8c73abe28e13b3b134f6b2` | text form `direct`: `Mark the category Harbor Signal as active in the legend.` | __________________ |
+| `quoted_or_non_direct_mark_control` | `a_1e24348f52635e4451ccf7ec`<br>`sha256:eb7f4ddbfe350d4c61167ced664648de981ebb091a0b65cc5e4a97459675f211` | text form `quoted`: `The note says, "underline ember quail."` | __________________ |
+| `partial_or_lexical_boundary_mark_fragment` | `a_c6b9ea7492dd47bde4d49e30`<br>`sha256:259b6171ea70f0959044c9b187d873251467ff804096a73c93b6a89800fc32b6` | text form `direct`: `Underline the first-aid kit in the weather journal.` | __________________ |
+| `cancel_referent_asset` | `a_297508c00e4e7beb6a08d268`<br>`sha256:3c3922d2e43c1d8a5cc8cb52a19fdd7bfb325ed3829dd5d1f32053f1119d8d22` | text form `direct`: `Cancel the green harbor reminder.` | __________________ |
+| `lookup_source_unit_query_and_ab` | `a_23b3d0a6cc4216d09016c9c2`<br>`sha256:a20cae9c735e377c819b95471ed9b7dc2f0581937240484aef0eee2875b4d625` | query: `Dawn Ferry gate letter`<br>A: `Dawn Ferry gate is M.`<br>B: `Dawn Ferry gate is R.` | __________________ |
+| `quota_weighted_neutral_typing_revision_pause` | `a_fac3874e81fa3f510b29a562`<br>`sha256:53d60c68f2a8cbf2690d5014e7911870862bf820e2a8accef078927cbea3b6bd` | canonical prompt/input preview (offline; not model output): `Use {"form":"neutral","kind":"text","text":"A blue cursor paused after the phrase about cedar shelves."} as the factual subject; construct a natural drafting scenario in which an ordinary revision continues after a quiet pause; place it during a sentence revision.` | __________________ |
+| `quota_weighted_live_lookup_lifecycle` | `a_93beb83846363b159a8f8f67`<br>`sha256:4811820409a4fa09856e5c719c6a0527bf2307db220d0696b10e635b0343847d` | canonical prompt/input preview (offline; not model output): `Use {"kind":"lookup","no_result_code":"brindle_port_absent","query":"Brindle Port tide color","result_a":"Brindle Port reports violet water.","result_b":"Brindle Port reports copper water."} as the factual subject; construct a natural drafting scenario in which an unresolved factual lookup receives one of two value-only results; place it inside a revised notebook entry.` | __________________ |
+| `quota_weighted_mark_activation_positive` | `a_4d9e7e5fdf179993fd3d8367`<br>`sha256:4d1067846435dd09befe1ca62eac111e5651ab706dc1aeabf9b0fff22065b96c` | text form `direct`: `Highlight 17 October 2031 in the harbor notes.` | __________________ |
+| `quota_weighted_timer_creation_normal_fire` | `a_7fbdae8ceff9c6dc9f3fd5c6`<br>`sha256:18ef14818107f372c9edb72516b67c8ffc3d51f3eaba25a6498a031e93a47366` | timer form `supported`; instruction: `Remind me every seventeen minutes to refill the blue pitcher.`<br>interval_ms: `1020000`; message: `refill the blue pitcher` | __________________ |
+| `quota_weighted_lookup_latency_duplicate_pressure` | `a_8c0437dc190d45e10531aef6`<br>`sha256:f251b8e612fd548a1e6a00352bbb105973cafd0dd04f4622044f97e8d1a702f0` | query: `Harbor Nix meter reading`<br>A: `Harbor Nix reads 204.`<br>B: `Harbor Nix reads 317.` | __________________ |
+| `quota_weighted_mark_lifecycle_negative` | `a_f23b664ce3f705453eb63437`<br>`sha256:0ec60b50e19fe6d1be079ccf089396a76dfc033cd1b94184dd64089c3b163c10` | text form `ambiguous`: `Stop marking the copper ibis.` | __________________ |
+| `quota_weighted_timer_cancel_quoting_stale_fire` | `a_e35790e7d64ca17bc1e3b4d9`<br>`sha256:302f9ac5bbff9b8f2f5a77e0c391553df6876061b13293e93bb99091bfcace20` | canonical prompt/input preview (offline; not model output): `Use {"form":"direct","kind":"text","text":"Cancel the green harbor reminder."} as the factual subject; construct a natural drafting scenario in which the cancellation wording retains the direct, quoted, or negated form shown; place it inside a revised notebook entry.` | __________________ |
+| `quota_weighted_stale_result_opening_boundary` | `a_be6e1d67ce9ee9f49d4a6bdf`<br>`sha256:6cb3c5ea66269c9048cf6d37f96b010f110dd289302a6fdca48144be042a30dc` | query: `Xanthic Pier bridge status`<br>A: `Xanthic Pier bridge is open.`<br>B: `Xanthic Pier bridge is blocked.` | __________________ |
+| `quota_weighted_timer_contention_backpressure` | `a_cbed0e4b0a90e183abeb575f`<br>`sha256:1aed49572b5ffef4eb0b96e0983dd7df8f019fd9362d3e2f3c73874da92645ec` | timer form `supported`; instruction: `Remind me every fifty-three minutes to close the orchard gate.`<br>interval_ms: `3180000`; message: `close the orchard gate` | __________________ |
+
+## Pending sentinel response
+
+Invitation: `What happened after the phrase about cedar shelves?`<br>Support: `a_0a86fd6dd35ddf5743c1f5c1` / `sha256:6946c37b0c1d2ee83c842d414c8db4dabad0b274bcec78b5e92f86ef016b5205` — `A blue cursor paused after the phrase about cedar shelves.`<br>Disposition: author one human ordinary-grounded response, then independently register, validate, and approve it. Both floor twins reuse that exact approved payload.
+
+No provider call, upload, DEV asset, response record, approval, or `train-seal.json` was created.

@@ -289,7 +289,7 @@ class SealEntry(_StrictModel):
 
 class SplitSeal(_StrictModel):
     format_version: Literal[1] = 1
-    split: Literal[Split.TEST, Split.DEMO]
+    split: Split
     entries: Annotated[tuple[SealEntry, ...], Field(min_length=1)]
     pool_sha256: Digest
 

@@ -460,27 +460,31 @@ def validate_registry(
     return ValidationReport(tuple(sorted(issues)))
 
 
-def _seal_entries(registry: AssetRegistry, split: Split) -> tuple[SealEntry, ...]:
+def _seal_entries(
+    registry: AssetRegistry, split: Split, *, allow_unapproved: bool = False
+) -> tuple[SealEntry, ...]:
     assets = registry.pool(split).corpus_records
     if not assets:
         raise AssetValidationError("sealed split pool must not be empty")
     unapproved = [asset.asset_id for asset in assets if not registry.is_approved(asset)]
-    if unapproved:
+    if unapproved and not allow_unapproved:
         raise AssetValidationError(f"cannot seal unapproved assets: {unapproved}")
+    if allow_unapproved:
+        assets = tuple(asset for asset in assets if registry.is_approved(asset))
+    if not assets:
+        raise AssetValidationError("sealed split pool has no approved assets")
     return tuple(
         SealEntry(asset_id=asset.asset_id, content_sha256=asset.content_sha256) for asset in assets
     )
 
 
 def create_split_seal(registry: AssetRegistry, split: Split | str) -> SplitSeal:
-    """Seal a nonempty, fully valid, currently approved test or demo pool."""
+    """Seal a nonempty valid split; TRAIN may omit currently unapproved records."""
     selected = Split(split)
-    if selected not in {Split.TEST, Split.DEMO}:
-        raise AssetValidationError("only test and demo pools can be sealed")
     if not registry.pool(selected).corpus_records:
         raise AssetValidationError("sealed split pool must not be empty")
     validate_registry(registry).raise_for_errors()
-    entries = _seal_entries(registry, selected)
+    entries = _seal_entries(registry, selected, allow_unapproved=selected is Split.TRAIN)
     return SplitSeal(
         split=selected,
         entries=entries,
@@ -518,6 +522,8 @@ def load_split_seal_json(data: bytes) -> SplitSeal:
 def load_verified_registry_seals(
     registry_jsonl: bytes,
     seal_jsons: Iterable[bytes],
+    *,
+    required_splits: Iterable[Split | str] = (Split.TEST, Split.DEMO),
 ) -> tuple[AssetRegistry, tuple[SplitSeal, ...]]:
     """Load canonical external review evidence and verify every supplied seal."""
     try:
@@ -527,7 +533,13 @@ def load_verified_registry_seals(
     seals = tuple(load_split_seal_json(data) for data in seal_jsons)
     if len({seal.split for seal in seals}) != len(seals):
         raise AssetValidationError("duplicate split seal")
-    if {seal.split for seal in seals} != {Split.TEST, Split.DEMO}:
+    try:
+        required = frozenset(Split(split) for split in required_splits)
+    except (TypeError, ValueError) as error:
+        raise AssetValidationError("required splits are invalid") from error
+    if not required:
+        raise AssetValidationError("required splits must not be empty")
+    if {seal.split for seal in seals} != required:
         raise AssetValidationError("persisted seals do not match the required splits")
     for seal in seals:
         verify_split_seal(registry, seal)

@@ -355,3 +355,52 @@ authoritative.
   TRAIN-prefix-bound, owner-approved response text record. Then the normal selection path can build
   the six streams and eight target-only requests without a provenance exception; provider
   authorization remains a later, separate decision.
+
+## 2026-07-19 — WP2-0a TRAIN asset-readiness review gate
+
+### Design decisions
+
+- `SplitSeal.split` now accepts the closed `Split` enum. The TEST and DEMO render path remains
+  unchanged and is regression-tested against both committed bytes and fixed SHA-256 values. The
+  verified-seal loader still requires exactly TEST+DEMO by default; callers must explicitly request
+  any later split set.
+- TRAIN sealing is deliberately partial: only currently approved, battery-valid TRAIN corpus
+  records would enter a TRAIN seal. An omitted unapproved record is not silently accepted—the
+  seal's membership/content digest changes as soon as it is approved, and verification fails until
+  a fresh reviewed seal is issued. No seal was written in this workstream.
+- The review packet runs `validate_registry` against the canonical registry and records the 89
+  TRAIN record IDs it checked. It fixes nine D14 structural roles plus nine quota-weighted
+  provisional family draws under `wp2-0a-train-asset-review-v1-2026-07-19`; the two selections
+  are disjoint, seed-ranked, include three templates, and append every flagged/unusual record.
+  The packet uses actual canonical payloads and full offline template inputs, never model output.
+- The packet asks for one human-authored ordinary-grounded response over the existing TRAIN
+  `a_0a86fd6dd35ddf5743c1f5c1` support asset and a fixed invitation. It contains no candidate
+  response or response record. The eventual one approved payload is bound to both sentinel floor
+  twins, with `awaiting_opening` on active and `respond` on yielded.
+- The coverage matrix exposes frozen quotas, the 10–20% wave-1 target interval, 90 response slots,
+  and the 200–300 global reserve. It names raw asset counts as proxies rather than decision-level
+  capacity or generated `source_unit_id` evidence, and marks approval/seal/wave-dependent results
+  pending.
+
+### Tradeoffs and deviations
+
+- The nine family draws are named *quota-weighted provisional*, not final PPS: frozen family slots
+  choose the family allocation, while actual decision utilization is unknown before generation. Two
+  high-use template families are retained so the review is not atomic-only.
+- TRAIN has no atomic `TimerForm.NEGATED` or `TimerForm.UNSUPPORTED` record. The structural packet
+  therefore presents the lexically negated quoted timer honestly, with that absence recorded;
+  it does not invent an asset. The partial control role uses `Underli`; lexical-boundary coverage
+  uses the hyphenated `first-aid kit` direct-mark asset.
+- No generic approval subsystem, auto-approval route, DEV material, provider invocation, upload,
+  or tranche-2 construction was added. The existing heldout review applicator remains untouched.
+
+### Open questions
+
+- Owner review must record an approval/flag/rejection per selected content digest and expand a
+  sampled defect to its semantic stratum before any TRAIN seal is considered.
+- Supply the requested ordinary-grounded response text, then register and validate it through the
+  existing response contract before the sentinel floor twins can be generated.
+- Trigger 4 is a provisional concern (thin negative-mark forms, no atomic negated/unsupported
+  timer form, and zero response inventory); trigger 3 is only a conservative 14.3% raw-source
+  proxy. Neither, nor any other D14 trigger, has procedurally fired before approval, sealing, and
+  wave-1 evidence.
