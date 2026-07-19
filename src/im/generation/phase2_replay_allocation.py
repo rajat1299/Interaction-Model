@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from math import inf
 
+from im.assets.model import artifact_digest
+
 Cell = tuple[str, str, str]
+BandSpec = tuple[str, tuple[int, int, int]]
+ReplayBands = tuple[BandSpec, BandSpec, BandSpec]
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +31,7 @@ def review_plan_sha256(
     manifest_sha256: str, selection_seed: str, selected: Sequence[object], queue: Sequence[object]
 ) -> str:
     """Hash the complete selected and reviewed replay state without trusting IDs alone."""
-    return _sha_identity(
+    return artifact_digest(
         {
             "reference_manifest_sha256": manifest_sha256,
             "selection_seed": selection_seed,
@@ -52,7 +55,7 @@ def review_plan_sha256(
 
 def review_rounds_sha256(review_rounds: Sequence[tuple[str, Mapping[str, bool]]]) -> str:
     """Hash the ordered history of content-bound review decisions."""
-    return _sha_identity(
+    return artifact_digest(
         [
             {"review_plan_sha256": digest, "decisions": dict(decisions)}
             for digest, decisions in review_rounds
@@ -64,7 +67,7 @@ def choose_maximum_token_selection[Candidate](
     candidates: Sequence[Candidate],
     *,
     family_quotas: Mapping[str, int],
-    length_bands: Mapping[str, tuple[int, int, int]],
+    replay_bands: ReplayBands,
     multi_turn_target: int,
     target_examples: int,
     supervised_token_minimum: int,
@@ -73,6 +76,7 @@ def choose_maximum_token_selection[Candidate](
     rank: Callable[[Candidate], str],
 ) -> AllocationResult[Candidate] | AllocationFailure:
     """Choose the maximum supervised-token feasible corpus over every turn/band allocation."""
+    _validate_replay_bands(replay_bands)
     grouped: dict[Cell, list[Candidate]] = defaultdict(list)
     for candidate in candidates:
         grouped[classify(candidate)].append(candidate)
@@ -81,9 +85,8 @@ def choose_maximum_token_selection[Candidate](
     allocations = _multi_band_allocations(
         grouped,
         family_quotas,
-        length_bands,
+        replay_bands,
         multi_turn_target,
-        target_examples,
         token_count,
     )
     best: AllocationResult[Candidate] | None = None
@@ -94,7 +97,7 @@ def choose_maximum_token_selection[Candidate](
             grouped,
             allocation,
             family_quotas,
-            length_bands,
+            replay_bands,
             target_examples,
             token_count,
             rank,
@@ -155,15 +158,12 @@ def stratified_review_sample[Candidate](
 def _multi_band_allocations[Candidate](
     grouped: Mapping[Cell, Sequence[Candidate]],
     family_quotas: Mapping[str, int],
-    length_bands: Mapping[str, tuple[int, int, int]],
+    replay_bands: ReplayBands,
     multi_turn_target: int,
-    target_examples: int,
     token_count: Callable[[Candidate], int],
 ) -> tuple[tuple[tuple[int, int, int], int], ...]:
-    bands = tuple(length_bands)
     bounds: list[tuple[int, int]] = []
-    for band in bands:
-        target = length_bands[band][2]
+    for band, (_minimum, _maximum, target) in replay_bands:
         multi_available = sum(
             len(grouped.get((family, band, "multi"), ())) for family in family_quotas
         )
@@ -171,17 +171,18 @@ def _multi_band_allocations[Candidate](
             len(grouped.get((family, band, "single"), ())) for family in family_quotas
         )
         bounds.append((max(0, target - single_available), min(target, multi_available)))
+    short_bounds, medium_bounds, long_bounds = bounds
     allocations: list[tuple[tuple[int, int, int], int]] = []
-    for short in range(bounds[0][0], bounds[0][1] + 1):
-        for medium in range(bounds[1][0], bounds[1][1] + 1):
+    for short in range(short_bounds[0], short_bounds[1] + 1):
+        for medium in range(medium_bounds[0], medium_bounds[1] + 1):
             long = multi_turn_target - short - medium
-            if bounds[2][0] <= long <= bounds[2][1]:
+            if long_bounds[0] <= long <= long_bounds[1]:
                 allocation = (short, medium, long)
                 allocations.append(
                     (
                         allocation,
                         _token_upper_bound(
-                            grouped, family_quotas, length_bands, allocation, token_count
+                            grouped, family_quotas, replay_bands, allocation, token_count
                         ),
                     )
                 )
@@ -199,13 +200,12 @@ def _multi_band_allocations[Candidate](
 def _token_upper_bound[Candidate](
     grouped: Mapping[Cell, Sequence[Candidate]],
     family_quotas: Mapping[str, int],
-    length_bands: Mapping[str, tuple[int, int, int]],
+    replay_bands: ReplayBands,
     allocation: tuple[int, int, int],
     token_count: Callable[[Candidate], int],
 ) -> int:
     total = 0
-    for index, band in enumerate(length_bands):
-        target = length_bands[band][2]
+    for index, (band, (_minimum, _maximum, target)) in enumerate(replay_bands):
         for turn, count in (("multi", allocation[index]), ("single", target - allocation[index])):
             values = sorted(
                 (
@@ -226,13 +226,13 @@ def _maximum_for_allocation[Candidate](
     grouped: Mapping[Cell, Sequence[Candidate]],
     allocation: tuple[int, int, int],
     family_quotas: Mapping[str, int],
-    length_bands: Mapping[str, tuple[int, int, int]],
+    replay_bands: ReplayBands,
     target_examples: int,
     token_count: Callable[[Candidate], int],
     rank: Callable[[Candidate], str],
 ) -> tuple[Candidate, ...] | None:
     families = tuple(family_quotas)
-    bands = tuple(length_bands)
+    bands = tuple(band for band, _specification in replay_bands)
     source, sink = 0, 1
     family_nodes = {family: index + 2 for index, family in enumerate(families)}
     band_turns = tuple((band, turn) for band in bands for turn in ("single", "multi"))
@@ -252,9 +252,8 @@ def _maximum_for_allocation[Candidate](
             score = token_count(candidate) * scale + len(rank_order) - rank_order[rank(candidate)]
             edge_index = graph.add_edge(family_nodes[family], type_nodes[(band, turn)], 1, score)
             candidate_edges.append((candidate, family_nodes[family], edge_index))
-    for index, band in enumerate(bands):
+    for index, (band, (_minimum, _maximum, target)) in enumerate(replay_bands):
         multi = allocation[index]
-        target = length_bands[band][2]
         graph.add_edge(type_nodes[(band, "multi")], band_nodes[band], multi, 0)
         graph.add_edge(type_nodes[(band, "single")], band_nodes[band], target - multi, 0)
         graph.add_edge(band_nodes[band], sink, target, 0)
@@ -332,6 +331,6 @@ class _MaxCostFlow:
         return flow
 
 
-def _sha_identity(value: object) -> str:
-    encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
-    return f"sha256:{sha256(encoded).hexdigest()}"
+def _validate_replay_bands(replay_bands: ReplayBands) -> None:
+    if tuple(name for name, _specification in replay_bands) != ("short", "medium", "long"):
+        raise ValueError("replay_bands must be the ordered short, medium, and long specifications")

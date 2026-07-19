@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 from collections import Counter
-from hashlib import sha256
 
 import pytest
 
 import im.generation.phase2_replay as replay
+from im.assets.model import artifact_digest
 from im.generation.phase2_replay import (
     BACKBONE_REVISION,
     COMPOSITION_QUOTAS,
@@ -22,8 +21,7 @@ SEED = "phase2-replay-test-seed"
 
 
 def _digest(value: object) -> str:
-    encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
-    return f"sha256:{sha256(encoded).hexdigest()}"
+    return artifact_digest(value)
 
 
 def _provenance(messages: list[dict[str, str]]) -> dict[str, object]:
@@ -243,6 +241,24 @@ def test_filter_rejects_reference_overlaps_but_allows_ordinary_timer_mark_and_id
     assert "approved_response_overlap" in report.outcomes[1].rejection_reasons
     assert "heldout_asset_overlap" in report.outcomes[2].rejection_reasons
     assert "project_nonce_overlap" in report.outcomes[2].rejection_reasons
+
+
+def test_reference_manifest_precomputes_normalised_fingerprints() -> None:
+    manifest = replay._load_reference_manifest(
+        _manifest(interaction_texts=("  Alpha BETA gamma  ",))
+    )
+    reference = next(item for item in manifest.references if item[0] == "interaction_overlap")
+    fingerprints = next(
+        item for item in manifest.reference_fingerprints if item[0] == "interaction_overlap"
+    )
+
+    assert reference[1] == ("alpha beta gamma",)
+    assert fingerprints[1] == (
+        (
+            frozenset({"alpha", "beta", "gamma"}),
+            frozenset({("alpha", "beta", "gamma")}),
+        ),
+    )
 
 
 @pytest.mark.parametrize("field", ("fire_event_id", "target_event_id", "result_event_id"))
