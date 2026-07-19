@@ -187,6 +187,11 @@ def test_fresh_catalog_has_exact_vectors_and_family_specific_inputs() -> None:
     delegates = [action for action in lookup.actions if isinstance(action, DelegateAction)]
     assert len(delegates) == 2
     assert delegates[0].args.query != delegates[1].args.query
+    negative = dict(programs)["g7-fresh-mark-negative-7i-3m"]
+    assert any(
+        isinstance(action, IdleAction) and action.reason is IdleReason.AMBIGUOUS
+        for action in negative.actions
+    )
 
 
 def test_contextual_timer_shapes_have_forty_distinct_input_variants() -> None:

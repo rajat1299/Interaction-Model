@@ -8,6 +8,7 @@ import pytest
 from im.assets.model import canonical_artifact_bytes
 from im.generation.g7_response_assets import (
     GeneratedResponseAsset,
+    HumanAuthoredResponseAsset,
     ResponseAssetBinding,
     ResponseAssetError,
     ResponseDraftSpec,
@@ -98,6 +99,23 @@ def test_asset_binds_exact_prefix_request_and_hash() -> None:
         replace(asset, serialized_neutral_request=asset.serialized_neutral_request + b" ")
     with pytest.raises(ResponseAssetError, match="hash"):
         replace(asset, serialized_neutral_request_sha256="0" * 64)
+
+
+def test_human_authored_asset_validates_exact_text_and_support() -> None:
+    generated = _asset(ResponseKind.ORDINARY_GROUNDED, 0)
+    human = HumanAuthoredResponseAsset.create(
+        generated.draft,
+        teacher_visible_prefix=generated.teacher_visible_prefix,
+        response_text=generated.candidate_response,
+        visible_support_by_event_id={"e_000002": generated.candidate_response},
+    )
+
+    assert human.response_text == generated.candidate_response
+    assert human.serialized_neutral_request == generated.serialized_neutral_request
+    with pytest.raises(ResponseContractError, match="required answer point"):
+        replace(human, response_text="Something else happened.")
+    with pytest.raises(ResponseAssetError, match="exactly match"):
+        replace(human, visible_support_by_event_id={"e_other": "Unsupported."})
 
 
 def test_simple_response_profile_is_exactly_ten_assets() -> None:

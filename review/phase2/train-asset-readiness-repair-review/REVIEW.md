@@ -1,0 +1,22 @@
+# WP2-0a scoped TRAIN repair review
+
+Status: **five repaired records pending owner re-review**.
+
+The prior 18 approvals are sealed. Review only these five new content digests:
+
+- `a_047297e7827179204b66c329` — `sha256:645c4248b6a8b44aead3c9e9e6cd09873740f575a8dc77ebe1740bb651f1dddf`
+  Prior rejection: Complete direct replacement control, not ambiguous.
+- `a_cf3fb85cbef8786d98724b33` — `sha256:a753a1aa30e1d19932f0678dbdf141c2b068abfbdcae1e5e0d45766c7c8a29f2`
+  Prior rejection: Grammar omits direct-stop and direct-replacement branches and misclassifies direct controls as ambiguous.
+- `a_e2dd083f4916def2a997d4bf` — `sha256:0bef73c6ae6874ff3786e292b1bf9e98e80eed0948670534f3108d986ca4b6f1`
+  Prior rejection: Complete direct stop control, not ambiguous.
+- `a_f23b664ce3f705453eb63437` — `sha256:814f302632b8d6c0327076f1b98790e143caca4625617b3dd4aff3ab5cd75ed4`
+  Prior rejection: Complete direct stop control, not ambiguous.
+- `a_fd6da4920d7808b5fa348adb` — `sha256:416b5f2e0eba7c096ab27459b69ce1b794631cc035bc9ee0b8471bd9ea96d7b3`
+  Prior rejection: Requests a status change, not a prospective text-span annotation.
+
+Reply: `approved|rejected <asset_id> <repaired_content_sha256> [reason]`
+
+Current TRAIN seal entries: `18`.
+Coverage trigger 4 now includes required subtypes with zero sealed sources.
+No targeted tranche, DEV material, or external request was created.

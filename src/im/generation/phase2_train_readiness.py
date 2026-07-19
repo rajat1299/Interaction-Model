@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -20,9 +19,14 @@ from im.assets.model import (
     canonical_artifact_bytes,
 )
 from im.assets.registry import AssetRegistry, load_registry_jsonl
-from im.assets.validate import ValidationIssue, ValidationReport, validate_registry
+from im.assets.validate import validate_registry
 from im.generation.g7_response_assets import ResponseDraftSpec
-from im.generation.phase2_selection import SelectionContract, load_selection_contract
+from im.generation.phase2_selection import load_selection_contract
+from im.generation.phase2_train_coverage import (
+    TrainStatus,
+    build_train_coverage_matrix,
+    train_status,
+)
 from im.generation.response_contracts import AnswerContract, RequiredAnswerPoint, ResponseKind
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -47,25 +51,6 @@ _TEMPLATE_USAGE_FAMILIES = frozenset({CorpusFamily.NEUTRAL_TYPING, CorpusFamily.
 
 class TrainReadinessError(ValueError):
     """The deterministic WP2-0a packet cannot be built or verified."""
-
-
-@dataclass(frozen=True, slots=True)
-class TrainStatus:
-    errors: tuple[ValidationIssue, ...]
-    review_flags: tuple[ValidationIssue, ...]
-
-    @property
-    def result(self) -> str:
-        if self.errors:
-            return "blocked"
-        return "review_required" if self.review_flags else "pass"
-
-    def as_json(self) -> dict[str, object]:
-        return {
-            "result": self.result,
-            "errors": [_issue_json(issue) for issue in self.errors],
-            "review_flags": [_issue_json(issue) for issue in self.review_flags],
-        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +105,7 @@ def build_train_readiness_artifacts(
         raise TrainReadinessError("canonical TRAIN corpus must contain 77 atomics and 12 templates")
 
     asset_index = {asset.asset_id: asset for asset in train}
-    status = _train_status(validate_registry(registry), train)
+    status = train_status(validate_registry(registry), train)
     contract = load_selection_contract(selection_contract_path)
     structural = _structural_units(train)
     usage = _usage_units(train, used_ids=_asset_ids(structural))
@@ -164,12 +149,17 @@ def build_train_readiness_artifacts(
             "units": [unit.as_json(asset_index) for unit in units],
         },
         "repair_expansion": {
-            "defect": "MARK_NEGATIVE grammar omitted ambiguous inputs despite ambiguous seeds",
+            "defect": (
+                "MARK_NEGATIVE forms and grammar conflated direct stop/replacement controls with "
+                "genuine ambiguity"
+            ),
             "semantic_stratum": CorpusFamily.MARK_NEGATIVE.value,
             "semantic_stratum_asset_ids": [
                 asset.asset_id for asset in train if CorpusFamily.MARK_NEGATIVE in asset.coverage
             ],
-            "added_asset_ids": [] if expansion is None else [asset.asset_id for asset in expansion.assets],  # noqa: E501
+            "added_asset_ids": []
+            if expansion is None
+            else [asset.asset_id for asset in expansion.assets],  # noqa: E501
             "reviewed_asset_ids_after_deduplication": [
                 asset_id
                 for asset_id in reviewed_ids
@@ -182,6 +172,10 @@ def build_train_readiness_artifacts(
                 "[brief reason for flagged/rejected]"
             ),
             "approval_boundary": "This packet is review input only; it cannot change approval or seal state.",  # noqa: E501
+            "expansion_prompt_constraints": [
+                "Lookup expansion prompts must preserve the seed query and both A/B results as one linked factual unit.",  # noqa: E501
+                "Date-target expansion prompts must retain '17 October 2031' verbatim.",
+            ],
         },
         "pending_response_request": response,
         "non_actions": [
@@ -191,7 +185,7 @@ def build_train_readiness_artifacts(
         ],
         "coverage_matrix_file": "coverage-matrix.json",
     }
-    coverage = _coverage_matrix(registry, train, status, contract)
+    coverage = build_train_coverage_matrix(registry, contract)
     review = _review_markdown(status, units, asset_index, response).encode()
     artifacts = {
         "REVIEW.md": review,
@@ -254,17 +248,6 @@ def verify_train_readiness_artifacts(
             )
 
 
-def _train_status(report: ValidationReport, train: tuple[AssetRecord, ...]) -> TrainStatus:
-    train_ids = {asset.asset_id for asset in train}
-    issues = tuple(
-        issue for issue in report.issues if not issue.asset_ids or train_ids.intersection(issue.asset_ids)  # noqa: E501
-    )
-    return TrainStatus(
-        tuple(issue for issue in issues if issue.severity.value == "error"),
-        tuple(issue for issue in issues if issue.severity.value == "review"),
-    )
-
-
 def _structural_units(train: tuple[AssetRecord, ...]) -> tuple[ReviewUnit, ...]:
     def pick(
         role: str,
@@ -288,20 +271,63 @@ def _structural_units(train: tuple[AssetRecord, ...]) -> tuple[ReviewUnit, ...]:
         ]
         if not candidates:
             raise TrainReadinessError(f"TRAIN corpus lacks structural role: {role}")
-        return ReviewUnit(role, "structural", (min(candidates, key=lambda a: _rank(role, a.asset_id)),), evidence)  # noqa: E501
+        return ReviewUnit(
+            role, "structural", (min(candidates, key=lambda a: _rank(role, a.asset_id)),), evidence
+        )  # noqa: E501
 
     return tuple(
         pick(*spec)
         for spec in (
-            ("supported_recurring_timer_instruction", TimerAssetPayload, CorpusFamily.TIMER_NORMAL, "supported"),  # noqa: E501
+            (
+                "supported_recurring_timer_instruction",
+                TimerAssetPayload,
+                CorpusFamily.TIMER_NORMAL,
+                "supported",
+            ),  # noqa: E501
             ("quoted_timer_instruction", TimerAssetPayload, None, "quoted", "", "do not"),
-            ("negated_or_unsupported_timer_instruction", TimerAssetPayload, None, None, "do not", "", "", "The selected quoted timer has lexical negation; TRAIN has no atomic TimerForm.NEGATED or TimerForm.UNSUPPORTED record."),  # noqa: E501
+            (
+                "quoted_timer_with_lexical_negation",
+                TimerAssetPayload,
+                None,
+                None,
+                "do not",
+                "",
+                "",
+                "The selected record remains TimerForm.QUOTED: its quote contains lexical "
+                "negation, but it is not an atomic direct-negated or unsupported timer. Both "
+                "atomic subtypes are absent from TRAIN.",
+            ),  # noqa: E501
             ("partial_timer_or_control_fragment", TextAssetPayload, None, "partial"),
             ("direct_mark_control", TextAssetPayload, CorpusFamily.MARK_POSITIVE, "direct"),
-            ("quoted_or_non_direct_mark_control", TextAssetPayload, CorpusFamily.MARK_NEGATIVE, "quoted"),  # noqa: E501
-            ("partial_or_lexical_boundary_mark_fragment", TextAssetPayload, CorpusFamily.MARK_POSITIVE, "direct", "", "", "first-aid kit", "The selected direct mark uses the hyphenated protected target 'first-aid kit'; review lexical target boundaries."),  # noqa: E501
+            (
+                "quoted_or_non_direct_mark_control",
+                TextAssetPayload,
+                CorpusFamily.MARK_NEGATIVE,
+                "quoted",
+            ),  # noqa: E501
+            (
+                "partial_or_lexical_boundary_mark_fragment",
+                TextAssetPayload,
+                CorpusFamily.MARK_POSITIVE,
+                "direct",
+                "",
+                "",
+                "first-aid kit",
+                "The selected direct mark uses the hyphenated protected target 'first-aid kit'; "
+                "review lexical target boundaries.",
+            ),  # noqa: E501
             ("cancel_referent_asset", TextAssetPayload, CorpusFamily.TIMER_CANCEL, "direct"),
-            ("lookup_source_unit_query_and_ab", LookupAssetPayload, CorpusFamily.LOOKUP_LIVE),
+            (
+                "lookup_source_unit_query_and_ab",
+                LookupAssetPayload,
+                CorpusFamily.LOOKUP_LIVE,
+                None,
+                "",
+                "",
+                "",
+                "Expansion prompts must preserve the seed query and both A/B results as one "
+                "linked factual unit.",
+            ),  # noqa: E501
         )
     )
 
@@ -378,8 +404,9 @@ def _mark_negative_expansion(
         "mandatory_repair_expansion",
         pending,
         defect_expansion=(
-            "MARK_NEGATIVE template grammar previously excluded ambiguous inputs despite ambiguous "
-            "seed records. The repaired grammar names ambiguous, quoted, code, and partial forms."
+            "MARK_NEGATIVE seed forms and grammar previously conflated direct stop/replacement "
+            "controls with genuine ambiguity. The repaired grammar distinguishes direct stop, "
+            "direct replacement, genuinely ambiguous, quoted, code, and partial forms."
         ),
         semantic_stratum_asset_ids=tuple(asset.asset_id for asset in stratum),
     )
@@ -418,136 +445,6 @@ def _response_request(support: AssetRecord) -> dict[str, object]:
             "payload_rule": "Both twins reuse the same eventual approved payload.",
         },
     }
-
-
-def _coverage_matrix(
-    registry: AssetRegistry,
-    train: tuple[AssetRecord, ...],
-    status: TrainStatus,
-    contract: SelectionContract,
-) -> dict[str, object]:
-    rows = []
-    for family in CorpusFamily:
-        records = tuple(asset for asset in train if family in asset.coverage)
-        atomics = tuple(
-            asset for asset in records if not isinstance(asset.payload, TemplateAssetPayload)
-        )
-        action_quotas = contract.family_action_quotas[family.value]
-        rows.append(
-            {
-                "family": family.value,
-                "frozen_scenario_slots": sum(action_quotas.values()),
-                "response_slots": action_quotas.get("respond", 0),
-                "raw_atomic_asset_count": len(atomics),
-                "raw_template_count": len(records) - len(atomics),
-                "raw_shape_counts": dict(
-                    sorted(
-                        Counter(
-                            f"{asset.payload.kind.value}:{getattr(asset.payload, 'form', 'none')}"
-                            for asset in atomics
-                        ).items()
-                    )
-                ),
-                "approved_record_count": sum(registry.is_approved(asset) for asset in records),
-                "sealed_source_units": 0,
-                "wave_1_target_decision_range": [
-                    (sum(action_quotas.values()) + 9) // 10,
-                    sum(action_quotas.values()) // 5,
-                ],
-                "coverage_status": _coverage_status(status),
-            }
-        )
-    return {
-        "format_version": 2,
-        "kind": "wp2-0a-provisional-train-coverage-matrix",
-        "status": "provisional_pending_owner_approval_and_train_seal",
-        "train_status": status.as_json(),
-        "selection_contract_sha256": contract.sha256,
-        "mechanically_valid_train_records": len(train) if not status.errors else 0,
-        "train_record_readiness": status.result,
-        "train_approved_records": sum(registry.is_approved(asset) for asset in train),
-        "train_seal": "absent",
-        "frozen_scenario_slots": 2000,
-        "response_slots": 90,
-        "response_binding": {
-            "status": "pending_owner_authored_train_payload",
-            "approved_payloads": 0,
-        },
-        "global_reserve": {"minimum": 200, "target": 250, "maximum": 300},
-        "families": rows,
-        "tranche_2_triggers": _tranche_two_triggers(train),
-        "decision": (
-            "Do not build tranche 2 now. After owner approval and TRAIN sealing, trigger 3 requires "  # noqa: E501
-            "targeted additions for every family still over 10% concentration."
-        ),
-    }
-
-
-def _coverage_status(status: TrainStatus) -> str:
-    return {
-        "blocked": "blocked_by_train_validation",
-        "review_required": "review_required",
-        "pass": "mechanically_valid_but_unapproved_unsealed",
-    }[status.result]
-
-
-def _tranche_two_triggers(train: tuple[AssetRecord, ...]) -> list[dict[str, object]]:
-    families = [family.value for family in CorpusFamily]
-    return [
-        {
-            "trigger": 1,
-            "condition": "required family or branch shape has fewer than five approved canary source units",  # noqa: E501
-            "status": "pending",
-            "condition_observed_now": "wave-1 has not run",
-        },
-        {
-            "trigger": 2,
-            "condition": "quota plus reserve requires duplicate raw identities",
-            "status": "pending",
-            "condition_observed_now": "no generated whole streams or reserve allocation",
-        },
-        {
-            "trigger": 3,
-            "condition": "one asset exceeds about 10% of accepted family decisions",
-            "status": "fired_current_inventory_concentration",
-            "condition_observed_now": (
-                "Every family has seven atomic family-covered sources. ScenarioProgram requires a "
-                "family-covered asset per decision, so each family has a >=14.3% source lower bound."  # noqa: E501
-            ),
-            "affected_families": families,
-            "required_next_step": (
-                "After approval and TRAIN sealing, add targeted sources for each family still above "  # noqa: E501
-                "10%; do not build them now."
-            ),
-        },
-        {
-            "trigger": 4,
-            "condition": "timer, mark, lookup, idle, or response subtype lacks lexical diversity",
-            "status": "fired_current_inventory_lexical_diversity",
-            "condition_observed_now": (
-                "MARK_NEGATIVE text:quoted, text:code, and text:partial each have exactly one "
-                "atomic source. TIMER_CANCEL timer:quoted has two atomic sources and is not "
-                "an affected subtype."
-            ),
-            "affected_subtypes": _thin_lexical_subtypes(train),
-            "required_next_step": (
-                "After approval and TRAIN sealing, add targeted distinct lexical sources for the "
-                "listed MARK_NEGATIVE subtypes; do not build them now."
-            ),
-        },
-        {
-            "trigger": 5,
-            "condition": "wave-1 rejection rate exhausts source units before repaired canary and reserve complete",  # noqa: E501
-            "status": "pending",
-            "condition_observed_now": "wave-1 has not run",
-        },
-        {
-            "trigger": 6,
-            "condition": "split-disjointness cannot fill a required slot without test/demo reuse",
-            "status": "provisional_registry_pass",
-            "condition_observed_now": "TRAIN registry battery has no heldout overlap; concrete slot fill remains pending.",  # noqa: E501
-        },
-    ]
 
 
 def _review_markdown(
@@ -669,47 +566,11 @@ def _representative_rendered_template_input(
     )
 
 
-def _thin_lexical_subtypes(train: tuple[AssetRecord, ...]) -> list[dict[str, object]]:
-    expected = (
-        (CorpusFamily.MARK_NEGATIVE, "text", "quoted"),
-        (CorpusFamily.MARK_NEGATIVE, "text", "code"),
-        (CorpusFamily.MARK_NEGATIVE, "text", "partial"),
-    )
-    evidence = []
-    for family, kind, form in expected:
-        assets = tuple(
-            asset
-            for asset in train
-            if family in asset.coverage
-            and isinstance(asset.payload, TextAssetPayload)
-            and asset.payload.kind.value == kind
-            and asset.payload.form.value == form
-        )
-        evidence.append(
-            {
-                "family": family.value,
-                "subtype": f"{kind}:{form}",
-                "atomic_source_count": len(assets),
-                "asset_ids": [asset.asset_id for asset in assets],
-            }
-        )
-    return evidence
-
-
 def _asset_ids(units: tuple[ReviewUnit, ...]) -> tuple[str, ...]:
     ids = tuple(asset.asset_id for unit in units for asset in unit.assets)
     if len(set(ids)) != len(ids):
         raise TrainReadinessError("reviewed asset ids must be deduplicated")
     return ids
-
-
-def _issue_json(issue: ValidationIssue) -> dict[str, object]:
-    return {
-        "severity": issue.severity.value,
-        "code": issue.code.value,
-        "asset_ids": list(issue.asset_ids),
-        "detail": issue.detail,
-    }
 
 
 def _checksums(artifacts: dict[str, bytes]) -> bytes:

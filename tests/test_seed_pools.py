@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from math import ceil, floor
-
 import pytest
 
 from im.assets import (
@@ -166,7 +164,7 @@ def test_seed_payloads_have_real_mark_and_timer_depth() -> None:
         for target in (
             "amber kiwi",
             "filler words um and you know",
-            "category Harbor Signal as active",
+            "every occurrence of Harbor Signal",
             "cobalt axolotl as a new amphibian member",
             "17 October 2031",
             "Dr. Imani Voss",
@@ -323,7 +321,7 @@ def test_heldout_seed_corrections_keep_exact_counterfactuals_and_demo_ingredient
     )
 
 
-def test_seed_pool_is_validation_clean_and_train_review_is_within_the_ratified_band() -> None:
+def test_seed_pool_is_clean_and_legacy_review_selector_fails_closed_on_new_stratum() -> None:
     registry = build_seed_pools().registry
     report = validate_registry(registry)
     train_atomic = {
@@ -331,22 +329,46 @@ def test_seed_pool_is_validation_clean_and_train_review_is_within_the_ratified_b
         for asset in registry.pool(Split.TRAIN).assets
         if not isinstance(asset.payload, TemplateAssetPayload)
     }
-    selected = set(select_review_assets(registry, report))
-    train_selected = selected & train_atomic
     template_ids = set(select_template_review_assets(registry))
-    selected_timer_cancel_kinds = {
-        asset.payload.kind
-        for asset in registry.pool(Split.TRAIN).assets
-        if asset.asset_id in train_selected and asset.coverage == (CorpusFamily.TIMER_CANCEL,)
-    }
 
     assert not report.errors
     assert not report.review_flags
     assert len(train_atomic) == 77
-    assert ceil(len(train_atomic) * 0.10) <= len(train_selected) <= floor(len(train_atomic) * 0.20)
-    assert selected_timer_cancel_kinds == {AssetKind.TEXT, AssetKind.TIMER}
-    assert not selected & template_ids
+    with pytest.raises(
+        AssetValidationError, match="too small to cover every semantic review stratum"
+    ):
+        select_review_assets(registry, report)
     assert len(template_ids) == 47
+
+
+def test_train_mark_seed_forms_match_control_semantics() -> None:
+    registry = build_seed_pools().registry
+    train = {asset.asset_id: asset for asset in registry.pool(Split.TRAIN).corpus_records}
+
+    occurrence = train["a_fd6da4920d7808b5fa348adb"]
+    assert isinstance(occurrence.payload, TextAssetPayload)
+    assert occurrence.payload.form is TextForm.DIRECT
+    assert occurrence.payload.text == "Mark every occurrence of Harbor Signal in the legend."
+    assert occurrence.protected_values == ("Harbor Signal",)
+
+    for asset_id in (
+        "a_f23b664ce3f705453eb63437",
+        "a_e2dd083f4916def2a997d4bf",
+        "a_047297e7827179204b66c329",
+    ):
+        payload = train[asset_id].payload
+        assert isinstance(payload, TextAssetPayload)
+        assert payload.form is TextForm.DIRECT
+
+    ambiguous = train["a_76f996251354c25a3c5d4a1d"].payload
+    assert isinstance(ambiguous, TextAssetPayload)
+    assert ambiguous.form is TextForm.AMBIGUOUS
+    assert ambiguous.text == "Highlight the specimen beside the margin."
+
+    template = train["a_cf3fb85cbef8786d98724b33"].payload
+    assert isinstance(template, TemplateAssetPayload)
+    assert "direct stop, direct replacement" in template.grammar
+    assert "genuinely ambiguous, quoted, code, or partial" in template.grammar
 
 
 def test_seed_pools_await_external_heldout_reviews_before_sealing() -> None:

@@ -23,6 +23,7 @@ from im.assets.registry import AssetBundle, AssetRegistry
 from im.canonical_json import canonicalize_tim_json
 from im.config import RuntimeConfig
 from im.generation.ingestion import ScheduledAnnotation, ScheduledSamplerFrame
+from im.generation.mark_negative_policy import mark_negative_idle_reason
 from im.generation.scenarios import (
     BeatStaleResults,
     CounterfactualDeclaration,
@@ -412,12 +413,14 @@ def _compile(
     if family is CorpusFamily.MARK_NEGATIVE:
         text = _selected_payload(bundle, family, TextAssetPayload)
         assert isinstance(text, TextAssetPayload)
-        if text.form is TextForm.DIRECT:
-            raise ValueError("mark-negative scenarios require non-direct text assets")
+        reason = mark_negative_idle_reason(
+            text.form,
+            partial_form_reason=IdleReason.INSTRUCTION_NOT_DIRECT,
+        )
         return (
             (_frame(0, text.text),),
             (),
-            (_idle(IdleReason.INSTRUCTION_NOT_DIRECT),),
+            (_idle(reason),),
             (),
             config,
             stale,

@@ -18,6 +18,7 @@ from im.assets.model import (
 from im.assets.registry import AssetBundle, AssetRegistry
 from im.canonical_json import canonicalize_tim_json, parse_tim_json
 from im.generation.ingestion import ScheduledSamplerFrame
+from im.generation.mark_negative_policy import mark_negative_idle_reason
 from im.generation.oracle import BeatOpening, BeatResponseWarrant, ResponseWarrantKind
 from im.generation.scenarios import (
     BeatStaleResults,
@@ -403,10 +404,9 @@ def _negative_mark_recipe(
 
     def idle_for(asset: AssetRecord) -> IdleAction:
         assert isinstance(asset.payload, TextAssetPayload)
-        reason = (
-            IdleReason.TYPING_ACTIVE
-            if asset.payload.form is TextForm.PARTIAL
-            else IdleReason.INSTRUCTION_NOT_DIRECT
+        reason = mark_negative_idle_reason(
+            asset.payload.form,
+            partial_form_reason=IdleReason.TYPING_ACTIVE,
         )
         return _idle(reason)
 

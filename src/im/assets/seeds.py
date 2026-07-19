@@ -203,8 +203,8 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         _text(
             Split.TRAIN,
             TextForm.DIRECT,
-            "Mark the category Harbor Signal as active in the legend.",
-            "category Harbor Signal",
+            "Mark every occurrence of Harbor Signal in the legend.",
+            "Harbor Signal",
         ),
         _text(
             Split.TRAIN,
@@ -261,13 +261,13 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
     CorpusFamily.MARK_NEGATIVE: (
         _text(
             Split.TRAIN,
-            TextForm.AMBIGUOUS,
+            TextForm.DIRECT,
             "Stop marking the copper ibis.",
             "copper ibis",
         ),
         _text(
             Split.TRAIN,
-            TextForm.AMBIGUOUS,
+            TextForm.DIRECT,
             "Switch from animal labels to color labels.",
             "color labels",
         ),
@@ -281,7 +281,7 @@ _SEEDS: dict[CorpusFamily, tuple[_SeedSpec, ...]] = {
         _text(Split.TRAIN, TextForm.PARTIAL, "Underli", "underli train fragment"),
         _text(
             Split.TRAIN,
-            TextForm.AMBIGUOUS,
+            TextForm.DIRECT,
             "Stop marking the ruby otter.",
             "ruby otter",
         ),
@@ -809,7 +809,8 @@ def _template_grammar(family: CorpusFamily, split: Split, kind: str) -> str:
         }[kind]
     elif family is CorpusFamily.MARK_NEGATIVE and split is Split.TRAIN:
         operation = (
-            "mark wording appears only in the ambiguous, quoted, code, or partial form shown"
+            "mark wording preserves the seed's subtype as direct stop, direct replacement, "
+            "genuinely ambiguous, quoted, code, or partial"
         )
     else:
         operation = _TEMPLATE_OPERATION[family]

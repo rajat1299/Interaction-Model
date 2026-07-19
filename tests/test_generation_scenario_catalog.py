@@ -324,6 +324,43 @@ def test_stale_lookup_awaits_the_original_pending_fact(
     assert program.actions[1].related_event_id == "e_000002"
 
 
+@pytest.mark.parametrize(
+    ("asset_id", "reason"),
+    (
+        ("a_f23b664ce3f705453eb63437", IdleReason.NO_TRIGGER),
+        ("a_76f996251354c25a3c5d4a1d", IdleReason.AMBIGUOUS),
+    ),
+)
+def test_mark_lifecycle_asset_form_owns_the_idle_reason(
+    asset_id: str,
+    reason: IdleReason,
+) -> None:
+    seeds = build_seed_registry()
+    asset = next(item for item in seeds.assets if item.asset_id == asset_id)
+    template = next(
+        item
+        for item in seeds.pool(Split.TRAIN).templates
+        if CorpusFamily.MARK_NEGATIVE in item.coverage
+    )
+    reviewed = AssetRegistry(
+        assets=seeds.assets,
+        reviews=(_approved(asset), _approved(template)),
+    )
+
+    program = build_family_program(
+        CorpusFamily.MARK_NEGATIVE,
+        reviewed,
+        split=Split.TRAIN,
+        template_id=template.asset_id,
+        asset_ids=(asset.asset_id,),
+        master_seed=f"mark-lifecycle-{asset_id}",
+    )
+
+    assert len(program.actions) == 1
+    assert isinstance(program.actions[0], IdleAction)
+    assert program.actions[0].reason is reason
+
+
 @pytest.mark.parametrize("family", tuple(CorpusFamily))
 def test_real_seed_shapes_compile_with_explicit_test_only_approvals(
     family: CorpusFamily,

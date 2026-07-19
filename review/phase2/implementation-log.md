@@ -453,3 +453,85 @@ authoritative.
 - The typed `SelectionContract` now owns validated family/action quotas as well as its digest.
   Readiness loads it once and passes that object through coverage construction, removing the second
   JSON read and the parallel quota parser.
+
+## 2026-07-19 — WP2-0a owner disposition and scoped mark repair
+
+### Research check
+
+- **Outcome:** preserve the 18 owner-approved records in a valid partial TRAIN seal, repair exactly
+  the five rejected mark records, and return only those five new digests plus recomputed coverage.
+- **Hypothesis/prediction:** the defect is confined to four atomic seed claims and their one TRAIN
+  template; repairing those five should leave every other asset digest and both heldout seal bytes
+  unchanged. Expected repaired MARK_NEGATIVE raw forms: 3 direct, 1 ambiguous, 1 quoted, 1 code,
+  1 partial.
+- **Smallest test:** inspect the five packet records by hand, regenerate from seed source, compare
+  old/new digests, run the asset battery and focused scenario slice, then verify the partial seal
+  independently. **Result:** prediction matched; five and only five TRAIN content digests changed,
+  the raw form counts match, and the TEST/DEMO seal SHA-256 values remain unchanged.
+- **Decision:** iterate through the five-record scoped owner re-review. Do not scale to tranche 2,
+  DEV, or any external request while this gate remains open.
+
+### Design decisions
+
+- Recorded the checksum-bound owner disposition separately from the original packet: 18 approvals,
+  five explicit `manual` rejections against the old digests, and the exact human-authored response
+  `A blue cursor paused.`. The original source registry is retained beside the application output,
+  so the historical packet remains reproducible after the canonical registry advances.
+- Reused `TextForm.DIRECT` for both stop and replacement controls. No new enum or asset schema was
+  added. The TRAIN grammar names direct stop, direct replacement, genuine ambiguity, quoted, code,
+  and partial branches; later scenario branch metadata remains responsible for stop-versus-
+  replacement history.
+- Mark-negative idle reasons now come from one form-driven helper: direct lifecycle control maps to
+  `idle(no_trigger)`, a genuine unresolved reference to `idle(ambiguous)`, and quoted/code input to
+  `idle(instruction_not_direct)`. The two callers retain their existing partial-input policy. This
+  removes split-keyed semantics while keeping the frozen Phase 1 TEST/DEMO pilot bytes unchanged.
+- The owner response is a checksum-bound TRAIN candidate-1 receipt validated by the existing
+  `AnswerContract`/`validate_response_text` path and serialized in the existing response-corpus
+  shape (`neutral_request_sha256`, neutral request, candidate response). `author_origin` remains
+  `human_authored`; constructing the schema does not imply a provider invocation.
+- Trigger 4 now starts from declared required subtypes, not only observed ones. It therefore reports
+  zero sealed sources for direct stop/replacement while their repaired records await review, zero
+  raw atomic direct-negated/unsupported timers, one sealed genuine ambiguous mark, and one approved
+  ordinary-grounded response. A subtype can be both pending scoped review and still targeted for
+  later lexical expansion: direct replacement is reported in both categories rather than forcing
+  those states into a misleading partition.
+
+### Deviations and tradeoffs
+
+- The canonical TRAIN seal contains exactly the 18 records the owner explicitly approved, not the
+  unreviewed battery-passing remainder. The five rejection reviews stay bound to their old digests;
+  the repaired digests have no disposition until the scoped re-review.
+- The legacy Phase 1 10–20% atomic review selector now fails closed because the corrected direct-mark
+  stratum creates more semantic strata than its 15-record cap can cover. WP2-0a's explicit 18-unit
+  plus defect-stratum procedure owns this phase; the old selector was not loosened.
+- Lookup full-subject restatement and verbatim mark-target/date rendering are recorded as future
+  expansion constraints. Existing approved atomic records were not rewritten.
+
+### Current coverage and open questions
+
+- Trigger 1 fires for every family because the partial seal has fewer than five approved source
+  units per family. Trigger 3 fires for each family that currently has 1–9 sealed atomic sources.
+  Trigger 4 fires for the thin/absent mark, timer, and response subtypes in the published matrix.
+- The response receipt binds support asset `a_0a86fd6dd35ddf5743c1f5c1`, but that support asset is not
+  among the 18 sealed records. This is acceptable evidence storage but still prevents normal
+  scenario selection; WP2-0a/WP2-1 remain blocked until the approval gate covers every sentinel
+  input.
+- Owner action is now limited to the five repaired digests in the scoped packet. After that review,
+  confirm how the remaining battery-passing TRAIN records become approved under the sampled tranche
+  procedure before issuing the cumulative seal. No tranche-2 or DEV assets were built.
+
+### Implementation review corrections
+
+- The first owner-review applicator mixed command parsing, review application, coverage accounting,
+  publication checks, and response validation. The corrected boundary leaves a 27-line command
+  wrapper, puts coverage/triggers and checksum-bound review application behind importable functions,
+  and verifies that the canonical registry and TRAIN seal byte-match the review evidence.
+- The sentinel response is represented as a typed `HumanAuthoredResponseAsset`, not a generated
+  candidate with a later provenance annotation. Coverage accepts that validated object rather than
+  an unrelated count.
+- The module split is not accepted merely because each file is below a line threshold. The final
+  code-quality pass explicitly checks total behavior-to-code ratio, repeated validation, removable
+  abstractions, and whether each boundary owns a distinct invariant; any line movement without
+  simplification remains a rejection.
+- Focused formatting and 76 focused tests pass. The full suite reports 993 passing tests and one
+  unrelated existing bundle-inventory failure caused by `golden/.DS_Store`.

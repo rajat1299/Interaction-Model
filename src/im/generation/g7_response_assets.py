@@ -26,6 +26,7 @@ from im.schema.actions import RespondAction
 
 __all__ = (
     "GeneratedResponseAsset",
+    "HumanAuthoredResponseAsset",
     "EmbeddingDiagnosticRun",
     "ResponseAssetBinding",
     "ResponseAssetError",
@@ -54,6 +55,81 @@ class ResponseDraftSpec:
     def __post_init__(self) -> None:
         # Let the closed request serializer own invitation and contract validation.
         serialize_neutral_generation_request("", self.invitation, self.answer_contract)
+
+
+@dataclass(frozen=True, slots=True)
+class HumanAuthoredResponseAsset:
+    """One validated human-authored response bound to its visible support."""
+
+    draft: ResponseDraftSpec
+    teacher_visible_prefix: str
+    serialized_neutral_request: bytes
+    serialized_neutral_request_sha256: str
+    response_text: str
+    visible_support_by_event_id: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.draft, ResponseDraftSpec):
+            raise TypeError("draft must be a ResponseDraftSpec")
+        if not isinstance(self.teacher_visible_prefix, str):
+            raise TypeError("teacher_visible_prefix must be a string")
+        if not isinstance(self.serialized_neutral_request, bytes):
+            raise TypeError("serialized_neutral_request must be bytes")
+        if not isinstance(self.response_text, str):
+            raise TypeError("response_text must be a string")
+        if not isinstance(self.visible_support_by_event_id, Mapping):
+            raise TypeError("visible_support_by_event_id must be a mapping")
+        support = dict(self.visible_support_by_event_id)
+        if not all(
+            isinstance(key, str) and isinstance(value, str) for key, value in support.items()
+        ):
+            raise TypeError("visible support keys and values must be strings")
+        if set(support) != set(self.draft.answer_contract.support_event_ids):
+            raise ResponseAssetError(
+                "visible support must exactly match the answer contract support event ids"
+            )
+        object.__setattr__(self, "visible_support_by_event_id", MappingProxyType(support))
+
+        expected = serialize_neutral_generation_request(
+            self.teacher_visible_prefix,
+            self.draft.invitation,
+            self.draft.answer_contract,
+        )
+        if self.serialized_neutral_request != expected:
+            raise ResponseAssetError("serialized neutral request does not match its draft")
+        if self.serialized_neutral_request_sha256 != sha256(expected).hexdigest():
+            raise ResponseAssetError("serialized neutral request hash does not match its bytes")
+        validate_response_text(
+            self.response_text,
+            self.draft.answer_contract,
+            visible_support_by_event_id=self.visible_support_by_event_id,
+        )
+
+    @classmethod
+    def create(
+        cls,
+        draft: ResponseDraftSpec,
+        *,
+        teacher_visible_prefix: str,
+        response_text: str,
+        visible_support_by_event_id: Mapping[str, str],
+    ) -> HumanAuthoredResponseAsset:
+        """Build and validate a checksum-bound human-authored response."""
+        if not isinstance(draft, ResponseDraftSpec):
+            raise TypeError("draft must be a ResponseDraftSpec")
+        request = serialize_neutral_generation_request(
+            teacher_visible_prefix,
+            draft.invitation,
+            draft.answer_contract,
+        )
+        return cls(
+            draft=draft,
+            teacher_visible_prefix=teacher_visible_prefix,
+            serialized_neutral_request=request,
+            serialized_neutral_request_sha256=sha256(request).hexdigest(),
+            response_text=response_text,
+            visible_support_by_event_id=visible_support_by_event_id,
+        )
 
 
 @dataclass(frozen=True, slots=True)

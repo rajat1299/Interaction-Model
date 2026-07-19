@@ -24,9 +24,11 @@ from im.generation.phase2_train_readiness import (
 )
 
 
-def test_wp2_0a_packet_is_deterministic_and_review_only() -> None:
-    artifacts = build_train_readiness_artifacts()
-    assert artifacts == build_train_readiness_artifacts()
+def test_wp2_0a_packet_is_deterministic_and_review_only(tmp_path) -> None:
+    source_registry_path = tmp_path / "source-registry.jsonl"
+    source_registry_path.write_bytes(render_registry_jsonl(build_seed_registry()))
+    artifacts = build_train_readiness_artifacts(registry_path=source_registry_path)
+    assert artifacts == build_train_readiness_artifacts(registry_path=source_registry_path)
     packet = json.loads(artifacts["review-packet.json"])
     coverage = json.loads(artifacts["coverage-matrix.json"])
 
@@ -40,12 +42,21 @@ def test_wp2_0a_packet_is_deterministic_and_review_only() -> None:
     assert len(set(packet["selection"]["reviewed_asset_ids"])) == 23
     assert packet["selection"]["template_units"] >= 2
     assert any(unit["lookup_query_a_b_single_unit"] for unit in packet["selection"]["units"])
-    negated_timer = next(
+    lexically_negated_quote = next(
         unit
         for unit in packet["selection"]["units"]
-        if unit["role"] == "negated_or_unsupported_timer_instruction"
+        if unit["role"] == "quoted_timer_with_lexical_negation"
     )
-    assert "no atomic TimerForm.NEGATED" in negated_timer["structural_evidence"]
+    assert lexically_negated_quote["asset_ids"] == ["a_69ad488600511102654b9745"]
+    assert lexically_negated_quote["records"][0]["payload"]["form"] == "quoted"
+    assert (
+        "not an atomic direct-negated or unsupported timer"
+        in (lexically_negated_quote["structural_evidence"])
+    )
+    assert not any(
+        unit["role"] == "negated_or_unsupported_timer_instruction"
+        for unit in packet["selection"]["units"]
+    )
     assert all(unit["owner_disposition"] == "pending" for unit in packet["selection"]["units"])
     assert packet["pending_response_request"]["response_record_status"] == "not_created"
     assert (
@@ -66,7 +77,8 @@ def test_wp2_0a_packet_is_deterministic_and_review_only() -> None:
         if "template" in record and record["asset_id"] == "a_cf3fb85cbef8786d98724b33"
     )
     assert template["expands_kind"] == "text"
-    assert "ambiguous, quoted, code, or partial" in template["raw_grammar"]
+    assert "direct stop, direct replacement" in template["raw_grammar"]
+    assert "genuinely ambiguous, quoted, code, or partial" in template["raw_grammar"]
     assert len(template["seed_asset_ids"]) == 7
     assert template["representative_offline_rendered_input"]
     assert "offline_rendered_input" not in template
@@ -79,6 +91,10 @@ def test_wp2_0a_packet_is_deterministic_and_review_only() -> None:
     assert "interval_ms" in review
     assert "approved|flagged|rejected" in review
     assert "response_text" in review
+    assert packet["owner_review"]["expansion_prompt_constraints"] == [
+        "Lookup expansion prompts must preserve the seed query and both A/B results as one linked factual unit.",  # noqa: E501
+        "Date-target expansion prompts must retain '17 October 2031' verbatim.",
+    ]
 
     assert coverage["train_approved_records"] == 0
     assert coverage["train_seal"] == "absent"
@@ -95,22 +111,44 @@ def test_wp2_0a_packet_is_deterministic_and_review_only() -> None:
         row for row in coverage["families"] if row["family"] == "mark_lifecycle_negative"
     )
     assert mark_negative["raw_shape_counts"] == {
-        "text:ambiguous": 4,
+        "text:ambiguous": 1,
         "text:code": 1,
+        "text:direct": 3,
         "text:partial": 1,
         "text:quoted": 1,
     }
     assert coverage["mechanically_valid_train_records"] == 89
     assert coverage["train_record_readiness"] == "pass"
-    assert {
-        row["coverage_status"] for row in coverage["families"]
-    } == {"mechanically_valid_but_unapproved_unsealed"}
+    assert {row["coverage_status"] for row in coverage["families"]} == {
+        "mechanically_valid_but_unapproved_unsealed"
+    }
     trigger_4 = coverage["tranche_2_triggers"][3]
     assert [
         (item["subtype"], item["atomic_source_count"])
-        for item in trigger_4["affected_subtypes"]
-    ] == [("text:quoted", 1), ("text:code", 1), ("text:partial", 1)]
-    assert "TIMER_CANCEL timer:quoted has two" in trigger_4["condition_observed_now"]
+        for item in trigger_4["required_subtype_evidence"]
+    ] == [
+        ("mark:direct_stop", 2),
+        ("mark:direct_replacement", 1),
+        ("mark:genuinely_ambiguous", 1),
+        ("mark:quoted", 1),
+        ("mark:code", 1),
+        ("mark:partial", 1),
+        ("timer:quoted", 2),
+        ("timer:atomic_direct_negated", 0),
+        ("timer:atomic_unsupported", 0),
+        ("response:ordinary_grounded", 0),
+    ]
+    assert trigger_4["pending_scoped_review_subtypes"] == []
+    assert trigger_4["targeted_after_scoped_review"] == [
+        "mark:direct_replacement",
+        "mark:genuinely_ambiguous",
+        "mark:quoted",
+        "mark:code",
+        "mark:partial",
+        "timer:atomic_direct_negated",
+        "timer:atomic_unsupported",
+        "response:ordinary_grounded",
+    ]
 
 
 def test_wp2_0a_packet_materializes_a_closed_directory(tmp_path) -> None:
@@ -217,15 +255,13 @@ def test_wp2_0a_mixed_split_review_flag_stays_train_scoped_and_consistent(tmp_pa
     assert [unit["asset_ids"] for unit in flagged_units] == [[near_duplicate_train.asset_id]]
 
 
-def test_repaired_train_template_is_regenerated_from_seed_source() -> None:
-    root = Path(__file__).parents[1]
-    artifact = load_registry_jsonl((root / "review/phase1/approved/registry.jsonl").read_bytes())
-    regenerated = AssetRegistry(assets=build_seed_registry().assets, reviews=artifact.reviews)
-    assert render_registry_jsonl(regenerated) == render_registry_jsonl(artifact)
+def test_repaired_train_template_is_owned_by_seed_source() -> None:
+    regenerated = build_seed_registry()
     template = next(
         asset for asset in regenerated.assets if asset.asset_id == "a_cf3fb85cbef8786d98724b33"
     )
-    assert "ambiguous, quoted, code, or partial" in template.payload.grammar
+    assert "direct stop, direct replacement" in template.payload.grammar
+    assert "genuinely ambiguous, quoted, code, or partial" in template.payload.grammar
 
 
 def test_wp2_0a_materializer_refuses_existing_output(tmp_path) -> None:
