@@ -26,7 +26,7 @@ function phase2Packet(
     const alternate = sidecar.action.type === "nudge"
       ? { type: "idle" as const, reason: "no_trigger" as const, related_event_id: null }
       : { type: "nudge" as const, fire_event_id: "e_000001" };
-    const oracleFirst = rank % 2 === 0;
+    const oracleFirst = target ? target.source !== "source-1" : rank % 2 === 0;
     const candidate = (id: "A" | "B", oracle: boolean) => ({
       candidate_id: id,
       action: oracle ? sidecar.action : alternate,
@@ -356,6 +356,19 @@ describe("review shell", () => {
     acknowledgeCase(2);
     expect((document.getElementById("btn-save-cluster") as HTMLButtonElement).disabled).toBe(false);
     expect(document.getElementById("cluster-status")!.textContent).toContain("Returned to the representative");
+
+    document.querySelectorAll<HTMLButtonElement>(".cluster-open-evidence")[1].click();
+    expect(document.querySelector(".cluster-evidence-cases li.current strong")!.textContent).toBe("confirmation 1");
+    (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
+    (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Confirmation-local A must not be applied as representative A.";
+    document.getElementById("btn-save-cluster")!.click();
+    expect(document.getElementById("cluster-status")!.textContent).toContain("Batch not applied");
+    expect(document.querySelector(".cluster-evidence-cases li.current strong")!.textContent).toBe("representative");
+    expect(document.activeElement).toBe(document.getElementById("phase2-choice-A"));
+    expect([...Array(window.localStorage.length).keys()]
+      .map((index) => window.localStorage.getItem(window.localStorage.key(index)!) ?? "")
+      .some((text) => text.includes("cluster_review"))).toBe(false);
 
     (document.getElementById("decision-decision") as HTMLSelectElement).value = "flag";
     (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;

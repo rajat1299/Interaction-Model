@@ -615,6 +615,12 @@ function saveClusterDisposition(): void {
     ($("cluster-status") as HTMLElement).textContent = "Open and acknowledge all three selected evidence cases before applying a batch disposition.";
     return;
   }
+  if (recordKey(phase2) !== recordKey(cluster.representative)) {
+    openClusterEvidence(cluster.representative);
+    ($("cluster-status") as HTMLElement).textContent = "Batch not applied. Choose the representative candidate and apply again.";
+    ($("phase2-choice-A") as HTMLInputElement).focus();
+    return;
+  }
   const selection = validatePhase2Selection(
     phase2,
     document.querySelector<HTMLInputElement>('input[name="phase2-choice"]:checked'),

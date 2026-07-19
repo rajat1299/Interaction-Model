@@ -283,6 +283,8 @@ authoritative.
   representative candidate choice directly and constructs its returned review map once, eliminating
   the shell's synthetic staged record. Direct draft tests cover valid progress persistence, stale
   evidence identity, corrupt JSON, and filtering acknowledgements whose evidence was never opened.
+  The shell also requires the representative decision to be current before interpreting its local
+  A/B choice, returning an attempted confirmation-side apply to the representative without writes.
 
 ### Open questions
 
