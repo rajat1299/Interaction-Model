@@ -60,7 +60,12 @@ def test_sentinel_plan_is_deterministic_and_closes_the_exact_d6_inventory() -> N
         ("idle", "ambiguous"),
     ]
     assert all(route.review_required and route.mandatory for route in first.routes)
-    assert all(target["teacher_action"] is None for target in payload["targets"])
+    assert all("teacher_action" not in target for target in payload["targets"])
+    assert all(
+        "teacher_oracle_disagreement"
+        not in target["mandatory_route_if_teacher_agrees"]["reasons"]
+        for target in payload["targets"]
+    )
     assert all("planning_stream_identity_sha256" in target for target in payload["targets"])
 
 
@@ -103,7 +108,7 @@ def test_closed_contract_rejects_missing_duplicate_and_mismatched_targets(
         build_sentinel_plan(path)
 
 
-def test_materialization_is_atomic_deterministic_and_has_no_network_calls(
+def test_materialization_is_deterministic_and_has_no_network_calls(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def no_network(*_args: object, **_kwargs: object) -> None:
@@ -128,6 +133,17 @@ def test_materialization_is_atomic_deterministic_and_has_no_network_calls(
     }
     with pytest.raises(FileExistsError, match="already exists"):
         materialize_sentinel_plan(first)
+
+
+def test_reservation_never_clobbers_a_competing_empty_directory(tmp_path: Path) -> None:
+    output = tmp_path / "reserved"
+    output.mkdir()
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        materialize_sentinel_plan(output)
+    assert not tuple(output.iterdir())
+    with pytest.raises(SentinelPlanError, match="inventory"):
+        verify_sentinel_plan(output)
 
 
 def test_verifier_rejects_checksum_tampering_and_unsafe_paths(tmp_path: Path) -> None:

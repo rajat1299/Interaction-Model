@@ -298,8 +298,9 @@ authoritative.
 
 - Added the closed `phase2-sentinel-v1` contract and a pure offline materializer for the D6
   order-zero pack. It holds the exact eight boundaries, derives six planned streams across five
-  logical source units, and routes all eight through the existing Phase 2 router with
-  `teacher_action=None` and `teacher_invocation_count: 0`.
+  logical source units, and proves their mandatory D2 routes through the existing Phase 2 router
+  under the explicitly counterfactual condition `teacher_action == oracle_action`.
+  `teacher_invocation_count: 0` and the plan contains no actual teacher evidence.
 - The earlier exploration note said seven sources while enumerating five groups. This pack follows
   the enumerated minimal resolution: partial (one stream); response twin (two streams, one source);
   timer pair (one stream, two targets); lookup pair (one stream, two targets); ambiguous cancel
@@ -309,12 +310,14 @@ authoritative.
 
 ### Tradeoffs
 
-- The packet deliberately stops before executable scenario generation or a provider request. Its
-  compact `sentinel-plan.json`, `REVIEW.md`, and closed `SHA256SUMS` prove routing and preserve the
-  exact owner-authorization boundary without extending the fixed Phase 1 canary path.
+- This is a preliminary WP2-1 gate, not the WP2-1 exit. Its compact `sentinel-plan.json`,
+  `REVIEW.md`, and closed `SHA256SUMS` prove routing without extending the fixed Phase 1 canary
+  path. The output directory is atomically reserved with `mkdir`; a failed write can leave an
+  incomplete directory, which verification rejects rather than overwriting it.
 
 ### Open question
 
-- Later executable generation still needs an owner-authorized pinned-teacher run plan with the real
-  scenario inputs, shard count, preservation path, model, and cost estimate. This offline plan does
-  not supply or infer any of those inputs.
+- Offline executable scenario construction does not need owner authorization. Only the exact
+  provider/model call or upload needs an owner-authorized pinned-teacher run plan with the real
+  scenario inputs, shard count, preservation path, model, and cost estimate. This preliminary gate
+  does not supply or infer any of those inputs.

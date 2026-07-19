@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from re import fullmatch
-from tempfile import TemporaryDirectory
 
 from im.assets.model import CorpusFamily, canonical_artifact_bytes
 from im.generation.phase2_review import (
@@ -153,7 +152,8 @@ def build_sentinel_plan(path: Path = DEFAULT_SENTINEL_CONTRACT) -> SentinelPlan:
                     template_id=str(stream["template_id"]),
                     source_unit_id=str(stream["source_unit_id"]),
                     oracle_action=target["oracle_action"],
-                    teacher_action=None,
+                    # Counterfactual D2 proof only; no teacher evidence is emitted or inferred.
+                    teacher_action=target["oracle_action"],
                     causal_state_class=str(target["causal_state_class"]),
                     boundary_class=BoundaryClass(target["boundary_class"]),
                     risk_flags=tuple(target["risk_flags"]),
@@ -192,13 +192,12 @@ def build_sentinel_plan(path: Path = DEFAULT_SENTINEL_CONTRACT) -> SentinelPlan:
                     **target,
                     "planning_decision_identity": decision.identity,
                     "planning_stream_identity_sha256": identities[str(target["logical_stream_id"])],
-                    "review_route": {
+                    "mandatory_route_if_teacher_agrees": {
                         "mandatory": route.mandatory,
                         "reasons": list(route.reasons),
                         "review_required": route.review_required,
                         "sample_rate": route.sample_rate,
                     },
-                    "teacher_action": None,
                 }
                 for target, decision, route in zip(targets, decisions, routes, strict=True)
             ],
@@ -214,22 +213,21 @@ def materialize_sentinel_plan(
     *,
     contract_path: Path = DEFAULT_SENTINEL_CONTRACT,
 ) -> SentinelPlan:
-    """Atomically publish a new plan directory; existing output is never overwritten."""
+    """Atomically reserve a new output directory; existing output is never overwritten."""
     plan = build_sentinel_plan(contract_path)
-    if output.exists() or output.is_symlink():
+    parent = output.parent.resolve()
+    parent.mkdir(parents=True, exist_ok=True)
+    output = parent / output.name
+    try:
+        output.mkdir()
+    except FileExistsError:
         raise FileExistsError(f"sentinel output already exists: {output}")
-    output = output.resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(prefix=f".{output.name}.", dir=output.parent) as temporary:
-        root = Path(temporary) / output.name
-        root.mkdir()
-        (root / "sentinel-plan.json").write_bytes(plan.canonical_bytes)
-        (root / "REVIEW.md").write_bytes(_review_bytes(plan))
-        _write_sha256s(root)
-        verify_sentinel_plan(root, contract_path=contract_path)
-        if output.exists() or output.is_symlink():
-            raise FileExistsError(f"sentinel output already exists: {output}")
-        root.rename(output)
+    except OSError as error:
+        raise SentinelPlanError(f"sentinel output cannot be reserved: {output}") from error
+    (output / "sentinel-plan.json").write_bytes(plan.canonical_bytes)
+    (output / "REVIEW.md").write_bytes(_review_bytes(plan))
+    _write_sha256s(output)
+    verify_sentinel_plan(output, contract_path=contract_path)
     return plan
 
 
@@ -408,10 +406,10 @@ def _review_bytes(plan: SentinelPlan) -> bytes:
     lines = [
         "# WP2-1 sentinel plan",
         "",
-        "Offline order-zero planning artifact for the eight fixed D6 boundaries.",
+        "Preliminary WP2-1 gate for the eight fixed D6 boundaries; it is not the WP2-1 exit.",
         (
-            "Teacher invocations: 0. This is not executable scenario generation or a "
-            "teacher-label packet."
+            "Teacher invocations: 0; actual teacher evidence is absent. The mandatory-route column "
+            "is the counterfactual where teacher action equals oracle action."
         ),
         "",
         (
@@ -419,7 +417,7 @@ def _review_bytes(plan: SentinelPlan) -> bytes:
             "generated-stream digests."
         ),
         "",
-        "| Target | Oracle action | Mandatory route |",
+        "| Target | Oracle action | Mandatory route if teacher agrees |",
         "| --- | --- | --- |",
     ]
     for target in targets:
@@ -428,15 +426,15 @@ def _review_bytes(plan: SentinelPlan) -> bytes:
         assert isinstance(action, dict)
         reason = action.get("reason")
         label = str(action["type"]) + (f"({reason})" if reason is not None else "")
-        route = target["review_route"]
+        route = target["mandatory_route_if_teacher_agrees"]
         assert isinstance(route, dict)
         lines.append(f"| `{target['target_id']}` | `{label}` | `{', '.join(route['reasons'])}` |")
     lines.extend(
         [
             "",
             (
-                "Run executable scenario generation only after the owner authorizes the pinned "
-                "teacher run plan."
+                "Offline executable scenario construction needs no authorization. Owner "
+                "authorization is required only before the exact provider/model call or upload."
             ),
             "",
         ]
