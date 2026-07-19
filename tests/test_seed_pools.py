@@ -358,7 +358,7 @@ def test_seed_pools_await_external_heldout_reviews_before_sealing() -> None:
     assert render_registry_jsonl(build_seed_pools().registry) == rendered
     assert render_registry_jsonl(load_registry_jsonl(rendered)) == rendered
     for split in pending.pending_review_splits:
-        with pytest.raises(AssetValidationError, match="cannot seal unapproved assets"):
+        with pytest.raises(AssetValidationError, match="no approved assets"):
             create_split_seal(pending.registry, split)
 
     reviewed = AssetRegistry(

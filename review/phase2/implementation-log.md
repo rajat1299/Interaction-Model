@@ -404,3 +404,27 @@ authoritative.
   timer form, and zero response inventory); trigger 3 is only a conservative 14.3% raw-source
   proxy. Neither, nor any other D14 trigger, has procedurally fired before approval, sealing, and
   wave-1 evidence.
+
+## 2026-07-19 — WP2-0a rejected-pass correction
+
+- Rejected the first WP2-0a packet: it treated TRAIN as a special partial seal, understated the
+  seven-source concentration result, rendered templates through JSON-shaped intermediates, and
+  let a MARK_NEGATIVE grammar exclude ambiguous seeds.
+- Every split seal now binds the current nonempty approved subset. Registry errors that are global
+  or name an entry to be sealed block; errors confined to omitted unapproved records do not. The
+  existing TEST/DEMO seal bytes remain exactly unchanged, and their loader default remains
+  TEST+DEMO only.
+- The canonical seed builder now repairs only the TRAIN MARK_NEGATIVE grammar to include
+  ambiguous, quoted, code, and partial forms. The reviewed registry and its checksum were
+  regenerated from that source; TEST/DEMO seals were rechecked byte-for-byte.
+- The Phase-2 generator now keeps `ReviewUnit` and `AssetRecord` values typed until JSON output,
+  renders Markdown from the payload union, computes one TRAIN-only validation status, and stages,
+  verifies, then publishes sibling artifacts without overwriting an existing directory.
+- The packet is 18 base units plus the deduplicated full eight-record MARK_NEGATIVE stratum (23
+  records total), with explicit owner reply syntax and template grammar/seed/render evidence.
+  Heldout-only flags do not affect it.
+- Trigger 3 is fired for every family: seven atomic family-covered sources imply a >=14.3% lower
+  bound because each decision needs a family-covered asset. No tranche is built now; after approval
+  and sealing, targeted additions are required for each family still above 10%. Trigger 4 remains
+  pending until subtype allocation; deferred WP2-5 response text is not falsely called a present
+  lexical-diversity failure.

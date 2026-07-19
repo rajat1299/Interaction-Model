@@ -460,31 +460,31 @@ def validate_registry(
     return ValidationReport(tuple(sorted(issues)))
 
 
-def _seal_entries(
-    registry: AssetRegistry, split: Split, *, allow_unapproved: bool = False
-) -> tuple[SealEntry, ...]:
-    assets = registry.pool(split).corpus_records
+def _seal_entries(registry: AssetRegistry, split: Split) -> tuple[SealEntry, ...]:
+    """Return the current nonempty approved subset for one corpus split."""
+    assets = tuple(
+        asset for asset in registry.pool(split).corpus_records if registry.is_approved(asset)
+    )
     if not assets:
-        raise AssetValidationError("sealed split pool must not be empty")
-    unapproved = [asset.asset_id for asset in assets if not registry.is_approved(asset)]
-    if unapproved and not allow_unapproved:
-        raise AssetValidationError(f"cannot seal unapproved assets: {unapproved}")
-    if allow_unapproved:
-        assets = tuple(asset for asset in assets if registry.is_approved(asset))
-    if not assets:
-        raise AssetValidationError("sealed split pool has no approved assets")
+        raise AssetValidationError("sealed split pool has no approved assets (all are unapproved)")
     return tuple(
         SealEntry(asset_id=asset.asset_id, content_sha256=asset.content_sha256) for asset in assets
     )
 
 
 def create_split_seal(registry: AssetRegistry, split: Split | str) -> SplitSeal:
-    """Seal a nonempty valid split; TRAIN may omit currently unapproved records."""
+    """Seal the current nonempty approved subset of one validated split."""
     selected = Split(split)
-    if not registry.pool(selected).corpus_records:
-        raise AssetValidationError("sealed split pool must not be empty")
-    validate_registry(registry).raise_for_errors()
-    entries = _seal_entries(registry, selected, allow_unapproved=selected is Split.TRAIN)
+    entries = _seal_entries(registry, selected)
+    sealed_ids = {entry.asset_id for entry in entries}
+    errors = tuple(
+        issue
+        for issue in validate_registry(registry).errors
+        if not issue.asset_ids or sealed_ids.intersection(issue.asset_ids)
+    )
+    if errors:
+        codes = ", ".join(issue.code for issue in errors)
+        raise AssetValidationError(f"seal validation failed: {codes}")
     return SplitSeal(
         split=selected,
         entries=entries,

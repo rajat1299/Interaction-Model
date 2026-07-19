@@ -15,6 +15,7 @@ from im.assets import (
     AssetRegistryError,
     AssetValidationError,
     CorpusFamily,
+    LookupAssetPayload,
     ReviewDecision,
     ReviewRecord,
     Split,
@@ -63,6 +64,22 @@ def approved(value: AssetRecord) -> ReviewRecord:
         reviewer_id="user:phase1-reviewer",
         reviewed_at_utc="2026-07-14T18:00:00Z",
         decision=ReviewDecision.APPROVED,
+    )
+
+
+def invalid_lookup(asset_id: str, split: Split) -> AssetRecord:
+    return AssetRecord.build(
+        asset_id=asset_id,
+        split=split,
+        payload=LookupAssetPayload(
+            query="Misty beacon color",
+            result_a="Misty beacon is rose.",
+            result_b="Misty beacon is very blue.",
+            no_result_code="misty_beacon_absent",
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        protected_values=("Misty", "rose", "blue"),
+        coverage=tuple(sorted(CorpusFamily, key=str)),
     )
 
 
@@ -153,7 +170,7 @@ def test_stale_review_does_not_approve_changed_content() -> None:
     try:
         create_split_seal(registry, Split.DEMO)
     except AssetValidationError as error:
-        assert "unapproved" in str(error)
+        assert "no approved" in str(error)
     else:
         raise AssertionError("a stale review approved a demo seal")
 
@@ -320,7 +337,7 @@ def test_seals_reject_empty_invalid_and_no_longer_approved_pools() -> None:
     try:
         verify_split_seal(AssetRegistry(assets=(test,)), seal)
     except AssetValidationError as error:
-        assert "unapproved" in str(error)
+        assert "no approved" in str(error)
     else:
         raise AssertionError("a seal verified after its approval was removed")
 
@@ -354,6 +371,84 @@ def test_train_seal_allows_unapproved_records_but_remains_membership_bound() -> 
     )
     with pytest.raises(AssetValidationError, match="membership"):
         verify_split_seal(after_approval, seal)
+
+    changed = asset(
+        approved_train.asset_id,
+        Split.TRAIN,
+        "changed approved train text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    with pytest.raises(AssetValidationError, match="membership or content"):
+        verify_split_seal(
+            AssetRegistry(assets=(changed, pending_train), reviews=(approved(changed),)), seal
+        )
+
+
+def test_seals_ignore_errors_confined_to_omitted_unapproved_records() -> None:
+    approved_train = asset(
+        "a_train_good",
+        Split.TRAIN,
+        "approved train text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    invalid_train = invalid_lookup("a_train_invalid", Split.TRAIN)
+    seal = create_split_seal(
+        AssetRegistry(assets=(approved_train, invalid_train), reviews=(approved(approved_train),)),
+        Split.TRAIN,
+    )
+    assert [entry.asset_id for entry in seal.entries] == [approved_train.asset_id]
+
+
+def test_seals_block_errors_in_would_be_sealed_entries() -> None:
+    approved_train = asset(
+        "a_train_good",
+        Split.TRAIN,
+        "approved train text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    invalid_train = invalid_lookup("a_train_invalid", Split.TRAIN)
+    registry = AssetRegistry(
+        assets=(approved_train, invalid_train),
+        reviews=(approved(approved_train), approved(invalid_train)),
+    )
+    with pytest.raises(AssetValidationError, match="lookup_ab_contrast"):
+        create_split_seal(registry, Split.TRAIN)
+
+
+def test_default_verified_loader_remains_heldout_only() -> None:
+    test = asset(
+        "a_test_default",
+        Split.TEST,
+        "test default text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    demo = asset(
+        "a_demo_default",
+        Split.DEMO,
+        "demo default text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    train = asset(
+        "a_train_default",
+        Split.TRAIN,
+        "train default text",
+        coverage=tuple(sorted(CorpusFamily, key=str)),
+    )
+    registry = AssetRegistry(
+        assets=(test, demo, train), reviews=(approved(test), approved(demo), approved(train))
+    )
+    payload = render_registry_jsonl(registry)
+    heldout = tuple(
+        render_split_seal_json(create_split_seal(registry, split))
+        for split in (Split.TEST, Split.DEMO)
+    )
+    _registry, seals = load_verified_registry_seals(payload, heldout)
+    assert {seal.split for seal in seals} == {Split.TEST, Split.DEMO}
+    with pytest.raises(AssetValidationError, match="required splits"):
+        load_verified_registry_seals(
+            payload,
+            (*heldout, render_split_seal_json(create_split_seal(registry, Split.TRAIN))),
+        )
 
 
 def test_full_split_enum_allows_a_fully_approved_dev_seal() -> None:

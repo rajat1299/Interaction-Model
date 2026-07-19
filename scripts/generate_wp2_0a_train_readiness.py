@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from im.assets.train_readiness import (
+from im.generation.phase2_train_readiness import (
     DEFAULT_SELECTION_CONTRACT,
     DEFAULT_TRAIN_READINESS_OUTPUT,
     DEFAULT_TRAIN_REGISTRY,

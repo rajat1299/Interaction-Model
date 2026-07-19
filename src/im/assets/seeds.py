@@ -807,6 +807,10 @@ def _template_grammar(family: CorpusFamily, split: Split, kind: str) -> str:
             "text": "the cancellation wording retains the direct, quoted, or negated form shown",
             "timer": "the reminder wording retains the quoted or unsupported form shown",
         }[kind]
+    elif family is CorpusFamily.MARK_NEGATIVE and split is Split.TRAIN:
+        operation = (
+            "mark wording appears only in the ambiguous, quoted, code, or partial form shown"
+        )
     else:
         operation = _TEMPLATE_OPERATION[family]
     context = _TEMPLATE_DRAFT_CONTEXTS[
