@@ -127,6 +127,13 @@ def _approved(plan: ReplayPlan) -> dict[str, bool]:
     return {candidate.completion_id: True for candidate in plan.human_review_queue}
 
 
+def _review_round(plan: ReplayPlan, decisions: dict[str, bool] | None = None) -> dict[str, object]:
+    return {
+        "review_plan_sha256": plan.review_plan_sha256,
+        "decisions": _approved(plan) if decisions is None else decisions,
+    }
+
+
 def test_filter_accepts_raw_native_chat_with_closed_provenance_and_spot_check_flag() -> None:
     candidate = _candidate(
         1,
@@ -251,6 +258,37 @@ def test_filter_rejects_the_closed_project_protocol_field_list(field: str) -> No
     report = filter_replay_candidates((protocol,), _manifest())
 
     assert "protocol_imitation" in report.outcomes[0].rejection_reasons
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    (
+        "{'type': 'respond'}",
+        "{'action': 'respond'}",
+        "type: respond",
+        "action: respond",
+    ),
+)
+def test_filter_rejects_protocol_shaped_action_mappings_but_not_prose(mapping: str) -> None:
+    protocol = _candidate(
+        35,
+        messages=[
+            {"role": "user", "content": f"Interpret this mapping: {mapping}"},
+            {"role": "assistant", "content": "That is project protocol content unique35."},
+        ],
+    )
+    ordinary = _candidate(
+        36,
+        messages=[
+            {"role": "user", "content": "How should I respond to a teammate?"},
+            {"role": "assistant", "content": "Respond calmly and ask one clarifying question."},
+        ],
+    )
+
+    report = filter_replay_candidates((protocol, ordinary), _manifest())
+
+    assert "protocol_imitation" in report.outcomes[0].rejection_reasons
+    assert report.outcomes[1].accepted
 
 
 def test_filter_rejects_hidden_reasoning_tool_and_fast_facts() -> None:
@@ -396,6 +434,27 @@ def test_filter_enforces_two_frozen_sources_and_one_primary_identity() -> None:
     )
 
 
+def test_filter_rechecks_primary_source_after_deduplication_removes_it() -> None:
+    messages = [
+        {"role": "user", "content": "Explain the duplicate primary case unique70."},
+        {"role": "assistant", "content": "This response is intentionally duplicated unique70."},
+    ]
+    primary = _candidate(71, messages=messages)
+    secondary = _candidate(
+        70,
+        messages=messages,
+        dataset_source_id="dataset-b",
+        dataset_source_revision="dataset-b-v1",
+        dataset_source_role="secondary",
+    )
+
+    report = filter_replay_candidates((primary, secondary), _manifest())
+
+    assert report.accepted == ()
+    assert "exact_duplicate:completion-0070" in report.outcomes[0].rejection_reasons
+    assert "dataset_primary_source_invalid" in report.outcomes[1].rejection_reasons
+
+
 def _feasible_pool(
     *, token_counts: tuple[int, int, int] = (50, 130, 200)
 ) -> tuple[dict[str, object], ...]:
@@ -463,7 +522,7 @@ def test_raw_planning_meets_exact_quotas_records_manifest_and_requires_review_cl
     with pytest.raises(ReplayReviewError, match="complete current"):
         finalize_replay_selection(_feasible_pool(), manifest, selection_seed=SEED, review_rounds=())
     final = finalize_replay_selection(
-        _feasible_pool(), manifest, selection_seed=SEED, review_rounds=(_approved(first),)
+        _feasible_pool(), manifest, selection_seed=SEED, review_rounds=(_review_round(first),)
     )
     assert final.selected == first.provisional_selected
     with pytest.raises(ReplayReviewError, match="terminal"):
@@ -471,20 +530,45 @@ def test_raw_planning_meets_exact_quotas_records_manifest_and_requires_review_cl
             _feasible_pool(),
             manifest,
             selection_seed=SEED,
-            review_rounds=(_approved(first),),
+            review_rounds=(_review_round(first),),
+        )
+
+
+@pytest.mark.parametrize("message_index", (0, -1), ids=("prompt", "answer"))
+def test_review_round_identity_invalidates_approvals_when_content_changes(
+    message_index: int,
+) -> None:
+    manifest = _manifest()
+    pool = list(_feasible_pool())
+    plan = plan_replay_review_round(pool, manifest, selection_seed=SEED, review_rounds=())
+    reviewed_id = plan.human_review_queue[0].completion_id
+    reviewed_row = next(row for row in pool if row["completion_id"] == reviewed_id)
+    messages = reviewed_row["messages"]
+    assert isinstance(messages, list)
+    messages[message_index]["content"] += " Changed after review."
+    reviewed_row["provenance"] = _provenance(messages)
+    changed_plan = plan_replay_review_round(pool, manifest, selection_seed=SEED, review_rounds=())
+
+    assert changed_plan.review_plan_sha256 != plan.review_plan_sha256
+    with pytest.raises(ReplayReviewError, match="plan identity"):
+        finalize_replay_selection(
+            pool,
+            manifest,
+            selection_seed=SEED,
+            review_rounds=(_review_round(plan),),
         )
 
 
 def test_finalization_replays_raw_rows_and_rejected_rows_need_a_new_positive_round() -> None:
     manifest = _manifest()
     pool = list(_feasible_pool())
-    initial = plan_replay_review_round(pool, manifest, selection_seed=SEED, review_rounds=())
-    failed = initial.human_review_queue[0]
+    seed_plan = plan_replay_review_round(pool, manifest, selection_seed=SEED, review_rounds=())
+    template = seed_plan.human_review_queue[0]
     replacement_messages = [
         {"role": "user", "content": "Replacement prompt unique9999."},
         {"role": "assistant", "content": "Replacement answer unique9999 context9999 detail9999."},
     ]
-    if failed.is_multi_turn:
+    if template.is_multi_turn:
         replacement_messages = [
             {"role": "user", "content": "Replacement prompt unique9999."},
             {"role": "assistant", "content": "Clarifying replacement unique9999."},
@@ -497,21 +581,35 @@ def test_finalization_replays_raw_rows_and_rejected_rows_need_a_new_positive_rou
     pool.append(
         _candidate(
             9_999,
-            task_family=failed.task_family,
+            task_family=template.task_family,
             messages=replacement_messages,
-            token_count=failed.assistant_token_count,
+            token_count=template.assistant_token_count,
         )
+    )
+    initial = plan_replay_review_round(pool, manifest, selection_seed=SEED, review_rounds=())
+    selected_ids = {candidate.completion_id for candidate in initial.provisional_selected}
+    reserve = next(
+        outcome.candidate
+        for outcome in initial.filter_report.accepted
+        if outcome.candidate is not None and outcome.candidate.completion_id not in selected_ids
+    )
+    failed = next(
+        candidate
+        for candidate in initial.human_review_queue
+        if (candidate.task_family, candidate.length_band, candidate.is_multi_turn)
+        == (reserve.task_family, reserve.length_band, reserve.is_multi_turn)
     )
     first_round = _approved(initial)
     first_round[failed.completion_id] = False
+    first_record = _review_round(initial, first_round)
     replacement_round = plan_replay_review_round(
-        pool, manifest, selection_seed=SEED, review_rounds=(first_round,)
+        pool, manifest, selection_seed=SEED, review_rounds=(first_record,)
     )
 
     assert failed.completion_id not in {
         candidate.completion_id for candidate in replacement_round.provisional_selected
     }
-    assert "completion-9999" in {
+    assert reserve.completion_id in {
         candidate.completion_id for candidate in replacement_round.provisional_selected
     }
     overlap = {candidate.completion_id for candidate in initial.human_review_queue} & {
@@ -524,12 +622,15 @@ def test_finalization_replays_raw_rows_and_rejected_rows_need_a_new_positive_rou
             pool,
             manifest,
             selection_seed=SEED,
-            review_rounds=(first_round, stale_second_round),
+            review_rounds=(first_record, _review_round(replacement_round, stale_second_round)),
         )
 
     second_round = _approved(replacement_round)
     final = finalize_replay_selection(
-        pool, manifest, selection_seed=SEED, review_rounds=(first_round, second_round)
+        pool,
+        manifest,
+        selection_seed=SEED,
+        review_rounds=(first_record, _review_round(replacement_round, second_round)),
     )
     assert final.selected == replacement_round.provisional_selected
 
@@ -543,6 +644,7 @@ def test_finalization_never_accepts_a_caller_constructed_plan() -> None:
         plan.filter_report,
         plan.reference_manifest_sha256,
         plan.review_rounds_sha256,
+        plan.review_plan_sha256,
         plan.selection_seed,
         plan.provisional_selected,
         plan.human_review_sample,
@@ -555,7 +657,7 @@ def test_finalization_never_accepts_a_caller_constructed_plan() -> None:
             forged,
             manifest,
             selection_seed=SEED,
-            review_rounds=(_approved(plan),),  # type: ignore[arg-type]
+            review_rounds=(_review_round(plan),),  # type: ignore[arg-type]
         )
 
 

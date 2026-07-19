@@ -13,6 +13,9 @@ from itertools import combinations
 from im.generation.phase2_replay_allocation import (
     AllocationFailure,
     choose_maximum_token_selection,
+    review_plan_sha256,
+    review_rounds_sha256,
+    stratified_review_sample,
 )
 
 COMPOSITION_QUOTAS = {
@@ -75,6 +78,7 @@ _PROVENANCE_KEYS = frozenset(
     }
 )
 _TOKEN_COUNT_KEYS = frozenset({"count", "tokenizer_revision"})
+_REVIEW_ROUND_KEYS = frozenset({"review_plan_sha256", "decisions"})
 _MANIFEST_KEYS = frozenset(
     {
         "interaction_texts",
@@ -119,7 +123,12 @@ _ACTION_TYPES = frozenset(
 )
 _PROTOCOL_RE = re.compile(
     r"\b(?:" + "|".join(sorted(_PROJECT_PROTOCOL_FIELDS)) + r")\b|"
-    r'"type"\s*:\s*"(?:' + "|".join(sorted(_ACTION_TYPES)) + r')"',
+    r"(?:[\"'](?:type|action)[\"']|\b(?:type|action))\s*:\s*"
+    r"(?:[\"'](?:"
+    + "|".join(sorted(_ACTION_TYPES))
+    + r")[\"']|(?:"
+    + "|".join(sorted(_ACTION_TYPES))
+    + r")\b)",
     re.IGNORECASE,
 )
 _HIDDEN_REASONING_RE = re.compile(r"</?(?:think|analysis|reasoning)\b[^>]*>", re.IGNORECASE)
@@ -155,8 +164,7 @@ class ReplaySelectionDeficitError(ValueError):
         super().__init__(f"replay selection is infeasible: {report.summary()}")
 
 
-class ReplayReviewError(ValueError):
-    pass
+ReplayReviewError = ValueError
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,6 +286,7 @@ class ReplayPlan:
     filter_report: ReplayFilterReport
     reference_manifest_sha256: str
     review_rounds_sha256: str
+    review_plan_sha256: str
     selection_seed: str
     provisional_selected: tuple[ReplayCandidate, ...]
     human_review_sample: tuple[ReplayCandidate, ...]
@@ -300,8 +309,11 @@ def filter_replay_candidates(
     _reject_duplicate_completion_ids(outcomes)
     _enforce_dataset_sources(outcomes)
     _reject_exact_duplicates(outcomes)
+    _enforce_dataset_sources(outcomes)
     _reject_near_duplicates(outcomes)
+    _enforce_dataset_sources(outcomes)
     _reject_duplicate_prompts(outcomes)
+    _enforce_dataset_sources(outcomes)
     return ReplayFilterReport(tuple(outcomes))
 
 
@@ -310,7 +322,7 @@ def plan_replay_review_round(
     reference_manifest: Mapping[str, object],
     *,
     selection_seed: str,
-    review_rounds: Sequence[Mapping[str, bool]],
+    review_rounds: Sequence[Mapping[str, object]],
 ) -> ReplayPlan:
     _validate_raw_inputs(candidates, reference_manifest, selection_seed)
     rounds = _load_review_rounds(review_rounds)
@@ -322,7 +334,7 @@ def finalize_replay_selection(
     reference_manifest: Mapping[str, object],
     *,
     selection_seed: str,
-    review_rounds: Sequence[Mapping[str, bool]],
+    review_rounds: Sequence[Mapping[str, object]],
 ) -> ReplaySelection:
     _validate_raw_inputs(candidates, reference_manifest, selection_seed)
     rounds = _load_review_rounds(review_rounds)
@@ -331,7 +343,7 @@ def finalize_replay_selection(
     plan = _replay_review_history(candidates, reference_manifest, selection_seed, rounds[:-1])
     current_round = rounds[-1]
     _validate_review_round(plan, current_round)
-    if any(not approved for approved in current_round.values()):
+    if any(not approved for approved in current_round[1].values()):
         raise ReplayReviewError(
             "a rejected row requires a newly derived and reviewed replacement round"
         )
@@ -354,10 +366,10 @@ def _replay_review_history(
     candidates: Sequence[Mapping[str, object]],
     reference_manifest: Mapping[str, object],
     selection_seed: str,
-    review_rounds: tuple[dict[str, bool], ...],
+    review_rounds: tuple[tuple[str, dict[str, bool]], ...],
 ) -> ReplayPlan:
     rejected_by_review: set[str] = set()
-    for round_index, decisions in enumerate(review_rounds):
+    for round_index, review_round in enumerate(review_rounds):
         plan = _build_review_round(
             candidates,
             reference_manifest,
@@ -365,9 +377,9 @@ def _replay_review_history(
             rejected_by_review,
             review_rounds[:round_index],
         )
-        _validate_review_round(plan, decisions, historical=True)
+        _validate_review_round(plan, review_round, historical=True)
         rejected_by_review.update(
-            completion_id for completion_id, approved in decisions.items() if not approved
+            completion_id for completion_id, approved in review_round[1].items() if not approved
         )
     return _build_review_round(
         candidates,
@@ -383,7 +395,7 @@ def _build_review_round(
     reference_manifest: Mapping[str, object],
     selection_seed: str,
     rejected_by_review: set[str],
-    review_rounds: Sequence[Mapping[str, bool]],
+    review_rounds: Sequence[tuple[str, Mapping[str, bool]]],
 ) -> ReplayPlan:
     manifest = _load_reference_manifest(reference_manifest)
     report = filter_replay_candidates(candidates, reference_manifest)
@@ -394,7 +406,16 @@ def _build_review_round(
         and outcome.candidate.completion_id not in rejected_by_review
     )
     selected = _select_candidates(accepted, selection_seed)
-    review_sample = _stratified_review_sample(selected, selection_seed)
+    review_sample = stratified_review_sample(
+        selected,
+        sample_size=100,
+        stratum=lambda candidate: (
+            candidate.task_family,
+            candidate.length_band,
+            candidate.is_multi_turn,
+        ),
+        rank=lambda candidate: _review_rank(selection_seed, candidate.completion_id),
+    )
     flagged = tuple(candidate for candidate in selected if candidate.flags)
     sampled_ids = {candidate.completion_id for candidate in review_sample}
     queue = review_sample + tuple(
@@ -403,7 +424,8 @@ def _build_review_round(
     return ReplayPlan(
         report,
         manifest.sha256,
-        _sha_identity([dict(decisions) for decisions in review_rounds]),
+        review_rounds_sha256(review_rounds),
+        review_plan_sha256(manifest.sha256, selection_seed, selected, queue),
         selection_seed,
         selected,
         review_sample,
@@ -413,8 +435,11 @@ def _build_review_round(
 
 
 def _validate_review_round(
-    plan: ReplayPlan, decisions: Mapping[str, bool], *, historical: bool = False
+    plan: ReplayPlan, review_round: tuple[str, Mapping[str, bool]], *, historical: bool = False
 ) -> None:
+    digest, decisions = review_round
+    if digest != plan.review_plan_sha256:
+        raise ReplayReviewError("review round does not match the derived plan identity")
     queue_ids = {candidate.completion_id for candidate in plan.human_review_queue}
     if set(decisions) != queue_ids:
         raise ReplayReviewError("review decisions must exactly cover the derived current queue")
@@ -661,17 +686,24 @@ def _load_reference_manifest(value: Mapping[str, object]) -> ReplayReferenceMani
     return ReplayReferenceManifest(tuple(references), _sha_identity(canonical))
 
 
-def _load_review_rounds(value: Sequence[Mapping[str, bool]]) -> tuple[dict[str, bool], ...]:
+def _load_review_rounds(
+    value: Sequence[Mapping[str, object]],
+) -> tuple[tuple[str, dict[str, bool]], ...]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         raise TypeError("review_rounds must be an ordered sequence of complete review mappings")
-    rounds: list[dict[str, bool]] = []
-    for decisions in value:
+    rounds: list[tuple[str, dict[str, bool]]] = []
+    for review_round in value:
+        if not isinstance(review_round, Mapping) or set(review_round) != _REVIEW_ROUND_KEYS:
+            raise TypeError("each review round must contain only review_plan_sha256 and decisions")
+        digest, decisions = review_round["review_plan_sha256"], review_round["decisions"]
+        if not isinstance(digest, str) or _SHA256_RE.fullmatch(digest) is None:
+            raise TypeError("review_plan_sha256 must be a SHA-256 identity")
         if not isinstance(decisions, Mapping) or any(
             not _nonempty_text(key) or not isinstance(approved, bool)
             for key, approved in decisions.items()
         ):
             raise TypeError("each review round must map non-empty completion IDs to bools")
-        rounds.append(dict(sorted(decisions.items())))
+        rounds.append((digest, dict(sorted(decisions.items()))))
     return tuple(rounds)
 
 
@@ -850,36 +882,6 @@ def _obvious_deficits(candidates: Sequence[ReplayCandidate]) -> ReplayDeficitRep
         max(0, MULTI_TURN_TARGET - multi_count),
         max(0, (TARGET_EXAMPLES - MULTI_TURN_TARGET) - (len(candidates) - multi_count)),
     )
-
-
-def _stratified_review_sample(
-    selected: tuple[ReplayCandidate, ...], selection_seed: str
-) -> tuple[ReplayCandidate, ...]:
-    strata: dict[tuple[str, str, bool], list[ReplayCandidate]] = defaultdict(list)
-    for candidate in selected:
-        strata[(candidate.task_family, candidate.length_band, candidate.is_multi_turn)].append(
-            candidate
-        )
-    ordered = tuple(sorted(strata))
-    for key in ordered:
-        strata[key].sort(
-            key=lambda candidate: _review_rank(selection_seed, candidate.completion_id)
-        )
-    sample: list[ReplayCandidate] = []
-    offsets = {key: 0 for key in ordered}
-    while len(sample) < 100:
-        advanced = False
-        for key in ordered:
-            offset = offsets[key]
-            if offset < len(strata[key]):
-                sample.append(strata[key][offset])
-                offsets[key] += 1
-                advanced = True
-                if len(sample) == 100:
-                    break
-        if not advanced:
-            raise AssertionError("selected corpus has fewer than 100 rows")
-    return tuple(sample)
 
 
 def _chat_messages(messages: Sequence[ChatMessage]) -> list[dict[str, str]]:

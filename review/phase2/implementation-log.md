@@ -121,7 +121,8 @@ authoritative.
 - The raw-only planner limits the pool to two source IDs, requires one frozen revision and one
   consistent closed role for each source, and requires exactly one `primary` source identity. It
   mechanically rejects duplicate completion IDs, prompt IDs, and normalized native-chat-prefix
-  fingerprints before allocation. A caller-provided filter report cannot select data.
+  fingerprints before allocation, then re-applies the source invariants after every rejection
+  stage. A caller-provided filter report cannot select data.
 - Filtering is cheap checks first, then exact digest deduplication, then deterministic pairwise
   token and three-word-shingle near-deduplication (`0.8`) for the small (~1,250-row) pool. It also
   rejects normalized substring/near overlaps with approved, interaction, development, test, demo,
@@ -133,14 +134,16 @@ authoritative.
   supervised-token total, or raises a deficit report.
 - Prompt provenance and duplicate-prompt identity both hash the canonical native-chat prefix
   (`messages[:-1]`) with roles and prior assistant turns retained. The protocol detector uses a
-  closed project field/action list; ordinary language such as “timer”, “mark”, and “idle” remains
-  eligible outside protocol-shaped content.
+  closed project field/action list, including single-quoted and unquoted `type:`/`action:` mappings;
+  ordinary language such as “timer”, “mark”, “idle”, and “respond” remains eligible outside a
+  protocol-shaped mapping.
 - Human review is a deterministic 100-row round-robin over populated family/length/turn strata;
-  every flagged selected row is appended to its review queue. Review evidence is an ordered sequence
-  of complete, exact queue mappings: each historical mapping must contain a `False`, which excludes
-  only those recorded rows before deriving the next queue. Finalization accepts only an all-`True`
-  final mapping for the freshly derived current queue; earlier `True` values never satisfy a later,
-  overlapping queue.
+  every flagged selected row is appended to its review queue. Each review record carries the
+  canonical plan SHA-256 plus its complete decision mapping. That plan identity binds the manifest
+  digest, seed, full selected and queue candidate state (including prompt/request/completion hashes,
+  flags, and allocation state), so unchanged completion IDs cannot reuse approval after a prompt or
+  answer mutation. Historical mappings must contain a `False`, which excludes only those recorded
+  rows before deriving the next queue; finalization accepts only an all-`True` current record.
 
 ### Tradeoffs
 
@@ -150,6 +153,9 @@ authoritative.
 - The global token objective adds a small stdlib max-cost-flow helper rather than a solver dependency.
   Enumerating feasible turn/band allocations is practical at the planned pool size and avoids a
   sequential quota fill that can falsely report the 100,000-token floor infeasible.
+- Review evidence stores a compact canonical digest rather than duplicating selected text in each
+  approval record. Replaying the raw rows recomputes the digest, keeping review artifacts small
+  while failing closed if any reviewed content or allocation state changes.
 
 ### Deviations
 
@@ -176,6 +182,12 @@ authoritative.
   the complete manifest, and closes source roles/revisions/primary identity. The replacement round
   test proves every newly selected row must be re-reviewed, including IDs that also appeared in an
   earlier queue. A final all-`True` round is terminal and cannot be supplied as later history.
+- The third replay-filter pass found that the exact decision mappings still trusted completion IDs
+  alone; source invariants ran before rather than after deduplication; and the action-union lint
+  missed single-quoted or unquoted mapping syntax. The correction binds every record to a canonical
+  content-and-allocation plan digest, re-runs source closure after each rejection phase, and extends
+  the static action grammar to `{'type': 'respond'}`, `{'action': 'respond'}`, `type: respond`, and
+  `action: respond` without banning ordinary prose verbs.
 
 ### Open questions
 
@@ -184,3 +196,6 @@ authoritative.
 - The required reference manifest intentionally permits explicit empty categories for a run with no
   material in that category. Before any production replay, the owner should review the manifest
   digest and confirm that each empty category is genuinely empty rather than omitted upstream.
+- Before production review begins, the owner should archive each emitted review-plan digest with its
+  human decision record; an approval record whose digest cannot be recomputed from the retained raw
+  candidate set remains invalid by design.

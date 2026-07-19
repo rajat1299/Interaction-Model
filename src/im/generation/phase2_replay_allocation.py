@@ -1,10 +1,11 @@
-"""Deterministic max-token quota allocation for the Phase 2 replay filter."""
+"""Deterministic selection and review-identity helpers for the Phase 2 replay filter."""
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
+import json
+from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 from math import inf
 
@@ -21,6 +22,42 @@ class AllocationFailure:
 class AllocationResult[Candidate]:
     selected: tuple[Candidate, ...]
     supervised_token_total: int
+
+
+def review_plan_sha256(
+    manifest_sha256: str, selection_seed: str, selected: Sequence[object], queue: Sequence[object]
+) -> str:
+    """Hash the complete selected and reviewed replay state without trusting IDs alone."""
+    return _sha_identity(
+        {
+            "reference_manifest_sha256": manifest_sha256,
+            "selection_seed": selection_seed,
+            "selected": [asdict(candidate) for candidate in selected],
+            "queue": [asdict(candidate) for candidate in queue],
+            "allocation": {
+                "task_families": dict(
+                    sorted(Counter(getattr(item, "task_family") for item in selected).items())
+                ),
+                "length_bands": dict(
+                    sorted(Counter(getattr(item, "length_band") for item in selected).items())
+                ),
+                "multi_turn_count": sum(getattr(item, "is_multi_turn") for item in selected),
+                "supervised_token_total": sum(
+                    getattr(item, "assistant_token_count") for item in selected
+                ),
+            },
+        }
+    )
+
+
+def review_rounds_sha256(review_rounds: Sequence[tuple[str, Mapping[str, bool]]]) -> str:
+    """Hash the ordered history of content-bound review decisions."""
+    return _sha_identity(
+        [
+            {"review_plan_sha256": digest, "decisions": dict(decisions)}
+            for digest, decisions in review_rounds
+        ]
+    )
 
 
 def choose_maximum_token_selection[Candidate](
@@ -82,6 +119,37 @@ def choose_maximum_token_selection[Candidate](
     if best.supervised_token_total < supervised_token_minimum:
         return AllocationFailure(supervised_token_total=best.supervised_token_total)
     return best
+
+
+def stratified_review_sample[Candidate](
+    candidates: Sequence[Candidate],
+    *,
+    sample_size: int,
+    stratum: Callable[[Candidate], tuple[str, str, bool]],
+    rank: Callable[[Candidate], str],
+) -> tuple[Candidate, ...]:
+    """Take a deterministic round-robin sample over populated selection strata."""
+    strata: dict[tuple[str, str, bool], list[Candidate]] = defaultdict(list)
+    for candidate in candidates:
+        strata[stratum(candidate)].append(candidate)
+    ordered = tuple(sorted(strata))
+    for key in ordered:
+        strata[key].sort(key=rank)
+    sample: list[Candidate] = []
+    offsets = {key: 0 for key in ordered}
+    while len(sample) < sample_size:
+        advanced = False
+        for key in ordered:
+            offset = offsets[key]
+            if offset < len(strata[key]):
+                sample.append(strata[key][offset])
+                offsets[key] += 1
+                advanced = True
+                if len(sample) == sample_size:
+                    break
+        if not advanced:
+            raise AssertionError("selected corpus has fewer rows than the review sample")
+    return tuple(sample)
 
 
 def _multi_band_allocations[Candidate](
@@ -262,3 +330,8 @@ class _MaxCostFlow:
                 node = parent
             flow += pushed
         return flow
+
+
+def _sha_identity(value: object) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
+    return f"sha256:{sha256(encoded).hexdigest()}"
