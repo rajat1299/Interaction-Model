@@ -331,10 +331,10 @@ authoritative.
 
 ### Blocker
 
-- The approved registry contains 77 TRAIN assets and zero approved TRAIN records. All twelve
-  selected WP2-1 TRAIN templates/assets are present but unapproved, so the required
-  `ScenarioProgram.select` path stops at `template is not approved`; no generated stream can
-  truthfully carry the requested TRAIN provenance.
+- The registry contains 89 TRAIN records (77 non-template assets and 12 templates) and zero TRAIN
+  approvals. All twelve selected WP2-1 TRAIN templates/assets are present but unapproved, so the
+  required `ScenarioProgram.select` path stops at `template is not approved`; no generated stream
+  can truthfully carry the requested TRAIN provenance.
 - The two persisted G7 response corpora each contain 90 records marked
   `human_review_status: pending`. Their visible prefixes are TEST-bound, and no owner-approved,
   human-approved TRAIN response text/prefix binding exists. Constructing the open-floor response
@@ -345,9 +345,13 @@ authoritative.
 - Stopped before scenario execution, request planning, packet materialization, or provider use.
   The existing sentinel plan remains offline preparation only: it is neither WP2-1 exit evidence
   nor authorization.
+- Synthetic approvals and fixture-only TRAIN programs were rejected because they would make tests
+  pass without producing admissible evidence. No executable six-stream packet or eight-request
+  teacher batch was materialized.
 
 ### Owner action needed
 
-- Publish reviewed approval records for the named TRAIN inputs and one explicit TRAIN-bound,
-  owner-approved response text/prefix binding. Then the normal selection path can build the six
-  streams and eight target-only requests without a provenance exception.
+- Publish reviewed approval records for the twelve named TRAIN inputs and one explicit
+  TRAIN-prefix-bound, owner-approved response text record. Then the normal selection path can build
+  the six streams and eight target-only requests without a provenance exception; provider
+  authorization remains a later, separate decision.
