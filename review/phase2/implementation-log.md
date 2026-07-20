@@ -680,3 +680,27 @@ authoritative.
   slice with no findings. The focused cross-slice run passes 106 tests. The full suite reaches 100%
   with only the already documented unrelated `golden/.DS_Store` review-bundle inventory failure;
   that user-owned file remains untouched.
+
+## 2026-07-19 — WP2-1 authorized Batch launch adapter
+
+### Design decisions and verification
+
+- Owner authorization is bound to the preserved eight-request input at
+  `sha256:d8208cf3585dcef4b95840c6754fd5d062b9f96edaba1876fda0167e343f8524`
+  and the `$0.639536` ceiling. The runner also binds the packet's complete `SHA256SUMS` bytes, so a
+  self-consistent edit to the plan, review record, or input cannot silently change the authorized
+  call.
+- The adapter reuses the Phase 1 resumable Batch gateway and SQLite ledger. It exposes explicit
+  `plan`, `run`, `resume`, and input-bound `adopt` modes; an uncertain creation is never submitted
+  again automatically. All eight outputs remain mandatory human-review cells, including exact
+  oracle matches.
+- Fake-provider checks cover one upload/create, completed restart, eight decoded comparisons,
+  uncertain creation with no retry, explicit adoption and recovery, and terminal failure. The same
+  reviewer approved the corrected adapter after 14 focused runner/lifecycle tests and Ruff passed.
+
+### Open question
+
+- The first detached launch attempt was denied before the process started because it would transfer
+  workspace-derived sentinel prompts to the external OpenAI API. No provider call occurred. The
+  owner must explicitly confirm that external transfer after being informed of it; then the already
+  prepared detached job can be launched without changing the sealed packet.
