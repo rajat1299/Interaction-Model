@@ -535,3 +535,72 @@ authoritative.
   simplification remains a rejection.
 - Focused formatting and 76 focused tests pass. The full suite reports 993 passing tests and one
   unrelated existing bundle-inventory failure caused by `golden/.DS_Store`.
+
+## 2026-07-19 — WP2-0a scoped approval and completed TRAIN seal
+
+### Research check
+
+- **Outcome:** close WP2-0a by applying the owner's five exact repaired-digest approvals and the
+  explicit D14 authorization to seal every currently battery-passing TRAIN corpus record. The
+  authorization is evidence about the sampled tranche procedure; it does not claim that the other
+  66 records were individually reviewed.
+- **Hypothesis/prediction:** extending the existing review applicator should yield 89/89 approved
+  TRAIN records, a valid 89-entry cumulative seal, zero TRAIN battery findings, trigger 1 passing
+  with seven sealed atomic sources per family, and triggers 3/4 remaining fired. TEST and DEMO seal
+  bytes should remain fixed.
+- **Smallest test:** rebuild in memory from the historical packet, original owner review, retained
+  source registry, and checksum-bound scoped approval; inspect every raw trigger row; reject one
+  changed repaired-approval line; then publish through a temporary canonical approval directory
+  and compare heldout bytes before touching canonical evidence.
+- **Result:** prediction matched. TRAIN has 89 records, 89 current approvals, 89 seal entries, zero
+  errors, and zero review flags. Trigger 1 reports seven atomic source units in each of all eleven
+  families and `passed`. Trigger 3 remains `fired_current_inventory_concentration` for all eleven
+  families. Trigger 4 remains `fired_current_inventory_lexical_diversity` for direct replacement,
+  genuine ambiguity, quoted, code, and partial mark rows (one each), absent atomic direct-negated
+  and unsupported timer rows (zero each), and the ordinary-grounded response row (one).
+- **Decision:** close the WP2-0a approval/seal gate. Keep the trigger-3/4 targeted tranche work
+  explicit; this closure did not execute WP2-1, wave 0, DEV generation, or any provider action.
+
+### Published evidence
+
+- `scoped-approval.json` records the five exact `approved <asset_id> <digest>` owner lines at
+  `2026-07-19T23:53:55Z`, binds the pending repair review, and records D14 authorization for the 66
+  battery-passing records outside the approved 23-record audit sample.
+- The completed evidence registry and canonical registry are byte-identical at
+  `sha256:fa394469aa955d289283723c2fe68616dc97c7afc57c490cb00ac96723e0ebc8`.
+  The completed TRAIN seal is byte-identical in both locations at
+  `sha256:93e9f9758f1b593e3ea04d3dfb3af1f24fba0b71c7add0ceecaf80af96a7f113`.
+- Frozen heldout seal bytes did not move: TEST remains
+  `sha256:10dd0f547cddaf7556734791f0f7c3b78419d64bfe253a2a8839805cb5a34bda` and DEMO remains
+  `sha256:1ed5a625a6af19d82ebae576be614082539f2dd3e19e940b44ed0f488f923d86`.
+
+### Review-loop correction
+
+- The first code-quality review rejected the publication update because replacing files one at a
+  time could leave a hybrid evidence or canonical approval directory after interruption, and a
+  completed packet could be replaced with a partial packet while retaining the scoped approval.
+- Both paths now share one complete-directory transactional publication helper. It validates the
+  staged bytes and inventory, allows only the intended partial-to-completed evidence transition,
+  and restores the exact prior directory on an exception during promotion. Regression tests cover
+  downgrade rejection and an interrupted canonical publication. The same reviewer approved the
+  corrected implementation; this is a consistency repair, not a new artifact or process.
+
+## 2026-07-19 — WP2-4 mark wave-0 safeguards attached early
+
+### Design decision
+
+- Direct mark-stop and direct mark-replacement TRAIN assets retain the existing asset-level
+  `form=direct`; scenario semantics distinguish stop from replacement without expanding the form
+  enum. A control-only scenario now places a visible approved positive mark control first, then
+  emits `idle(no_trigger)` for the later stop or replacement. Runtime-backed tests inspect the raw
+  frame order and exact actions for both branches and reject `mark` or `idle(ambiguous)` behavior.
+- The required rendered-expansion check for template `a_cf3fb85cbef8786d98724b33` remains a hard
+  preflight immediately before its first WP2-4 use. No expansion exists in this atomic wave-0 path,
+  so manufacturing a placeholder expansion now would falsely claim evidence and add throwaway
+  machinery.
+
+### Tradeoff
+
+- The direct-control recipe adds one preceding frame and decision instead of introducing lifecycle
+  subtype fields or a second oracle path. This is the smallest causal setup that makes stop and
+  replacement observable while preserving the frozen asset and action schemas.

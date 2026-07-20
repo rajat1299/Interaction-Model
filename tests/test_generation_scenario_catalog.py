@@ -328,23 +328,34 @@ def test_stale_lookup_awaits_the_original_pending_fact(
     ("asset_id", "reason"),
     (
         ("a_f23b664ce3f705453eb63437", IdleReason.NO_TRIGGER),
+        ("a_047297e7827179204b66c329", IdleReason.NO_TRIGGER),
         ("a_76f996251354c25a3c5d4a1d", IdleReason.AMBIGUOUS),
     ),
 )
-def test_mark_lifecycle_asset_form_owns_the_idle_reason(
+@pytest.mark.asyncio
+async def test_mark_wave_zero_lifecycle_control_has_prior_context_and_exact_idle_reason(
+    tmp_path: Path,
     asset_id: str,
     reason: IdleReason,
 ) -> None:
     seeds = build_seed_registry()
     asset = next(item for item in seeds.assets if item.asset_id == asset_id)
+    control = next(
+        item
+        for item in seeds.pool(Split.TRAIN).assets
+        if CorpusFamily.MARK_POSITIVE in item.coverage
+        and isinstance(item.payload, TextAssetPayload)
+        and item.payload.form is TextForm.DIRECT
+    )
     template = next(
         item
         for item in seeds.pool(Split.TRAIN).templates
         if CorpusFamily.MARK_NEGATIVE in item.coverage
     )
+    selected = (asset, template, *((control,) if asset.payload.form is TextForm.DIRECT else ()))
     reviewed = AssetRegistry(
         assets=seeds.assets,
-        reviews=(_approved(asset), _approved(template)),
+        reviews=tuple(_approved(item) for item in selected),
     )
 
     program = build_family_program(
@@ -352,13 +363,26 @@ def test_mark_lifecycle_asset_form_owns_the_idle_reason(
         reviewed,
         split=Split.TRAIN,
         template_id=template.asset_id,
-        asset_ids=(asset.asset_id,),
+        asset_ids=tuple(item.asset_id for item in selected if item is not template),
         master_seed=f"mark-lifecycle-{asset_id}",
     )
 
-    assert len(program.actions) == 1
-    assert isinstance(program.actions[0], IdleAction)
-    assert program.actions[0].reason is reason
+    assert isinstance(program.actions[-1], IdleAction)
+    assert program.actions[-1].reason is reason
+    if asset.payload.form is TextForm.DIRECT:
+        frames = [json.loads(frame.raw_bytes) for frame in program.frames]
+        assert [frame["text"] for frame in frames] == [control.payload.text, asset.payload.text]
+        assert all(
+            isinstance(action, IdleAction) and action.reason is IdleReason.NO_TRIGGER
+            for action in program.actions
+        )
+
+    generated = await execute_scenario(
+        program,
+        session_id=f"s_mark_wave_zero_{asset_id[2:10]}",
+        directory=tmp_path / asset_id,
+    )
+    assert validate_generated_scenario(generated) == generated.sidecar
 
 
 @pytest.mark.parametrize("family", tuple(CorpusFamily))

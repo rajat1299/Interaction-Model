@@ -86,6 +86,7 @@ def build_train_coverage_matrix(
         if train_seal is None
         else frozenset(entry.asset_id for entry in train_seal.entries)
     )
+    full_train_seal = train_seal is not None and len(sealed_ids) == len(train)
     rows = []
     for family in CorpusFamily:
         records = tuple(asset for asset in train if family in asset.coverage)
@@ -117,6 +118,8 @@ def build_train_coverage_matrix(
                 "coverage_status": (
                     _coverage_status(status)
                     if train_seal is None
+                    else "sealed"
+                    if full_train_seal
                     else "partially_sealed"
                     if any(asset.asset_id in sealed_ids for asset in records)
                     else "unsealed"
@@ -133,6 +136,8 @@ def build_train_coverage_matrix(
         "status": (
             "provisional_pending_owner_approval_and_train_seal"
             if train_seal is None
+            else "train_seal_complete"
+            if full_train_seal
             else "partial_train_seal_pending_scoped_re_review"
         ),
         "train_status": status.as_json(),
@@ -168,6 +173,8 @@ def build_train_coverage_matrix(
         "decision": (
             "Do not build tranche 2 now."
             if train_seal is None
+            else "Build only the targeted tranche-2 additions required by triggers 3 and 4."
+            if full_train_seal
             else (
                 "Keep the five repaired records pending scoped re-review; do not build tranche "
                 "2 now."
@@ -194,13 +201,16 @@ def _tranche_two_triggers(
     approved_by_family = (
         {
             family.value: sum(
-                asset.asset_id in sealed_ids for asset in train if family in asset.coverage
+                asset.asset_id in sealed_ids
+                for asset in train
+                if family in asset.coverage and not isinstance(asset.payload, TemplateAssetPayload)
             )
             for family in CorpusFamily
         }
         if sealed_ids is not None
         else {}
     )
+    canary_shortfalls = [family for family, count in approved_by_family.items() if count < 5]
     concentration_families = (
         [
             family.value
@@ -239,21 +249,25 @@ def _tranche_two_triggers(
             "trigger": 1,
             "condition": "required family or branch shape has fewer than five approved canary source units",  # noqa: E501
             "status": (
-                "pending" if sealed_ids is None else "fired_approved_canary_source_shortfall"
+                "pending"
+                if sealed_ids is None
+                else "fired_approved_canary_source_shortfall"
+                if canary_shortfalls
+                else "passed"
             ),
             "condition_observed_now": (
                 "owner approval has not been applied"
                 if sealed_ids is None
-                else "Every required family currently has fewer than five sealed source units."
+                else "At least one required family has fewer than five sealed source units."
+                if canary_shortfalls
+                else "Every required family has at least five sealed source units."
             ),
             **(
                 {}
                 if sealed_ids is None
                 else {
                     "approved_source_units_by_family": approved_by_family,
-                    "affected_families": [
-                        family for family, count in approved_by_family.items() if count < 5
-                    ],
+                    "affected_families": canary_shortfalls,
                 }
             ),
         },
@@ -294,10 +308,17 @@ def _tranche_two_triggers(
                 )
                 if sealed_ids is None
                 else (
-                    "The repaired direct-stop and direct-replacement sources are pending scoped "
-                    "review. Sealed coverage has one each for genuine ambiguity, quoted, code, "
-                    "partial, and the ordinary-grounded response; direct-negated and unsupported "
-                    "timers remain absent."
+                    "The full TRAIN seal has two direct-stop sources and one each for direct "
+                    "replacement, genuine ambiguity, quoted, code, partial, and the "
+                    "ordinary-grounded response; direct-negated and unsupported timers remain "
+                    "absent."
+                    if len(sealed_ids) == len(train)
+                    else (
+                        "The repaired direct-stop and direct-replacement sources are pending "
+                        "scoped review. Sealed coverage has one each for genuine ambiguity, "
+                        "quoted, code, partial, and the ordinary-grounded response; direct-negated "
+                        "and unsupported timers remain absent."
+                    )
                 )
             ),
             "required_subtype_evidence": required_subtypes,

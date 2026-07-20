@@ -294,7 +294,9 @@ def _decision_count(
             else 3
         )
     if family is CorpusFamily.MARK_NEGATIVE:
-        return 1
+        text = _selected_payload(bundle, family, TextAssetPayload)
+        assert isinstance(text, TextAssetPayload)
+        return 2 if text.form is TextForm.DIRECT else 1
     if family is CorpusFamily.LOOKUP_LIVE:
         return 2 if _variant_value(variant, "provenance_result", "a") == "none" else 3
     if family is CorpusFamily.LOOKUP_DUPLICATE:
@@ -417,6 +419,22 @@ def _compile(
             text.form,
             partial_form_reason=IdleReason.INSTRUCTION_NOT_DIRECT,
         )
+        if text.form is TextForm.DIRECT:
+            control = _selected_text_asset(
+                bundle, CorpusFamily.MARK_POSITIVE, form=TextForm.DIRECT
+            )
+            assert isinstance(control.payload, TextAssetPayload)
+            return (
+                (
+                    _frame(0, control.payload.text),
+                    _frame(service[0] + 1, text.text),
+                ),
+                (),
+                (_idle(), _idle(reason)),
+                (),
+                config,
+                stale,
+            )
         return (
             (_frame(0, text.text),),
             (),
