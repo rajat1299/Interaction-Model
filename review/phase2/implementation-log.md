@@ -728,3 +728,40 @@ authoritative.
   owner-review packet leaves every one of the eight mandatory dispositions open.
 - The completed launch job was unloaded after exit code 0, preventing accidental reruns. WP2-1 is
   blocked at owner adjudication; no repair or additional provider request has been started.
+
+## 2026-07-19 — WP2-1 sentinel adjudication and scoped repair
+
+### Owner adjudication
+
+- The owner accepted the five exact cells and classified `active_floor_idle` and
+  `lookup_refresh_superseded` as `teacher_error`. Both reproduce known directional failures:
+  active-floor response eagerness and integrate-over-skip after refresh. Those cells remain
+  permanently UNCLEARED for Phase 2.
+- `ambiguous_cancel` is classified `template_error`: its final snapshot was paused, where the
+  frozen contract requires one clarification response. The teacher's question was well formed—one
+  precise question, only the unresolved timer choice, both visible candidates named, and no guess.
+- Sentinel decisions never enter D1 promotion windows, including exact matches. The pack validates
+  the trust matrix and review tooling with adversarial boundary probes; it contributes zero toward
+  any cell's 30 decisions / 5 source units / 3 templates qualification window.
+
+### Recorded downstream evidence
+
+- The skip weakness is specific to refresh/supersede in this pack: explicit abandonment correctly
+  produced `skip(stale_tool_result)`, while refresh incorrectly integrated the superseded result.
+  Phase 4 pair concentration should therefore favor the supersede boundary rather than generic
+  skip behavior.
+- The two adjudicated teacher-error pairs are the first Phase 4 reservoir population with
+  `source=teacher_oracle_adjudication` and `direct_dpo_eligibility=false`. This is a recorded later
+  obligation only; no Phase 4 artifact or training pair is created during WP2-1.
+
+### Scoped repair design
+
+- The original eight-request packet and evidence remain byte-preserved. A separate repair packet
+  renders only the unresolved cancel cell with `activity=active`, plus the same stream with only the
+  floor flipped to paused and a concise clarification target. The reviewer-sidecar warrant enum
+  gains only the already-ratified `ambiguity_clarification` subtype; no model-facing schema or
+  behavior contract changes.
+- The optional yielded twin's warm-cache expected marginal cost is `$0.005042`, below the owner's
+  `$0.008` cap, so it remains in the two-request Batch. The exact repair input is
+  `sha256:fff76a7e4e23e2442ad0a44a17a0d4b14bb1f77508c28ed8af9f3d72a7d1be7b`;
+  no additional family or program cells are included.

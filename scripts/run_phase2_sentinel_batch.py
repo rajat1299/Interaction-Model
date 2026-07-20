@@ -35,9 +35,6 @@ from im.probes.harness.cost import usage_cost
 from im.probes.harness.identity import cache_identity, digest
 from im.probes.harness.models import HarnessProtocol, ProviderUsage
 
-_PACKET = Path("review/phase2/sentinel-0-executable-v2")
-_EXECUTION = Path("review/phase2/sentinel-0-executable-v2-execution")
-_PACKET_CHECKSUM_SHA256 = "sha256:a9d13635488a7828b68eb4eab527dc9d96cc4d2b8a0e1d9ed4d1944d15891f01"
 _MAX_ENQUEUED_TOKENS = 200_000
 
 
@@ -46,6 +43,34 @@ class SentinelBatchPlan:
     manifest: dict[str, object]
     targets: dict[str, dict[str, object]]
     shard: BatchShard
+    execution: Path
+
+
+@dataclass(frozen=True, slots=True)
+class PacketBinding:
+    packet: Path
+    execution: Path
+    checksum_sha256: str
+    request_count: int
+    stage: str
+
+
+_PACKETS = {
+    "sentinel-v2": PacketBinding(
+        Path("review/phase2/sentinel-0-executable-v2"),
+        Path("review/phase2/sentinel-0-executable-v2-execution"),
+        "sha256:a9d13635488a7828b68eb4eab527dc9d96cc4d2b8a0e1d9ed4d1944d15891f01",
+        8,
+        "s0v2",
+    ),
+    "ambiguous-cancel-repair-v1": PacketBinding(
+        Path("review/phase2/sentinel-0-ambiguous-cancel-repair-v1"),
+        Path("review/phase2/sentinel-0-ambiguous-cancel-repair-v1-execution"),
+        "sha256:9c7e3b3755c28a87a43d510bd2abfd1e20ebf5eb2294ae185b37e94660f7cde5",
+        2,
+        "s0r1",
+    ),
+}
 
 
 def _amount(value: str) -> Decimal:
@@ -61,6 +86,7 @@ def _amount(value: str) -> Decimal:
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("plan", "run", "resume", "adopt"), default="plan")
+    parser.add_argument("--packet", choices=tuple(_PACKETS), default="sentinel-v2")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--approve-live-ceiling-usd", type=_amount)
     parser.add_argument("--batch-poll-seconds", type=float, default=600)
@@ -69,9 +95,10 @@ def _arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_plan(repository: Path) -> SentinelBatchPlan:
-    packet = repository / _PACKET
-    _verify_packet(packet)
+def load_plan(repository: Path, packet_name: str = "sentinel-v2") -> SentinelBatchPlan:
+    binding = _PACKETS[packet_name]
+    packet = repository / binding.packet
+    _verify_packet(packet, binding.checksum_sha256)
     manifest_bytes = (packet / "teacher-plan.json").read_bytes()
     manifest = json.loads(manifest_bytes)
     if not isinstance(manifest, dict):
@@ -79,7 +106,7 @@ def load_plan(repository: Path) -> SentinelBatchPlan:
     if (
         manifest.get("authorization_state") != "not_authorized"
         or manifest.get("api_call_performed") is not False
-        or manifest.get("request_count") != 8
+        or manifest.get("request_count") != binding.request_count
         or manifest.get("shard_count") != 1
         or manifest.get("model") != "gpt-5.6-terra"
         or manifest.get("reasoning_effort") != "high"
@@ -93,14 +120,14 @@ def load_plan(repository: Path) -> SentinelBatchPlan:
     if digest(input_jsonl) != manifest.get("input_sha256"):
         raise ValueError("sentinel teacher input digest changed")
     target_values = manifest.get("targets")
-    if not isinstance(target_values, list) or len(target_values) != 8:
+    if not isinstance(target_values, list) or len(target_values) != binding.request_count:
         raise ValueError("sentinel teacher target inventory is invalid")
     targets = {
         target["custom_id"]: target
         for target in target_values
         if isinstance(target, dict) and isinstance(target.get("custom_id"), str)
     }
-    if len(targets) != 8:
+    if len(targets) != binding.request_count:
         raise ValueError("sentinel teacher target identities are invalid")
 
     prompt_hash = PromptArtifacts.from_repository(repository).prompt_hash
@@ -136,16 +163,18 @@ def load_plan(repository: Path) -> SentinelBatchPlan:
         if item.request_line != raw_line:
             raise ValueError("sentinel Batch line is not canonical")
         items.append(item)
-    shards = shard_work("s0v2", tuple(items), max_enqueued_tokens=_MAX_ENQUEUED_TOKENS)
+    if any(not item.custom_id.startswith(f"{binding.stage}.") for item in items):
+        raise ValueError("sentinel custom IDs differ from the bound packet stage")
+    shards = shard_work(binding.stage, tuple(items), max_enqueued_tokens=_MAX_ENQUEUED_TOKENS)
     if len(shards) != 1 or shards[0].input_jsonl != input_jsonl:
         raise ValueError("sentinel Batch plan does not reproduce the sealed one-shard input")
-    return SentinelBatchPlan(manifest, targets, shards[0])
+    return SentinelBatchPlan(manifest, targets, shards[0], binding.execution)
 
 
 async def _run(args: argparse.Namespace) -> None:
     repository = args.repository.resolve()
     load_dotenv(repository / ".env", override=False)
-    plan = load_plan(repository)
+    plan = load_plan(repository, args.packet)
     ceiling = Decimal(str(plan.manifest["cost_estimate"]["approval_ceiling_usd"]))
     summary = {
         "approval_ceiling_usd": str(ceiling),
@@ -158,7 +187,7 @@ async def _run(args: argparse.Namespace) -> None:
     print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
     if args.mode == "plan":
         return
-    execution = repository / _EXECUTION
+    execution = repository / plan.execution
     ledger = execution / "ledger.sqlite"
     if args.mode == "adopt":
         if args.input_sha256 != plan.shard.input_sha256 or not args.batch_id:
@@ -273,9 +302,12 @@ def _job_state(record) -> dict[str, object]:
     }
 
 
-def _verify_packet(packet: Path) -> None:
+def _verify_packet(
+    packet: Path,
+    expected_checksum_sha256: str = _PACKETS["sentinel-v2"].checksum_sha256,
+) -> None:
     checksum_bytes = (packet / "SHA256SUMS").read_bytes()
-    if digest(checksum_bytes) != _PACKET_CHECKSUM_SHA256:
+    if digest(checksum_bytes) != expected_checksum_sha256:
         raise ValueError("sentinel packet checksum manifest changed")
     entries = checksum_bytes.decode("utf-8").splitlines()
     if len(entries) != 3:

@@ -51,6 +51,7 @@ ACTION_TYPES = (
 class ResponseWarrantKind(StrEnum):
     YIELD = "yield"
     INVITATION = "invitation"
+    AMBIGUITY_CLARIFICATION = "ambiguity_clarification"
 
 
 @dataclass(frozen=True, slots=True)

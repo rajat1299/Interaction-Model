@@ -233,9 +233,7 @@ def _allowed_candidates(
     )
 
 
-def _validate_semantic_duplicate_schedule(
-    action: ScheduleAction, view: LicenseView
-) -> None:
+def _validate_semantic_duplicate_schedule(action: ScheduleAction, view: LicenseView) -> None:
     """Require explicit wording before a second equivalent active timer."""
     if any(
         timer.interval_ms == action.interval_ms and timer.message == action.message
@@ -595,6 +593,8 @@ def _validate_response_warrant_text(kind: ResponseWarrantKind, text: str) -> Non
     lines = tuple(line.strip() for line in text.splitlines() if line.strip())
     if not lines:
         raise ScenarioValidationError("response warrant has no explicit request")
+    if kind is ResponseWarrantKind.AMBIGUITY_CLARIFICATION:
+        return
     direct_request = any(
         fullmatch(_DIRECT_QUESTION, line, flags=IGNORECASE) is not None
         or fullmatch(_DIRECT_REQUEST, line, flags=IGNORECASE) is not None

@@ -15,6 +15,8 @@ sys.path.insert(0, str(ROOT))
 from scripts import run_phase2_sentinel_batch as script  # noqa: E402
 from scripts.run_phase2_sentinel_batch import _run, _verify_packet, load_plan  # noqa: E402
 
+_EXECUTION = script._PACKETS["sentinel-v2"].execution
+
 from im.assets.model import canonical_artifact_bytes  # noqa: E402
 from im.probes.harness.batch_api import BatchApiObservation, BatchCreateUncertain  # noqa: E402
 from im.probes.harness.cache import HarnessCache  # noqa: E402
@@ -34,6 +36,7 @@ async def test_authorized_sentinel_plan_reproduces_exact_offline_shard(
     await _run(
         argparse.Namespace(
             mode="plan",
+            packet="sentinel-v2",
             repository=repository,
             approve_live_ceiling_usd=Decimal("0.639536"),
             batch_poll_seconds=600,
@@ -161,6 +164,7 @@ class _Gateway:
 def _args(repository: Path, mode: str = "run") -> argparse.Namespace:
     return argparse.Namespace(
         mode=mode,
+        packet="sentinel-v2",
         repository=repository,
         approve_live_ceiling_usd=Decimal("0.639536"),
         batch_poll_seconds=1,
@@ -175,19 +179,15 @@ async def test_live_adapter_writes_eight_comparisons_and_resumes_without_resubmi
 ) -> None:
     plan = load_plan(ROOT)
     gateway = _Gateway(plan)
-    monkeypatch.setattr(script, "load_plan", lambda _repository: plan)
+    monkeypatch.setattr(script, "load_plan", lambda _repository, _packet: plan)
     monkeypatch.setattr(script, "OpenAIBatchGateway", lambda **_kwargs: gateway)
     monkeypatch.setenv("OPENAI_API_KEY", "test")
 
     await _run(_args(tmp_path))
     await _run(_args(tmp_path, "resume"))
 
-    comparison = json.loads(
-        (tmp_path / script._EXECUTION / "comparison.json").read_text(encoding="utf-8")
-    )
-    state = json.loads(
-        (tmp_path / script._EXECUTION / "execution-state.json").read_text(encoding="utf-8")
-    )
+    comparison = json.loads((tmp_path / _EXECUTION / "comparison.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / _EXECUTION / "execution-state.json").read_text(encoding="utf-8"))
     assert comparison["mandatory_review_count"] == 8
     assert comparison["non_equivalent_count"] == 0
     assert state["api_call_performed"] is True
@@ -200,7 +200,7 @@ async def test_uncertain_create_requires_adopt_before_resume(
 ) -> None:
     plan = load_plan(ROOT)
     uncertain_gateway = _Gateway(plan, uncertain=True)
-    monkeypatch.setattr(script, "load_plan", lambda _repository: plan)
+    monkeypatch.setattr(script, "load_plan", lambda _repository, _packet: plan)
     monkeypatch.setattr(script, "OpenAIBatchGateway", lambda **_kwargs: uncertain_gateway)
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     with pytest.raises(BatchCreateUncertain):
@@ -226,11 +226,23 @@ async def test_terminal_failure_is_preserved_without_comparison(
 ) -> None:
     plan = load_plan(ROOT)
     gateway = _Gateway(plan, status="failed")
-    monkeypatch.setattr(script, "load_plan", lambda _repository: plan)
+    monkeypatch.setattr(script, "load_plan", lambda _repository, _packet: plan)
     monkeypatch.setattr(script, "OpenAIBatchGateway", lambda **_kwargs: gateway)
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     with pytest.raises(RuntimeError, match="terminal status 'failed'"):
         await _run(_args(tmp_path))
-    assert not (tmp_path / script._EXECUTION / "comparison.json").exists()
-    with HarnessCache(tmp_path / script._EXECUTION / "ledger.sqlite") as cache:
+    assert not (tmp_path / _EXECUTION / "comparison.json").exists()
+    with HarnessCache(tmp_path / _EXECUTION / "ledger.sqlite") as cache:
         assert cache.get_batch_job(plan.shard.input_sha256).status == "failed"
+
+
+def test_repair_plan_reproduces_exact_two_request_shard() -> None:
+    plan = load_plan(ROOT, "ambiguous-cancel-repair-v1")
+
+    assert len(plan.shard.items) == 2
+    assert plan.shard.input_sha256 == (
+        "sha256:fff76a7e4e23e2442ad0a44a17a0d4b14bb1f77508c28ed8af9f3d72a7d1be7b"
+    )
+    assert Decimal(
+        str(plan.manifest["cost_estimate"]["optional_twin_incremental_warm_cache_usd"])
+    ) <= Decimal("0.008")
