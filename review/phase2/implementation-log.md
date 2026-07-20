@@ -704,3 +704,13 @@ authoritative.
   workspace-derived sentinel prompts to the external OpenAI API. No provider call occurred. The
   owner must explicitly confirm that external transfer after being informed of it; then the already
   prepared detached job can be launched without changing the sealed packet.
+
+### Authorized detached launch
+
+- The owner explicitly authorized the external transfer of the sealed eight-request packet after
+  the transfer boundary was disclosed. The unchanged job launched through the macOS background
+  service at `2026-07-19T22:39-05:00` and will poll every 600 seconds independently of this task.
+- The durable ledger binds provider Batch `batch_6a5d9880a2248190bae0c9d12cac58ba` and input file
+  `file-5TdEyzkUmg3EEoow4V1wse` to the exact authorized digest. Initial status is `validating`; raw
+  outputs and the mandatory eight-cell comparison will remain under
+  `review/phase2/sentinel-0-executable-v2-execution/`.
