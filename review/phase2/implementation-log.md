@@ -604,3 +604,79 @@ authoritative.
 - The direct-control recipe adds one preceding frame and decision instead of introducing lifecycle
   subtype fields or a second oracle path. This is the smallest causal setup that makes stop and
   replacement observable while preserving the frozen asset and action schemas.
+
+## 2026-07-19 — WP2-1 offline executable sentinel slice
+
+### Research check
+
+- **Methodology:** applied-ML-research, using raw runtime actions and causal failure slices before
+  aggregate summaries. No evaluation framework was added because this is an eight-boundary
+  production-runtime check, not a general benchmark run.
+- **Hypothesis/prediction:** six TRAIN-sealed programs can reproduce all eight D6 directional
+  boundaries through the production runtime without a split bypass or provider request. The exact
+  targets should be `typing_active`, `awaiting_opening`, `respond`, a second distinct `schedule`,
+  duplicate restraint, `superseded_query`, `stale_tool_result`, and `ambiguous`.
+- **Smallest test:** execute each program locally, inspect its exact target action and decision
+  boundary, then render only those eight prefixes into one deterministic offline Batch file.
+- **Result:** all six streams execute and the eight exact target actions match the digest-locked v2
+  contract. The local packet contains eight requests; `api_call_performed=false` and
+  `authorization_state=not_authorized` are explicit. No upload, credential read, or provider call
+  occurred.
+
+### Design decisions and interpretations
+
+- `phase2-sentinel-v1.json` remains byte-unchanged historical planning evidence. Executable v2 is
+  separately versioned because v1 contains placeholder asset identities, response text, event IDs,
+  and a non-executable semantic-duplicate label.
+- The semantic duplicate target uses `idle(no_trigger)`, not v1's placeholder
+  `idle(already_handled)`. D6 requires restraint; `already_handled` requires a visible handled event,
+  while the duplicate instruction has instead been consumed by an active timer. `no_trigger` is the
+  runtime-valid exact restraint and does not invent a related event.
+- Successful schedule and skip actions emit runtime events that open further decision boundaries.
+  The timer and cancel programs include explicit non-target idle beats to consume those boundaries;
+  they do not attempt to evade production ordering with fragile timestamps.
+- The lookup program makes the refresh snapshot visible before the original result and the
+  abandonment snapshot visible before the refreshed result. The resulting skips therefore carry
+  self-contained G7 need lineage at the exact decision boundary: original result
+  `superseded_query`, refreshed late result `stale_tool_result`.
+- Both response twins use the same approved human payload, invitation, support, seed, asset, and
+  template. Only the declared floor activity/opening evidence differs.
+
+### Artifacts and provider boundary
+
+- `spec/phase2-sentinel-v2.json` binds the complete 89-entry TRAIN seal, six exact streams, eight
+  target actions, and the offline teacher plan.
+- `review/phase2/sentinel-0-executable-v2/` preserves the exact one-shard Batch input, checksums,
+  target-to-prefix/request digests, stream hashes, and approval summary. Its input SHA-256 is
+  `sha256:d8208cf3585dcef4b95840c6754fd5d062b9f96edaba1876fda0167e343f8524`.
+- The separately authorized continuation is exactly eight `gpt-5.6-terra` Batch requests at high
+  reasoning. Using the repository's 2026-07-12 pricing snapshot, expected cost is `$0.166016` and
+  the 65,536-output-token approval ceiling is `$0.639536`. Planned output is retained at
+  `teacher-output/sentinel-0-executable-v2-shard-000.jsonl` when and only when authorized.
+
+### Deferred boundary
+
+- This closes the offline executable-sentinel implementation slice, not the WP2-1 owner/provider
+  gate. A later continuation must obtain explicit authorization for the exact preserved input and
+  ceiling, compare every raw teacher action with its oracle, route all eight mandatory sentinel
+  cells through review, repair any directional failure, and only then mark WP2-1 complete.
+
+### Review-loop corrections and verification
+
+- The first independent review rejected three gaps: the receipt support asset was not enforced on
+  both response stream selections, freshly regenerated request packets were not compared with the
+  checked-in authorization packet, and the initial packet publisher duplicated incomplete
+  transaction logic. The response loader now binds receipt support text and digest to the approved
+  TRAIN `TextAssetPayload`; both twins must select that exact asset and share template and seed.
+- The deterministic test now regenerates the complete packet and byte-compares it with the
+  checked-in inventory, verifies `SHA256SUMS`, and matches every request body to its manifest digest.
+- Publication now uses one shared complete-directory helper for both WP2-0a and WP2-1. The first
+  correction was rejected because an empty public target was observable during staging. The final
+  helper uses a hidden sibling lock, keeps the public path absent until complete promotion, rejects
+  collisions, and rolls back both replacement and create-only interruptions. This removed the old
+  WP2-0a transaction implementation rather than moving or duplicating it. Visibility, contention,
+  no-clobber, post-rename interruption, and existing replacement rollback slices pass.
+- The same independent applied-ML/raw-output and thermo-minimality reviewer approved the corrected
+  slice with no findings. The focused cross-slice run passes 106 tests. The full suite reaches 100%
+  with only the already documented unrelated `golden/.DS_Store` review-bundle inventory failure;
+  that user-owned file remains untouched.

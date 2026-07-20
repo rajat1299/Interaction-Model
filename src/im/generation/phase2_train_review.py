@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
 from hashlib import sha256
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from im.assets import (
     AssetRecord,
@@ -27,6 +25,7 @@ from im.assets.validate import validate_registry
 from im.generation.g7_response_assets import HumanAuthoredResponseAsset, ResponseDraftSpec
 from im.generation.phase2_selection import load_selection_contract
 from im.generation.phase2_train_coverage import build_train_coverage_matrix, train_status
+from im.generation.publication import directory_bytes, publish_directory_transaction
 from im.generation.response_contracts import (
     AnswerContract,
     RequiredAnswerPoint,
@@ -448,7 +447,7 @@ def materialize_review(
         if scoped_approval is None or set(artifacts) != {*_COMPLETED_FILES, "SHA256SUMS"}:
             raise ValueError("replacement only supports the partial-to-completed transition")
         expected_before = frozenset({*_PARTIAL_FILES, "SHA256SUMS"})
-    _transactional_publish_directory(
+    publish_directory_transaction(
         output,
         artifacts,
         expected_before=expected_before,
@@ -522,7 +521,7 @@ def publish_review_publication(
         f"{sha256(published[name]).hexdigest() if name in published else checksum}  {name}\n"
         for name, checksum in approved_checksums.items()
     ).encode("ascii")
-    current = _directory_bytes(approved_root)
+    current = directory_bytes(approved_root)
     completed = {**current, **published, "SHA256SUMS": manifest}
 
     def verify_staged(root: Path) -> None:
@@ -533,73 +532,12 @@ def publish_review_publication(
         ):
             raise ValueError("publication changed frozen TEST/DEMO seal bytes")
 
-    _transactional_publish_directory(
+    publish_directory_transaction(
         approved_root,
         completed,
         expected_before=frozenset(current),
         verify_staged=verify_staged,
     )
-
-
-def _transactional_publish_directory(
-    target: Path,
-    files: Mapping[str, bytes],
-    *,
-    expected_before: frozenset[str] | None,
-    verify_staged: Callable[[Path], None] | None = None,
-) -> None:
-    """Publish one complete directory and restore the prior directory on any failure."""
-    if not files or any(Path(name).name != name for name in files):
-        raise ValueError("publication files must be a nonempty flat inventory")
-    if target.exists():
-        before = _directory_bytes(target)
-        if expected_before is None or frozenset(before) != expected_before:
-            raise ValueError("publication source inventory is not the expected transition state")
-    elif expected_before is not None:
-        raise ValueError("publication source directory is missing")
-
-    with TemporaryDirectory(prefix=f".{target.name}-transaction-", dir=target.parent) as temporary:
-        transaction = Path(temporary)
-        staged = transaction / "staged"
-        staged.mkdir()
-        for name, data in files.items():
-            (staged / name).write_bytes(data)
-        _verify_directory_bytes(staged, files)
-        if verify_staged is not None:
-            verify_staged(staged)
-
-        backup = transaction / "backup"
-        failed = transaction / "failed"
-        had_target = target.exists()
-        try:
-            if had_target:
-                target.replace(backup)
-            staged.replace(target)
-            _verify_directory_bytes(target, files)
-            if verify_staged is not None:
-                verify_staged(target)
-        except BaseException:
-            if backup.exists():
-                if target.exists():
-                    target.replace(failed)
-                backup.replace(target)
-            elif not had_target and target.exists():
-                target.replace(failed)
-            raise
-
-
-def _directory_bytes(root: Path) -> dict[str, bytes]:
-    if root.is_symlink() or not root.is_dir():
-        raise ValueError("publication directory must be a real directory")
-    paths = {path.name: path for path in root.iterdir()}
-    if any(path.is_symlink() or not path.is_file() for path in paths.values()):
-        raise ValueError("publication directory must contain only real files")
-    return {name: path.read_bytes() for name, path in paths.items()}
-
-
-def _verify_directory_bytes(root: Path, expected: Mapping[str, bytes]) -> None:
-    if _directory_bytes(root) != dict(expected):
-        raise ValueError("published directory differs from its complete staged inventory")
 
 
 def _closed_evidence_paths(root: Path) -> dict[str, Path]:
