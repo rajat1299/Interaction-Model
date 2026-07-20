@@ -714,3 +714,17 @@ authoritative.
   `file-5TdEyzkUmg3EEoow4V1wse` to the exact authorized digest. Initial status is `validating`; raw
   outputs and the mandatory eight-cell comparison will remain under
   `review/phase2/sentinel-0-executable-v2-execution/`.
+
+### Completed result
+
+- The Batch completed all eight requests with no provider errors and actual cost `$0.062751`, below
+  both the `$0.166016` expectation and `$0.639536` ceiling. Raw outputs were inspected individually;
+  five teacher actions exactly match the oracle and three differ in action type.
+- Raw-prefix inspection attributes two directional failures to the teacher: premature `respond`
+  instead of `awaiting_opening` on an active floor, and `integrate` instead of
+  `skip(superseded_query)` after lookup refresh. The third mismatch is a scenario/template defect:
+  ambiguous-cancel ends with `activity=paused`, where the frozen contract requires the teacher's
+  clarification response; the intended `idle(ambiguous)` sentinel must remain active. The
+  owner-review packet leaves every one of the eight mandatory dispositions open.
+- The completed launch job was unloaded after exit code 0, preventing accidental reruns. WP2-1 is
+  blocked at owner adjudication; no repair or additional provider request has been started.
