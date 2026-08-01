@@ -152,6 +152,7 @@ class ScenarioProgram:
     perturbations: tuple[DeclaredPerturbation, ...]
     annotations: tuple[ScheduledAnnotation, ...] = ()
     config: RuntimeConfig = field(default_factory=RuntimeConfig)
+    prompt_template: str = "prompt-template-v1.txt"
     counterfactual: CounterfactualDeclaration | None = None
     response_warrants_by_beat: tuple[BeatResponseWarrant, ...] = ()
     openings_by_beat: tuple[BeatOpening, ...] | None = None
@@ -225,18 +226,27 @@ class ScenarioProgram:
                 continue
             if (
                 isinstance(action, IdleAction)
-                and action.reason is IdleReason.AWAITING_OPENING
                 and (
-                    action.related_event_id == warrant.snapshot_event_id
+                    (
+                        action.reason is IdleReason.AMBIGUOUS
+                        and action.related_event_id is None
+                    )
                     or (
-                        warrant.failed_result_event_id is not None
-                        and action.related_event_id == warrant.failed_result_event_id
+                        action.reason is IdleReason.AWAITING_OPENING
+                        and (
+                            action.related_event_id == warrant.snapshot_event_id
+                            or (
+                                warrant.failed_result_event_id is not None
+                                and action.related_event_id == warrant.failed_result_event_id
+                            )
+                        )
                     )
                 )
             ):
                 continue
             raise ScenarioValidationError(
-                "response warrants may only declare matching response or awaiting-opening beats"
+                "response warrants may only declare matching response, ambiguity, or "
+                "awaiting-opening beats"
             )
         if tuple(item.beat_id for item in self.response_warrants_by_beat) != tuple(
             beat_id for beat_id in self.beat_ids if beat_id in warrant_by_beat
@@ -283,6 +293,12 @@ class ScenarioProgram:
             raise ScenarioValidationError("perturbations must be uniquely sorted by kind")
         if not isinstance(self.config, RuntimeConfig):
             raise TypeError("config must be a RuntimeConfig")
+        if (
+            not isinstance(self.prompt_template, str)
+            or not self.prompt_template
+            or Path(self.prompt_template).name != self.prompt_template
+        ):
+            raise ScenarioValidationError("prompt_template must be a spec filename")
         if not isinstance(self.require_g7_evidence, bool):
             raise TypeError("require_g7_evidence must be a bool")
         if self.counterfactual is not None and not isinstance(
@@ -321,6 +337,7 @@ class ScenarioProgram:
         perturbations: tuple[DeclaredPerturbation, ...],
         annotations: tuple[ScheduledAnnotation, ...] = (),
         config: RuntimeConfig | None = None,
+        prompt_template: str = "prompt-template-v1.txt",
         counterfactual: CounterfactualDeclaration | None = None,
         response_warrants_by_beat: tuple[BeatResponseWarrant, ...] = (),
         openings_by_beat: tuple[BeatOpening, ...] | None = None,
@@ -350,6 +367,7 @@ class ScenarioProgram:
             perturbations=perturbations,
             annotations=annotations,
             config=config or RuntimeConfig(),
+            prompt_template=prompt_template,
             counterfactual=counterfactual,
             response_warrants_by_beat=response_warrants_by_beat,
             openings_by_beat=openings_by_beat,
@@ -415,6 +433,8 @@ class ScenarioProgram:
                 None if self.counterfactual is None else self.counterfactual.as_json_object()
             ),
         }
+        if self.prompt_template != "prompt-template-v1.txt":
+            metadata_object["prompt_template"] = self.prompt_template
         if self.response_warrants_by_beat:
             metadata_object["response_warrants_by_beat"] = [
                 item.as_json_object() for item in self.response_warrants_by_beat
@@ -517,6 +537,7 @@ async def execute_scenario(
         master_seed=program.master_seed,
         config=program.config,
         repository_root=repository_root,
+        prompt_template=program.prompt_template,
         tool_script=tool_script,
         decision_boundary_observer=boundaries.append,
         generation_input_hash=program.input_hash,

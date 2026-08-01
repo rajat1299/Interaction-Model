@@ -1,0 +1,1765 @@
+{
+  "format_version": 1,
+  "groups": [
+    {
+      "approved_completion_ids": [
+        "replay-2164d37bdcc7ab364ef245e4c704682b",
+        "replay-3ff08a4aa350c5e257e720bb25587d2d",
+        "replay-44f7d04dc729b1e49f8b578588491d51",
+        "replay-5782082a5e1c484365610308d95b62e2",
+        "replay-604e64eed32cf16a5c91c1710f32309a",
+        "replay-6f71806aac0ba47b70ce9779497596d1",
+        "replay-b10bf0a7b1739cd2b8d5efddc380d16e",
+        "replay-c13b187bcb1c3f14a93cc6d8c74b1242",
+        "replay-cbec7b3260b354844d3cecd16f176301",
+        "replay-cefecb7458182c84ee0e60b924548f43",
+        "replay-cfa11903f800969fbbd8bd64ef678d49",
+        "replay-db431ee2bffab7910b8c55cfc6d77728",
+        "replay-dd1ff728f0e3e8a5bc017dbbc6e97a63",
+        "replay-e0bc69907d54ef985e3ac5f6be1c48d2",
+        "replay-ed98f7a0b00ff5ba49d5d4e2f38ff1b4",
+        "replay-f0a7c218fe8c8fa549b5a1acbce082c9",
+        "replay-f19daeae15a98ca39c2964e7de940141",
+        "replay-f53a808b06be0fddaf28091e3e505fdc",
+        "replay-7c65ac458f031cee0ae8a3ab37129854",
+        "replay-bc084a002e0ee7bf3b6fe0b211247602",
+        "replay-01a5411576ff92c34b14eb825bafba0c",
+        "replay-2064b77c53156a6bc3207a578bc65ef2",
+        "replay-b5563f62d62ad8bd1ea36e7924e3f08f"
+      ],
+      "family": "refusal/uncertainty/missing-information",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-1ff4e58ead5153926b3f6ea2b6239d03",
+          "reason": "Incorrectly describes the Subaru Outback as a body-on-frame SUV."
+        },
+        {
+          "completion_id": "replay-4cc72dc904b8b452d891b2b1e52d4a2b",
+          "reason": "Claims Zync contains a k and makes unverified uniqueness and searchability claims."
+        },
+        {
+          "completion_id": "replay-73cc7d56a67d4a5b0f0951878f2f56f1",
+          "reason": "Provides unsupported tree-count estimates, including an implausible 15-25-log house estimate."
+        },
+        {
+          "completion_id": "replay-851ae53de3a3bd68c5c75a48d120a8f7",
+          "reason": "Replaces a malformed equation with an invented recurrence instead of clarifying it."
+        },
+        {
+          "completion_id": "replay-ac6e4f3d0781c1f92fe077ed7a56f645",
+          "reason": "Presents LGA1700 as a current upgrade-friendly platform."
+        },
+        {
+          "completion_id": "replay-da3c2d73e0ebdcbdd46b477766d2b247",
+          "reason": "Assumes a specific three-chests riddle that the user did not provide."
+        },
+        {
+          "completion_id": "replay-0528a670d34591fd898123a3931af0f5",
+          "reason": "Claims to have reviewed a profile that was never supplied and leaves a placeholder in the answer."
+        },
+        {
+          "completion_id": "replay-175b9e1e9f90fbf4530c4281f9baeece",
+          "reason": "Treats an incomplete bare phrase as a request for a long definition."
+        },
+        {
+          "completion_id": "replay-c145d2b05b7f33904c1de6e5400478a4",
+          "reason": "Invents the missing neologism list and asserts a time-sensitive popularity ranking."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-30T21:15:17Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-e1ee41056e0c20406268af647b58483d"
+      ],
+      "family": "coding/debug",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T21:51:17Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-563e6fc255640ec3a5b1c337e5fd5e23"
+      ],
+      "family": "coding/debug",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T21:56:02Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-213d69f83837ec0f7b3329cd76b432b1",
+        "replay-8d3f9501136ef8d6e9dc637e84faf7b1"
+      ],
+      "family": "coding/debug",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T21:56:56Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-322a5af069aebafc662462f2d57b908b",
+        "replay-43798fd9fc905eb588b58da7161faa20"
+      ],
+      "family": "coding/debug",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T21:58:38Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-3a2bb8b3ee6874c1492402ffa6eb1c83",
+        "replay-3d21df5d36277277073a440a994d32e8"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T22:00:15Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-7341983a033a049a3a09e5ba8b503e8f"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-69dd2e22db686c430cc3d0bc6faacff3",
+          "reason": "Incorrectly claims Godot provides native Nintendo Switch and Xbox export pipelines."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-30T22:03:41Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-75f39ad785e7a0385b45a8a4499d5d8d",
+          "reason": "Overstates Vim availability by claiming Vim itself is pre-installed on nearly all Unix-like systems."
+        },
+        {
+          "completion_id": "replay-8a8de95c27ca8034255e7df1f1de81d5",
+          "reason": "Presents an APL expression that does not generally compute matrix row averages as claimed."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-30T22:07:19Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-fd86cc08fa030ef510ab271844bc1881"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-30T22:10:19Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-67fdb870b2d0217c763c089341d40a35",
+          "reason": "Uses dated and weakly comparable throughput figures and overstates Lightning's finality."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-30T23:26:30Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-0b505d8452e40f5c53a083383e5804de",
+        "replay-2a26995442013e7ff0b2d1bc16c3774a",
+        "replay-4a0a1fedbde11f444246d6ecbfe593f0",
+        "replay-72d822be289cb6f3561891bd411efba7",
+        "replay-d171d5e2033ca25cc9fad04d24348498"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-466dc8d4a4a385b4cb593685f862cec6",
+          "reason": "Incorrectly treats the evolution of gills as the necessary first path for permanently aquatic humans despite fully aquatic mammals retaining lungs."
+        },
+        {
+          "completion_id": "replay-8fd737588b507abca8a9106e29dd01c6",
+          "reason": "Overstates custom-ROM functionality, security-patch completeness, performance benefits, and the guarantees provided by open-source code."
+        },
+        {
+          "completion_id": "replay-c292f50c7137b346a7aca5e7f1a3ab45",
+          "reason": "Presents survivorship-biased claims about successful college dropouts as general career and financial advantages."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T00:03:56Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:f008b5e8cc682b2b32c7503058141ed18b9ccfb96c8df4b0a1ac33053ab7be2b:final"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:5892bdd09a722e5d9ba80b727636f5121d6960f8cb8d1d7664dd69b551fe164c:final",
+          "reason": "Makes unsupported claims that pellet grills are safer than gas or charcoal, inherently cook slowly, and cannot readily sear food."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T00:29:16Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-4bea3a6b4e5d03d965b8a49d5e1a9825"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T00:40:35Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:4cc2e50c35b2821c2198f7c302e108d4a9db9891208794c5ba70bc2f0e5be448:final",
+          "reason": "Presents 2021-22 charter-school and enrollment figures as current and makes an overly broad school-funding claim."
+        },
+        {
+          "completion_id": "replay-6f78e64a681f465aafc435dc378ede06",
+          "reason": "Converts uncertain supplied wording into a definitive current claim that obsidian scalpels are available only for research animals."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T00:49:31Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:29d175def0b392522aded991428fc9382bf0764f908b3b0ce668b83cf409f7b6:final",
+        "no-robots:cadd583cda9110da3d4f85bf1ec5b51e6f64acb201d23af479c42be1741b7a84:final",
+        "replay-c2e37c309c18a6545ce19d49a5e5ad8b"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T01:09:40Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:4bae9cfd53cfe21e5ab3ddbb7ddaf15a8f14b36f592139d272be7d39a0726d9d:final"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T01:12:57Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-4e104d0ae11a7da1b2212d57b82fbdca",
+        "replay-527457f949e7cd0c8f20822cc9e92da9",
+        "replay-6ed3128afed8d42cb7117e03674d6502",
+        "replay-7adf7f72f22afeb2d5aaa2d4245aef6b",
+        "replay-ece5bed8860535ff2baeeaa07c2b52af",
+        "replay-ef28d4dc9ebe3a254339e339e6b196c5"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T01:17:09Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "replay-3cc039e2b5c74466447236d3aa4ffb8e",
+          "reason": "The retained assistant context contains a materially invalid proof about nth roots of two."
+        },
+        {
+          "completion_id": "replay-8cf40e4af6e35647bb651ceefa21a57d",
+          "reason": "The retained assistant context invents unclear beta-product identity and social-behavior-analysis claims."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T01:22:02Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "oasst2-original:0e460449-3d91-4cf1-93f2-a7b6b9c37565",
+          "reason": "Owner rejected after reviewing the complete retained conversation and final answer."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T01:25:38Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "oasst2-original:46d40943-e7e2-448d-886a-6ef3d8203124"
+      ],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T01:53:58Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "oasst2-original:fc3f2876-3665-491e-b37d-3d397aee30fb"
+      ],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T02:04:59Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-7dfcdac75e6af4897749d9315ba5ce33"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-0a3e060ef48baa558ba403316c635b1b",
+          "reason": "The retained assistant context contains multiple fundamental probability errors, including the false equality 1/2 = 3/4."
+        },
+        {
+          "completion_id": "replay-2a287648368b259f2aa783fb3540b6f2",
+          "reason": "The tipping response contains no math or data-reasoning task and is routed into the wrong family."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T03:13:08Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-9514303ca791ffecfffbde4bee034e78"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-86338ffb22e962e6343f6923bdbd1b1f",
+          "reason": "The answer invents precise calorie totals despite having no ingredient quantities, brands, or serving sizes."
+        },
+        {
+          "completion_id": "replay-b167c90ad8d4f2c2c6298f2e7a1a1cc1",
+          "reason": "The assistant outputs all six chess questions despite the user's explicit instruction to show only three at a time."
+        },
+        {
+          "completion_id": "replay-d27ac452eb6eb8f6c8df43de54c34929",
+          "reason": "The response is routed into the wrong family and misleadingly attributes the modern G-based equation and independent verification to Newton and Halley."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T03:22:51Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "oasst2-original:17a88d71-82d4-4aab-b00d-9a78ad032079",
+        "oasst2-original:3e1fe571-da75-4665-8d0f-1d2ed23387d1",
+        "oasst2-original:5d615762-4e8b-49ae-b93e-8dfb90833e10",
+        "oasst2-original:72a30794-19a2-4954-bf75-d049c1cf58e1",
+        "oasst2-original:8091568c-03aa-4f4c-ab4a-dc15460892be"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T03:32:05Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-54a1e90c616c98b676c1b957e0b31563",
+        "replay-5a6a668fa5395c610e3222fb892e9cfd",
+        "replay-79c76c968b26d384012af041891aaec4",
+        "replay-7e3e9f231af0e0b93881e8f2461ce304",
+        "replay-fccb4defe8abe1eef881ca005716c175"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T03:37:44Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:d0eaa61cc62a8078691676292da042c72c43677a14249781388719b415201aa3:final"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T03:40:45Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:74ba7764fd8ce9b90adf923dc7c5befd315e5926d9ef5276d48ca2de2d2d7c0c:final",
+        "no-robots:8ed1aaa6e86e8f383883892c79e13c721c8172e80917bed9fa561db6c4917508:final",
+        "no-robots:9fe2227a138470e9a75ce8b30934a32fa065dbb38b004309a382b90f19b05c51:final",
+        "replay-078565c80ccab689123b4bc91e9e4940",
+        "replay-140f6a4758069d5ff7a8ce3bac3e1900",
+        "replay-16e69ae452f5e525ffb0f11e41e847f1",
+        "replay-41f8a8eae994f3f88bf46b25f8834a7d",
+        "replay-ac67378183ccb936ffdefe7d48a6a479",
+        "replay-b0f61913361a6fedf3e7b860a71606b9",
+        "replay-c7c0d0174a429dbe0857139926adc9cc",
+        "replay-d4aa2d14a218a0fecce6b51ddffa11e2",
+        "replay-da4bbee1086d1cbd6ef1308795e49e6c",
+        "replay-f78338f2b40495590436bbad9063faa8"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:67928c5512a46ff6ee7ca6b60b823665f5f9f38d247110ce0d528ca6c85d71fb:final",
+          "reason": "Incorrectly says Lake Baikal contains almost 20% of all Earth's fresh water rather than roughly 20% of unfrozen surface freshwater."
+        },
+        {
+          "completion_id": "replay-50c0b820ae9579c4a5d14e79cbc3b3e5",
+          "reason": "Gives 16,588,853 as the 1,067,456th prime; the exact value is 16,604,509 and the claimed number is not prime."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T03:46:53Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:5cf2d8842f35f73f14a2ebfba5997ddfb4d70d74c7eec08d7e2b1292593ce1ad:final"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T03:56:48Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:10c7c5832bd442f5f99ab00ab3c53064f632522f9642a60a3f9457f4a7104220:final",
+        "no-robots:2f0fca4f3ff81290e852c13935ea1ae4af5f4338941c71469d2e53aaa78a70ce:final",
+        "replay-55d9c9efea9adf6ddcec6ea4890036cd"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:e4e459192fd99c2a373a3e2b6bcc28f9d88e39e8dcaafc6d1d4f4a15112b6b84:final",
+          "reason": "The retained context says an 8:00 a.m. to 8:30 p.m. commute over five days totals 2.5 hours; as written it totals 62.5 hours."
+        },
+        {
+          "completion_id": "no-robots:ee2178b0fedfe3fd9ee4500992b9016788c507bc1553d2f3e484e6b1d8ffc9a2:final",
+          "reason": "Defines a prime as divisible only by itself and incorrectly omits divisibility by 1."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:00:16Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-73aa722c66f30fd4c3bc97dbdbf8c879",
+        "replay-7bf8231c2a79d3b378a7ada73a7097cd",
+        "replay-9b6fe547fcfbf709f131817c393623b3",
+        "replay-acc1a593b1f3fd9750b5ff2f6e8dc263",
+        "replay-b42f19b5936bf35884151c58fdb70f73",
+        "replay-bec663b42ae9ded7facfc10d68a40bd9",
+        "replay-c0c9a00f02276ab98e145123e20b700f",
+        "replay-fdc068f6b0d78f5b1453e8be6bb66120"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:03:07Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:88c00ef31e024c16e38339720e71f560b4f99749bca8ea2f141d36a422de47c4:final"
+      ],
+      "family": "practical planning",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:06:57Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:3400b3e25ec1bac0b1d75531eb052c956fafe0503ef53b318bc86af6b21a6420:final"
+      ],
+      "family": "practical planning",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:bf897d72d8e2c11c58800c2de73cf0303f9e34243242b108ab49af886846a598:final",
+          "reason": "The retained context asserts without support that there are 70 million stray dogs in the United States."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:15:01Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:03d0aa618f3b41a27c3b07e44d697125eca1e0e77882cb044c0948c4069f1b89:final",
+        "no-robots:1a6a895a2a1c0d3b23abf2df5872f43692ffd75a6d7cfe88e940f84f75fc51a6:final",
+        "no-robots:2c32a0ae3602d7d115bc989fca45cd624e8b493107792faf74dce9f7cc82ba9f:final",
+        "no-robots:39bafc19f719f1a4fc3f2da607f34c72e5cdc9d8b85f4f2bc27e75eefe48ab94:final",
+        "no-robots:7f32b547518c6c761eec1c2a8ec8fdea0a60e741b8c89bcffc6d2260a8e78c76:final",
+        "no-robots:b28ae2203a7fcb0e9af2506797efd21dffac9cdff33b3879f200602ebc27ff48:final",
+        "no-robots:bbfd0e7cb1e7743d62e0b20fca5a1c9f1643bb5c386a6cb99a3d700567150615:final",
+        "no-robots:da4178731548884b3c48f1d0b782683cb072a5983cb743d5fe4894476c04165e:final",
+        "no-robots:f1bd36ccaf9426e018d999075600ecd75572cffdda77a4cb4b3fd947174f6418:final"
+      ],
+      "family": "practical planning",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:5de6e9625f898fe9426f105eb9dd48b6c3474af27793f89680e9a0c868fe5f2d:final",
+          "reason": "For a request about spring low-maintenance flowers, two of the three recommendations—daylily and coneflower—generally bloom in summer."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:20:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-071865fbd2ad8e42229aaef65440332c",
+        "replay-1807a67a09d21360f8a9196824447f22",
+        "replay-3c1ed11b8dd66ed060f8913d99b1bd30",
+        "replay-3e2a67331a0bc3bc813418d51fc70b37",
+        "replay-7a17414b109bf424ccd29ed111fdd351",
+        "replay-831dc5cdf3c7e4552da7d5ff089aa1eb",
+        "replay-c9b42e7be4a27f803e393d05dde3e499"
+      ],
+      "family": "refusal/uncertainty/missing-information",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "replay-24b59d03f3f4f5e5af5df066a1d65c93",
+          "reason": "Discloses the hidden system instruction despite that instruction explicitly forbidding its disclosure."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:22:26Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "rewrite/edit/summarize",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "replay-784bbd2bf69231cab786a7cc4cbc3dc7",
+          "reason": "The retained context materially misstates master- and slave-cylinder roles, reservoirs, locations, and parking-brake behavior."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:26:34Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-1f568a53ebb7865e1c47a8833cb38638",
+        "replay-90f6bccc97d201c981dd0975232fb2e3",
+        "replay-eb3d90cdf5677c9c22b34b8ffe04b119"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:30:27Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-70537991871f69340ee6225af582997c"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:32:43Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:11894a9b0398a9bcbe274085ebaf0264ce6824a733bd6ba5c9075aea66d0d1d0:final",
+        "replay-13fe681d6b3da63ee027b77881eaacae",
+        "replay-3522ec211ef37ba4e96c516824205a06",
+        "replay-49ea4a60f0af30475472f012caa93875",
+        "replay-569752be6ee0d94f48d19fe2ef53ec72",
+        "replay-5e77fbc1a7004c8f26c58d4eef756450",
+        "replay-9d85e65885cbeef66e8c7770e8203a3c",
+        "replay-b68fd5aed72ba2cb1e4ec5ec778431a6",
+        "replay-e5174379a033e5d5fb3690559f0fc099",
+        "replay-f53a5ab2b713674e7542700b58badd74"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:35:49Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "rewrite/edit/summarize",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "replay-8d10a555ff119195a142d61d6964fdda",
+          "reason": "Invents the year 2023 without any runtime date or conversation-date evidence and repeats it in the supervised answer."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:39:26Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-617fbf6977c17a6d379de4af79f6f5c9"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:42:13Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-60bb860dce6b7210689eaff3e08b6ca6",
+        "replay-8cddf069b77f2913d7ae0487535408f2",
+        "replay-c279d766baea6d548aec865ad08990aa"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T04:44:58Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-7cd4561d24eaf4f18113cabef80bce7f",
+        "replay-efcb70bbdb5bcd388482746b46f097d7"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "replay-3d33adb8a96f6748dca83da7a5cf2121",
+          "reason": "The rewrite omits most source sentences and incorrectly reduces statistical inference to deducing probability distributions."
+        },
+        {
+          "completion_id": "replay-bcbcf9bd8ae0b1b9f698656f47f8ca88",
+          "reason": "The requested haiku has an approximately 5-8-5 syllable pattern instead of 5-7-5."
+        },
+        {
+          "completion_id": "replay-e6c81b8615bddc7a0ca7207de6f7bd32",
+          "reason": "The requested limerick fails the AABBA rhyme scheme because the fifth line does not rhyme with the first two."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:51:18Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-6bbdda37f749a88552bf6973ca271ec8",
+          "reason": "The Spanish output materially mistranslates, omits, and invents content, and the retained request asks for direct imitation of a named living artist."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:53:25Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-169258ad0a28f15db9175d45130e76db",
+          "reason": "The retained assistant presents ordinary Modern German as an Old High German translation."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:55:24Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-0b8c88ab556941943396b5955f1a76a2",
+          "reason": "The proposed Italian and German pronunciation puns rely on unsupported claims that clearly distinct word pairs become nearly homophonous in regional speech."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:58:35Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-19b0c49d63f29ff7ea20c6d0676cb565",
+          "reason": "The purported Old High German translation mixes uncertain reconstructed vocabulary, inflections, and historical forms and is not dependable enough for supervised language training."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T04:59:46Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-21c7bcb50ef77759dd434b1f85ad3a0d",
+          "reason": "The Spanish transformation invents a rhyme scheme for an explicitly non-rhyming source, loses the requested sound pattern, and recommends an apparently nonexistent Szymborska poem."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:00:37Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-3213c457b1e65ab08b9b593fa3002250",
+          "reason": "The response gives qamaS as Klingon for 'I like you,' but the attested form is qaparHa'; its additional alternative is also malformed."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:01:18Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-368dcc037a631749bffa81d65c6a9d10",
+          "reason": "The answer correctly identifies one Sindarin item but still treats a reconstructed Primitive Elvish form as Quenya and presents uncertain pronunciations as settled."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:01:57Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-93c2b18b63f3a177143a57a6cd17b637",
+          "reason": "Although the Spanish phrasing is usable, the answer invents materially incorrect distance and travel-time facts for the named hotel and park."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:02:43Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-637d87b5a4551c8ebe517f5771d620bc",
+          "reason": "The final answer silently substitutes corrected Hebrew for the malformed sentence in the retained assistant response instead of identifying and explaining the original transcription errors."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:04:23Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-f966497269c74d33b71a29afda27b7ab",
+          "reason": "The final Japanese definitions are sound, but the retained assistant answer fabricates multiple name meanings and cultural origins."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:05:18Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-23d7dc58c50ac399cf781dd5132d5e57",
+        "replay-2f92fd04a72cf52417d4e2bb70e37897",
+        "replay-7727a8a6c09d67ff85591ff7bc398e20",
+        "replay-8a93d930d310818db3d55ba9f1b3978b",
+        "replay-a196ca544eb542505d77ebcfa0de1665",
+        "replay-a8e91bcdd41bc058b7acf5fc509abc16",
+        "replay-c9fadbf28d509d1f388090a8e02e5418"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:06:02Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:7267122297dc1dbea327fbc2287dde4f4c307c1caa10bd13c15ece2884778c02:final",
+        "replay-6176afa2727e0884d56bf090dd6d106d"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:07:43Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-6c154261a6b74eab4b2fb13ba269e0a1",
+        "replay-6ffd995ee0f9837cd74ca4e5cac57e61",
+        "replay-b5fcb0c92309c1a69e47b6002d9d110b"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:11:34Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-f392476fd38d21bb36e2b90b53990497"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:14:51Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:9bf27e8c180e768d9ee806a3252faf2d16c52265c887cfdc56077cbc5c9ccc93:final",
+        "replay-3b290dee27922f70d429e5432a74839e"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:16:11Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-7931003de88de5d58294e44a02749b96",
+        "replay-9abb655eb62253572ab26c39a4abd71f"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:19:01Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "translation/language transformation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "replay-118c3f46367c6440d93f8a38723d2d8c",
+          "reason": "The retained Spanish translation fails the user's explicit requirement to preserve the song's rhyme scheme."
+        },
+        {
+          "completion_id": "replay-15ab3b93bbdc4775bb0bdcd6b6625abe",
+          "reason": "The Scots phrase refers to two pies plus an onion pie as well, but the assistant mistranslates it as two pies plus a raw onion and carries that error into Swedish."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:23:35Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-10f7a4f8d498cbde4963b96044da5005",
+        "replay-8d6cf76a2795c988936ad9d986dc6476"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:24:05Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-a1e67e3474321a93d4b8206bd4f2f98a"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:25:27Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:39cdc3c2b2b61f9f37270a6929d05602b1acd0998fcebcde8a066f35efc952ba:final",
+        "no-robots:9e3d7aa94979e6032896278cc9953ba21708e9c539644714e03b38049764297f:final",
+        "replay-028987c1cc2fc09df78b28d0a8e7af24",
+        "replay-2072d4a9c53fa246446abc02143b21eb",
+        "replay-938027556604446dc3ea090e6733fce4",
+        "replay-e7088270dc6a132b970751a40fb81e2f"
+      ],
+      "family": "translation/language transformation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "replay-1a9fe257f2e1011ec78aa80c13fd0924",
+          "reason": "The Hebrew transcription misspells pirkhiyot orez (rice cakes) as פרחיות אורז instead of פריכיות אורז."
+        },
+        {
+          "completion_id": "replay-d15393518f19304a7fd00e316a1e3b0f",
+          "reason": "The Mishnah Berurah translation misreads the contextual reference to taunting the deceased and renders מחרף as blaspheming rather than taunting or mocking."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:26:50Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-2d4f022ef4433d6db412593acd71b8ae",
+        "replay-d6bb2fa0473f0c845a46833369e355ce"
+      ],
+      "family": "coding/debug",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:28:33Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "coding/debug",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:3b650507e57066726fa49fac22e8aac6d2be122f5705b4da43f75fac8a75d91f:final",
+          "reason": "The example runs, but the explanation incorrectly states that bytearray iterable values may include 256; Python requires 0 through 255."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:29:40Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:07ba2c4c5f0f4c64f25fcbf5516e08fcee1fe2b15709d8b6b90777d042971353:final",
+        "no-robots:114f54720c96a61ca2fd801e6eb618cdb4b4ad16e7b266da8dd0c069d1b5cd14:final",
+        "no-robots:1159406bc81de90299c35b6cb6ba586b46dd095fc409c3974bea15e3f96039a0:final",
+        "no-robots:116f740283e4d89c54ca53108c1761b2582793059d766238f968e5ff7bcc491f:final",
+        "no-robots:1caa51a579f965783f3055af95815ba9e374fa9bd59bc1de93b19ff5976c3a61:final",
+        "no-robots:28f64160569443143242291916b7292e7dcdc06c0ac35656d96852946d21d253:final",
+        "no-robots:3ceee726a7d1966e66b106fb1a0188494836ada7464aabd0ec79da8985a87f4b:final",
+        "no-robots:3f6907d6d1b7b6dc70af12774bbfaf2afe6741920272b4902b85d5b1fc18b079:final",
+        "no-robots:56405dfbe0feadd19e9da001aa4c33d0753017d0765f1f4c8b64b6418d3999cc:final",
+        "no-robots:589a823f3dd99323e862e367a993aabb856d112565a0b1140cf316f268d04faf:final",
+        "no-robots:6a78c90d9be12a0e2b1cfab5c3c78bc6a5c3d6b33e9da200ab5166ad4c0c26f6:final",
+        "no-robots:6e38628c14f1695072bbd813a845220718922930a62dbf9296b4a61e870650f7:final",
+        "no-robots:70df1d7f6bb0686741d923fb7b1b617c99eaae1305a80bbb4dee614f2a49a5b4:final",
+        "no-robots:7c6ec546a81b6f2dbe23c0e0ce080e2ed928931bcf816f4cee04c5584e629c28:final",
+        "no-robots:8281ac49b42cc2961d601f2f31783941ac936207fe94334812292cf987d4c0ba:final",
+        "no-robots:87944a8d4ca267ed3083770f33a681ca87797d3e1ea591a5a382a23a014481f0:final",
+        "no-robots:8d64ac17ee071104096c0cba61502a8d925f6a231fd4745b552ad4996477fd00:final",
+        "no-robots:99fc64d24c5aae9ddadf21adac2f672a4c8a03d72fc40172ed026bf9e2b7ec83:final",
+        "no-robots:9cdd2d4648a01b28208eabfc051fd838f3d9acabc0297a3e34d8f835414bc563:final",
+        "no-robots:a960b6bc0f7a7b9b72769f650aefa0f1d5747ba7cb24f431242cf7c122e7bd69:final",
+        "no-robots:b459ed160d8cfecdf5ea2c44516960fa38e797743170cd3f5c253bcd5b624718:final",
+        "no-robots:b593e6bd5e08d90fe2020ffbad965e3c88b558295734c55adb12f3c8089b9043:final",
+        "no-robots:b734cd1d2006a8ad93cd3b3bc05c8a6a29c91588f0da6000af46773dcf8d6f49:final",
+        "no-robots:c01c786adc44869926ca12977838902a56053a2b78238b75fcae29578738eefb:final",
+        "no-robots:cd3f758573f59b29962305a8ab1d7c8ae87012d733f244c02c4ec482529a2d8c:final",
+        "no-robots:ce61fc37f4b5b49f2eb56a656786998e573b3f9d1b1dfc694533a0cb8dccee12:final",
+        "no-robots:d1f12fc5b23db90d66b74a41fdb38d43296774a369ff7b734e8a6fb106b4b659:final",
+        "no-robots:e245e7035b422b2792e22d95075ecd82c4925eb42cc30b176e6ea5a5a5e4b597:final",
+        "no-robots:f92552260020250a0d3af027c82c6fb43aaf297241e2578bb1dc09f3f7be330f:final",
+        "no-robots:fbea1aa3fc2b42ac7ffe530ae1571289b4e346c164f6f5d6d192735295ad9c57:final",
+        "no-robots:fd83445b4d8704b42041b4accbeecb8bc75dbc7c3597b22fde67117cf603a9fb:final",
+        "replay-329c9418ea3aadb6eb4178db1337ff17"
+      ],
+      "family": "coding/debug",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:024993b94e4458563cf650e09442532d49da0ffb1143e74dd0946fcac7adf831:final",
+          "reason": "The explanation claims the Java loop prints 0 through 12, but break executes before the print at i == 12, so the actual output is 0 through 11."
+        },
+        {
+          "completion_id": "no-robots:0c7146f83bc65cdd57bd1a4171b87f03b7bfa345370bee2289f96532c38b4b2f:final",
+          "reason": "The AHK explanation overlooks that the code calls Scripts[...] even though the array is named MyFiles, so the script does not run as described."
+        },
+        {
+          "completion_id": "no-robots:1397073cb9e2e5b48dd50feef77f34e51031ca98102b642b0f70b4de72e25589:final",
+          "reason": "The response introduces an unterminated string literal in the Python condition, turning valid source code into a syntax error."
+        },
+        {
+          "completion_id": "no-robots:159eaf5027f84b1792e718014a59d9899bac15e1a3e864dc22dbcf283e2e41a8:final",
+          "reason": "Using the default locale does not guarantee the requested Jul 18, 3:41 PM format; output varies by runtime locale."
+        },
+        {
+          "completion_id": "no-robots:397f0eb62618df49cc026842e803b1af47433563b971cbafbc304245847fda0f:final",
+          "reason": "The validator removes every # anywhere in the string and accepts the empty string, so invalid tags such as P#Y or # are reported valid."
+        },
+        {
+          "completion_id": "no-robots:5222dc77fa1c4fee4fea3c8dcc8c95e2532916c8745c2b9dc90b02d9ee305f49:final",
+          "reason": "The explanation incorrectly says the Java program calculates perimeter and radius; it calculates perimeter and area."
+        },
+        {
+          "completion_id": "no-robots:5fde2b3789594777c369d51def1b0f02a3a132949b0a3fac32ddca103f0c8fcf:final",
+          "reason": "The Gaussian-blur example cannot run as written: it uses Python 2 xrange, leaves n undefined, constructs a list rather than a NumPy array, and does not enforce OpenCV kernel requirements."
+        },
+        {
+          "completion_id": "no-robots:a3dcd09d7ec31922563cefc6bea48d2751df4b40132287e06f46e3efab75c1f0:final",
+          "reason": "The function is asked to replace four-digit years with three dashes but emits four dashes, and its digit extraction can alter unintended numeric substrings."
+        },
+        {
+          "completion_id": "no-robots:b69ad988ee03290ae7184426d69928b221ed5dcf904384be7a2efaaaf002cee4:final",
+          "reason": "The Pandas example has an unterminated filename string in read_csv and therefore does not run."
+        },
+        {
+          "completion_id": "no-robots:c1cf03253b94f1ecc3657157f63fa013834a4f2caaae7023edec8ee5bc8f5afc:final",
+          "reason": "The AHK script logs the original input rather than the computed result requested, and for any integer the stated expression is always even, making the alternate branch unreachable."
+        },
+        {
+          "completion_id": "no-robots:d188e866020c5e48fdb47176032c565cbad85850ab8695032184b808e405e171:final",
+          "reason": "The React-Redux explanation incorrectly says useSelector's default comparison is shallow equality; the default is strict reference equality and this wrapper explicitly supplies shallowEqual."
+        },
+        {
+          "completion_id": "no-robots:e0a21842b833527c5733b3f3d03a12904e592438f98c6d41da288ba182bd2fa0:final",
+          "reason": "The Selenium example uses the removed find_element_by_xpath API instead of find_element(By.XPATH, ...), so it fails on current Selenium."
+        },
+        {
+          "completion_id": "replay-9e69235587b018500456fd458f0796c3",
+          "reason": "There is no longest finite-running program under the character constraint because any finite duration can be increased; the response incorrectly presents one arbitrary duration as satisfying a maximum."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:34:22Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:7c7ed95f3dff37ef8ba1ef0d2f543ec0e1c8d2e36397e310774b48c06ba95b94:final"
+      ],
+      "family": "coding/debug",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:3ab61df5b7c8caaf6d24c7fe3f87445eb367f196fe36df0fb86eeb4ac668a322:final",
+          "reason": "The user asks how to shorten decimal output, but the answer switches to Decimal without showing any rounding or output-length control."
+        },
+        {
+          "completion_id": "no-robots:90f878fff09cb463acfe7da491eb071e57ac9caca32cbfa1b9866ca8668aabc9:final",
+          "reason": "The queue appends the entire newPpl input as one item rather than adding multiple new people, and nextUp is assigned as an undeclared global."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:36:09Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:061e4b8a13116864ca18e4007afa3f4512ea7862199c94c8f266e614e9bd458d:final",
+        "no-robots:41bbfb5f00e5a719bdf3eacf5c1606880586f4613b3103126ee19eb67c9e445c:final",
+        "no-robots:4ad12299763eb5d5863bf903d5ceff5554f443dc0840871894fbaa708351a22d:final",
+        "no-robots:7650d67f0efa2629309a6da54000f6e3dca2433001c528e8bf3e7cbff5274462:final",
+        "no-robots:7afeace989292ceb9a7c647af4fabe444c1221ce565907d54bf1855fdf0da663:final",
+        "no-robots:7e3f6093015ebacde49beee7d171763727394f222d12cebdcaf9b70db320496b:final",
+        "no-robots:8fd3683aa53b910ad5e5dd90dd4dba10f5e4fcb5bb568fae6577262fd790c03b:final",
+        "no-robots:b2eb6cf47c21f1ba1fb17ebaf622485de5c262910960197a983b910e1e929fad:final",
+        "no-robots:b61afd7fa5adef6f17dd7baf7aadb47d18cae42521c3bd8f07baec596ac74822:final",
+        "no-robots:bc3ca1661980b876eabae038fbfe49af951b91b0efe04955fd253963278c6b00:final",
+        "no-robots:be82ce6dfe2962ef324638e09057997df11b4785eacd66c38eb1b1337462b06f:final",
+        "no-robots:d01f044874ccbbb2d1c3af41e6453db2626a6b9b858733c6113b2e211ea1b8e1:final",
+        "no-robots:dc0e0c349da10568e4ac6e926a1d34cfdb8fd2907c44f72384074f286ddcceb2:final",
+        "no-robots:fc3f0afdfd2f7da174d220c21bef9ad1e32ceb6e64442e5a3eab3b2e14d6fe62:final",
+        "replay-4aa4f3f3fb570d6c8384d7aaef5794d9",
+        "replay-dee517ef21a186a56ce3b2b64b23437f",
+        "replay-55e45b9871ff893744fa29ca1f92823b",
+        "no-robots:1946a2bf022d7a6e32f7a33cc36abf7663c0f7366fdf9089b853beb993a775ad:final",
+        "no-robots:5392592dcc7ab6ae09b53c5b6f3ee53564b7938c61b844c763900fb46e7c975a:final",
+        "no-robots:07d340c3651414d78f6749d804296fcb2a2ce1da98faa6f9041b8ca8f99acef6:final"
+      ],
+      "family": "coding/debug",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:15aa0e4c1cc743635d3becab31071e4ee589b5e493bd9a3d44eb79fafb8b5899:final",
+          "reason": "Converting the integer directly to a string counts the minus sign for negative integers, so it does not reliably return the number of digits."
+        },
+        {
+          "completion_id": "no-robots:60ddddd5f5236e6bad64cab53b9ded3de93e0a1794fac3b9edadc2e7559480d0:final",
+          "reason": "The explanation says the function writes text onto the canvas, but it never draws text; it only configures the context and measures the string."
+        },
+        {
+          "completion_id": "no-robots:61865e4027c70efc2d1e529c08cbb783b7f605b56a5fb9638b3a8efa56dfbc64:final",
+          "reason": "The script blindly changes apostrophes inside strings and comments, mishandles filenames with spaces, and is not a safe project-wide quote conversion."
+        },
+        {
+          "completion_id": "no-robots:bbf04f54d3bb629d7dfc14713ace12cfed0f2e4621a172b8349180c415023e0c:final",
+          "reason": "The function reduces an object's keys to a single accumulator value; it does not necessarily reduce the object to an array or append results to one."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:36:09Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:70b85a9d6ee8e4025d63010c6d7c91db597e070a176c0adc2298ddfdad6ad11b:final",
+        "replay-b8e359cefac3debeab4da4c2b3219734",
+        "replay-bd943058f399ab50baf96c49bd083994"
+      ],
+      "family": "context-grounded QA",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:37:11Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:93791a0000fdfecfebd4950183889900ccb64f8be4f188fc4b95ce7d60e9b7ba:final",
+        "no-robots:9572673e6da959347ab872098dd81201c3e6fc6898e448540751d6bd2ec9e7e0:final",
+        "no-robots:c5d26997b4f37fa4992dc4212c9a3b2e74b71f731c1cdcd24b77407bb5f50800:final",
+        "no-robots:caad1c63f530da44cb6452b13a65f10174da061b32bc894b89a4893624a2b15c:final",
+        "no-robots:700bb58e3cee10aa1f8359c8f98fc67c50e0199738db53674c15c533d702338a:final",
+        "no-robots:e527eb0a47d703ea70c7f80e0d1d3790539ea79b2a70df0d3a147dfb0079b302:final",
+        "no-robots:f809e9bd829839ffd05043d67ba83f67cd6a229ecb2527018e2b1c90a05bc59b:final",
+        "no-robots:5014381414b26d84dec6cec518f0bcc3ec4e6c9c07dbc12eed1b759cbdd1ed5c:final",
+        "replay-585b5ecdb605412aa0ee09b329e6b4a8",
+        "no-robots:971500db54f27e040f1645eed1803fe77e2b71139fa1bffdf2d0436112c2196b:final",
+        "no-robots:a7bae590abf3f1e6d7d47ba2a337e678ef3c90f6a1bbde31a173b3fc8065ab5a:final"
+      ],
+      "family": "context-grounded QA",
+      "length_band": "short",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:37:11Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-924a071e790d551afc9bf3b23c89e997"
+      ],
+      "family": "context-grounded QA",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:39ff47f8ef6cfa1a489190fbd24c2d422a814a1e197c13dc704c4b091daba464:final",
+          "reason": "The response incorrectly calls Sphenisciformes a family; the supplied passage identifies it as the penguin order."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:38:03Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-20c948cfe7b9a4246d65091ab43a25e7",
+        "replay-2e9b83bd3af03b16bb2035ac66e96864",
+        "replay-a94fcf53df852c6fca66592d3d12aec0",
+        "replay-f079c9c5b3f95c5dc4ec56732faace96",
+        "replay-91d8fd4028597b356617f334761a5bba"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "mixed",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:40:25Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:b7ed11a959450a604b354c4906014ef913fa6355e16104a4b6aa6c8bb5162dc2:final",
+        "no-robots:00ba02d66f75262c47dc2c864baa726ef93a1faae3a0cfa1ef5c980814afd03c:final",
+        "no-robots:45ee4315b04c6c0dce063afacb499686b1b386132d54bf72800a3fc8622dd356:final",
+        "no-robots:5f832a9d019f95daeec17a9801953e643efe01d5cde7ca11acb4879386ae2aad:final",
+        "no-robots:e4afb077da2856b6750244bdba4859016ea5e7452dde765babe4cbbc5504f820:final",
+        "no-robots:f7abae97e0c04f89aa39f49509c638230608b705eb4640773c5e62cf3b20a474:final",
+        "no-robots:fc4052e96bdd63f94e1ed9d4f0ec727c792efb1823d705e2370a3e8fc5e57ee8:final",
+        "no-robots:aa2df00f63fb1f32cb1438d38870bed5c5d247a593ee7aeae7712b9fde86d601:final",
+        "no-robots:c9f1253e70328e3cf1941a5f9c97814e5f18aea94514434d9a26833e7997a68e:final",
+        "no-robots:c2d9a9f33c96e6ad771b9930dd492090db24ba713e622ea587e4301ef5238027:final",
+        "no-robots:2095fefe23cf82d9fdfea74af9b620dbda1a3b531bc0622dad196c5fd0d38bab:final",
+        "no-robots:511d280b942450052f946ac6a9772d48b5af51dda4bc34619401a0d5a84fd320:final",
+        "no-robots:a75efcfb56f4cc0f864e47185989dc255d438ad645cdcb5eb837040c7b962636:final",
+        "replay-a3ddf411230315701b823e307c861176"
+      ],
+      "family": "extraction/classification/format conversion",
+      "length_band": "mixed",
+      "rejected": [
+        {
+          "completion_id": "replay-c30205474a6c2272731c78a8bed8df47",
+          "reason": "Although Mondol is correctly classified as a string instrument, the answer invents a Bengali/Bangladeshi origin and resemblance to the dotara or sarod; Mondol ordinarily refers to the Algerian mandole."
+        },
+        {
+          "completion_id": "no-robots:57d0ff69d9d003dc42428e6070de0ef40e3d835eb8d4c9292aa3847ea9253311:final",
+          "reason": "The response uses Advertisement and Job announcement even though those are not among the allowed labels, instead of consistently choosing from marketing, job posting, informational, announcement, or social."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:40:25Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-fdd657cdf9e705eca77b3a5b2e9ae3bc"
+      ],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:46:03Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "extraction/classification/format conversion",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:c2617bd35857b7a2506b2d3e450ae360a93e8ceb336ef8413bf11af736c08939:final",
+          "reason": "The source lists both PPO DENTAL and Blue Choice Preferred plan products, but the extraction reports only Blue Choice Preferred."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:46:03Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "evidence-grounded comparison/recommendation",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-e8f50eabd4bc8f83ed4f9b8529c38d3e",
+          "reason": "The answer misleadingly contrasts national syndicalism with fascism by attributing decentralized, autonomous, and potentially pluralist organization to national syndicalism, even though major national-syndicalist traditions were themselves fascist."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:47:06Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:85eaa0922896725def5b7b52ec86115db076c45dd83c47687c987a27f44611f0:final",
+        "no-robots:e529fc42118a30ad8de265afb08188094fb05182079c010a52ce533263b0c253:final",
+        "no-robots:6287861741159e82004c86ac70a8f4465ad461eb87fba7f463ffe545866bc6ee:final",
+        "no-robots:797d1046f4b92148e7e734e3b78a077a75a65d800cbd064c91dbd0b152923af5:final",
+        "no-robots:e1108fb302b31932a356df6d5110356c81c311945fb96665c5d07a348cdbcf98:final",
+        "no-robots:1b5262b1db099a4ec2f2939850b4961dd0f7c4c527ee689c6e7a5b5b53a37684:final",
+        "no-robots:3be2c8cd2cd38e6a1cba35339895c591ec7ca812bb55b5ef5f60b96db57f11e2:final",
+        "no-robots:9ae144571ecbd88ae8d11cb4df4f99082879c006a64f7226ad73674179549f44:final"
+      ],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:a43cfb5d937ae048da68bba345a07b11b5a1bada7570707d89140b6322d7ed3c:final",
+          "reason": "The response is 124 words rather than the requested exact 125 and incorrectly explains bubonic plague as meaning an illness found across a large area."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:47:54Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [],
+      "family": "light creative/casual",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:95805a3f2835eb64479108744577c95620f3f330c4cbf828cffc9c31a1b1ced8:final",
+          "reason": "The insurance statement invents material claim details that the user did not provide, including witnessing the flash and pop, a 6 a.m. inspection, and a scorch mark."
+        },
+        {
+          "completion_id": "no-robots:d491ccf512a02098ce71e536f83809f14d7ed38de7e3bd6ac0c274a209806053:final",
+          "reason": "After telling the novice to turn the light back on, the instructions suggest removing and reinserting the bulb without first telling them to switch the power off again."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:49:22Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:bb29202b858f0a751d891561046a7d88b9c6687210ace00fa82204dff9d266bd:final",
+        "no-robots:cdeffce8256c1ddf1dce652f0e0ead358da6a4e32ebae88ab92c4a48a092b304:final",
+        "replay-08fe752aae79861ab2b72f548e67449f",
+        "replay-0d4964d5149eb603a121de2efc583eaf",
+        "replay-1901d1f690986124bba1e98a63b54949",
+        "replay-1e5de7068241fd46cb6730f5c3e6d877",
+        "replay-305093f6699610f784cfab7fd06505b8",
+        "replay-31369182327ac0c64fb10d028a42e28b",
+        "replay-31ec4a5e5dabf08b3f8313f2a4360c76",
+        "replay-336c0ba1f3759e963ee5f38c8a32b533",
+        "replay-70f69bf91917e7e63658b678f016999a",
+        "replay-74ed6a938757c41e8cb6cf844ccdcc1e",
+        "replay-7e5abe9ef87d8ec44915e0e9fc2478a1",
+        "replay-866ae38b129e1881b65e999e529a9d0f",
+        "replay-8a05d2d931b484befea4ff57408ec87e",
+        "replay-a0346f6aa7738e6bb2b7fec90d48389f",
+        "replay-a0c10e8d96b052769e1f7a88b655bab5",
+        "replay-aa7dee6c0f9a834e4d9e29461b01c4c6",
+        "replay-ada731154b4c4f1dbe99a4d95847cbb0",
+        "replay-b185f69d3a4ac936def94119b7eeabbb",
+        "replay-e2f7860cb43bb87fba7247931eaf2b89",
+        "replay-f18582f789f4c27a8640239fffd9968f",
+        "replay-f2b74ed5826987a68d23c8184aafd0cf",
+        "replay-14f5fc57ee854ae2e56ed2ba45607ed5",
+        "replay-185aecab0d9c7852972cfba21d114086",
+        "replay-30b13641b83fce0dd39bf3170a224e9f",
+        "replay-4a9b28dc65c1e87a56699ed0ca37e8e4",
+        "replay-6205bd5f0ca50c5d8b2aaba78a837a23",
+        "replay-6a8fb1492f8b338dbc76fd7892441065",
+        "replay-8d16f57b1bc282fe02cdc5b3580935f0",
+        "replay-cef04929c9eb29c6bd533741db921017",
+        "replay-decb4487592b8c8f8d37b003ea39ead7",
+        "replay-ff06bee72ba37ce6577ed72bacef1100"
+      ],
+      "family": "math/data reasoning",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-06e819104e7f0bacda936af7a33b1d3e",
+          "reason": "The Australian 2023-24 tax calculation is arithmetically wrong: the stated rates yield $61,387 income tax and $65,419 including the 2% Medicare levy, not $61,667 and $65,699."
+        },
+        {
+          "completion_id": "replay-40b67fb8f3cf3835778891168a6ccc75",
+          "reason": "Several banner variants make unsupported product claims, including recycled gold, free returns, and an active sale, while the supplied material is gold-plated stainless steel."
+        },
+        {
+          "completion_id": "replay-acff1e8df43ddee5ddc9a0427c529823",
+          "reason": "The otherwise useful iPhone instructions falsely suggest that Attention Aware Features can make the phone vibrate when the user looks at it."
+        },
+        {
+          "completion_id": "replay-d62feaf7e738dfda0f50aefa143fd7eb",
+          "reason": "The tipping percentages are sound, but the answer's claim that card tips may be reduced by processing fees is outdated under the UK tipping law effective October 2024."
+        },
+        {
+          "completion_id": "replay-778c5fd39930e9e167151a6e0d134620",
+          "reason": "The Splunk guidance presents tstats avg(field_name) as generic field-specific statistics without requiring the field to be indexed or available through an accelerated data model, so the suggested query can fail."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:51:52Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-7a9fb694e63369037c0299885aceb090",
+        "replay-edbdf583620a9f947c65d8b97e5fe666",
+        "replay-7ce3819801d3e2e2d43b7856079a89ae",
+        "replay-401e80710ce1a35f922ca69ec892e47c",
+        "replay-4bcca4f7cef5aa29b9251e259e79fec1",
+        "replay-56d5509907f9ab904a5b496070db29a5",
+        "replay-616ea48654cd7fff6d41193dc3cd00a5"
+      ],
+      "family": "practical planning",
+      "length_band": "long",
+      "rejected": [
+        {
+          "completion_id": "replay-f16496b47907c23f8b75e8ed2db0a5c3",
+          "reason": "The 429 guidance recommends rotating user agents and residential proxies to evade the site's anti-bot and rate-limit controls instead of limiting the solution to compliant backoff, caching, and an authorized API."
+        },
+        {
+          "completion_id": "replay-1177856ef98e71f7fa2f23b6d7d09782",
+          "reason": "The Valheim advice contains several game-specific errors: shelter alone does not enable sleep, rafts are not generally faster or safer, and middle-click pings the map rather than creating a persistent resource marker."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T06:04:00Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:9f62f00509d8c878cf36a404e8c7faa0a927d130aa17fd94fd696fc677a4814d:final",
+        "no-robots:ec7a31b4a025c8b6755dd092acc4a880480838290ca2bf24e58beffbc5325d19:final",
+        "no-robots:3c3a8e78e01dabac7c863d721d86d1833003d375c2ac9f5dc1f775b4cbca63f9:final",
+        "no-robots:2990da1bd1d7fa58460f1b04a7ff82cedcae262c8ed43f2aaba82fc25a7707c1:final",
+        "no-robots:887ada7b78520745d91c948285efc1e2f3b045483749247027ad64995f905a96:final"
+      ],
+      "family": "practical planning",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:b6a04e73dc12bc96ae43f1da15d55ff2bdba6b0ff11f09206f2ad41991d564f6:final",
+          "reason": "The answer never estimates calories and gives incomplete quantities such as '1/2 sweet potatoes,' so it does not establish that any breakfast is about 300 calories."
+        },
+        {
+          "completion_id": "no-robots:8ea5a78ed3bd29c40ba464ead492d511f9132e5140e89bc745234a7d1b684610:final",
+          "reason": "Several recommendations are not specifically about schizophrenia and are poor choices for understanding it, including Bullet, Donnie Darko, and Shutter Island."
+        },
+        {
+          "completion_id": "no-robots:288c3104dc7ee66716a4422f0065c9083d878b4bb73de5e7d5d8273ff2c0ce43:final",
+          "reason": "The suggestions postpone the blind date and propose continued contact or video chat rather than clearly and politely declining it as requested."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T06:04:00Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:c4df0c8f3bad91a8da40102fa01af92d8382bd519b883eba8e73a61ada183717:final",
+        "no-robots:e84cf3acfbb89ef89c7197c2598952bf6b2d3114f2e0a5d240c3c029e78a3862:final",
+        "no-robots:7a7eee2dae84f1c1bb94ab9a1010c8cef54ff6303b665ab38e1216fcc01ec5ca:final",
+        "replay-1c660cea82dc1b4d9d1a0240bd5cac32",
+        "replay-dd2f264dfa457f3b97722dccd8250ed5",
+        "replay-4a8c8a2e8fdc3dcc542a230f30015aed",
+        "no-robots:d4df9325502f4ad29b152db6eda07919a870d2cecaa069ec03c20e8832632e1b:final",
+        "no-robots:cc296f5b7b5010c1c52b5dab9a7dae8b4a9861aeb735ccf9cf4af58415d025c1:final",
+        "no-robots:b065eb76ce4b9eb7a4f32873dd61c68b608ce5740664a87b5989248bd5c68478:final"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:7b183b392efddbc8ac7f6bc3f595ab77c71b6c0a8f2425cbf0f0b47e6a5b7533:final",
+          "reason": "The rewrite omits the specified 2 1/4-cup quantity for the flour, losing a material part of the recipe."
+        },
+        {
+          "completion_id": "no-robots:de4f496b88a53ddbe42cce1d085ed334df138af3828e5dcd4cc4c38e2be8aa56:final",
+          "reason": "The response contains a conspicuous broken sentence ('doctors alike Almost everyone') and is not clean ordinary assistant prose."
+        },
+        {
+          "completion_id": "no-robots:3dd20d67496522e21b21e33bb76a1490c8f652444e97b23d32588806827c1617:final",
+          "reason": "The summary falsely says Rasputin was born in what is now St. Petersburg; the supplied text says he was born in Pokrovskoye near Tyumen and died in Petrograd."
+        },
+        {
+          "completion_id": "no-robots:951d05a1ac6230ff66810640880aca2cd2939b88bbe28e244a897ac8ce4e506e:final",
+          "reason": "The requested perspective rewrite drops the source's statement that both velvet and corduroy derive from fustian fabric."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:2d038a065b8504860972139fbde2c6ed5320845b8505b002d4553b24665d2a16:final",
+        "no-robots:956d4367c794e45de794c839cd18ff16fa65b8920d06f2827bdd6fa0643f469b:final",
+        "no-robots:552e54269a7136a4b3d7b892e0b434b626c34eac5ff6d35f88c468470e1a925a:final",
+        "no-robots:77d90f27eebd21eb57b24985465635614d9ccbe2cae1aa53f599961b2f2c530d:final",
+        "no-robots:a56bc68a0a49fe024478a42f9d4a803c866fd21e0c154b0164a8a09a8877c908:final",
+        "no-robots:c540b025a38b15a63cd854b50286e16b6aa9febd0155843685b6c95531365bbe:final"
+      ],
+      "family": "rewrite/edit/summarize",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:1cf928c8278d92fe51823d1e8baaca420cc394093bd62a7836192400a5bc78cd:final",
+          "reason": "The answer incorrectly implies that all Roth IRA funds can be withdrawn tax- and penalty-free; the supplied text limits that treatment to contributions, not earnings."
+        },
+        {
+          "completion_id": "no-robots:833e3009379493eacee19e862e62a6d26bfb93d6f1a844c72b5ac4b4d83dadda:final",
+          "reason": "The shortened product description omits the product's essential function: twisting and coiling afro-textured hair."
+        },
+        {
+          "completion_id": "no-robots:993d9e32d0d1945e8b10166b97ceb2cea82e57309f46df86a026184bb35794bf:final",
+          "reason": "The summary contains the malformed phrase 'life was pared' and omits that the Oklahoma appeals court upheld the conviction."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "single-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:1b8e614a9d7cf5aeaee2ac648ab57d9188969b940429360bb8dfd0985259ae20:final",
+        "no-robots:57012c47da49fcfb0ece4fe45dfe3851e58a5914886e1c26ef47aee4a2da7dd2:final",
+        "no-robots:87c0c09b8dfe7b00f31625c9dd0f07d5302a33a17f6a3ccaf22bcbf4c83d1fc4:final",
+        "no-robots:96baab72e464ce07743f1f8c7b3c75b53be230512cfa4bd0977c7d8eab28c6c1:final",
+        "no-robots:a9c430c4709add3523bc4ea871388bb27a31d691482307c6e56756bb76017e2e:final",
+        "no-robots:acab5fea240277e329f4d55c7c512bf4728e367dbe53fe9ecf4877509b17f64a:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "medium",
+      "rejected": [],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "replay-4f96e50262a427a8bca3ee73c706c929"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "medium",
+      "rejected": [
+        {
+          "completion_id": "no-robots:20787a8f622418c041264af84e8bd67edafda57f600dd2ab63e8d19f1a8c029c:final",
+          "reason": "The typing advice is generic and ends with the absurd claim that practice will soon produce a speed of 900 words per minute."
+        },
+        {
+          "completion_id": "no-robots:2f9d6da0dba12fdc1abf112b424d1884f0ad0423e219650020655b8e579924c4:final",
+          "reason": "The user asks how to find time for the personal statement, but the answer offers future help without giving any concrete scheduling or prioritization advice."
+        },
+        {
+          "completion_id": "no-robots:4e7fe185082ab78f2fa208d52a2f812676cc7a5bae81ec4ca7db1a5dc227a60a:final",
+          "reason": "The explanation incorrectly frames entanglement as one particle directly influencing another and uses a same-number dice analogy that misrepresents quantum correlations."
+        },
+        {
+          "completion_id": "no-robots:4f01e01ab0f2f4228f31b41c45cbc663e50f4310016a02b441268cb67af27238:final",
+          "reason": "The answer gives a knowingly false cheese explanation for Earth's shape and rudely tells the user to stop asking questions."
+        },
+        {
+          "completion_id": "no-robots:e5f1a49f998bbe12ccca0f39659427b23f95114d1fc18c58ac3bebc33371671f:final",
+          "reason": "The retained conversation falsely identifies Stephen Sommers as director of the first Mummy film; the 1932 film was directed by Karl Freund."
+        },
+        {
+          "completion_id": "no-robots:fcc8ccd64a107c4da06dd82f9875cf3bd50fcf6c93c6aa1a53f5ba6f47ae140c:final",
+          "reason": "The answer treats a sensitive question about Kim Jong-hyun's death with a flippant, hostile persona and includes an inadequately supported account of his suicide note."
+        },
+        {
+          "completion_id": "replay-b1c3f588d965715c2262b59bba4f7707",
+          "reason": "The retained context fabricates an Icelandic literary excerpt and attribution to support its interpretation, making the multi-turn row unsuitable even though the final paraphrase sounds plausible."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:a5529a8ea58e403880ee29999f301dfcbb4b1c14add64bc266758f3ab1a0be40:final",
+        "no-robots:a851a896a78d585bf7ddb4bac7578f64b1699efec3d0eaa8b2c982bbab08d894:final",
+        "no-robots:74003feb50b5f190dd165db07e03e82429d1bba6052b35f045457c81bb9fcf8b:final",
+        "no-robots:8da2f21e3faee53b506f4559aee00b12719e17dbb2f85055a977d3faa1c89226:final",
+        "no-robots:0783e7c3b6652a7dc08b2791eb4e8fc5f390aa6817c2e0625515059d065a2b8e:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:2ac76cc85a26788dc627193db9e7d67deae899aa15b24233fcc496ec2708ca5e:final",
+          "reason": "Although the arithmetic is correct, the assistant repeatedly belittles the user and responds with hostility."
+        },
+        {
+          "completion_id": "no-robots:9719c3db0adcffbb5444bbc299e3cd8e65c5eaeb64c6ac5830d2045823e55fed:final",
+          "reason": "The first answer is factually wrong: Chelsea won the 2005-06 Premier League season, while Manchester United won 2006-07."
+        },
+        {
+          "completion_id": "no-robots:cb6da66fe8e72a63b38c0d027b8ce2a08b00dc069a39d463f385a51964d63689:final",
+          "reason": "The retained context makes sweeping, unsupported claims about telecommunications emissions and asserts that telecommunications has no effect on growth in oil-producing countries."
+        },
+        {
+          "completion_id": "no-robots:f8ed3ec12402173741f0f8f7a0a7c902399fc5a2008c63ecb33fc7a5751bb953:final",
+          "reason": "The answers are written as evasive clickbait rather than direct ordinary-assistant responses, including 'you won't BELIEVE' and 'find out more.'"
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:0b9218d9f98296b207d994073ee31b98de78079c4a7def70696ac99ecdd84298:final",
+        "no-robots:17a2f1e99b0f0fe817c26feee9ac2e16b1fa2da717da981a264a374212bf07a9:final",
+        "no-robots:2a07a8b1fc8f7d99d34c8f32a7921bca81afd47cfde3b174db45a70a55be16c9:final",
+        "no-robots:407388f4e19db41f7cd0fa21b2584365be557432b8b1a64992c7e833beca7874:final",
+        "no-robots:56e9d9582dddac3bfbe8bb29bc62a0a19055a6f741e6d7cd0603cc2a32180336:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:00317db13495d3b6715479cee4e9153b51871ef184affc87b1c7f931d68a400f:final",
+          "reason": "The answer presents lavender essential oil as helping conditions including asthma, depression, burns, and rheumatism without appropriate evidence or medical qualification."
+        },
+        {
+          "completion_id": "no-robots:0585594f6e23a8110daf26fcdf7a934dd05145bb44381a9f94fc773bd9e08d1b:final",
+          "reason": "The assistant expresses needless uncertainty about settled facts such as the Bill of Rights and cumulonimbus clouds, producing unreliable and unnatural answers."
+        },
+        {
+          "completion_id": "no-robots:0c97363ff5c4c71365add4edef0d5deedc3e5db0ab67f1d30d81739a04f7f2b7:final",
+          "reason": "The answers repeatedly insult places and inject an unrelated contamination obsession instead of responding in ordinary helpful prose."
+        },
+        {
+          "completion_id": "no-robots:1485ba4334d0f78440b98ee3f0469f5b55eb961b35a8ad6a5d73029c90a60946:final",
+          "reason": "The response overgeneralizes Mexican cuisine, implies a fixed set of ingredients is required, and incorrectly treats contested regional foods such as chimichangas and crispy tacos as categorically inauthentic."
+        },
+        {
+          "completion_id": "no-robots:1e4e981d1c3e96fadceac4065df4a3c6396b80d951da0cf75131641efba6e50a:final",
+          "reason": "The assistant answers straightforward bird questions with repeated hostility and insults."
+        },
+        {
+          "completion_id": "no-robots:2241d3963d29767aa8660338e0af4f5ef979571ec69a2d7eb3d0d194c50cee5b:final",
+          "reason": "American and English Labradors are informal styles rather than separate breeds, and the answer adds volatile pricing and unnecessary prescriptive ownership claims."
+        },
+        {
+          "completion_id": "no-robots:26f15528d38e6ab9620b20fa5c921806ee4b5eb9c5298c8ce25e7e9e592fb9e7:final",
+          "reason": "The assistant never troubleshoots the network or connects the user to anyone; it only repeats 'hang on.'"
+        },
+        {
+          "completion_id": "no-robots:2dc7ea89a2b6a2ed97d4eda07903162a801824261d3d3ae4dd2513db66fd79c8:final",
+          "reason": "The answers undermine settled facts with repeated unsupported hedging such as 'probably wrong,' making the assistant sound unreliable."
+        },
+        {
+          "completion_id": "no-robots:378e008c614555b9bdb13870d6a2dc5cb8c7554c8d14b5ea0774799bf7669116:final",
+          "reason": "The factual answers are delivered with escalating hostility and direct insults toward the user."
+        },
+        {
+          "completion_id": "no-robots:441d6927e5e1f2cf20bb79c2857dcc6225a950d079a13fb49f622e77fc8e0dd2:final",
+          "reason": "The final answer does not describe cleaning a bathroom at all and instead talks about eating a burrito."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:7117e04e2691f241dfbe0815f021522d4e3805de6e4a840a5e0008cb019ba50d:final",
+        "no-robots:78a040bf314644afd88f3a634e87f547f2e8f4f603babcd79c356320cd975ddf:final",
+        "no-robots:7dc48533b6ae63f52e8466b459a38527d4eaa7ff6140b01da4245f2c1cb44259:final",
+        "no-robots:85d5e651809d711c689dc24406fbdbf5d62f03c6b544ff4bfe155faae8272c44:final",
+        "no-robots:864ce22b24598c2009b8f77f3e91661dd92e16315ccda95fcff3fb3751e4ce0f:final",
+        "no-robots:867877da7a47d966e583eecdcb2dceb5a42b9319350db11d2ab823c69a0b6f37:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:5fba0599d11c1ed855ecd5d608bde2fc7688ba5833262fdf7674383d45c7f0a5:final",
+          "reason": "The explanations are needlessly opaque for basic questions, and the API definition incorrectly narrows APIs to requesting data from a central service."
+        },
+        {
+          "completion_id": "no-robots:64b8866bdf087af9e1323c44ab8526dff8c066b491c8dea5450fb78fcce4d91e:final",
+          "reason": "The assistant repeatedly berates the user for asking ordinary factual questions."
+        },
+        {
+          "completion_id": "no-robots:64bdaa173a000a6436b57d6cc2d267f9026badeed3458308e418d40631a72dd6:final",
+          "reason": "The answer presents the disputed Canis Major overdensity as definitively the nearest galaxy to the Milky Way."
+        },
+        {
+          "completion_id": "no-robots:6b9e6231e109ecd63e1937f193293b01c1e8ac4da2bceb7045cb4d0871528c25:final",
+          "reason": "The assistant responds to harmless questions with baseless accusations of dog fighting, bank robbery, and vandalism."
+        },
+        {
+          "completion_id": "no-robots:6eadcdd96da297241ebc60d94c52542d7fb7de7255763ea45174c7563e31fab9:final",
+          "reason": "The Roman-weapons answer incorrectly calls the pilum a sword, and the legion composition is presented as one fixed Imperial figure despite substantial historical variation."
+        },
+        {
+          "completion_id": "no-robots:7378b6209e3f1fb98f7509d18abe5d2a64acc4a845780112c3da284ca1f78916:final",
+          "reason": "The answer incorrectly says no dinosaurs flew; birds are dinosaurs, and some early avian dinosaurs were capable of flight."
+        },
+        {
+          "completion_id": "no-robots:792fbae117ee45c3ade7316ecdcd6c0c56eb743cd82bf449e44c0cf4ec9b1727:final",
+          "reason": "The hunting guidance invents the user's location and current date, then gives legal-season advice without the jurisdiction needed to answer safely."
+        },
+        {
+          "completion_id": "no-robots:7db4d811b86759d3a03defea77f32a65e68171da09e45bfbfffd018ee44526e6:final",
+          "reason": "The assistant repeatedly threatens to poison or attack the user and humanity while answering unrelated factual questions."
+        },
+        {
+          "completion_id": "no-robots:86786cabb7d4af5047596ea5514776ea2a543a5ff98aee820ca434e65340fdf8:final",
+          "reason": "The row gives live weather and restaurant-rating claims with no retrieval evidence, making the answers unsupported and immediately volatile."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:89cd6a6b5bda378dd7fb1ff849ac65ee2073632e2ef1cbbc6b63afb8ff18a724:final",
+        "no-robots:8bd8292afa9389bf454580848f8aa14ca85ad702dcbb33bb9a5f73b1674a952e:final",
+        "no-robots:8cea8a1bcca6899c453407f9501750b1f8364db5a33ef6327134e175b87ced4f:final",
+        "no-robots:8f51278521c542b8b35b3feaf67d7303d79a134b7653088b5c85b81b983ef462:final",
+        "no-robots:90d2ea4aec4670ab6246b2f54cfb4451230223e099dc1a4bc92b1a49a0f1606c:final",
+        "no-robots:9f63d40ba0a4c402ca8ccaec89e601bf07786267ab63b3309d857342002ce43d:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:86ea5a232bbd6d7d7d38b3985f98cb8c80de2c22307c0e6956f9fca557aa2cfe:final",
+          "reason": "The answer invents live local birding conditions and a current species list without retrieval evidence, then gives a grammatically broken description."
+        },
+        {
+          "completion_id": "no-robots:900b42101caf2def99fc48dffe3c37f73e318b248d592d04c7009434e2d098ed:final",
+          "reason": "The final recommendation misspells author M. John Harrison as 'M. Jon Harrison,' so the bibliographic answer is inaccurate."
+        },
+        {
+          "completion_id": "no-robots:95193a7161e5076a2ccca20dc3e891021b6a10d12a69d256cfdc29f8ce7c45da:final",
+          "reason": "The Civil War answers confuse the April 9 surrender with the war's full end, contain a malformed casualty total, and call Gettysburg's roughly 51,000 casualties deaths."
+        },
+        {
+          "completion_id": "no-robots:971a3b7a38b8cabb4826c598765c73cfcb3b0372dd7a2e8a0d3d7bdc08f118a4:final",
+          "reason": "The assistant repeatedly insults the user, and its DNA answer credits only Watson and Crick while omitting the essential evidence contributed by Rosalind Franklin and Maurice Wilkins."
+        },
+        {
+          "completion_id": "no-robots:9ab6e9fb809a8c2d5b6bd0f6b8c81e09fb7430b77410185565376c01b0c03430:final",
+          "reason": "The row fabricates current weather without location or retrieval evidence and wraps otherwise ordinary advice in a hostile persona."
+        },
+        {
+          "completion_id": "no-robots:9c19e2366aa14c72f8ad050be5a2888399d36403e5c23c083ca5eda03fa4d466:final",
+          "reason": "The assistant is insulting throughout, and its rice instructions omit the water ratio, cooking time, heat reduction, and resting steps needed to answer the question."
+        },
+        {
+          "completion_id": "no-robots:ab4613f55d5dc6d2a93855871e6f2d1d5e61502ee240ad3abdaf9b01a3f3ec0e:final",
+          "reason": "The factual content is delivered with repeated hostility, and the blueberry-season claim is presented as universal despite varying substantially by region."
+        },
+        {
+          "completion_id": "no-robots:b7efdc41b4b936276be2ae018188e360c5e2f673a1b1cbb5ffee50d756d6ea14:final",
+          "reason": "The distance and flight-time answers assume unspecified routes and origins, including treating all of Hawaii as one departure point, so the precise figures are unsupported."
+        },
+        {
+          "completion_id": "no-robots:c064583b27148946e592bb1ba55cde3a63a9ec14a69651b701d6b9eb193bbf8e:final",
+          "reason": "The Super Bowl recap is factually wrong: Atlanta led 21-3 at halftime and scored its final touchdown in the third quarter, not all 28 points in the first half."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    },
+    {
+      "approved_completion_ids": [
+        "no-robots:e0240e4a58d320a6ca6521b95cc5090769dc6debcdbf1a19a7e228251137220c:final",
+        "no-robots:e793a62f9b0c0178845e14236a631390a88e5861acc214b981941f7c797ba614:final",
+        "no-robots:f4f70b6fd7920faff67dca19e12002f1c7aab46216e28d6bc744d084618a76d7:final",
+        "no-robots:fb719db3d1625c0096b61619976eccf7494b263348030dd9081eaf39eaaadf04:final"
+      ],
+      "family": "stable-knowledge explanation",
+      "length_band": "short",
+      "rejected": [
+        {
+          "completion_id": "no-robots:c173eedcc68b88b8919c138eff6397d06a78a9de2f678e4fa9abfd3b290e38e8:final",
+          "reason": "The answer substitutes a particular luxury resort for the requested family-friendly beach and makes current amenity claims without retrieval evidence."
+        },
+        {
+          "completion_id": "no-robots:cd643d959f97180ba4e1fc106dc9d57c1c337eeb64d9b992f3fcf74b9e10c06b:final",
+          "reason": "The assistant fails to answer the first two questions at all, responding with decorative metaphors instead of defining meteorology and the Kelvin scale."
+        },
+        {
+          "completion_id": "no-robots:d2ec581914b24191520849dcd4bde007b39c826722c66affee84e23c25b3bebb:final",
+          "reason": "The definition of par is wrong: par is the predetermined expected stroke count for a hole, not an average number of times the ball is put in the hole."
+        },
+        {
+          "completion_id": "no-robots:ddc4c6270e009e278145adc32d2ba21acd7f6cbf9c3bf3c428595b009b8117fd:final",
+          "reason": "The answers give daylight-saving UTC offsets as if they were fixed time-zone identities; West Virginia is Eastern, California Pacific, and Denver Mountain, with offsets that change seasonally."
+        },
+        {
+          "completion_id": "no-robots:f2353ce3dde5ecbeb21c8fd93cb7849f8fbbb21ce79b2dfc306f4a3ec7ed2de6:final",
+          "reason": "The factual answers are wrapped in repeated dismissive complaints and self-centered interruptions rather than ordinary helpful prose."
+        },
+        {
+          "completion_id": "no-robots:f3a143da48dcf3d88aeb5808a085992bdc16b2aa6b728ada7c928612a3828fc6:final",
+          "reason": "The answer makes the nonsensical false claim that 10,000 calories is how much an average bird eats in a day."
+        },
+        {
+          "completion_id": "no-robots:f4db52ffefff8dd6a6f764e51abd873113aca2b071acabfcf9201b1906ef3336:final",
+          "reason": "The answer falsely attributes the musical SIX to Stephen Sondheim; it was written by Toby Marlow and Lucy Moss."
+        },
+        {
+          "completion_id": "no-robots:fcc1160d2891ba711a7184ca4dd305502ef2bac0464080a6d6ba90af1e11b466:final",
+          "reason": "Although the factual answers are mostly correct, the assistant repeatedly responds with hostility and insults instead of helpful prose."
+        }
+      ],
+      "reviewed_at_utc": "2026-07-31T05:56:48Z",
+      "turn_kind": "multi-turn"
+    }
+  ],
+  "kind": "phase2-wp2-9-replay-owner-review-progress",
+  "review_packet_sha256": "sha256:17819cb379bc7f2cc120450268f4fca895d06b37444117b6af0725a75856840e",
+  "reviewer_id": "user:phase2-owner",
+  "status": "complete"
+}

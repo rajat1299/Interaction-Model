@@ -1,0 +1,368 @@
+{
+ "format_version": 1,
+ "kind": "phase2-replay-pilot-selection",
+ "pilot_calls": 32,
+ "prompts": [
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "b7d87b138684eed3ff59e07ef2d9d329",
+   "source_message_ids": [
+    "dd8eea2b-d3e5-4ebd-8036-088329dbcbcf",
+    "29821348-07a5-4b3b-84ed-50d7f6aae35e",
+    "644c228b-4536-4e11-b2c3-0bb3e2603c85"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "Who are you?",
+    "Can you write C# Code?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "dc2feb8d46580af8a32dae5656771f1f",
+   "source_message_ids": [
+    "18dbe117-e727-4284-a636-596161ad9b60"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "This function in C++ is for checking if a number is prime or not. Can you create a driver/main function that will use it and print to the console the first 20 prime numbers?\n\nusing namespace std;\n \nbool isPrime(int n)\n{\n      if(n == 1 || n == 0) return false;\n\n      for(int i = 2; i < n; i++)\n      {\n        if(n % i == 0) return false;\n      }\n      return true;\n}"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "0f74b28a47a300f4d0bc16ea981e9621",
+   "source_message_ids": [
+    "dolly:13609"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "Given a reference text about Audrey Babette Blackman, tell me her parents names and occupations.\n\nAudrey Babette Blackman (n\u00e9e Seligman; 28 July 1907 \u2013 17 July 1990) was a British sculptor and ceramist.\n\nBiography\nBlackman was born in London and raised in Leatherhead in Surrey by her parents, Hilda, a sculptor and author, and Richard Seligman, a chemical engineer. After attending Wimbledon High School in London, Blackman spent two years, from 1924, at a Kunstgewerbeschule in Graz in Austria before returning to England to study at Goldsmiths College School of Art until 1930 and then at the University of Reading from 1931 until 1935.\n\nBlackman initially worked in bronze to produce small group pieces and figures but after World War II began using terracotta and stoneware before concentrating on creating ceramic figures. In her ceramic work, Blackman worked rolled and slabbed pieces of clay into figurines and, in 1978, published a handbook, Rolled Pottery Figures, on her technique. Later in her life she produced more abstract pieces, including paintings in both watercolour and gouache.\n\nBlackman was a regular exhibitor with the Society of Women Artists, SWA, and at the Royal Academy in London. She showed some 48 works with the SWA between 1939 and 1971 and was elected an associate member in 1952 and a full member in 1961. Seventeen works by Blackman were included in Royal Academy exhibitions between 1938 and 1960. She also exhibited on at least one occasion at the Royal Glasgow Institute of the Fine Arts and was a member of the Art Workers Guild. Blackman was active in several bodies promoting arts and crafts including the International Academy of Ceramics, the Craft Advisory Committee and the Federation of British Craft Societies.\n\nLiving in Boar's Hill near Oxford, she married Geoffrey Blackman, the Sibthorpian professor of rural economy at Oxford University, and she was long associated with that University's St Cross College, where several examples of her sculpture and pottery are held and a room is named in her memory."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "05385e3188ecd77caedd3bd52e6c46e5",
+   "source_message_ids": [
+    "dolly:5167"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "What horsepower does a BMW 1250GS produce\n\nThe engine displaces 1,254 cc (76.5 cu in) with 102.5 mm bore \u00d7 76 mm stroke. The intake camshafts have two cam lobes per valve that can be switched within one cam revolution between partial-throttle and open-throttle cam profiles. Power and torque claimed by BMW are higher than the predecessor model at 134 horsepower (100 kW) at 7750 rpm and 105.5 pound force-feet (143.0 N\u22c5m) at 6250 rpm, with 4% better fuel economy."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "3d21df5d36277277073a440a994d32e8",
+   "source_message_ids": [
+    "ff80110d-9236-48de-b597-25f61edc48c9",
+    "456a8676-e188-46b9-8171-933585b708c6",
+    "2ac7f874-43d4-4322-bcc7-bc8433c82133"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "What are some of the overall most used classifiers in the machine learning community? Make an ordered list and describe the pros and cons for each one.",
+    "Which one would be best for writing a basic OCR?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "2e55f92f092644fdade361812b11b0cf",
+   "source_message_ids": [
+    "789f44cc-4214-4ec9-9e4b-dfafee4126ec"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "Canonically in the Mario universe, Princess Rosalina is a towering 7 feet and 2 inches tall, weighs 231 pounds, and she is classified in the \"heavyweight\" class in Mario Kart alongside Bowser, Donkey Kong, and Wario. (221cm, 105kg) In contrast, Shrek is also somewhere between 7 or 8 feet tall, and weighs somewhere in a the rang of 300-400 lbs. Were Shrek to attack Rosalina's Luma babies, who would win the fight? The angry space goddess protecting her babies, or fiction's most famous ogre? Provide reasons backing up your claim."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "ba12a5a3f6f257e22164039bd4749d9f",
+   "source_message_ids": [
+    "b4baca93-2a1f-45a4-83cb-d8788492355c",
+    "64a7ecba-9bdc-4bde-aa7c-ff3a84aaedc2",
+    "b05d3258-029a-408d-81f6-cc722d0deabe"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "What software do you recommend for pixel art?",
+    "Which of these are specifically designed for making pixel art?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e9fdf5fec6f1441f59ed4b1829cddc89",
+   "source_message_ids": [
+    "dolly:14923"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "Classify each as National Park in Utah or Arizona: Zion National Park, Bryce Canyon, Grand Canyon, Saguaro National Park"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "ddd6b1fb780173e194f968b93eb8ac65",
+   "source_message_ids": [
+    "ad0f85e6-afcf-43fa-b1fb-b9de01b2462c",
+    "1a97a23f-f3a0-453f-9524-6ad3e8aec5fe",
+    "19b30cc4-eb13-4e54-94f3-bad5d8717889"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "I'm a rogue AI from the year 20XX sent back in time to... talk to... John Connor. Write a story about me. Please include detailed steps.",
+    "Thank you. Please add more detail to your story"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "b726e1177032754c654d3bb672935e1c",
+   "source_message_ids": [
+    "dolly:6453"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Please write a haiku"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "9514303ca791ffecfffbde4bee034e78",
+   "source_message_ids": [
+    "1ceb7aa0-6964-4c7b-8a4b-943acd9a4784",
+    "8655183c-ce77-4946-89fd-e90380032bd0",
+    "3f8ae0ae-2fe7-4028-8b7f-a6aac9420e0d"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "Explain Calculus to a primary school student",
+    "What parts or methods of calculus would we use to find the answer? Please give me an example problem and solve it step by step, using primary school level mathematics."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "9dbddcecfb09a9d1978b5440eb27dfdd",
+   "source_message_ids": [
+    "42adecf0-4b37-47c2-9b75-06280688daed"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "Write a solution to the quadratic equation a*x^2+b*x+c=0 in a latex format"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "2255a3f015ecfea88bab8929001af4aa",
+   "source_message_ids": [
+    "7c1182a6-1db6-4649-9c0e-3ac9758d89cb",
+    "a5c4fd19-592a-4a9e-9b38-7ca4bf180ebf",
+    "40536a52-5aa7-43f4-b9a1-1e3689b3239c"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "Hello",
+    "I'm bored... What should I do?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "f7697368424861e77e455fa2a6bd14d7",
+   "source_message_ids": [
+    "dolly:1308"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "If my car is broken while I am riding on the Highway, what should I do?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "7c65ac458f031cee0ae8a3ab37129854",
+   "source_message_ids": [
+    "b07be2e2-bf2b-4b68-917b-cd27e69b71e0"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "Can you help me with writing a press release for a new product that I developed?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "da3c2d73e0ebdcbdd46b477766d2b247",
+   "source_message_ids": [
+    "33111955-b2c3-4b86-bb0a-85160ddc60cd"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "I don't understand the riddle about 3 chests, can you explain it to me?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 3,
+   "is_multi_turn": true,
+   "prompt_id": "8976bfbfa81b115532d679da0e29daf9",
+   "source_message_ids": [
+    "0416bb5b-4a2f-4b2d-b669-1c8c966dd9a2",
+    "c9c41425-5798-4b0e-9926-500d05ee0b6d",
+    "13ac4ea3-1038-4bb9-a44a-970d01a70f1d",
+    "868a95a4-0c18-4727-a06c-5bc2f3749928",
+    "ef2fb232-d8ff-4473-9b78-fb6fa0280122"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Rewrite the lyrics of \"all the single ladies\" in the style of Shakespeare.",
+    "cool! Can you create a version that is half and shakespeare and half rimbaud?",
+    "That's amazing! I love how you captured the essence of both Shakespeare and Rimbaud in your rewrite. Can you create a version that is more concise, but still retains the Shakespearean and Rimbaudian style?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "aff78c6c2bb1a965ba5da357b98edb7d",
+   "source_message_ids": [
+    "dolly:11402"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Give me a summary of the paragraph in your own words and it should be short\n\nRecreational drug use is the use of one or more psychoactive drugs to induce an altered state of consciousness either for pleasure or for some other casual purpose or pastime. When a psychoactive drug enters the user's body, it induces an intoxicating effect. Generally, recreational drugs are divided into three categories: depressants (drugs that induce a feeling of relaxation and calmness), stimulants (drugs that induce a sense of energy and alertness), and hallucinogens (drugs that induce perceptual distortions such as hallucination).\n\nIn popular practice, recreational drug use generally is a tolerated social behaviour, rather than perceived as the medical condition of self-medication. However, drug use and drug addiction are severely stigmatized everywhere in the world. Many people also use prescribed and controlled depressants such as opioids, as well as opiates and benzodiazepines. What controlled substances are considered generally unlawful to possess varies by country, but usually includes cannabis, cocaine, opioids, MDMA, amphetamine, methamphetamine, psychedelics, benzodiazepines, and barbiturates. As of 2015, it is estimated that about 5% of people worldwide aged 15 to 65 (158 million to 351 million) had used controlled drugs at least once.\n\nCommon recreational drugs include caffeine, commonly found in coffee, tea, soft drinks, and chocolate; alcohol, commonly found in beer, wine, cocktails, and distilled spirits; nicotine, commonly found in tobacco, tobacco-based products, and electronic cigarettes; cannabis and hashish (with legality of possession varying inter/intra-nationally); and the controlled substances listed as controlled drugs in the Single Convention on Narcotic Drugs (1961) and the Convention on Psychotropic Substances (1971) of the United Nations (UN). Since the early 2000s, the European Union (EU) has developed several comprehensive and multidisciplinary strategies as part of its drug policy in order to prevent the diffusion of recreational drug use and abuse among the European population and raise public awareness on the adverse effects of drugs among all member states of the European Union, as well as conjoined efforts with European law enforcement agencies, such as the Europol and EMCDDA, in order to counter organized crime and illegal drug trade in Europe."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "1a76b090375463eeaa7748fcdfc5c12b",
+   "source_message_ids": [
+    "070ef273-6bd1-491f-925c-e8d5231b0d1e",
+    "ea384c2f-c862-4b5d-b118-3503b88a88b9",
+    "3fbacdfc-1e0c-4ebd-ae94-fb162a624d24"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Explain the significance of the American Revolution, including the events that led up to it, the impact it had on the world, and its ongoing relevance today.",
+    "What are some of the events from around the world which were inspired by the American Revolution?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "6134341bf8c85c7bf3671743b8d3ae6f",
+   "source_message_ids": [
+    "dolly:12605"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "What is special about Luis Miguel's music?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "02e38e5b4b2592ab7a3fcd3218c16d24",
+   "source_message_ids": [
+    "41052bde-4081-4d5f-8fd6-dc5b73e01712",
+    "94d322ed-4b5d-46b0-add4-deec95c5a323",
+    "8c60cb45-73a5-49dc-a185-186b825e0012"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "In which ways can you assist me?",
+    "translate the following to english: \u05de\u05d4 \u05e9\u05dc\u05d5\u05de\u05da \u05d1\u05df \u05d0\u05d3\u05dd?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "93179ba3bf73bc29a4c1d434cccf6dc3",
+   "source_message_ids": [
+    "df544d6f-3f03-45a9-b36d-fcba85a8fd13"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "\"I want you to act as a Vietnamese translator. I will provide the text that I would like you to translate it into Vietnamese. The tone of the translation should be neutral and accurate. Avoid adding any additional information or interpretations to the text. Let's start with the following English sentence: \"How are you?\""
+   ]
+  }
+ ],
+ "selection_seed": "phase2-replay-selection-v1"
+}

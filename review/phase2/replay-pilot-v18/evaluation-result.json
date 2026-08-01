@@ -1,0 +1,57 @@
+{
+  "authorization_gate": {
+    "compatible_eligible": 19,
+    "compatible_required": 18,
+    "compatible_total": 20,
+    "multi_turn_eligible": 6,
+    "multi_turn_required": 6,
+    "multi_turn_total": 7,
+    "passed": true,
+    "prior_controls_eligible": 12,
+    "prior_controls_required": 11,
+    "prior_controls_total": 12,
+    "projected_eligible_multi_turn": 246,
+    "projected_eligible_total": 1187,
+    "projected_multi_turn_required": 230,
+    "projected_total_required": 1050
+  },
+  "cost_usd": 0.026834675,
+  "excluded_prompt_ids": {
+    "scope_incompatible": [
+      "c1db4da0f8c7b34fb3997dc86c0a48e7",
+      "ef0a2f0d4333bd69a6d94f8f2fa85559"
+    ],
+    "semantic_error": [
+      "668f8b7e6a85d77f6b71c0cc41a407c6"
+    ]
+  },
+  "kind": "phase2-replay-pilot-evaluation",
+  "mechanical_filter": {
+    "accepted": 21,
+    "rejected": 1,
+    "rejection_reasons": {
+      "assistant_token_count_out_of_band": 1
+    },
+    "total": 22
+  },
+  "model": "qwen/qwen3.7-max",
+  "provider": "alibaba",
+  "provider_model": "qwen/qwen3.7-max-20260520",
+  "route_evidence": {
+    "fallback_count": 0,
+    "finish_reason_stop": 22,
+    "provider_drift": 0,
+    "reasoning_tokens": 0,
+    "transformation_drift": 0
+  },
+  "semantic_findings": [
+    {
+      "finding": "The answer claims a 5-7-5 Japanese mora structure, but the supplied lines are approximately 7-12-7.",
+      "prompt_id": "668f8b7e6a85d77f6b71c0cc41a407c6",
+      "result": "reject"
+    }
+  ],
+  "status": "pass_pending_owner_full_run_approval",
+  "translation_supply_after_observed_rejection": 44,
+  "translation_target": 40
+}

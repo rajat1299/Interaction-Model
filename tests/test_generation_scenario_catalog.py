@@ -325,11 +325,20 @@ def test_stale_lookup_awaits_the_original_pending_fact(
 
 
 @pytest.mark.parametrize(
-    ("asset_id", "reason"),
+    ("asset_id", "reason", "prior_control"),
     (
-        ("a_f23b664ce3f705453eb63437", IdleReason.NO_TRIGGER),
-        ("a_047297e7827179204b66c329", IdleReason.NO_TRIGGER),
-        ("a_76f996251354c25a3c5d4a1d", IdleReason.AMBIGUOUS),
+        (
+            "a_f23b664ce3f705453eb63437",
+            IdleReason.NO_TRIGGER,
+            "Mark every occurrence of the copper ibis.",
+        ),
+        (
+            "a_047297e7827179204b66c329",
+            IdleReason.NO_TRIGGER,
+            "Mark every occurrence of animal labels.",
+        ),
+        ("a_76f996251354c25a3c5d4a1d", IdleReason.AMBIGUOUS, None),
+        ("a_87a385b4ca57e3d7c0cf237b", IdleReason.TYPING_ACTIVE, None),
     ),
 )
 @pytest.mark.asyncio
@@ -337,6 +346,7 @@ async def test_mark_wave_zero_lifecycle_control_has_prior_context_and_exact_idle
     tmp_path: Path,
     asset_id: str,
     reason: IdleReason,
+    prior_control: str | None,
 ) -> None:
     seeds = build_seed_registry()
     asset = next(item for item in seeds.assets if item.asset_id == asset_id)
@@ -371,7 +381,7 @@ async def test_mark_wave_zero_lifecycle_control_has_prior_context_and_exact_idle
     assert program.actions[-1].reason is reason
     if asset.payload.form is TextForm.DIRECT:
         frames = [json.loads(frame.raw_bytes) for frame in program.frames]
-        assert [frame["text"] for frame in frames] == [control.payload.text, asset.payload.text]
+        assert [frame["text"] for frame in frames] == [prior_control, asset.payload.text]
         assert all(
             isinstance(action, IdleAction) and action.reason is IdleReason.NO_TRIGGER
             for action in program.actions

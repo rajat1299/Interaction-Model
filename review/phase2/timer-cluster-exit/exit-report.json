@@ -1,0 +1,101 @@
+{
+  "accepted_pool": {
+    "decision_count": 973,
+    "stream_count": 74,
+    "waves": {
+      "wave_1": {
+        "decision_count": 50,
+        "stream_count": 13
+      },
+      "wave_2": {
+        "decision_count": 698,
+        "stream_count": 46
+      },
+      "wave_3": {
+        "decision_count": 225,
+        "stream_count": 15
+      }
+    }
+  },
+  "d7_preliminary_projection": {
+    "binding_checkpoint": "after_wp2_3_lookup_skip",
+    "chat_submission_labor": {
+      "basis": "elapsed first-to-last downloaded round files for Wave-2 full, Wave-2 repair, Wave-3 full, and Wave-3 repair",
+      "counts_as_review_labor": true,
+      "minimum_hours": 1.67,
+      "minimum_minutes": 100,
+      "round_count": 46
+    },
+    "remaining_detailed_corpus_review_hours": {
+      "high": 12,
+      "low": 8
+    },
+    "status": "stop_rule_not_triggered_preliminarily",
+    "stop_rule_hours": 12
+  },
+  "evidence": {
+    "wave_1_label_evidence_sha256": "sha256:66a7ffcf669846967ef34997aca5f7b9f2c2bb86203fef1aaea421ff40f6a210",
+    "wave_1_eligibility_sha256": "sha256:b9fc3913950ea2a3e4400629387f74f4e7a2f41555024bb1e2d8577a9ade07b3",
+    "wave_2_coverage_sha256": "sha256:4d634b960c8a969687fe04a389e3ad8671270ef389f13d32de25e070cadcbd10",
+    "wave_2_label_audit_sha256": "sha256:2f3fe12b738f945a916030bf9958f502eb8e27b346f80fb29a8848ef070bfe67",
+    "wave_3_original_comparison_sha256": "sha256:2269d1e2033caa9d677521616e66dafd4fdc7db0183b20ddbaf2eb1301629128",
+    "wave_3_repair_comparison_sha256": "sha256:7731c06689106b44c6a3149abb1374ea5d46ed2b624bf5d83eb1c59c40a4b981",
+    "wave_3_repaired_packet_sha256": "sha256:8cb8a7dfaee705db7ab0f8bc73c8821636ab57b2b41d5a55d9b5f1a147569794"
+  },
+  "family_coverage": [
+    {
+      "accepted_decisions": 373,
+      "accepted_streams": 23,
+      "family": "timer_creation_normal_fire",
+      "reserve_decisions": 118,
+      "target_decisions": 255,
+      "target_satisfied": true
+    },
+    {
+      "accepted_decisions": 350,
+      "accepted_streams": 27,
+      "family": "timer_cancel_quoting_stale_fire",
+      "reserve_decisions": 144,
+      "target_decisions": 206,
+      "target_satisfied": true
+    },
+    {
+      "accepted_decisions": 143,
+      "accepted_streams": 17,
+      "family": "timer_contention_backpressure",
+      "reserve_decisions": 42,
+      "target_decisions": 101,
+      "target_satisfied": true
+    },
+    {
+      "accepted_decisions": 107,
+      "accepted_streams": 7,
+      "family": "rollover_continuity",
+      "reserve_decisions": 49,
+      "target_decisions": 58,
+      "target_satisfied": true
+    }
+  ],
+  "format_version": 1,
+  "kind": "phase2-timer-cluster-exit",
+  "label_origin": {
+    "human": 246,
+    "oracle_teacher_agreement": 727,
+    "teacher_auto_trusted": 0,
+    "total": 973
+  },
+  "repair_gate": {
+    "contract_gaps": 0,
+    "status": "passed",
+    "wave_3_scoped_repair_exact": 7,
+    "wave_3_scoped_repair_total": 7
+  },
+  "status": "closed",
+  "teacher_agreement_used_as_selection_feature": false,
+  "trust": {
+    "cleared_cell_count": 0,
+    "state": "all_timer_cells_uncleared",
+    "teacher_auto_trusted_count": 0
+  },
+  "work_package": "WP2-2"
+}

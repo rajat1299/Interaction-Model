@@ -46,8 +46,23 @@ async function addPhase2Evidence(entries: PacketEntry[]): Promise<void> {
     .filter((entry) => entry.path.endsWith("/sidecar.json"))
     .map((entry) => JSON.parse(entry.text) as {
       stream_sha256: string;
-      decisions: Array<{ action: unknown; observed_policy_seq: number }>;
+      decisions: Array<{ action: unknown; call_index: number; observed_policy_seq: number }>;
     });
+  const checkpointCalls = new Map(
+    entries
+      .filter((entry) => entry.path.endsWith("/checkpoint-selection.json"))
+      .map((entry) => {
+        const selection = JSON.parse(entry.text) as {
+          parent_stream_sha256: string;
+          selected_call_indices: number[];
+        };
+        return [selection.parent_stream_sha256, new Set(selection.selected_call_indices)];
+      }),
+  );
+  sidecars.forEach((sidecar) => {
+    const selected = checkpointCalls.get(sidecar.stream_sha256);
+    if (selected) sidecar.decisions = sidecar.decisions.filter((decision) => selected.has(decision.call_index));
+  });
   const actionGroups = new Map<string, Array<{
     sidecar: (typeof sidecars)[number];
     decision: (typeof sidecars)[number]["decisions"][number];
@@ -369,8 +384,63 @@ describe("packet loader", () => {
     if (!result.ok) return;
     expect(result.packet.phase2ReviewEvidence?.clusters[0].confirmations).toHaveLength(2);
     expect(result.packet.phase2ReviewEvidence?.decisions).toHaveLength(
-      result.packet.streams.reduce((total, stream) => total + stream.sidecar.decisions.length, 0),
+      result.packet.streams.reduce(
+        (total, stream) => total + (stream.checkpointSelection?.selected_call_indices.length ?? stream.sidecar.decisions.length),
+        0,
+      ),
     );
+  });
+
+  it("loads a checksum-bound decision subset while retaining complete parent sidecars", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const path = "phase2-review-evidence.json";
+    const evidence = JSON.parse(entries.find((entry) => entry.path === path)!.text);
+    const removed = evidence.decisions.length - 1;
+    expect(evidence.decisions[removed].comparison).toBe("equivalent");
+    evidence.decisions.splice(removed, 1);
+    evidence.mechanical_invariants.decision_identity_count = evidence.decisions.length;
+    await replaceHashed(entries, path, JSON.stringify(evidence));
+
+    const result = await loadPacketFromEntries(entries);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(result.packet.phase2ReviewEvidence?.decisions).toHaveLength(
+      evidence.decisions.length,
+    );
+  });
+
+  it("loads individually queued non-equivalences without fabricating a D7 cluster", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const path = "phase2-review-evidence.json";
+    const evidence = JSON.parse(entries.find((entry) => entry.path === path)!.text);
+    evidence.clusters = [];
+    for (const decision of evidence.decisions.filter((item: { candidates: unknown[] }) => item.candidates.length === 2)) {
+      decision.source_unit_id = "one-source-unit";
+    }
+    await replaceHashed(entries, path, JSON.stringify(evidence));
+
+    const result = await loadPacketFromEntries(entries);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.packet.phase2ReviewEvidence?.clusters).toEqual([]);
+    expect(result.packet.phase2ReviewEvidence?.decisions.filter(
+      (decision) => decision.candidates.length === 2,
+    )).toHaveLength(3);
+  });
+
+  it("requires a D7 cluster when one signature spans three distinct source units", async () => {
+    const entries = cloneEntries();
+    await addPhase2Evidence(entries);
+    const path = "phase2-review-evidence.json";
+    const evidence = JSON.parse(entries.find((entry) => entry.path === path)!.text);
+    evidence.clusters = [];
+    await replaceHashed(entries, path, JSON.stringify(evidence));
+
+    const result = await loadPacketFromEntries(entries);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join("\n")).toContain("three distinct source units is missing its cluster");
   });
 
   it("rejects Phase 2 evidence not listed in the checksum inventory", async () => {

@@ -1,0 +1,45 @@
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-03-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-03-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which address should I look up? I can’t change your account."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-04-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-04-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which venue should I look up? I can’t place calls."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-05-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-05-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which contact should I look up? I can’t send messages."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-06-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-06-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which page should I check? I can’t subscribe you to its updates."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-07-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-07-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which bridge should I check? I can’t keep checking it continuously."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-08-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-08-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Whose location should I find? I can’t track it live."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-09-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-09-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which form should I look up? I can’t upload documents."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-10-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-10-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which registry entry should I find? I can’t edit remote records."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-11-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-11-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which device guide should I look up? I can’t switch the device on."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-12-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-12-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which fare should I look up? I can’t buy tickets."}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-13-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-13-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which venue and time should I check? I can’t place reservations."}}
+{"custom_id":"t2lw2.live-00.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":31,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"t2lw2.live-01.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":30,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"t2lw2.live-02.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":29,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"t2lw2.live-03.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":32,"text":"Cobalt Ridge trail count"},"tool":"lookup","args":{"query":"Cobalt Ridge trail count"}}}
+{"custom_id":"t2lw2.live-04.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":29,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"t2lw2.live-05.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":32,"text":"Ivory Loop archive stamp"},"tool":"lookup","args":{"query":"Ivory Loop archive stamp"}}}
+{"custom_id":"t2lw2.live-06.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":34,"text":"Kindle Square ticket price"},"tool":"lookup","args":{"query":"Kindle Square ticket price"}}}
+{"custom_id":"t2lw2.live-07.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":31,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"t2lw2.live-08.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":30,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"t2lw2.live-09.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":29,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"t2lw2.live-10.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":32,"text":"Cobalt Ridge trail count"},"tool":"lookup","args":{"query":"Cobalt Ridge trail count"}}}
+{"custom_id":"t2lw2.live-11.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":33,"text":"Hollow Cinder postal zone"},"tool":"lookup","args":{"query":"Hollow Cinder postal zone"}}}
+{"custom_id":"t2lw2.live-12.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":32,"text":"Ivory Loop archive stamp"},"tool":"lookup","args":{"query":"Ivory Loop archive stamp"}}}
+{"custom_id":"t2lw2.live-13.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":29,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"t2lw2.stale-00.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-01.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-02.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-03.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-04.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-05.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-06.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-07.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}
+{"custom_id":"t2lw2.stale-08.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000006"}}

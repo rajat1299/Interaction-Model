@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from im.assets import AssetRegistry, CorpusFamily, Split, TextAssetPayload, TimerAssetPayload
 from im.generation.counterfactuals import (
     TwinAxis,
@@ -10,6 +12,7 @@ from im.generation.counterfactuals import (
 )
 from im.generation.scenario_catalog import build_family_program
 from im.generation.scenarios import ScenarioProgram
+from im.schema.actions import IdleAction, IdleReason
 
 C5_PILOT_SPECS = (
     (
@@ -59,20 +62,30 @@ _TWIN_FAMILIES = {
 
 def build_c5_pilot_programs(registry: AssetRegistry) -> tuple[tuple[str, ScenarioProgram], ...]:
     """Build the frozen four C5 pilot programs without executing them."""
-    return tuple(
-        (
-            pilot_id,
-            build_family_program(
-                family,
-                registry,
-                split="test",
-                template_id=template_id,
-                asset_ids=asset_ids,
-                master_seed=master_seed,
-            ),
+    programs = []
+    for pilot_id, family, template_id, asset_ids, master_seed in C5_PILOT_SPECS:
+        program = build_family_program(
+            family,
+            registry,
+            split="test",
+            template_id=template_id,
+            asset_ids=asset_ids,
+            master_seed=master_seed,
         )
-        for pilot_id, family, template_id, asset_ids, master_seed in C5_PILOT_SPECS
-    )
+        if pilot_id == "c5-mark-negative":
+            # This builder reproduces the approved historical pilot, including its old label.
+            program = replace(
+                program,
+                actions=(
+                    IdleAction(
+                        type="idle",
+                        reason=IdleReason.INSTRUCTION_NOT_DIRECT,
+                        related_event_id=None,
+                    ),
+                ),
+            )
+        programs.append((pilot_id, program))
+    return tuple(programs)
 
 
 def _family_inputs(

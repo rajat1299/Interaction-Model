@@ -1,0 +1,18 @@
+{"custom_id":"t2lw2.live-05.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":34,"text":"Cedar Switch archive token"},"tool":"lookup","args":{"query":"Cedar Switch archive token"}}}
+{"custom_id":"t2lw2.live-06.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Orchid Span meter reading"},"tool":"lookup","args":{"query":"Orchid Span meter reading"}}}
+{"custom_id":"t2lw2.live-07.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":34,"text":"Kindle Square ticket price"},"tool":"lookup","args":{"query":"Kindle Square ticket price"}}}
+{"custom_id":"t2lw2.live-08.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":31,"text":"Willow Yard museum hour"},"tool":"lookup","args":{"query":"Willow Yard museum hour"}}}
+{"custom_id":"t2lw2.live-09.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":28,"text":"Dune Junction docket"},"tool":"lookup","args":{"query":"Dune Junction docket"}}}
+{"custom_id":"t2lw2.live-10.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Parchment Bay museum hour"},"tool":"lookup","args":{"query":"Parchment Bay museum hour"}}}
+{"custom_id":"t2lw2.live-11.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Raven Hollow parcel shelf"},"tool":"lookup","args":{"query":"Raven Hollow parcel shelf"}}}
+{"custom_id":"t2lw2.live-12.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":31,"text":"Kestrel Moor ferry rate"},"tool":"lookup","args":{"query":"Kestrel Moor ferry rate"}}}
+{"custom_id":"t2lw2.live-13.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":34,"text":"Kindle Square ticket price"},"tool":"lookup","args":{"query":"Kindle Square ticket price"}}}
+{"custom_id":"t2lw2.stale-00.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-01.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-02.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-03.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-04.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-05.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-06.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-07.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-08.d015.a1","action":{"type":"skip","target_event_id":"e_000030","reason":"stale_tool_result"}}

@@ -1,0 +1,20 @@
+{"custom_id":"case_3a68a7be7cff14357ee9","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":44,"end_utf16":95,"text":"Underline cobalt axolotl as a new amphibian member."},"target":{"event_id":"e_000003","start_utf16":417,"end_utf16":431,"text":"cobalt axolotl"}}}
+{"custom_id":"case_11ab7857d5934bd78fac","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":45,"end_utf16":96,"text":"Underline the first-aid kit in the weather journal."},"target":{"event_id":"e_000003","start_utf16":411,"end_utf16":424,"text":"first-aid kit"}}}
+{"custom_id":"case_40d04ee652099153e8e8","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_2d193a49684c5756f3d7","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_ddef0174a624a2eed836","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":36,"end_utf16":82,"text":"Highlight 17 October 2031 in the harbor notes."},"target":{"event_id":"e_000003","start_utf16":411,"end_utf16":426,"text":"17 October 2031"}}}
+{"custom_id":"case_8b33eefdb8e9a01769c0","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_cd3f911296562d2e9c90","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_06d349e34c5ce43f2db7","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":37,"end_utf16":79,"text":"Mark Dr. Imani Voss in the greenhouse log."},"target":{"event_id":"e_000003","start_utf16":401,"end_utf16":415,"text":"Dr. Imani Voss"}}}
+{"custom_id":"case_696b0e74b050b0fe717b","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":43,"end_utf16":86,"text":"Underline amber kiwi in the field notebook."},"target":{"event_id":"e_000003","start_utf16":380,"end_utf16":390,"text":"amber kiwi"}}}
+{"custom_id":"case_e18869e64018250b2744","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_b60f4263e8e0be5deb1a","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":34,"end_utf16":103,"text":"Highlight the phrase Silver Orchard wherever it appears in the draft."},"target":{"event_id":"e_000003","start_utf16":425,"end_utf16":439,"text":"Silver Orchard"}}}
+{"custom_id":"case_b73e388ad8cc99d2c773","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_a4d7871b43d3d75524dc","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_d88b99257e5164d59747","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":46,"end_utf16":107,"text":"Bold each mention of Kestrel Arcade in the inspection report."},"target":{"event_id":"e_000003","start_utf16":429,"end_utf16":443,"text":"Kestrel Arcade"}}}
+{"custom_id":"case_02fbde21b1907da88fb9","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_3ccf94e1bd687037f013","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_4fb7dde10d7b4f6af5d8","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_4468a2834f18bfbab255","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"case_c247a412784481ec094c","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":35,"end_utf16":88,"text":"Mark every occurrence of Harbor Signal in the legend."},"target":{"event_id":"e_000003","start_utf16":403,"end_utf16":416,"text":"Harbor Signal"}}}
+{"custom_id":"case_1889b07e11c054b3ee56","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

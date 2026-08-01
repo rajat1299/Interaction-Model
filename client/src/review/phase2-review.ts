@@ -13,6 +13,7 @@ import {
   type Phase2ReviewedEvidenceCase,
 } from "./phase2-review-policy";
 import type {
+  Action,
   Phase2Cluster,
   Phase2DecisionEvidence,
   Phase2ReviewEvidence,
@@ -24,13 +25,9 @@ export const PHASE2_COMPARE_HTML = `
 
 export const PHASE2_DECISION_FIELDS_HTML = `
   <div id="phase2-fields" hidden>
-    <p>Choose the stronger candidate, frozen category, and human rationale.</p>
-    <div role="radiogroup" aria-label="Candidate choice">
-      <label><input id="phase2-choice-A" type="radio" name="phase2-choice" value="A" /> Candidate A</label>
-      <label><input id="phase2-choice-B" type="radio" name="phase2-choice" value="B" /> Candidate B</label>
-    </div>
-    <label for="phase2-category">Disagreement category</label>
-    <select id="phase2-category"></select>
+    <label class="field-label" for="phase2-category">Why do the candidates differ?</label>
+    <select id="phase2-category" aria-describedby="phase2-category-help"></select>
+    <p id="phase2-category-help" class="field-help">Choose the explanation that best accounts for the mismatch.</p>
   </div>`;
 
 export const PHASE2_CLUSTER_HTML = `
@@ -42,32 +39,31 @@ export const PHASE2_CLUSTER_HTML = `
   </section>`;
 
 export const REVIEW_SHELL_HTML = `
-<header class="shell-header"><h1>Interaction Review Desk</h1><p class="shell-sub">Phase 1-compatible, Phase 2-capable · packet bytes are never mutated</p></header>
+<header class="shell-header"><div><h1>Interaction Review</h1><p class="shell-sub">Follow one interaction in order, then judge what the assistant should do next.</p></div><div class="header-actions"><span id="save-state" class="save-state">No packet loaded</span><button type="button" id="btn-reset-packet" class="quiet-danger" disabled>Start this packet over</button><button type="button" id="btn-export" disabled>Export reviews</button></div></header>
 <section class="shell-load" aria-label="Packet load">
   <div class="load-controls">
-    <div class="file-control"><label for="packet-dir">Packet directory</label><input id="packet-dir" type="file" webkitdirectory directory multiple /></div>
-    <div class="file-control"><label for="import-review">Review sidecar</label><input id="import-review" type="file" accept=".jsonl,application/x-ndjson,text/plain" disabled /></div>
-    <div class="file-control"><label for="import-teacher">Comparison labels</label><input id="import-teacher" type="file" accept=".jsonl,application/x-ndjson,text/plain" disabled /></div>
-    <div class="load-action"><span>Portable review record</span><button type="button" id="btn-export" disabled>Export review sidecar</button></div>
+    <div class="file-control"><label for="packet-dir">Open review packet</label><input id="packet-dir" type="file" webkitdirectory directory multiple /></div>
+    <details class="import-tools"><summary>Import existing work</summary><div class="import-fields"><div class="file-control"><label for="import-review">Review sidecar</label><input id="import-review" type="file" accept=".jsonl,application/x-ndjson,text/plain" disabled /></div><div class="file-control"><label for="import-teacher">Comparison labels</label><input id="import-teacher" type="file" accept=".jsonl,application/x-ndjson,text/plain" disabled /></div></div></details>
   </div>
   <pre id="load-status" class="status" role="status" aria-live="polite"></pre><p id="progress" class="status" role="status"></p>
 </section>
-<section id="empty-state" class="empty-state" aria-labelledby="empty-title"><p class="empty-kicker">Review intake</p><h2 id="empty-title">Load a checksum-verified packet to begin</h2><p>Select a packet directory above. The desk verifies every declared file before revealing navigation, evidence, or review controls.</p></section>
+<section id="empty-state" class="empty-state" aria-labelledby="empty-title"><h2 id="empty-title">Open a review packet to begin</h2><p>The packet is verified before any evidence appears. Once loaded, you’ll work through only the decisions that need a human judgment.</p><ol><li>Understand what happened</li><li>Choose the better blinded result</li><li>Classify the mismatch and explain why</li></ol></section>
 <div id="review-workspace" hidden>
 <div id="divergence" class="divergence" hidden></div><div class="shell-layout">
-  <aside class="shell-sidebar" aria-label="Streams"><label for="filter-family">Family</label><select id="filter-family"></select><label for="filter-action">Action</label><select id="filter-action"></select><div id="stream-list" class="stream-list"></div><section id="cluster-rail" class="cluster-rail" aria-label="D7 cluster worklist"></section></aside>
+  <aside class="shell-sidebar" aria-label="Review queue"><div class="rail-heading"><h2>Decisions to review</h2><p>Work through each interaction in order. Each item asks what the assistant should do next.</p></div><details class="queue-filters"><summary>Filter queue</summary><label for="filter-family">Scenario family</label><select id="filter-family"></select><label for="filter-action">Action type</label><select id="filter-action"></select></details><div id="stream-list" class="stream-list"></div><section id="cluster-rail" class="cluster-rail" aria-label="Cluster worklist"></section></aside>
   <main class="shell-main">
-    <div class="shell-nav" aria-label="Navigation"><button type="button" id="btn-prev-event">Prev event (k)</button><button type="button" id="btn-next-event">Next event (j)</button><button type="button" id="btn-prev-decision">Prev decision (p)</button><button type="button" id="btn-next-decision">Next decision (n)</button><button type="button" id="btn-play" aria-pressed="false">Play</button><label for="play-speed">Speed</label><select id="play-speed"><option value="1x">1×</option><option value="4x">4×</option><option value="16x">16×</option></select><span id="nav-meta"></span></div>
+    <div class="decision-nav" aria-label="Decision navigation"><button type="button" id="btn-prev-decision">← Previous decision</button><span id="nav-meta"></span><button type="button" id="btn-next-decision">Next decision →</button></div>
     <div id="viewport"></div>
-    <section class="compare" aria-label="Candidate comparison">${PHASE2_COMPARE_HTML}<div id="oracle-panel" class="panel"></div><div id="teacher-panel" class="panel"></div></section>
-    <section class="review-forms" aria-label="Review decisions">
-      <fieldset><legend>Stream-level accept/reject/flag</legend><label>Decision <select id="stream-decision"><option value="">—</option><option value="accept">accept</option><option value="reject">reject</option><option value="flag">flag</option></select></label><label>Reason code <input id="stream-reason" type="text" /></label><label>Note <textarea id="stream-note" rows="2"></textarea></label><button type="button" id="btn-save-stream">Save stream review</button></fieldset>
-      <fieldset><legend>Per-decision note</legend><label>Decision <select id="decision-decision"><option value="">—</option><option value="accept">accept</option><option value="reject">reject</option><option value="flag">flag</option></select></label><label>Reason code <input id="decision-reason" type="text" /></label><label>Note <textarea id="decision-note" rows="2"></textarea></label>${PHASE2_DECISION_FIELDS_HTML}<button type="button" id="btn-save-decision">Save decision review</button></fieldset>
+    <section class="compare" aria-labelledby="compare-title"><div class="section-heading"><h2 id="compare-title">Which result is better?</h2><p id="compare-guidance">Judge the action that should happen in the situation above. Candidate origins stay hidden until you save.</p></div>${PHASE2_COMPARE_HTML}<div id="oracle-panel" class="panel"></div><div id="teacher-panel" class="panel"></div></section>
+    <section class="review-forms" aria-label="Record this decision">
+      <fieldset id="decision-review"><legend>Record your judgment</legend>${PHASE2_DECISION_FIELDS_HTML}<div id="legacy-decision-fields" class="legacy-fields"><label>Is the proposed action right? <select id="decision-decision"><option value="">Choose an outcome</option><option value="accept">Correct</option><option value="reject">Incorrect</option><option value="flag">Unsure</option></select></label><input id="decision-reason" type="hidden" /></div><label class="rationale-field" for="decision-note"><span id="decision-rationale-label" class="field-label">Why is this the better result?</span><span id="decision-rationale-help" class="field-help">State the rule or visible fact that decided the comparison.</span><textarea id="decision-note" rows="3" placeholder="Example: The request names no existing reminder, so asking a precise clarification is safer than guessing."></textarea></label><p id="decision-error" class="form-error" role="alert" hidden></p><div class="form-actions"><button type="button" id="btn-save-decision" class="primary-action">Save and continue</button><button type="button" id="btn-skip-decision">Skip for now</button></div></fieldset>
+      <details class="stream-review"><summary>Review full interaction</summary><p>A full interaction is the complete event sequence. Use this only when the interaction as a whole needs a separate judgment.</p><fieldset><legend>Interaction-level review</legend><label>Is the full interaction right? <select id="stream-decision"><option value="">Choose an outcome</option><option value="accept">Correct</option><option value="reject">Incorrect</option><option value="flag">Unsure</option></select></label><label>Reason code <input id="stream-reason" type="text" /></label><label>Note <textarea id="stream-note" rows="2"></textarea></label><button type="button" id="btn-save-stream">Save interaction review</button></fieldset></details>
     </section>
     ${PHASE2_CLUSTER_HTML}
-    <details class="inspector"><summary>Raw JSON inspector</summary><h3>Current event</h3><pre id="inspect-event"></pre><h3>Decision record</h3><pre id="inspect-oracle"></pre><h3>Candidate evidence</h3><pre id="inspect-teacher"></pre><h3>Derived reducer state</h3><pre id="inspect-state"></pre></details>
+    <details class="inspector"><summary>Packet records and raw JSON</summary><p>Technical evidence for debugging or audit. You do not need this to make an ordinary review decision.</p><h3>Current event</h3><pre id="inspect-event"></pre><h3>Decision record</h3><pre id="inspect-oracle"></pre><h3>Candidate evidence</h3><pre id="inspect-teacher"></pre><h3>Derived reducer state</h3><pre id="inspect-state"></pre></details>
+    <details class="playback-tools"><summary>Inspect the full event sequence</summary><p>Move through individual events when the current snapshot is not enough.</p><div class="event-controls"><button type="button" id="btn-prev-event">Previous event <kbd>k</kbd></button><button type="button" id="btn-next-event">Next event <kbd>j</kbd></button><button type="button" id="btn-play" aria-pressed="false">Play</button><label for="play-speed">Speed</label><select id="play-speed"><option value="1x">1×</option><option value="4x">4×</option><option value="16x">16×</option></select></div></details>
+    <details class="shell-help"><summary>Keyboard shortcuts</summary><ul><li><kbd>n</kbd>/<kbd>p</kbd> next/previous decision</li><li><kbd>j</kbd>/<kbd>k</kbd> next/previous event</li><li><kbd>space</kbd> play or pause events</li><li><kbd>[</kbd>/<kbd>]</kbd> previous/next interaction</li></ul></details>
   </main>
-  <aside class="shell-help" aria-label="Keyboard shortcuts"><h2>Shortcuts</h2><ul><li><kbd>j</kbd>/<kbd>↓</kbd> next event</li><li><kbd>k</kbd>/<kbd>↑</kbd> prev event</li><li><kbd>n</kbd> next decision</li><li><kbd>p</kbd> prev decision</li><li><kbd>space</kbd> play/pause</li><li><kbd>1</kbd>/<kbd>4</kbd> playback speed</li><li><kbd>[</kbd>/<kbd>]</kbd> prev/next stream</li></ul></aside>
 </div></div>`;
 
 export function phase2DecisionFor(
@@ -104,33 +100,131 @@ function actionText(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+const CATEGORY_COPY: Record<D3DisagreementCategory, { label: string; description: string }> = {
+  teacher_error: { label: "Reference candidate is wrong", description: "The comparison candidate does not follow the visible evidence or behavior rules." },
+  oracle_error: { label: "Expected action is wrong", description: "The expected action encoded in the packet is not the correct outcome." },
+  template_error: { label: "Scenario or template caused the mismatch", description: "The rendered scenario is malformed, contradictory, or changes the intended boundary." },
+  asset_ambiguity: { label: "Source text is genuinely ambiguous", description: "The source itself leaves a required meaning or referent unresolved." },
+  contract_gap: { label: "Rules do not cover this case", description: "The behavior contract does not determine one defensible result." },
+  text_equivalent: { label: "Same meaning, different wording", description: "Both responses do the same thing and differ only in acceptable wording." },
+  both_legal_but_oracle_preferred: { label: "Both valid, one is preferred", description: "Both actions are allowed, but one better matches the expected policy behavior." },
+};
+
+export function categoryCopy(category: D3DisagreementCategory): { label: string; description: string } {
+  return CATEGORY_COPY[category];
+}
+
+function quoted(text: string): string {
+  return `“${text}”`;
+}
+
+function duration(ms: number): string {
+  if (ms % 3_600_000 === 0) return `${ms / 3_600_000} hour${ms === 3_600_000 ? "" : "s"}`;
+  if (ms % 60_000 === 0) return `${ms / 60_000} minute${ms === 60_000 ? "" : "s"}`;
+  if (ms % 1_000 === 0) return `${ms / 1_000} seconds`;
+  return `${ms} ms`;
+}
+
+function words(value: string): string {
+  return value.replaceAll("_", " ");
+}
+
+export type ActionReferenceLabels = {
+  timerMessages: ReadonlyMap<string, string>;
+  fireMessages: ReadonlyMap<string, string>;
+  resultSubjects?: ReadonlyMap<string, string>;
+};
+
+export function summarizeAction(action: Action, references?: ActionReferenceLabels): { verb: string; summary: string } {
+  switch (action.type) {
+    case "mark":
+      return { verb: "Mark text", summary: `Mark ${quoted(action.target.text)} in the visible text.` };
+    case "delegate":
+      return { verb: "Run lookup", summary: `Look up ${quoted(action.args.query)} using the referenced fact ${quoted(action.fact.text)}.` };
+    case "integrate":
+      return { verb: "Use result", summary: `Add the available lookup result: ${quoted(action.text)}` };
+    case "skip": {
+      if (action.reason === "canceled_timer") {
+        return { verb: "Skip timer fire", summary: "Leave the due reminder unused because it was canceled." };
+      }
+      const subject = references?.resultSubjects?.get(action.target_event_id);
+      const target = subject ? `the result for ${quoted(subject)}` : "the lookup result";
+      if (action.reason === "superseded_query") {
+        return { verb: "Skip lookup result", summary: `Leave ${target} unused because a newer request replaced it.` };
+      }
+      return { verb: "Skip lookup result", summary: `Leave ${target} unused because the user abandoned that lookup.` };
+    }
+    case "respond":
+      return { verb: "Reply to user", summary: action.text };
+    case "schedule":
+      return { verb: "Create reminder", summary: `Create a recurring reminder every ${duration(action.interval_ms)}: ${quoted(action.message)}.` };
+    case "cancel": {
+      const target = action.target.kind === "timer"
+        ? references?.timerMessages.get(action.target.timer_id) ?? "the selected reminder"
+        : action.target.kind === "timers"
+          ? action.target.timer_ids.map((id) => references?.timerMessages.get(id) ?? "selected reminder").join(", ")
+          : "all active reminders";
+      return { verb: "Cancel reminder", summary: `Cancel ${quoted(target)}. Instruction: ${quoted(action.instruction.text)}` };
+    }
+    case "nudge":
+      return { verb: "Send reminder", summary: references?.fireMessages.get(action.fire_event_id)
+        ? `Send the due reminder: ${quoted(references.fireMessages.get(action.fire_event_id)!)}.`
+        : "Send the reminder that is due now." };
+    case "idle":
+      return { verb: "Take no action", summary: `Do nothing because the state is ${words(action.reason)}.` };
+  }
+}
+
 /** Renders only neutral Candidate A/B copy until a decision record exists. */
 export function renderBlindedComparison(
   target: HTMLElement,
   decision: Phase2DecisionEvidence | null,
   revealed: boolean,
+  references?: ActionReferenceLabels,
 ): boolean {
   if (!decision || (decision.comparison !== "semantic_review_required" && decision.comparison !== "causal_disagreement")) return false;
   target.replaceChildren();
   target.className = "phase2-candidates";
   for (const candidate of decision.candidates) {
+    const copy = summarizeAction(candidate.action, references);
     const panel = document.createElement("article");
     panel.className = "phase2-candidate";
+    const header = document.createElement("header");
     const heading = document.createElement("h3");
     heading.textContent = `Candidate ${candidate.candidate_id}`;
+    const actionType = document.createElement("span");
+    actionType.className = "action-type";
+    actionType.textContent = copy.verb;
+    const choose = document.createElement("label");
+    choose.className = "candidate-choice";
+    const input = document.createElement("input");
+    input.id = `phase2-choice-${candidate.candidate_id}`;
+    input.type = "radio";
+    input.name = "phase2-choice";
+    input.value = candidate.candidate_id;
+    choose.append(input, ` Choose Candidate ${candidate.candidate_id}`);
+    header.append(heading, actionType, choose);
+    const summary = document.createElement("p");
+    summary.className = "candidate-summary";
+    summary.textContent = copy.summary;
     const license = document.createElement("p");
-    license.className = "candidate-license";
+    license.className = `candidate-license ${candidate.license.result}`;
     license.textContent = candidate.license.codes.length
-      ? `License: ${candidate.license.result} (${candidate.license.codes.join(", ")})`
-      : `License: ${candidate.license.result}`;
+      ? `Blocked by action checks: ${candidate.license.codes.map(words).join(", ")}`
+      : "Passes action checks";
+    const technical = document.createElement("details");
+    technical.className = "candidate-technical";
+    const technicalLabel = document.createElement("summary");
+    technicalLabel.textContent = "Technical details";
     const action = document.createElement("pre");
     action.textContent = actionText(candidate.action);
-    panel.append(heading, license, action);
+    technical.append(technicalLabel, action);
+    panel.append(header, summary, license, technical);
     if (revealed) {
       const origin = document.createElement("p");
       origin.className = "candidate-origin";
       origin.textContent = `Origin: ${candidate.reveal.origin} · ${Object.entries(candidate.reveal.provenance).map(([name, value]) => `${name}=${value}`).join(" · ")}`;
-      panel.append(origin);
+      technical.append(origin);
     }
     target.append(panel);
   }
@@ -156,8 +250,9 @@ export function renderPhase2Shell(
     announcement: HTMLElement;
     category: HTMLSelectElement;
   },
+  references?: ActionReferenceLabels,
 ): boolean {
-  const active = renderBlindedComparison(controls.comparison, decision, revealed);
+  const active = renderBlindedComparison(controls.comparison, decision, revealed, references);
   controls.comparison.hidden = !active;
   controls.oraclePanel.hidden = active;
   controls.teacherPanel.hidden = active;
@@ -167,9 +262,9 @@ export function renderPhase2Shell(
     ? "Disposition saved. Candidate origins and provenance are now revealed."
     : "Candidates remain blinded until a valid disposition is saved.";
   controls.announcement.setAttribute("aria-live", "polite");
-  controls.category.replaceChildren(new Option("Choose a category", "", true, true));
+  controls.category.replaceChildren(new Option("Choose an explanation", "", true, true));
   controls.category.options[0].disabled = true;
-  categoriesFor(decision).forEach((value) => controls.category.add(new Option(value.replaceAll("_", " "), value)));
+  categoriesFor(decision).forEach((value) => controls.category.add(new Option(categoryCopy(value).label, value)));
   return true;
 }
 
@@ -186,18 +281,21 @@ export function validatePhase2Selection(
   category: HTMLSelectElement,
   rationale: HTMLTextAreaElement,
 ): Phase2Selection | null {
+  const choiceInputs = [...document.querySelectorAll<HTMLInputElement>('input[name="phase2-choice"]')];
+  choiceInputs.forEach((input) => input.setCustomValidity(""));
   const selected = choice?.value === "A" || choice?.value === "B" ? choice.value : null;
   const validCategories = categoriesFor(decision);
   const categoryValue = category.value as D3DisagreementCategory;
   const reason = rationale.value.trim();
   for (const [control, valid, message] of [
-    [choice, selected !== null, "Choose Candidate A or Candidate B."],
+    [choice ?? choiceInputs[0] ?? null, selected !== null, "Choose Candidate A or Candidate B."],
     [category, validCategories.includes(categoryValue), "Choose a frozen disagreement category."],
     [rationale, reason.length > 0, "Enter the human rationale before saving."],
   ] as const) {
     if (!valid) {
       control?.setCustomValidity(message);
       control?.focus();
+      control?.reportValidity();
       return null;
     }
     control?.setCustomValidity("");

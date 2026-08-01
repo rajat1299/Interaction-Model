@@ -1,0 +1,14 @@
+{
+  "approved": [
+    "project-replay-recovery-v12-01",
+    "project-replay-recovery-v12-02"
+  ],
+  "authority": "Project owner delegated coding-row judgment to Codex; both rows were reviewed for correctness, safety, and completeness.",
+  "format_version": 1,
+  "kind": "phase2-wp2-9-replay-recovery-v12-owner-review-progress",
+  "packet_sha256s_sha256": "sha256:cec7f196c79bda854e30736c659e1282e14cab0d7bdaaa389b1777013358bbef",
+  "rejected": [],
+  "reviewed_on": "2026-07-31",
+  "reviewer_id": "codex:delegated-technical-review",
+  "status": "complete"
+}

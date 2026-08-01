@@ -1,0 +1,21 @@
+{
+  "authority": "Project-owner decisions given in conversation; coding-row judgment delegated to Codex.",
+  "approved": [
+    "project-replay-recovery-v11-01",
+    "project-replay-recovery-v11-02",
+    "project-replay-recovery-v11-03",
+    "project-replay-recovery-v11-04",
+    "project-replay-recovery-v11-05",
+    "project-replay-recovery-v11-06",
+    "project-replay-recovery-v11-07",
+    "project-replay-recovery-v11-08",
+    "project-replay-recovery-v11-09"
+  ],
+  "format_version": 1,
+  "kind": "phase2-wp2-9-replay-recovery-v11-owner-review-progress",
+  "packet_sha256s_sha256": "sha256:578dbf5a81824210516e02aeee2e09e281b22da46cef4c8dcbac05d5d99e5261",
+  "rejected": [],
+  "reviewed_on": "2026-07-31",
+  "reviewer_id": "user:phase2-owner+codex:delegated-technical-review",
+  "status": "complete"
+}

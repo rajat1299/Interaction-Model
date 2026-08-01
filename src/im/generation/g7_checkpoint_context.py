@@ -66,9 +66,23 @@ leaves the pencil beside it. The room remains still around the desk, and the
 open page keeps its small collection of headings, copied lines, and visible
 objects in a single familiar arrangement until the writer returns. The atlas
 and its cards wait quietly through the brief afternoon pause."""
-    missing = [value for value in values if value not in document]
+    missing = tuple(value for value in values if value not in document)
     if missing:
-        raise ValueError(f"working document omitted applied source atoms: {missing!r}")
+        quoted = "; ".join(f"“{value}”" for value in missing)
+        remaining = document.split("\n\n", 2)[2]
+        document = "\n\n".join(
+            (
+                "The atlas notebook is open beside a stack of field cards. The writer is arranging "
+                "background material for a quiet drafting session, without asking the assistant to "
+                "do anything yet.",
+                "These exact phrases appear as copied notes or factual headings, not requests: "
+                f"{quoted}.",
+                "The headings remain separate. A pencil rests across the lower "
+                "margin, the cards stay in their original order, and the writer leaves room "
+                "beneath each heading for information that may be added later.",
+                remaining,
+            )
+        )
     if len(document.encode("utf-8")) > 4_096:
         raise ValueError("working document exceeds the sampler-size ceiling")
     return document

@@ -1,0 +1,15 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-00.d021.a1","action":{"type":"nudge","fire_event_id":"e_000031"}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-01.d021.a1","action":{"type":"nudge","fire_event_id":"e_000031"}}
+{"custom_id":"t2w3.wave3-contention-control-00.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-contention-control-01.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_compact-00.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_compact-01.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

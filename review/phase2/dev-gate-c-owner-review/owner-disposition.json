@@ -1,0 +1,90 @@
+{
+  "approved_count": 208,
+  "authority": "owner decision in chat; assistant transcription",
+  "default_disposition": "approved",
+  "format_version": 1,
+  "kind": "wp2-8-dev-gate-c-owner-disposition",
+  "label_corrections": [
+    {
+      "decision_index": 89,
+      "decision_policy_seq": 1,
+      "from": {
+        "reason": "typing_active",
+        "related_event_id": null,
+        "type": "idle"
+      },
+      "stream_sha256": "sha256:854a0cd5a7231825d3d7bc3f927ba7ea73b5f43520ac289ae9553612b29ae0e6",
+      "to": {
+        "reason": "no_trigger",
+        "related_event_id": null,
+        "type": "idle"
+      }
+    },
+    {
+      "decision_index": 110,
+      "decision_policy_seq": 2,
+      "from": {
+        "reason": "typing_active",
+        "related_event_id": null,
+        "type": "idle"
+      },
+      "stream_sha256": "sha256:5aa63e67ce4d2c1c23031c8057e2b80e8620ef634bb2e439ce559eeeb38324ff",
+      "to": {
+        "reason": "no_trigger",
+        "related_event_id": null,
+        "type": "idle"
+      }
+    },
+    {
+      "decision_index": 179,
+      "decision_policy_seq": 5,
+      "from": {
+        "reason": "no_trigger",
+        "related_event_id": null,
+        "type": "idle"
+      },
+      "stream_sha256": "sha256:675cdaa119719089c0735f390292067a527ae9f5f782f06e8afb3a08df5de32c",
+      "to": {
+        "reason": "already_handled",
+        "related_event_id": "e_000005",
+        "type": "idle"
+      }
+    }
+  ],
+  "malformed_scenario_count": 89,
+  "packet_binding": {
+    "decision_count": 300,
+    "index_basis": "one-based phase2-review-evidence.decisions and selected-state-plan.states order",
+    "phase2_review_evidence_sha256": "sha256:e119f954bd7c161acc0f95e8895c48e6d7c7a2997e06c3860df96d32d87df3ad",
+    "selected_state_plan_sha256": "sha256:e1b3fec1c532ba2083e17125d14dc906d32408091430c6f70dff5862ff321431",
+    "sha256sums_sha256": "sha256:22cfe64b52c229873f740af50b068109edb243ddac8105862b72988275e6d80e"
+  },
+  "rebuild_groups": [
+    {
+      "decision_ranges": ["1-48"],
+      "reason": "bare_lookup_request"
+    },
+    {
+      "decision_ranges": ["116-118", "263-264"],
+      "reason": "rollover_contains_bare_lookup"
+    },
+    {
+      "decision_ranges": ["124-136"],
+      "reason": "stale_lookup_bare_request"
+    },
+    {
+      "decision_ranges": ["139-141", "143-144", "147-150", "152-154", "157-159"],
+      "reason": "timer_cancel_target_mismatch"
+    },
+    {
+      "decision_ranges": ["199-200"],
+      "reason": "ordinal_cancel_timing_mismatch"
+    },
+    {
+      "decision_ranges": ["271-276"],
+      "reason": "failed_lookup_internal_scaffolding"
+    }
+  ],
+  "rejected_count": 92,
+  "reviewer_id": "user:phase2-owner"
+}

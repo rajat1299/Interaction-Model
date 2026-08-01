@@ -1,0 +1,38 @@
+{
+  "asset_inputs": {
+    "dev_seal_sha256": "sha256:3913bc4c869521adc71acc752b4d277a47ad121de2cf7991263c655cec65f12c",
+    "registry_sha256": "sha256:d7479a8ecaa8d463d6065f70f3cbd91dde2251bb24813e44c474057c7a83414a"
+  },
+  "checks": {
+    "all_states_owner_approved": true,
+    "all_states_mandatory_reviewed": true,
+    "deterministic_rebuild_byte_identical": true,
+    "open_template_defects": 0,
+    "packet_checksums_verified": true,
+    "split_guard_bypasses": 0
+  },
+  "format_version": 1,
+  "frozen_on": "2026-07-29",
+  "kind": "wp2-8-dev-gold-freeze",
+  "owner_review": {
+    "original_disposition_sha256sums_sha256": "sha256:6ac33e74e7a3e0cced086856d5e8052abe0ba6888630b64d60c0c4f6800cc0c2",
+    "repair_disposition_sha256sums_sha256": "sha256:04d2a04d240f9b0baea421404d952ce7b99021b0331a7d17c26aded8a57c4a41",
+    "reviewed_decision_count": 300
+  },
+  "packet": {
+    "decision_count": 300,
+    "family_count": 11,
+    "phase2_review_evidence_sha256": "sha256:908d8a2b0cf5c9c711fdb221426233cb73103bc5b6aa9a56f2c8dfeb60b70c42",
+    "selected_state_plan_sha256": "sha256:cd493c42b04dad1279ef05b244044c1ee30dfb97d703f8adb8ea486b6e8fe116",
+    "sha256sums_sha256": "sha256:fd79f652f0531f5595879051310dccc4c377c3aea7bf93fcbeba252e830282f8",
+    "stream_count": 167
+  },
+  "response_inputs": {
+    "dev_response_approved_sha256sums_sha256": "sha256:7d7a0f3ec5735d53c19641c32195c2269ea1d680e46d2e68511ab584783f282c",
+    "dev_response_tranche_2_approved_sha256sums_sha256": "sha256:e922504343da12987b0ac61c32181125d4c68bf535b73714f37bfd28b3072cb3",
+    "dev_timer_gap_approved_sha256sums_sha256": "sha256:3dd4d86d83a2d55b05c97d9f98d4ad43dd7993016aabd8c034e04fc8fa50b616"
+  },
+  "split": "dev",
+  "status": "frozen",
+  "teacher_or_provider_calls": 0
+}

@@ -1,0 +1,14 @@
+{"custom_id":"t2mw1.negative-core-a.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-core-b.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-replacement.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-response-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2mw1.negative-response-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"coral signal comes first."}}
+{"custom_id":"t2mw1.negative-stop.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-a.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-b.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-directness-direct.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-directness-quoted.d000.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2mw1.positive-lexical-embedded.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-lexical-standalone.d000.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-response-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2mw1.positive-response-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"cobalt axolotl was retained."}}

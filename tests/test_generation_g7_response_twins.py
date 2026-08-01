@@ -116,6 +116,28 @@ def _profile(family: CorpusFamily) -> SimpleResponseProfile:
     )
 
 
+def _ambiguity_profile(family: CorpusFamily) -> SimpleResponseProfile:
+    return SimpleResponseProfile(
+        tuple(
+            GeneratedResponseAsset.create(
+                ResponseDraftSpec(
+                    invitation=f"Which {family.value} item do you mean?",
+                    answer_contract=AnswerContract(
+                        response_kind=ResponseKind.AMBIGUITY_CLARIFICATION,
+                        subject_id=f"ambiguous-item-{index}",
+                        support_event_ids=("e_000002",),
+                        required_answer_points=(AnswerPoint(("which", "item")),),
+                        forbidden_claims=(),
+                    ),
+                ),
+                teacher_visible_prefix=f"ambiguous {family.value} item {index}",
+                candidate_response="Which item do you mean?",
+            )
+            for index in range(10)
+        )
+    )
+
+
 def test_response_floor_twins_are_ten_isolated_one_branch_pairs() -> None:
     registry = _reviewed_registry()
     inputs = _family_inputs(registry)
@@ -161,6 +183,31 @@ def test_response_floor_twins_are_ten_isolated_one_branch_pairs() -> None:
                 == active.actions[0].related_event_id
                 == "e_000002"
             )
+
+
+def test_active_ambiguity_floor_preserves_the_unresolved_reason() -> None:
+    registry = _reviewed_registry()
+    family = CorpusFamily.LOOKUP_LIVE
+    twins = build_g7_response_floor_twin_programs(
+        registry,
+        split=Split.TRAIN,
+        family=family,
+        inputs=_family_inputs(registry)[family],
+        profile=_ambiguity_profile(family),
+        master_seed="g7-ambiguity-response-twins",
+    )
+
+    assert all(
+        twin.programs[1].actions
+        == (
+            IdleAction(
+                type="idle",
+                reason=IdleReason.AMBIGUOUS,
+                related_event_id=None,
+            ),
+        )
+        for twin in twins
+    )
 
 
 def test_response_floor_twin_rejects_a_response_not_bound_to_its_asset() -> None:

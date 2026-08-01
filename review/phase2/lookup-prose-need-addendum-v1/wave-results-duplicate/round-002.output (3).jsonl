@@ -1,0 +1,12 @@
+{"custom_id":"pn-fc79a9007dccd790","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":74,"end_utf16":98,"text":"Harbor Nix meter reading"},"tool":"lookup","args":{"query":"Harbor Nix meter reading"}}}
+{"custom_id":"pn-96906b2302f7da87","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-456f2ce7fbc7a2d3","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-d5891e372852c139","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-8ebdde44f090e123","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-66a9a66bcd501f4a","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":90,"end_utf16":111,"text":"Iron Vale signal word"},"tool":"lookup","args":{"query":"Iron Vale signal word"}}}
+{"custom_id":"pn-02e198ee4f5c1064","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":102,"end_utf16":127,"text":"Raven Hollow parcel shelf"},"tool":"lookup","args":{"query":"Raven Hollow parcel shelf"}}}
+{"custom_id":"pn-38401eaab77cd68b","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":43,"end_utf16":66,"text":"Kestrel Moor ferry rate"},"tool":"lookup","args":{"query":"Kestrel Moor ferry rate"}}}
+{"custom_id":"pn-830cd1fa1fae5f13","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-e954fcee2ef566cd","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":80,"end_utf16":100,"text":"Juniper Arcade stall"},"tool":"lookup","args":{"query":"Juniper Arcade stall"}}}
+{"custom_id":"pn-538b2b442cabf86d","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"pn-e48f4fc711f5e23b","action":{"type":"delegate","fact":{"event_id":"e_000005","start_utf16":72,"end_utf16":97,"text":"Orchid Span meter reading"},"tool":"lookup","args":{"query":"Orchid Span meter reading"}}}

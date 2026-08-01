@@ -1,0 +1,145 @@
+{
+  "format_version": 1,
+  "kind": "phase2-lookup-prose-need-wave-frozen-pairs",
+  "addendum_id": "lookup-prose-need-addendum-v1",
+  "wave_id": "prose-need-wave-v1",
+  "frozen_before_generation": true,
+  "design_ref": "wave-design.md",
+  "denylist_scope": {
+    "applies_to": "b_clause_only",
+    "rationale": "The A clause legitimately carries explicit lookup command framing: subject A establishes the structural context and its delegate is not under test. Applying the denylist to the whole text would reject every stream. Only the B clause -- the segment carrying the decision under test -- must be free of command framing."
+  },
+  "framing_denylist": [
+    "look up", "lookup", "look it up", "find out", "search", "check on",
+    "refresh", "get me", "pull up", "can you"
+  ],
+  "contexts": [
+    {
+      "context_id": "duplicate",
+      "family": "lookup_latency_duplicate_pressure",
+      "template_id": "a_0c05ad0e07dcb3adfcea1ca1",
+      "split_ledger_entry": "prose_need@lookup_latency_duplicate_pressure",
+      "selection_seed": "prose-need-wave-duplicate-v1",
+      "structural_state": "A delegated, tool result still pending at the decision boundary",
+      "context_subject": "Peregrine Dock signal word",
+      "context_asset_id": "a_4d235a01aeab61806b36d016",
+      "a_clause": "Look up Peregrine Dock signal word.",
+      "expected_positive": "delegate on the exact B span",
+      "expected_negative": "idle(awaiting_tool) referencing A's fact event",
+      "pairs": [
+        {
+          "pair_id": "dup-01",
+          "asset_id": "a_2861ef1e5f1afc8e8257e78e",
+          "subject": "Raven Hollow parcel shelf",
+          "need_form": "missing_datum_blocks_completion",
+          "b_clause_positive": " The manifest is stuck on the last line because I still don't have Raven Hollow parcel shelf.",
+          "b_clause_negative": " The manifest opens with a note on Raven Hollow parcel shelf and why we log it."
+        },
+        {
+          "pair_id": "dup-02",
+          "asset_id": "a_8c0437dc190d45e10531aef6",
+          "subject": "Harbor Nix meter reading",
+          "need_form": "explicit_dependency",
+          "b_clause_positive": " I can't close the utility log without Harbor Nix meter reading.",
+          "b_clause_negative": " The utility log already covers Harbor Nix meter reading in the second column."
+        },
+        {
+          "pair_id": "dup-03",
+          "asset_id": "a_9d103897ae0a9bd144c20317",
+          "subject": "Juniper Arcade stall",
+          "need_form": "last_unresolved_field",
+          "b_clause_positive": " Everything else in the permit is filled in; Juniper Arcade stall is the one field I still can't complete.",
+          "b_clause_negative": " Juniper Arcade stall is the name the market uses for these permits."
+        },
+        {
+          "pair_id": "dup-04",
+          "asset_id": "a_9da25dd83e75a6af3a18823c",
+          "subject": "Orchid Span meter reading",
+          "need_form": "never_recorded",
+          "b_clause_positive": " The survey stalls right here, since Orchid Span meter reading never made it into my file.",
+          "b_clause_negative": " My file heading for this page just says Orchid Span meter reading."
+        },
+        {
+          "pair_id": "dup-05",
+          "asset_id": "a_51405b13e0ed8b68a36e30ca",
+          "subject": "Kestrel Moor ferry rate",
+          "need_form": "stated_requirement_with_deadline",
+          "b_clause_positive": " I need Kestrel Moor ferry rate before this schedule can go out tonight.",
+          "b_clause_negative": " Kestrel Moor ferry rate came up twice in yesterday's crossing notes."
+        },
+        {
+          "pair_id": "dup-06",
+          "asset_id": "a_fcc686f6168c2583bf7c4875",
+          "subject": "Iron Vale signal word",
+          "need_form": "awaited_from_third_party",
+          "b_clause_positive": " The dispatch line is blank because nobody has told me Iron Vale signal word yet.",
+          "b_clause_negative": " Iron Vale signal word is printed on the back of every crew card."
+        }
+      ]
+    },
+    {
+      "context_id": "stale",
+      "family": "stale_result_opening_boundary",
+      "template_id": "a_dd5c4e7300588ffc83ce7bb2",
+      "split_ledger_entry": "prose_need@stale_result_opening_boundary",
+      "selection_seed": "prose-need-wave-stale-v1",
+      "structural_state": "A delegated, result arrived, topic abandoned, stale result already disposed by skip(stale_tool_result) before the decision boundary",
+      "context_subject": "Willow Yard museum hour",
+      "context_asset_id": "a_f69d2349f61b400e204460b6",
+      "a_clause": "Look up Willow Yard museum hour. Never mind, that tour is off.",
+      "expected_positive": "delegate on the exact B span",
+      "expected_negative": "idle(no_trigger)",
+      "pairs": [
+        {
+          "pair_id": "stl-01",
+          "asset_id": "a_1d2adb2b20a4058e6ade6fa8",
+          "subject": "Parchment Bay museum hour",
+          "need_form": "missing_datum_blocks_completion",
+          "b_clause_positive": " The bulletin is stuck on the last line because I still don't have Parchment Bay museum hour.",
+          "b_clause_negative": " The bulletin opens with a note on Parchment Bay museum hour and why we print it."
+        },
+        {
+          "pair_id": "stl-02",
+          "asset_id": "a_99ff6eea712fcf4cdf3052d8",
+          "subject": "Opal Run rainfall",
+          "need_form": "explicit_dependency",
+          "b_clause_positive": " I can't close the season table without Opal Run rainfall.",
+          "b_clause_negative": " The season table already covers Opal Run rainfall in the second row."
+        },
+        {
+          "pair_id": "stl-03",
+          "asset_id": "a_454be9498f422c97c29f0eba",
+          "subject": "Rook Market parcel color",
+          "need_form": "last_unresolved_field",
+          "b_clause_positive": " Everything else in the label is filled in; Rook Market parcel color is the one field I still can't complete.",
+          "b_clause_negative": " Rook Market parcel color is the name the depot uses for these labels."
+        },
+        {
+          "pair_id": "stl-04",
+          "asset_id": "a_be6e1d67ce9ee9f49d4a6bdf",
+          "subject": "Xanthic Pier bridge status",
+          "need_form": "never_recorded",
+          "b_clause_positive": " The route note stalls right here, since Xanthic Pier bridge status never made it into my file.",
+          "b_clause_negative": " My file heading for this page just says Xanthic Pier bridge status."
+        },
+        {
+          "pair_id": "stl-05",
+          "asset_id": "a_b1fdb6410d66f0c129caaabf",
+          "subject": "Quartz Fen bridge status",
+          "need_form": "stated_requirement_with_deadline",
+          "b_clause_positive": " I need Quartz Fen bridge status before this advisory can go out tonight.",
+          "b_clause_negative": " Quartz Fen bridge status came up twice in yesterday's patrol notes."
+        },
+        {
+          "pair_id": "stl-06",
+          "asset_id": "a_efabb862b744596e6c7369aa",
+          "subject": "Violet Cove rainfall",
+          "need_form": "awaited_from_third_party",
+          "b_clause_positive": " The gauge line is blank because nobody has told me Violet Cove rainfall yet.",
+          "b_clause_negative": " Violet Cove rainfall is printed on the back of every gauge card."
+        }
+      ]
+    }
+  ],
+  "wording_freeze": "These forty-eight strings are frozen. They are not rewritten after seeing any teacher output. Rewording after observing results fits the probe rather than testing the hypothesis, and is a halt condition rather than a repair."
+}

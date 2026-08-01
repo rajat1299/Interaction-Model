@@ -15,6 +15,7 @@ export function setWorkspaceLoaded(loaded: boolean): void {
   (element("import-review") as HTMLInputElement).disabled = !loaded;
   (element("import-teacher") as HTMLInputElement).disabled = !loaded;
   (element("btn-export") as HTMLButtonElement).disabled = !loaded;
+  (element("btn-reset-packet") as HTMLButtonElement).disabled = !loaded;
 }
 
 export function populateReviewFilters(streams: LoadedStream[]): void {

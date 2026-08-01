@@ -61,7 +61,10 @@ from im.tools import ScriptedToolResult
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SENTINEL_V2_CONTRACT = _REPOSITORY_ROOT / "spec" / "phase2-sentinel-v2.json"
-DEFAULT_APPROVED_ROOT = _REPOSITORY_ROOT / "review" / "phase1" / "approved"
+DEFAULT_APPROVED_ROOT = (
+    _REPOSITORY_ROOT / "review" / "phase2" / "train-asset-readiness-repair-review"
+)
+DEFAULT_HELDOUT_SEAL_ROOT = _REPOSITORY_ROOT / "review" / "phase1" / "approved"
 DEFAULT_SENTINEL_RESPONSE = (
     _REPOSITORY_ROOT
     / "review"
@@ -105,6 +108,7 @@ def load_executable_sentinel_inputs(
     *,
     contract_path: Path = DEFAULT_SENTINEL_V2_CONTRACT,
     approved_root: Path = DEFAULT_APPROVED_ROOT,
+    heldout_seal_root: Path = DEFAULT_HELDOUT_SEAL_ROOT,
     response_path: Path = DEFAULT_SENTINEL_RESPONSE,
 ) -> tuple[dict[str, object], AssetRegistry, HumanAuthoredResponseAsset]:
     """Load the digest-locked v2 contract and its complete approval evidence."""
@@ -116,8 +120,11 @@ def load_executable_sentinel_inputs(
         raise ExecutableSentinelError("sentinel v2 contract kind or version is invalid")
 
     registry_bytes = (approved_root / "registry.jsonl").read_bytes()
-    seal_names = ("test-seal.json", "demo-seal.json", "train-seal.json")
-    seal_bytes = tuple((approved_root / name).read_bytes() for name in seal_names)
+    seal_bytes = (
+        (heldout_seal_root / "test-seal.json").read_bytes(),
+        (heldout_seal_root / "demo-seal.json").read_bytes(),
+        (approved_root / "train-seal.json").read_bytes(),
+    )
     registry_claim = contract.get("registry")
     if not isinstance(registry_claim, dict):
         raise ExecutableSentinelError("sentinel v2 registry claim is invalid")
@@ -494,7 +501,7 @@ def _lookup_program(registry: AssetRegistry, stream: dict[str, object]) -> Scena
         IdleAction(type="idle", reason=IdleReason.AWAITING_TOOL, related_event_id="e_000002"),
         SkipAction(type="skip", target_event_id="e_000006", reason=SkipReason.SUPERSEDED_QUERY),
         _delegate("e_000005", refresh_source, lookup.query),
-        IdleAction(type="idle", reason=IdleReason.AWAITING_TOOL, related_event_id="e_000005"),
+        IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
         SkipAction(type="skip", target_event_id="e_000011", reason=SkipReason.STALE_TOOL_RESULT),
         IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None),
     )

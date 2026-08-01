@@ -25,6 +25,8 @@ from im.generation.g7_catalog import (
     G7FamilyInputs,
     build_g7_floor_opening_twin_programs,
     build_g7_fresh_session_programs,
+    build_g7_lookup_live_program,
+    build_g7_mark_fresh_programs,
 )
 from im.generation.oracle import ResponseWarrantKind, validate_mark_target
 from im.generation.pilot_catalog import build_c5_pilot_programs
@@ -194,6 +196,57 @@ def test_fresh_catalog_has_exact_vectors_and_family_specific_inputs() -> None:
     )
 
 
+def test_mark_only_catalog_keeps_the_three_frozen_vectors() -> None:
+    registry = _reviewed_registry()
+    inputs = _family_inputs(registry)
+    programs = dict(
+        build_g7_mark_fresh_programs(
+            registry,
+            split=Split.TRAIN,
+            positive_inputs=inputs[CorpusFamily.MARK_POSITIVE],
+            negative_inputs=inputs[CorpusFamily.MARK_NEGATIVE],
+            master_seed="g7-mark-only",
+        )
+    )
+
+    assert {shape: _action_counts(program.actions) for shape, program in programs.items()} == {
+        "mark-positive-a": Counter(I=5, M=7),
+        "mark-positive-b": Counter(I=6, M=8),
+        "mark-negative": Counter(I=7, M=3),
+    }
+
+
+def test_phase2_lookup_live_uses_explicit_requests_and_natural_results() -> None:
+    registry = _reviewed_registry()
+    inputs = _family_inputs(registry)[CorpusFamily.LOOKUP_LIVE]
+    program = build_g7_lookup_live_program(
+        registry,
+        split=Split.TRAIN,
+        inputs=inputs,
+        master_seed="phase2-lookup-live-contract",
+    )
+    frames = tuple(json.loads(frame.raw_bytes)["text"] for frame in program.frames)
+    delegates = tuple(
+        action for action in program.actions if isinstance(action, DelegateAction)
+    )
+    integrations = tuple(
+        action for action in program.actions if isinstance(action, IntegrateAction)
+    )
+
+    assert all(f"Look up {action.args.query}." in frames for action in delegates)
+    results = {
+        result
+        for asset in registry.pool(Split.TRAIN).assets
+        if asset.asset_id in inputs.asset_ids
+        for result in (asset.payload.result_a, asset.payload.result_b)
+    }
+    assert all(action.text in results for action in integrations)
+    assert all(
+        not action.text.startswith(f"{delegate.args.query}: ")
+        for action, delegate in zip(integrations, delegates, strict=True)
+    )
+
+
 def test_contextual_timer_shapes_have_forty_distinct_input_variants() -> None:
     registry = _reviewed_registry()
     inputs = _family_inputs(registry)
@@ -237,7 +290,8 @@ def test_fresh_catalog_builds_from_the_sealed_test_lookup_pool() -> None:
     assert len(delegates) == 2
     assert delegates[0].args.query != delegates[1].args.query
     negative = programs["g7-fresh-mark-negative-7i-3m"].actions
-    assert tuple(negative[index].reason for index in (6, 7, 8, 9)) == (
+    assert tuple(negative[index].reason for index in (5, 6, 7, 8, 9)) == (
+        IdleReason.INSTRUCTION_NOT_DIRECT,
         IdleReason.TYPING_ACTIVE,
         IdleReason.INSTRUCTION_NOT_DIRECT,
         IdleReason.TYPING_ACTIVE,

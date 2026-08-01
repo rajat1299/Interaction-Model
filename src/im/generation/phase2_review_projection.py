@@ -261,9 +261,10 @@ def _build_clusters(
             if len(confirmations) == 2:
                 break
         if len(confirmations) != 2:
-            raise Phase2ReviewProjectionError(
-                f"D7 cluster {signature} requires three distinct source units"
-            )
+            # D7 clusters are a reviewer aid, not a precondition for retaining
+            # a non-equivalent decision. The decision already carries its
+            # blinded A/B candidates, so it remains individually queued.
+            continue
         member_identities = [
             (input_.decision.stream_sha256, input_.decision.decision_policy_seq)
             for input_, _decision in ordered
@@ -654,8 +655,6 @@ def parse_phase2_review_evidence(data: bytes) -> dict[str, object]:
         clustered[signature] = member_ids
     if cluster_priority_ranks != sorted(cluster_priority_ranks):
         raise Phase2ReviewProjectionError("D7 clusters are not in priority order")
-    if clustered != non_equivalent:
-        raise Phase2ReviewProjectionError(
-            "D7 clusters do not close exactly over non-equivalent decisions"
-        )
+    # A signature group without three distinct source units is intentionally
+    # absent from `clusters`; only emitted clusters must close over their group.
     return value

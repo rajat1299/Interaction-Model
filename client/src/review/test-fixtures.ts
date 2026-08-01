@@ -12,6 +12,10 @@ export const CANARY_ROOT = join(
   process.cwd(),
   "../review/phase1/teacher-canary-recanary/packet-final",
 );
+const TIMER_WAVE1_ROOT = join(
+  process.cwd(),
+  "../review/phase2/timer-wave-1-execution/review",
+);
 const CANARY_LABELS = join(
   process.cwd(),
   "../review/phase1/teacher-canary-recanary/execution/sharded/teacher-labels.jsonl",
@@ -39,6 +43,21 @@ export function loadCanaryEntries(): PacketEntry[] {
   const out: PacketEntry[] = [];
   walk(CANARY_ROOT, CANARY_ROOT, out);
   return out;
+}
+
+export function loadTimerWave1Entries(): PacketEntry[] {
+  const out: PacketEntry[] = [];
+  walk(TIMER_WAVE1_ROOT, TIMER_WAVE1_ROOT, out);
+  const sums = out.find((entry) => entry.path === "SHA256SUMS");
+  if (!sums) throw new Error("timer Wave-1 fixture has no SHA256SUMS");
+  const declared = new Set([
+    "SHA256SUMS",
+    ...sums.text
+      .split("\n")
+      .map((line) => line.split("  ", 2)[1])
+      .filter((path): path is string => Boolean(path)),
+  ]);
+  return out.filter((entry) => declared.has(entry.path));
 }
 
 export function loadCanaryTeacherLabels(): string {

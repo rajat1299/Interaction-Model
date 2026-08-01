@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from re import findall
 
 from im.generation.cancel_resolution import (
     ActiveTimer,
@@ -52,12 +53,7 @@ class G7CancelPlan:
         target = next((timer for timer in self._active if timer.timer_id == timer_id), None)
         if target is None:
             raise ValueError("planned cancel target is not active")
-        descriptor, phrase = next(
-            ((label, phrase) for label, phrase in _DESCRIPTORS if phrase in target.message),
-            (None, None),
-        )
-        if descriptor is None or phrase is None:
-            raise ValueError("planned timer message has no closed cancellation descriptor")
+        descriptor, phrase = _descriptor(target.message)
         peers = tuple(timer for timer in self._active if phrase in timer.message)
         ordinal = peers.index(target)
         if ordinal >= len(_ORDINALS):
@@ -74,3 +70,15 @@ class G7CancelPlan:
     @property
     def _next_order(self) -> int:
         return len(self._active) + self._canceled_count
+
+
+def _descriptor(message: str) -> tuple[str, str]:
+    """Choose a resolver-visible descriptor without changing legacy wording."""
+    for label, phrase in _DESCRIPTORS:
+        if phrase in message:
+            return label, phrase
+    words = findall(r"[a-z0-9]+", message.casefold())
+    if not words:
+        raise ValueError("planned timer message has no cancellation descriptor words")
+    selected = words[-2:] if len(words) > 1 else words
+    return "-".join(selected), " ".join(selected)

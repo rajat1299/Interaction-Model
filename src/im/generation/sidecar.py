@@ -52,6 +52,7 @@ class ResponseWarrantKind(StrEnum):
     YIELD = "yield"
     INVITATION = "invitation"
     AMBIGUITY_CLARIFICATION = "ambiguity_clarification"
+    UNSUPPORTED_LIMITATION = "unsupported_limitation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,10 +205,14 @@ class BeatEvidence:
             if not (
                 isinstance(action, RespondAction)
                 or isinstance(action, IdleAction)
-                and action.reason is IdleReason.AWAITING_OPENING
+                and action.reason in {
+                    IdleReason.AMBIGUOUS,
+                    IdleReason.AWAITING_OPENING,
+                }
             ):
                 raise ScenarioValidationError(
-                    "response warrant evidence requires a response or awaiting-opening action"
+                    "response warrant evidence requires a response, ambiguity, or "
+                    "awaiting-opening action"
                 )
             try:
                 kind = ResponseWarrantKind(self.response_warrant_kind)

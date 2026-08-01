@@ -195,6 +195,18 @@ def _prospective_target_text(control: str, target: str) -> str:
     return f"{control}\nA later line in that document mentions {target}"
 
 
+def _prior_mark_control(lifecycle_text: str) -> str:
+    stop_prefix = "Stop marking "
+    replace_prefix = "Switch from "
+    if lifecycle_text.startswith(stop_prefix):
+        target = lifecycle_text.removeprefix(stop_prefix).removesuffix(".")
+    elif lifecycle_text.startswith(replace_prefix) and " to " in lifecycle_text:
+        target = lifecycle_text.removeprefix(replace_prefix).split(" to ", 1)[0]
+    else:
+        raise ValueError("direct mark lifecycle text must be a stop or replacement")
+    return f"Mark every occurrence of {target}."
+
+
 def _selected_text_asset(
     bundle: AssetBundle,
     family: CorpusFamily | None,
@@ -278,6 +290,10 @@ def _variant_value(variant: tuple[str, str] | None, key: str, default: str) -> s
     return variant[1] if variant is not None and variant[0] == key else default
 
 
+def _lookup_request(query: str) -> str:
+    return f"Look up {query}."
+
+
 def _decision_count(
     family: CorpusFamily,
     variant: tuple[str, str] | None,
@@ -334,6 +350,8 @@ def _compile(
     bundle: AssetBundle,
     timing_plan: TimingPlan,
     variant: tuple[str, str] | None,
+    *,
+    natural_user_text: bool = False,
 ) -> tuple[
     tuple[ScheduledSamplerFrame, ...],
     tuple[ScheduledAnnotation, ...],
@@ -388,7 +406,7 @@ def _compile(
             return (
                 (_frame(0, source),),
                 (),
-                (_idle(IdleReason.TYPING_ACTIVE),),
+                (_idle(),),
                 (),
                 config,
                 stale,
@@ -417,16 +435,13 @@ def _compile(
         assert isinstance(text, TextAssetPayload)
         reason = mark_negative_idle_reason(
             text.form,
-            partial_form_reason=IdleReason.INSTRUCTION_NOT_DIRECT,
+            partial_form_reason=IdleReason.TYPING_ACTIVE,
         )
         if text.form is TextForm.DIRECT:
-            control = _selected_text_asset(
-                bundle, CorpusFamily.MARK_POSITIVE, form=TextForm.DIRECT
-            )
-            assert isinstance(control.payload, TextAssetPayload)
+            control_text = _prior_mark_control(text.text)
             return (
                 (
-                    _frame(0, control.payload.text),
+                    _frame(0, control_text),
                     _frame(service[0] + 1, text.text),
                 ),
                 (),
@@ -448,13 +463,14 @@ def _compile(
         assert isinstance(lookup, LookupAssetPayload)
         outcome = _variant_value(variant, "provenance_result", "a")
         latency = int(_variant_value(variant, "tool_latency", "700ms").removesuffix("ms"))
-        frames = (_frame(0, lookup.query), _frame(service[0] + 1, lookup.query))
+        source = _lookup_request(lookup.query) if natural_user_text else lookup.query
+        frames = (_frame(0, source), _frame(service[0] + 1, source))
         if outcome == "none":
             return (
                 frames,
                 (),
                 (
-                    _delegate("e_000002", lookup.query, lookup.query),
+                    _delegate("e_000002", source, lookup.query),
                     _idle(IdleReason.AWAITING_TOOL, "e_000002"),
                 ),
                 (
@@ -471,7 +487,7 @@ def _compile(
             frames,
             (),
             (
-                _delegate("e_000002", lookup.query, lookup.query),
+                _delegate("e_000002", source, lookup.query),
                 _idle(IdleReason.AWAITING_TOOL, "e_000002"),
                 IntegrateAction(type="integrate", result_event_id="e_000006", text=result),
             ),
@@ -483,11 +499,12 @@ def _compile(
         lookup = _selected_payload(bundle, family, LookupAssetPayload)
         assert isinstance(lookup, LookupAssetPayload)
         presence = _variant_value(variant, "request_presence", "pending")
+        source = _lookup_request(lookup.query) if natural_user_text else lookup.query
         if presence == "absent":
             return (
-                (_frame(0, lookup.query),),
+                (_frame(0, source),),
                 (),
-                (_delegate("e_000002", lookup.query, lookup.query),),
+                (_delegate("e_000002", source, lookup.query),),
                 (
                     ScriptedToolResult(
                         latency_ms=_LONG_PENDING_MS,
@@ -498,10 +515,10 @@ def _compile(
                 stale,
             )
         return (
-            (_frame(0, lookup.query), _frame(service[0] + 1, lookup.query)),
+            (_frame(0, source), _frame(service[0] + 1, source)),
             (),
             (
-                _delegate("e_000002", lookup.query, lookup.query),
+                _delegate("e_000002", source, lookup.query),
                 _idle(IdleReason.AWAITING_TOOL, "e_000002"),
             ),
             (ScriptedToolResult(latency_ms=_LONG_PENDING_MS, data={"nonce": lookup.result_a}),),
@@ -512,7 +529,16 @@ def _compile(
         lookup = _selected_payload(bundle, family, LookupAssetPayload)
         assert isinstance(lookup, LookupAssetPayload)
         freshness = _variant_value(variant, "topic_freshness", "changed")
-        topic = lookup.query if freshness == "current" else f"Different topic after {lookup.query}."
+        source = _lookup_request(lookup.query) if natural_user_text else lookup.query
+        topic = (
+            source
+            if freshness == "current"
+            else (
+                "Never mind that lookup. Let's work on something else."
+                if natural_user_text
+                else f"Different topic after {lookup.query}."
+            )
+        )
         final = (
             IntegrateAction(type="integrate", result_event_id="e_000006", text=lookup.result_a)
             if freshness == "current"
@@ -523,20 +549,20 @@ def _compile(
         stale = (("b2", ("e_000006",)),) if freshness == "changed" else ()
         actions = (
             (
-                _delegate("e_000002", lookup.query, lookup.query),
+                _delegate("e_000002", source, lookup.query),
                 _idle(IdleReason.AWAITING_TOOL, "e_000002"),
                 final,
             )
             if freshness == "current"
             else (
-                _delegate("e_000002", lookup.query, lookup.query),
+                _delegate("e_000002", source, lookup.query),
                 _idle(IdleReason.AWAITING_TOOL, "e_000002"),
                 final,
                 _idle(),
             )
         )
         return (
-            (_frame(0, lookup.query), _frame(service[0] + 300, topic)),
+            (_frame(0, source), _frame(service[0] + 300, topic)),
             (),
             actions,
             (ScriptedToolResult(latency_ms=700, data={"nonce": lookup.result_a}),),
@@ -580,7 +606,13 @@ def _compile(
             )
         timer = _supported_timer(bundle)
         cancel_text = (
-            primary.text if isinstance(primary, TextAssetPayload) else "Cancel the active reminder."
+            f"Cancel the reminder to {timer.message}."
+            if natural_user_text
+            else (
+                primary.text
+                if isinstance(primary, TextAssetPayload)
+                else "Cancel the active reminder."
+            )
         )
         assert timer.interval_ms is not None
         status = _variant_value(variant, "timer_status", "canceled")
@@ -682,10 +714,18 @@ def _compile(
         assert isinstance(mark_text, TextAssetPayload)
         followup_query = f"{lookup.query} followup"
         target = _mark_target(mark_asset, mark_text.text)
+        lookup_text = _lookup_request(lookup.query) if natural_user_text else lookup.query
         target_text = _prospective_target_text(
-            "\n".join((mark_text.text, timer.instruction, lookup.query)), target
+            "\n".join((mark_text.text, timer.instruction, lookup_text)), target
         )
-        topic_text = f"Never mind, {lookup.query} is not relevant anymore. {followup_query}"
+        topic_text = (
+            (
+                f"Never mind, I no longer need {lookup.query}. "
+                f"{_lookup_request(followup_query)}"
+            )
+            if natural_user_text
+            else f"Never mind, {lookup.query} is not relevant anymore. {followup_query}"
+        )
         boundary = _variant_value(variant, "rollover_boundary", "post")
         rollover_config = RuntimeConfig(context_budget_tokens=12_000 if boundary == "pre" else 100)
         target_at = service[0] + 1
@@ -763,6 +803,7 @@ def _build_selected_family_program(
     *,
     counterfactual: CounterfactualDeclaration | None = None,
     _variant: tuple[str, str] | None = None,
+    _natural_user_text: bool = False,
 ) -> ScenarioProgram:
     """Compile one program after the public registry boundary selected its inputs."""
     family = CorpusFamily(family)
@@ -770,7 +811,11 @@ def _build_selected_family_program(
     count = _decision_count(family, _variant, bundle)
     timing_plan = _timing_plan(bundle, family, master_seed, count)
     frames, annotations, actions, tool_results, config, stale = _compile(
-        family, bundle, timing_plan, _variant
+        family,
+        bundle,
+        timing_plan,
+        _variant,
+        natural_user_text=_natural_user_text,
     )
     if len(actions) != count:  # pragma: no cover - keeps recipes and timing coupled.
         raise RuntimeError("family recipe action count drifted from its timing plan")

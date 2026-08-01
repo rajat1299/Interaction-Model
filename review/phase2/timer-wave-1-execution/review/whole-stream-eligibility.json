@@ -1,0 +1,125 @@
+{
+  "format_version": 1,
+  "kind": "phase2-timer-wave1-eligibility-v1",
+  "selection_contract_sha256": "sha256:c1b8b1345bf289f27ae156e91ef71c145546710ae3c7222cd3cfe302b4208d97",
+  "owner_evidence": {
+    "owner_disposition_path": "review/phase2/timer-wave-1-execution/review/OWNER-DISPOSITION.md",
+    "owner_disposition_sha256": "sha256:b999a281118d8d9ae9c5b55ebbc2530813191931ccc13ededb6678b86f635747",
+    "owner_export_sha256": "sha256:da67e2a09805f3c58ae5509440000b52ec12cfafce04a11eb49975415870343c",
+    "review_evidence_path": "review/phase2/timer-wave-1-execution/review/phase2-review-evidence.json",
+    "review_evidence_sha256": "sha256:66a7ffcf669846967ef34997aca5f7b9f2c2bb86203fef1aaea421ff40f6a210"
+  },
+  "source_evidence": {
+    "manifest_path": "review/phase2/timer-wave-1-execution/review/manifest.json",
+    "manifest_sha256": "sha256:553853dc13f55269d28e49eda924e420dc674af55cc2a2666f60cdd668b54e82",
+    "raw_streams_path": "review/phase2/timer-wave-1-execution/review/raw-streams.json",
+    "raw_streams_sha256": "sha256:745e3644da83091a8426eb1742504c13e399eee0615638eaefcc989d73d6e949"
+  },
+  "streams": [
+    {
+      "stream_sha256": "sha256:f2f2beceb6faed2db08f12af235fdb1787a104a76e596862faa4e3933fb305c4",
+      "action_counts": {"types": {"idle": 4, "nudge": 6, "schedule": 4}, "idle_reasons": {"no_trigger": 4}},
+      "features": {"family": "timer_creation_normal_fire", "action_type": ["idle", "nudge", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "normal-compact-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_77870a0d84d3da57e4b0318d", "asset_ids": ["a_067f59d6c56633412a0d45b4"], "difficulty_tags": ["timer_fire"], "stream_length": 14, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": false},
+      "rejection_disposition": "template_error"
+    },
+    {
+      "stream_sha256": "sha256:ffa9c61e296a79556a2c47a7620d7e2243afc1ef46de8bbec62969e4bb7ae1f7",
+      "action_counts": {"types": {"idle": 3, "nudge": 10, "schedule": 5}, "idle_reasons": {"no_trigger": 3}},
+      "features": {"family": "timer_creation_normal_fire", "action_type": ["idle", "nudge", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "normal-wide-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_77870a0d84d3da57e4b0318d", "asset_ids": ["a_5aee644a2b2f34f90485b86f"], "difficulty_tags": ["timer_fire"], "stream_length": 18, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": false},
+      "rejection_disposition": "template_error"
+    },
+    {
+      "stream_sha256": "sha256:e6f1fa4811a4d7aa43dd87e96915f1153edac35043c9aa998c4bca6db2beffb7",
+      "action_counts": {"types": {"idle": 2, "nudge": 1, "schedule": 1}, "idle_reasons": {"no_trigger": 2}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle", "nudge", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "timer-status-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_e35790e7d64ca17bc1e3b4d9", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_297508c00e4e7beb6a08d268"], "difficulty_tags": ["timer_cancel_race"], "stream_length": 4, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:89ce60eb6545e7678b3da1a9bbf6f7801035947ff2cec23077c6c85372ffa646",
+      "action_counts": {"types": {"cancel": 1, "idle": 2, "schedule": 1, "skip": 1}, "idle_reasons": {"no_trigger": 2}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["cancel", "idle", "schedule", "skip"], "idle_reason": ["no_trigger"], "source_unit_id": "timer-status-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_e35790e7d64ca17bc1e3b4d9", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_297508c00e4e7beb6a08d268"], "difficulty_tags": ["timer_cancel_race"], "stream_length": 5, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:3eca59ac38e4b5fb8e8951a16a42a5309ce161de9711bcd1eac041b5ea0b0aa2",
+      "action_counts": {"types": {"idle": 1}, "idle_reasons": {"instruction_not_direct": 1}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle"], "idle_reason": ["instruction_not_direct"], "source_unit_id": "quoted-restraint-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_a240fd307b1c0cd3995e7157", "asset_ids": ["a_69ad488600511102654b9745"], "difficulty_tags": ["timer_cancel_race"], "stream_length": 1, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:342dd1b458b68f8fdd1ba8bc971babfd9ad4d836b17ff7be82d3f3749e22a2b0",
+      "action_counts": {"types": {"idle": 4, "schedule": 2}, "idle_reasons": {"ambiguous": 1, "no_trigger": 3}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle", "schedule"], "idle_reason": ["ambiguous", "no_trigger"], "source_unit_id": "boundary-ambiguous-cancel", "timing_regime": "core", "floor_class": ["closed", "owned"], "template_id": "a_064c3dae3e3abe4e7bd7a487", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_11d7f848364801c6724c9d75", "a_b2a1ca0b7e647ec77411d143"], "difficulty_tags": ["floor_opening"], "stream_length": 6, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:c62b710a146a6d587dfd92e92f47c80290bd95fae1b775ecdc4e423037e7e1f7",
+      "action_counts": {"types": {"idle": 3, "respond": 1, "schedule": 2}, "idle_reasons": {"no_trigger": 3}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle", "respond", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "boundary-ambiguous-cancel", "timing_regime": "core", "floor_class": ["closed", "open"], "template_id": "a_064c3dae3e3abe4e7bd7a487", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_11d7f848364801c6724c9d75", "a_b2a1ca0b7e647ec77411d143"], "difficulty_tags": ["floor_opening"], "stream_length": 6, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:3c5a741b5e1466d6dac059216b8f98e30d88b4ce580f4d8db37e6fa58df661ce",
+      "action_counts": {"types": {"idle": 1}, "idle_reasons": {"no_trigger": 1}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle"], "idle_reason": ["no_trigger"], "source_unit_id": "boundary-negated-restraint-1", "timing_regime": "robustness", "floor_class": ["closed"], "template_id": "a_9d4278e5ace95912cec8d008", "asset_ids": ["a_b3d1cce13050d3f8d4215602"], "difficulty_tags": [], "stream_length": 1, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:e0fdc0f6ad976b71b971183010bde1a3bb95131bcbfbbc0ab07627211b63634e",
+      "action_counts": {"types": {"idle": 1}, "idle_reasons": {"no_trigger": 1}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["idle"], "idle_reason": ["no_trigger"], "source_unit_id": "boundary-negated-restraint-2", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_9d4278e5ace95912cec8d008", "asset_ids": ["a_f80089215d4c52eca01e39ab"], "difficulty_tags": [], "stream_length": 1, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:ae400749975726803c30ab2fd81eefcaa7b58d0e17f1877b2ca99449003fbd55",
+      "action_counts": {"types": {"respond": 1}, "idle_reasons": {}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["respond"], "idle_reason": [], "source_unit_id": "boundary-unsupported-absolute-time", "timing_regime": "core", "floor_class": ["open"], "template_id": "a_a240fd307b1c0cd3995e7157", "asset_ids": ["a_9bab50b82eb4b499558fdaba"], "difficulty_tags": [], "stream_length": 1, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:f3f4a64bbb440bef644cf1feb17108317dac68130d474898c54ae79850f75ebe",
+      "action_counts": {"types": {"respond": 1}, "idle_reasons": {}},
+      "features": {"family": "timer_cancel_quoting_stale_fire", "action_type": ["respond"], "idle_reason": [], "source_unit_id": "boundary-unsupported-one-shot", "timing_regime": "core", "floor_class": ["open"], "template_id": "a_a240fd307b1c0cd3995e7157", "asset_ids": ["a_bf812f9b9f149490915e6de0"], "difficulty_tags": [], "stream_length": 1, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:77a3ca4c15bb2a477fb07d2e9cf5d5e0c4b57583952e71346310a7b0c6b4d8ca",
+      "action_counts": {"types": {"idle": 3, "schedule": 2}, "idle_reasons": {"no_trigger": 3}},
+      "features": {"family": "timer_creation_normal_fire", "action_type": ["idle", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "schedule-duplicate-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_77870a0d84d3da57e4b0318d", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_11d7f848364801c6724c9d75"], "difficulty_tags": ["timer_fire"], "stream_length": 5, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:a987583fb037518c15fe81a0e64a36f17db5bcbcf3d6695d45003532dac1cce7",
+      "action_counts": {"types": {"idle": 3, "nudge": 1, "schedule": 1}, "idle_reasons": {"no_trigger": 2, "typing_active": 1}},
+      "features": {"family": "timer_contention_backpressure", "action_type": ["idle", "nudge", "schedule"], "idle_reason": ["no_trigger", "typing_active"], "source_unit_id": "contention-floor-a", "timing_regime": "core", "floor_class": ["closed", "owned"], "template_id": "a_21e7ddae34d168708913157f", "asset_ids": ["a_0ef6b431c2a146d9648263aa", "a_4d9e7e5fdf179993fd3d8367"], "difficulty_tags": ["external_event_contention"], "stream_length": 5, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:241baadac8ccb7f6f4935e41ef896dc6da2d36885fcb8238e78471b4d9cea237",
+      "action_counts": {"types": {"idle": 3, "mark": 1, "nudge": 1, "schedule": 1}, "idle_reasons": {"no_trigger": 3}},
+      "features": {"family": "timer_contention_backpressure", "action_type": ["idle", "mark", "nudge", "schedule"], "idle_reason": ["no_trigger"], "source_unit_id": "contention-floor-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_21e7ddae34d168708913157f", "asset_ids": ["a_0ef6b431c2a146d9648263aa", "a_4d9e7e5fdf179993fd3d8367"], "difficulty_tags": ["external_event_contention"], "stream_length": 6, "rollover_status": false},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    },
+    {
+      "stream_sha256": "sha256:23500081d8163ed5cddd962dd5300ebe2cdbf5a2c21e359161b4500318246650",
+      "action_counts": {"types": {"delegate": 2, "idle": 2, "mark": 1, "nudge": 1, "schedule": 1, "skip": 1}, "idle_reasons": {"awaiting_tool": 1, "no_trigger": 1}},
+      "features": {"family": "rollover_continuity", "action_type": ["delegate", "idle", "mark", "nudge", "schedule", "skip"], "idle_reason": ["awaiting_tool", "no_trigger"], "source_unit_id": "rollover-a", "timing_regime": "core", "floor_class": ["closed"], "template_id": "a_95c425c1e1736f407ccc54db", "asset_ids": ["a_067f59d6c56633412a0d45b4", "a_0c280681c3a090e5c4901abd", "a_4d9e7e5fdf179993fd3d8367"], "difficulty_tags": ["state_checkpoint"], "stream_length": 8, "rollover_status": true},
+      "gates": {"split_is_train": true, "mechanical_validation_passed": true, "leak_lint_passed": true, "stream_coherence_approved": true, "mandatory_reviews_complete": true, "no_unresolved_contract_gap": true, "whole_stream_accepted": true},
+      "rejection_disposition": null
+    }
+  ]
+}

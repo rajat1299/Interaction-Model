@@ -1,0 +1,15 @@
+{
+  "call_index": 0,
+  "call_role": "scaffolding",
+  "declared_endpoint_model": "qwen/qwen3.6-35b-a3b-20260415",
+  "error": "selected endpoint serves 'qwen/qwen3.6-35b-a3b-20260415', not 'qwen/qwen3.6-35b-a3b'",
+  "generation_id": null,
+  "generation_id_status": "not preserved by the pre-repair runner",
+  "kind": "phase2-replay-failed-attempt",
+  "max_completion_tokens": 512,
+  "outcome": "rejected_before_admission",
+  "prompt_id": "5a9da4e73dc34cab8c8007d885e670f0",
+  "provider_endpoint": "akashml/fp8",
+  "resolution": "bind the provider's dated model identity from the public endpoint declaration and verify every response against it",
+  "run_manifest_sha256": "sha256:abe0da83f5dc131bc9850e4de0bda8df58e28f47142a203a10a7066bc1a6907e"
+}

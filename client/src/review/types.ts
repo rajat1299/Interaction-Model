@@ -363,7 +363,7 @@ export type SidecarDecision = {
   beat_id: string;
   active_timer_ids: string[];
   canceled_timer_ids: string[];
-  floor_open: boolean;
+  floor_open?: boolean;
   floor_owned: boolean;
   pending_request_ids: string[];
   open_tool_result_event_ids: string[];

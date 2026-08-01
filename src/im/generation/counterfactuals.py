@@ -400,7 +400,7 @@ def _validate_axis_effect(axis: TwinAxis, members: tuple[TwinMember, TwinMember]
             any(isinstance(action, MarkAction) for action in left_program.actions)
             and not any(isinstance(action, MarkAction) for action in right_program.actions)
             and isinstance(right_program.actions[-1], IdleAction)
-            and right_program.actions[-1].reason is IdleReason.TYPING_ACTIVE,
+            and right_program.actions[-1].reason is IdleReason.NO_TRIGGER,
             "lexical-boundary does not produce the required mark/restraint contrast",
         )
     elif axis is TwinAxis.TOOL_LATENCY:

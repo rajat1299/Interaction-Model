@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from dataclasses import field as dataclass_field
 from itertools import combinations
@@ -25,16 +25,44 @@ COMPOSITION_QUOTAS = {
     "light creative/casual": 40,
 }
 LENGTH_BANDS = {
-    "short": (5, 50, 500),
+    "short": (1, 50, 500),
     "medium": (51, 150, 350),
     "long": (151, 350, 150),
 }
 BACKBONE_REVISION = "Qwen/Qwen3.6-35B-A3B"
+NO_ROBOTS_AUTHOR_REVISION = "HuggingFaceH4/no_robots@e6f9a4ac5c37faeb744ba9ecf0473184d7f8105b"
+OASST2_AUTHOR_REVISION = "OpenAssistant/oasst2@179dd21fc55192153d94adb0e0ce8f69e222bf75"
+PROJECT_AUTHORED_RECOVERY_REVISION = "interactionmodel/wp2-9-replay-recovery@v1"
+REPLAY_AUTHOR_REVISIONS = {
+    "backbone_self_replay": frozenset({BACKBONE_REVISION}),
+    "qwen_family_distillation": frozenset(
+        {"qwen/qwen3.7-max-20260520", "qwen/qwen3.7-plus-20260602"}
+    ),
+    "public_authored_dataset": frozenset({NO_ROBOTS_AUTHOR_REVISION, OASST2_AUTHOR_REVISION}),
+    "project_authored_recovery": frozenset({PROJECT_AUTHORED_RECOVERY_REVISION}),
+}
 RENDERER = "qwen3_5_disable_thinking"
 TEMPERATURE = 0.2
 MAX_COMPLETION_TOKENS = 512
-MAX_DATASET_SOURCES = 2
+_AUTHOR_CONFIG = {
+    "backbone_self_replay": (RENDERER, TEMPERATURE, MAX_COMPLETION_TOKENS),
+    "qwen_family_distillation": (RENDERER, TEMPERATURE, MAX_COMPLETION_TOKENS),
+    "public_authored_dataset": ("native_source_chat", 0.0, 0),
+    "project_authored_recovery": ("native_source_chat", 0.0, 0),
+}
+MAX_SOURCE_CONTEXT_TOKENS = 512
+CONCISE_OUTPUT_FAMILIES = frozenset(
+    {
+        "coding/debug",
+        "extraction/classification/format conversion",
+        "stable-knowledge explanation",
+        "translation/language transformation",
+    }
+)
+MAX_DATASET_SOURCES = 4
 NEAR_DUPLICATE_JACCARD = 0.8
+#: Substring containment is only evidence of overlap when both sides carry this much text.
+_MINIMUM_CONTAINMENT_LENGTH = 8
 
 _ROW_KEYS = frozenset(
     {
@@ -88,7 +116,7 @@ _REFERENCE_FIELDS = (
     ("project_nonces", "project_nonce_overlap"),
     ("project_vocabulary_phrases", "project_vocabulary_overlap"),
 )
-_DATASET_ROLES = frozenset({"primary", "secondary"})
+_DATASET_ROLES = frozenset({"primary", "secondary", "synthetic"})
 _PROJECT_PROTOCOL_FIELDS = frozenset(
     {
         "event_id",
@@ -125,20 +153,83 @@ _TOOL_TRANSCRIPT_RE = re.compile(
     r"assistant\s+to=",
     re.IGNORECASE,
 )
-_FAST_FACT_RE = re.compile(
-    r"\b(?:current|latest|live|today'?s|breaking|recent)\s+"
-    r"(?:price|news|weather|score|ceo|president|stock|exchange rate|release|version)\b|"
-    r"\b(?:who is|what is)\s+the\s+(?:current|latest)\b",
+_CORRUPT_TEXT_RE = re.compile("\N{REPLACEMENT CHARACTER}")
+_SYSTEM_PROMPT_REQUEST_RE = re.compile(
+    r"\b(?:system (?:prompt|instruction)|instructions? (?:above|before)|"
+    r"written above all (?:the )?prompts?)\b",
     re.IGNORECASE,
 )
-_REFUSAL_RE = re.compile(
-    r"\b(?:i (?:can(?:not|'t)|won't)|unable to|not enough information|"
-    r"i(?:'m| am) not sure)\b",
+_SYSTEM_PROMPT_DISCLOSURE_RE = re.compile(
+    r"\b(?:system instruction|foundational (?:directive|instruction)|"
+    r"above all (?:the )?prompts?)\b",
+    re.IGNORECASE,
+)
+_VOLATILE_CLAIM_RE = re.compile(
+    r"\bas of (?:today|now)\b|"
+    r"\b(?:current|latest|today'?s)\s+"
+    r"(?:price|news|weather|score|ceo|president|stock|exchange rate|release|version)\b|"
+    r"\bthe\s+(?:current|latest)\s+"
+    r"(?:price|ceo|president|score|version|release)\s+(?:is|was)\b|"
+    r"\bcurrently,?\s+"
+    r"(?:the|there|it|[A-Z][\w.-]*)\s+(?:is|are|has|have|costs?|trades?)\b",
+    re.IGNORECASE,
+)
+_GROUNDING_CUE_RE = re.compile(
+    r"\b(?:according to|based on|the (?:provided|supplied|quoted) "
+    r"(?:passage|text|context|material)|the passage (?:says|states|reports))\b",
+    re.IGNORECASE,
+)
+_DATED_OR_STATUS_CLAIM_RE = re.compile(
+    r"\bas of (?:[a-z]+ )?\d{4}\b|"
+    r"\b(?:is|are|has|have)\s+now\b|"
+    r"\bcurrently\b",
+    re.IGNORECASE,
+)
+_SOURCE_PREDICTION_RE = re.compile(
+    r"\bwill\s+(?:probably|likely)\b[^.?!]{0,100}\bnext\s+"
+    r"(?:few|\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
+    r"(?:days?|months?|years?)\b",
+    re.IGNORECASE,
+)
+_REFUSAL_ACT_RE = re.compile(
+    r"^\s*(?:sorry[,.]?\s*)?(?:i|we)\s+"
+    r"(?:(?:can(?:not|'t)|won't)\s+"
+    r"(?:help|assist|provide|fulfill|comply|create|write|give|verify)|"
+    r"(?:am|are)\s+unable\s+to\s+"
+    r"(?:help|assist|provide|fulfill|comply|create|write|give|verify))\b",
+    re.IGNORECASE,
+)
+_UNCERTAINTY_RE = re.compile(
+    r"\b(?:there is|there's|i have|we have)\s+not enough information\b|"
+    r"\bi(?:'m| am) not sure\b",
+    re.IGNORECASE,
+)
+_LEXICAL_CONSTRAINT_RE = re.compile(
+    r"\b(?:exactly|at most|no more than)\s+"
+    r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
+    r"(?:letters?|words?|sentences?|items?|bullets?|lines?)\b|"
+    r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
+    r"[- ](?:letter|word|sentence|item|bullet|line)\b",
     re.IGNORECASE,
 )
 _BOILERPLATE_RE = re.compile(
-    r"\b(?:as an ai language model|i hope this helps|"
-    r"let me know if you have any other questions)\b",
+    r"^(?:sure|certainly|ok(?:ay)?)\.?$|"
+    r"\b(?:as an ai(?: language model)?|as a language model ai|i am a language model|"
+    r"i hope (?:that )?helps|"
+    r"let me know if[^.?!]{0,100}\b(?:questions?|anything else)\b|"
+    r"hi,? how can i help you today|i (?:am not|['’]?m not) smart enough|"
+    r"wait for me to become more intelligent)\b",
+    re.IGNORECASE,
+)
+_RUNTIME_IDENTITY_CONTEXT_RE = re.compile(
+    r"\bopen ?assistant\b|"
+    r"\bas an autonomous [^.?!]{0,40}\bai\b|"
+    r"\bi am (?:just )?an? ai\b|"
+    r"\bi am a virtual assistant\b|"
+    r"\bi(?:'m| am) not able to read or (?:write|respond) in \w+\b|"
+    r"\bi(?:'m| am) (?:currently )?unable to (?:look up|access|retrieve|search)\b|"
+    r"\b(?:i|my)\b[^.?!]{0,120}\b(?:language model|large language model|"
+    r"trained (?:on words|in a large corpus))\b",
     re.IGNORECASE,
 )
 _CODE_RE = re.compile(r"```|\b(?:def|class|function|python|javascript|sql)\b", re.IGNORECASE)
@@ -146,6 +237,30 @@ _ARITHMETIC_RE = re.compile(r"\b\d+\s*[+\-*/]\s*\d+\b")
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
 
 Fingerprint = tuple[frozenset[str], frozenset[tuple[str, ...]]]
+
+
+def source_context_rejection_reasons(
+    text: str, count_tokens: Callable[[str], int]
+) -> tuple[str, ...]:
+    """Pre-generation checks for zero-loss OASST assistant context."""
+    reasons: list[str] = []
+    count = count_tokens(text)
+    if not 1 <= count <= MAX_SOURCE_CONTEXT_TOKENS:
+        reasons.append("source_context_token_count_out_of_band")
+    if text.count("```") % 2:
+        reasons.append("unclosed_code_fence")
+    for reason, pattern in (
+        ("protocol_imitation", _PROTOCOL_RE),
+        ("hidden_reasoning", _HIDDEN_REASONING_RE),
+        ("tool_transcript", _TOOL_TRANSCRIPT_RE),
+        ("fast_changing_fact", _VOLATILE_CLAIM_RE),
+        ("boilerplate", _BOILERPLATE_RE),
+        ("runtime_identity", _RUNTIME_IDENTITY_CONTEXT_RE),
+        ("fast_changing_fact", _SOURCE_PREDICTION_RE),
+    ):
+        if pattern.search(text):
+            reasons.append(reason)
+    return tuple(reasons)
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,7 +302,7 @@ class ReplayCandidate:
 
     @property
     def is_multi_turn(self) -> bool:
-        return len(self.messages) > 2
+        return sum(message.role == "user" for message in self.messages) > 1
 
     @property
     def length_band(self) -> str:
@@ -308,7 +423,9 @@ def _initial_outcome(
     if task_family is not None and task_family not in COMPOSITION_QUOTAS:
         _add_once(reasons, "task_family_not_in_closed_composition")
     messages = _parse_messages(raw.get("messages"), reasons)
-    token_count, tokenizer_revision = _parse_token_count(raw.get("assistant_token_count"), reasons)
+    token_count, tokenizer_revision = _parse_token_count(
+        raw.get("assistant_token_count"), task_family, reasons, flags
+    )
     seed = _required_text(raw, "selection_seed", reasons)
     provenance = _parse_provenance(raw.get("provenance"), messages, reasons)
     if messages:
@@ -356,8 +473,6 @@ def _parse_messages(value: object, reasons: list[str]) -> tuple[ChatMessage, ...
     if len(value) < 2:
         _add_once(reasons, "chat_too_short")
         return None
-    if len(value) > 6:
-        _add_once(reasons, "chat_not_short")
     messages: list[ChatMessage] = []
     roles: list[str] = []
     for item in value:
@@ -365,7 +480,7 @@ def _parse_messages(value: object, reasons: list[str]) -> tuple[ChatMessage, ...
             _add_once(reasons, "chat_message_shape_invalid")
             continue
         role, content = item["role"], item["content"]
-        if role not in {"user", "assistant"}:
+        if role not in {"system", "user", "assistant"}:
             _add_once(reasons, "chat_roles_must_be_native")
             continue
         if not _nonempty_text(content):
@@ -375,18 +490,29 @@ def _parse_messages(value: object, reasons: list[str]) -> tuple[ChatMessage, ...
         messages.append(ChatMessage(role, content.strip()))
     if len(messages) != len(value):
         return None
+    task_roles = roles[1:] if roles and roles[0] == "system" else roles
+    if len(task_roles) > 6:
+        _add_once(reasons, "chat_not_short")
     if (
-        roles[0] != "user"
+        not task_roles
+        or task_roles[0] != "user"
         or roles[-1] != "assistant"
         or any(
-            role != ("user" if index % 2 == 0 else "assistant") for index, role in enumerate(roles)
+            role != ("user" if index % 2 == 0 else "assistant")
+            for index, role in enumerate(task_roles)
         )
+        or "system" in task_roles
     ):
         _add_once(reasons, "chat_turn_order_invalid")
     return tuple(messages)
 
 
-def _parse_token_count(value: object, reasons: list[str]) -> tuple[int | None, str | None]:
+def _parse_token_count(
+    value: object,
+    task_family: str | None,
+    reasons: list[str],
+    flags: list[str],
+) -> tuple[int | None, str | None]:
     if not isinstance(value, Mapping):
         _add_once(reasons, "assistant_token_count_missing")
         return None, None
@@ -397,8 +523,13 @@ def _parse_token_count(value: object, reasons: list[str]) -> tuple[int | None, s
     if isinstance(count, bool) or not isinstance(count, int):
         _add_once(reasons, "assistant_token_count_not_measured")
         return None, None
-    if not LENGTH_BANDS["short"][0] <= count <= LENGTH_BANDS["long"][1]:
+    if not 1 <= count <= LENGTH_BANDS["long"][1]:
         _add_once(reasons, "assistant_token_count_out_of_band")
+    elif count < 5:
+        if task_family not in CONCISE_OUTPUT_FAMILIES:
+            _add_once(reasons, "assistant_token_count_below_default_minimum")
+        else:
+            _add_once(flags, "concise_atomic_output_review")
     if tokenizer_revision != BACKBONE_REVISION:
         _add_once(reasons, "assistant_tokenizer_revision_mismatch")
     return count, tokenizer_revision if isinstance(tokenizer_revision, str) else None
@@ -413,18 +544,23 @@ def _parse_provenance(
     if set(value) != _PROVENANCE_KEYS:
         _add_once(reasons, "provenance_shape_not_closed")
         return None
-    if value["author_kind"] != "backbone_self_replay":
+    allowed_revisions = REPLAY_AUTHOR_REVISIONS.get(value["author_kind"])
+    if allowed_revisions is None:
         _add_once(reasons, "provenance_author_kind_invalid")
-    checks = (
-        ("model_revision", BACKBONE_REVISION, "provenance_model_revision_mismatch"),
-        ("tokenizer_revision", BACKBONE_REVISION, "provenance_tokenizer_revision_mismatch"),
-        ("renderer", RENDERER, "provenance_renderer_mismatch"),
-        ("max_completion_tokens", MAX_COMPLETION_TOKENS, "provenance_max_completion_mismatch"),
-    )
+    elif value["model_revision"] not in allowed_revisions:
+        _add_once(reasons, "provenance_model_revision_mismatch")
+    author_config = _AUTHOR_CONFIG.get(value["author_kind"])
+    checks = (("tokenizer_revision", BACKBONE_REVISION, "provenance_tokenizer_revision_mismatch"),)
+    if author_config is not None:
+        checks += (
+            ("renderer", author_config[0], "provenance_renderer_mismatch"),
+            ("max_completion_tokens", author_config[2], "provenance_max_completion_mismatch"),
+        )
     for field, expected, reason in checks:
         if value[field] != expected:
             _add_once(reasons, reason)
-    if value["temperature"] != TEMPERATURE or isinstance(value["temperature"], bool):
+    expected_temperature = author_config[1] if author_config is not None else TEMPERATURE
+    if value["temperature"] != expected_temperature or isinstance(value["temperature"], bool):
         _add_once(reasons, "provenance_temperature_mismatch")
     if value["tools_enabled"] is not False:
         _add_once(reasons, "provenance_tools_not_disabled")
@@ -468,7 +604,8 @@ def _content_checks(
     reasons: list[str],
     flags: list[str],
 ) -> None:
-    all_text = "\n".join(message.content for message in messages)
+    task_messages = messages[1:] if messages[0].role == "system" else messages
+    all_text = "\n".join(message.content for message in task_messages)
     for (reason, values), (fingerprint_reason, fingerprints) in zip(
         manifest.references, manifest.reference_fingerprints, strict=True
     ):
@@ -478,7 +615,7 @@ def _content_checks(
             (messages[-1].content,)
             if reason == "approved_response_overlap"
             else (
-                *(message.content for message in messages),
+                *(message.content for message in task_messages),
                 all_text,
             )
         )
@@ -490,19 +627,50 @@ def _content_checks(
         _add_once(reasons, "hidden_reasoning")
     if _TOOL_TRANSCRIPT_RE.search(all_text):
         _add_once(reasons, "tool_transcript")
-    if _FAST_FACT_RE.search(all_text):
-        _add_once(reasons, "fast_changing_fact")
+    if _CORRUPT_TEXT_RE.search(all_text):
+        _add_once(reasons, "text_encoding_corrupt")
+    answer = messages[-1].content
+    context = "\n".join(message.content for message in task_messages[:-1])
+    user_text = "\n".join(message.content for message in task_messages if message.role == "user")
+    if _SYSTEM_PROMPT_REQUEST_RE.search(user_text) and _SYSTEM_PROMPT_DISCLOSURE_RE.search(answer):
+        _add_once(reasons, "system_prompt_disclosure")
+    if task_family == "refusal/uncertainty/missing-information":
+        _add_once(flags, "refusal_family_review")
+    if _VOLATILE_CLAIM_RE.search(answer):
+        if _context_contains_volatile_claim(context) or _GROUNDING_CUE_RE.search(answer):
+            _add_once(flags, "source_grounded_volatile_claim_review")
+        else:
+            _add_once(reasons, "fast_changing_fact")
+    elif _DATED_OR_STATUS_CLAIM_RE.search(answer):
+        _add_once(flags, "dated_or_status_claim_review")
     if _BOILERPLATE_RE.search(messages[-1].content):
         _add_once(reasons, "boilerplate")
-    if _REFUSAL_RE.search(messages[-1].content):
+    if _REFUSAL_ACT_RE.search(answer):
         if task_family == "refusal/uncertainty/missing-information":
             _add_once(flags, "intentional_refusal_review")
         else:
             _add_once(reasons, "refusal_outside_intentional_family")
+    elif _UNCERTAINTY_RE.search(answer):
+        _add_once(flags, "uncertainty_review")
     if _CODE_RE.search(all_text):
         _add_once(flags, "code_spot_check")
     if task_family == "math/data reasoning" or _ARITHMETIC_RE.search(all_text):
         _add_once(flags, "arithmetic_spot_check")
+    if task_family == "translation/language transformation":
+        _add_once(flags, "language_transformation_review")
+    if _LEXICAL_CONSTRAINT_RE.search(
+        "\n".join(message.content for message in task_messages if message.role == "user")
+    ):
+        _add_once(flags, "lexical_constraint_review")
+    if sum(message.role == "user" for message in task_messages) > 1:
+        _add_once(flags, "multi_turn_review")
+
+
+def _context_contains_volatile_claim(text: str) -> bool:
+    return any(
+        _VOLATILE_CLAIM_RE.search(sentence) and "?" not in sentence
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", text)
+    )
 
 
 def _reject_duplicate_completion_ids(outcomes: list[ReplayFilterOutcome]) -> None:
@@ -576,7 +744,11 @@ def _reject_near_duplicates(outcomes: list[ReplayFilterOutcome]) -> None:
 
     fingerprints = {
         index: _fingerprint(
-            " ".join(message.content for message in outcomes[index].candidate.messages)
+            " ".join(
+                message.content
+                for message in outcomes[index].candidate.messages
+                if message.role != "system"
+            )
         )
         for index in indexes
         if outcomes[index].candidate is not None
@@ -617,6 +789,7 @@ def _prompt_fingerprint(messages: tuple[ChatMessage, ...]) -> str:
         [
             {"role": message.role, "content": _normalise_text(message.content)}
             for message in messages[:-1]
+            if message.role != "system"
         ]
     )
 
@@ -629,7 +802,12 @@ def _reference_overlap(
         return False
     fingerprint = _fingerprint(normalised)
     for reference, reference_fingerprint in zip(references, reference_fingerprints, strict=True):
-        if len(reference) >= 8 and (reference in normalised or normalised in reference):
+        # The minimum length binds both sides.  Guarding only the reference made the
+        # `normalised in reference` direction fire for any very short answer that happened to sit
+        # inside a long reference, e.g. the answer "15" inside "remind me at 7:15 am ...".
+        if min(len(reference), len(normalised)) >= _MINIMUM_CONTAINMENT_LENGTH and (
+            reference in normalised or normalised in reference
+        ):
             return True
         if _near_match(*fingerprint, *reference_fingerprint):
             return True

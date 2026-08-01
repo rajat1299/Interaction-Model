@@ -1,0 +1,45 @@
+{
+  "approved": [
+    "no-robots:09ef653fb35366551f2f4e390e9e6b9fae1398e75c829a39798e2e0b37ae0032:final",
+    "no-robots:12da3596881209bac23e51c59ee348dbcf3019c1dee88a882f7801bf1e0fb690:final",
+    "no-robots:2a34e8a7d21dc1c25bffff70471a7cfeb70e3e237156dc8726f2f960cafb0346:final",
+    "no-robots:323740034f4b0951e72663c8cb860679dec02f83550a2d6b5fce3a6d2de9b7d3:final",
+    "no-robots:849973cf2ba32774792026af51f541205882b551222152e9b20f25fa355b675b:final",
+    "no-robots:9d6769e5503d27c214cc2153a1d3a01ddd40b749cce60c48de9287ababd60a81:final",
+    "no-robots:94c778ee33d1b6835a2201878542a45d27142994c90ad84b63403b2adc02f0ea:final",
+    "no-robots:c71bc3cbaab646f07a88c228f9ef7ae12003266210824329da78dd3b55b585b9:final",
+    "no-robots:f3cf5673bd84ed8d15609a9bcaa04cd82a4ad4543d5356db19f4c9b65735b84d:final",
+    "replay-1cabc7e7d08aff45a6301f05b6599e9f",
+    "replay-3e7f4d72640831ed6443a4cf53a4698c",
+    "replay-55162d93025ae0a59dba1652bcb2502a",
+    "replay-c2b3e0a1a5b6c765270de9999956a5bf",
+    "replay-d0110825fccf371500015129679befca",
+    "replay-d0c04aeed283414217fe74ae7d8f55e5",
+    "replay-fa537adc28ae4ec382dc7ffeca3c5b1c"
+  ],
+  "authority": "Project owner delegated coding-row judgment to Codex; non-code rows remain pending owner review.",
+  "format_version": 1,
+  "kind": "phase2-wp2-9-replay-terminal-owner-review-progress",
+  "pending": [],
+  "rejected": [
+    {
+      "completion_id": "no-robots:3b977cdb2f49102e8df30658323b20cf5d4f65c4631d16f563fb2824f48e65a4:final",
+      "reason": "The Express/MongoDB route uses outdated callback-style APIs, throws asynchronous errors, and does not validate malformed ObjectIds."
+    },
+    {
+      "completion_id": "no-robots:446ba0d658b13c26ee87fb8ed6957ed5c82f6611e831e95c98cb6801e8d8df9b:final",
+      "reason": "The TypeScript function declares Promise<U[]> even though U is undefined, so it does not type-check."
+    },
+    {
+      "completion_id": "no-robots:c0446a1b8b362698777e3b795ce291b7194f6e92f2d54ee11625dbd3fe246c00:final",
+      "reason": "The extraction omits the Tennessee Titans even though the passage explicitly names that team."
+    },
+    {
+      "completion_id": "replay-20da9b676dcad2fa911c83c628db76cf",
+      "reason": "The SQL-versus-NoSQL answer presents outdated scaling and consistency generalizations as categorical differences."
+    }
+  ],
+  "reviewed_on": "2026-07-31",
+  "reviewer_id": "user:phase2-owner+codex:delegated-technical-review",
+  "status": "complete"
+}

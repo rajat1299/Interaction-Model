@@ -1,0 +1,9 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d024.a1","action":{"type":"skip","target_event_id":"e_000044","reason":"canceled_timer"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d024.a1","action":{"type":"skip","target_event_id":"e_000044","reason":"canceled_timer"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d024.a1","action":{"type":"skip","target_event_id":"e_000044","reason":"canceled_timer"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d024.a1","action":{"type":"skip","target_event_id":"e_000044","reason":"canceled_timer"}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d016.a1","action":{"type":"nudge","fire_event_id":"e_000034"}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d016.a1","action":{"type":"nudge","fire_event_id":"e_000034"}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d016.a1","action":{"type":"nudge","fire_event_id":"e_000034"}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d016.a1","action":{"type":"nudge","fire_event_id":"e_000034"}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d023.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000022"}}

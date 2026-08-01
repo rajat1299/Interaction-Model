@@ -1,0 +1,40 @@
+{
+ "added": [
+  {
+   "message_id": "20e81e41-e842-4bba-90ea-b441b781f58f",
+   "text_sha256": "9cd3ffa4f6afb0f57490a25cc0d8b43554d43614edd025786213195cc860e00d"
+  },
+  {
+   "message_id": "d47f99a9-293e-4638-99ee-6095ca6e9b5f",
+   "text_sha256": "e83d74311ad7df9924d74a4b746af3121b27dc6d05e4596d727858793616b73f"
+  },
+  {
+   "message_id": "10bf68b8-0c86-4261-8f6b-757fa89c6122",
+   "text_sha256": "5249af35cf7a44a53ecdcb464c66205343fdd9e8f7c7bcbbcebdaca0441f14fd"
+  },
+  {
+   "message_id": "e2288172-e612-4b6c-87f8-198bb5347db7",
+   "text_sha256": "7049a81fe6067eeddc26309b387216176a310d7fff105cd07cbcb538c9c1a9a3"
+  },
+  {
+   "message_id": "39869cbc-fd95-4d5c-b36d-2987712a9cfa",
+   "text_sha256": "da52d93a486ffe9061732c953239f38ea7c68f6326f6d9c432fb24b4ad961bf5"
+  }
+ ],
+ "base_allowlist": "review/phase2/replay-ledger-v18-superseded-prepilot-audit/refusal-allowlist.json",
+ "format_version": 1,
+ "kind": "phase2-replay-refusal-allowlist-amendment",
+ "removed_message_ids": [
+  "0172747b-c149-4ed6-bca7-92ccaeeb4a9d",
+  "111473f0-1bbc-4804-890b-e2c2da700045",
+  "57fa81f1-8b75-4558-a13b-02750d7e32cd",
+  "9bf34e25-6354-4d6c-9ce1-31e9cb1ad840",
+  "b224f827-2a31-48c6-8707-c59860dde170",
+  "cff30991-d4a0-4133-b922-5860e49b0fb1",
+  "f6983daa-2aef-4fc0-b43e-6e05d37032e4",
+  "f7249615-4f81-4d6b-b7bf-a038de16b2a2"
+ ],
+ "result_count": 47,
+ "review_artifact": "AMENDMENT.md",
+ "review_artifact_sha256": "f78307267382c715f6a0ad16c107724d368f8f84fa2f3cbeab8f917fed020855"
+}

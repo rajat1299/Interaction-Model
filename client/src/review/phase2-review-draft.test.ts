@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearReviewDraft,
   clusterEvidenceReady,
   persistClusterProgress,
   restoreClusterProgress,
@@ -47,6 +48,20 @@ function indexFor(phase2EvidenceSha256: string): PacketIndex {
 }
 
 describe("Phase 2 cluster progress drafts", () => {
+  it("clears only the current packet's review and cluster drafts", () => {
+    const storage = window.localStorage;
+    storage.clear();
+    storage.setItem(packetDraftKey, "review");
+    storage.setItem(`${packetDraftKey}:cluster-evidence`, "cluster");
+    storage.setItem("another-packet", "keep");
+
+    clearReviewDraft(storage, packetDraftKey);
+
+    expect(storage.getItem(packetDraftKey)).toBeNull();
+    expect(storage.getItem(`${packetDraftKey}:cluster-evidence`)).toBeNull();
+    expect(storage.getItem("another-packet")).toBe("keep");
+  });
+
   it("round-trips valid progress and fails closed for stale or malformed state", () => {
     const storage = window.localStorage;
     storage.clear();

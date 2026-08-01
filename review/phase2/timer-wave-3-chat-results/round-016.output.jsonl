@@ -1,0 +1,9 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d023.a1","action":{"type":"cancel","instruction":{"event_id":"e_000045","start_utf16":0,"end_utf16":46,"text":"Cancel the first active vellum-chart reminder."},"target":{"kind":"timer","timer_id":"t_005"}}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d023.a1","action":{"type":"cancel","instruction":{"event_id":"e_000045","start_utf16":0,"end_utf16":44,"text":"Cancel the first active cedar-room reminder."},"target":{"kind":"timer","timer_id":"t_005"}}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d023.a1","action":{"type":"cancel","instruction":{"event_id":"e_000045","start_utf16":0,"end_utf16":47,"text":"Cancel the first active brass-compass reminder."},"target":{"kind":"timer","timer_id":"t_005"}}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d023.a1","action":{"type":"cancel","instruction":{"event_id":"e_000045","start_utf16":0,"end_utf16":46,"text":"Cancel the first active blue-pitcher reminder."},"target":{"kind":"timer","timer_id":"t_005"}}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d015.a1","action":{"type":"nudge","fire_event_id":"e_000032"}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d015.a1","action":{"type":"nudge","fire_event_id":"e_000032"}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d015.a1","action":{"type":"nudge","fire_event_id":"e_000032"}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d015.a1","action":{"type":"nudge","fire_event_id":"e_000032"}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d022.a1","action":{"type":"nudge","fire_event_id":"e_000030"}}

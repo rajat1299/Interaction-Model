@@ -276,7 +276,7 @@ def test_mark_targeting_twins_distinguish_quoted_and_embedded_restraint(
     assert isinstance(quoted, IdleAction)
     assert quoted.reason is IdleReason.INSTRUCTION_NOT_DIRECT
     assert isinstance(embedded, IdleAction)
-    assert embedded.reason is IdleReason.TYPING_ACTIVE
+    assert embedded.reason is IdleReason.NO_TRIGGER
 
 
 @pytest.mark.asyncio

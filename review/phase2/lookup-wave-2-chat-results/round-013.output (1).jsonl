@@ -1,0 +1,13 @@
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-active.d012.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-yielded.d012.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-active.d012.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-yielded.d012.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.stale-00.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-01.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-02.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-03.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-04.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-05.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-06.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-07.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}
+{"custom_id":"t2lw2.stale-08.d018.a1","action":{"type":"skip","target_event_id":"e_000033","reason":"stale_tool_result"}}

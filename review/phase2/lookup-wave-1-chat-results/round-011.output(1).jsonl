@@ -1,0 +1,2 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d019.a1","action":{"type":"skip","target_event_id":"e_000029","reason":"stale_tool_result"}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d020.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000029"}}

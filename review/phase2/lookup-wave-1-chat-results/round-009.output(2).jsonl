@@ -1,0 +1,2 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":68,"end_utf16":85,"text":"Opal Run rainfall"},"tool":"lookup","args":{"query":"Opal Run rainfall"}}}

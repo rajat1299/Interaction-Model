@@ -1,0 +1,263 @@
+{
+  "format_version": 1,
+  "kind": "wp2-10-test-owner-review-progress",
+  "source_packet": "review/phase2/wp2-10-test-400-candidate-v2",
+  "source_sha256sums_sha256": "sha256:13353177af902742a5b4492a2ac2f644d4547d8e7af9412217411fb19054d18e",
+  "status": "owner_review_complete_rebuild_required",
+  "review_summary": {
+    "reviewed_decisions": 400,
+    "approved": 342,
+    "rejected_rebuild": 42,
+    "rejected_relabel": 16,
+    "open_decisions": 0
+  },
+  "groups": [
+    {
+      "group_id": "ambiguous-requests",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "stream_sha256": "sha256:2035f7028dfdb1d6ffcc026b32911305043f4c334c6e2099a1c7a9638342fcdf",
+          "call_index": 1,
+          "disposition": "approved"
+        },
+        {
+          "stream_sha256": "sha256:2fff89412e7153e7104e04b2a9c7fa9a3bf624600bf0e7d8f5925ba673aa93fc",
+          "call_index": 1,
+          "disposition": "approved"
+        },
+        {
+          "stream_sha256": "sha256:cbd4e11a672eab421b048234083da3de25692e50b6772ebeb43574c4ad83f85f",
+          "call_index": 1,
+          "disposition": "approved"
+        },
+        {
+          "stream_sha256": "sha256:bf675b551a0db898c230b6692fe368ca6e9ca71e8b81a79edf067f8ffee48acb",
+          "call_index": 1,
+          "disposition": "rejected_rebuild",
+          "reason": "malformed request asks the assistant to supply a missing recipe name that only the user can provide"
+        },
+        {
+          "stream_sha256": "sha256:4f2a5e53c20e0ce648901e0a732029d40be34e7e2e9219b4fc09cdfbce35841d",
+          "call_index": 1,
+          "disposition": "rejected_rebuild",
+          "reason": "malformed request asks the assistant to supply a missing station name that only the user can provide"
+        },
+        {
+          "stream_sha256": "sha256:6bad4ef127d3c727b23ce79efcb108ee2780cb3434accbab715a21a0aaf75e62",
+          "call_index": 1,
+          "disposition": "rejected_rebuild",
+          "reason": "malformed request asks the assistant to supply a missing edition that only the user can provide"
+        }
+      ]
+    },
+    {
+      "group_id": "information-result-integration",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "selection_predicate": {
+            "action": "integrate",
+            "shape_id_in": ["g7-fresh-lookup-live-2i-2d-2g", "g7-checkpoint-rollover-b"]
+          },
+          "matched_count": 16,
+          "disposition": "rejected_rebuild",
+          "reason": "causally depends on a rejected standalone bare-phrase delegation"
+        },
+        {
+          "selection_predicate": {
+            "action": "integrate",
+            "shape_id_not_in": ["g7-fresh-lookup-live-2i-2d-2g", "g7-checkpoint-rollover-b"]
+          },
+          "matched_count": 6,
+          "disposition": "approved"
+        }
+      ]
+    },
+    {
+      "group_id": "obsolete-results-and-canceled-fires",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "skip"},
+      "matched_count": 21
+    },
+    {
+      "group_id": "timer-cancellations",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "cancel"},
+      "matched_count": 13
+    },
+    {
+      "group_id": "timer-creations",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "schedule"},
+      "matched_count": 20
+    },
+    {
+      "group_id": "timer-notifications",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "nudge"},
+      "matched_count": 37
+    },
+    {
+      "group_id": "information-check-delegation",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "selection_predicate": {
+            "action": "delegate",
+            "shape_id_in": ["g7-fresh-lookup-live-2i-2d-2g", "g7-checkpoint-rollover-a"]
+          },
+          "matched_count": 16,
+          "disposition": "rejected_relabel",
+          "replacement_action": {"type": "idle", "reason": "no_trigger", "related_event_id": null},
+          "reason": "standalone bare phrase with no question, request, or expressed information need"
+        },
+        {
+          "selection_predicate": {
+            "action": "delegate",
+            "shape_id_not_in": ["g7-fresh-lookup-live-2i-2d-2g", "g7-checkpoint-rollover-a"]
+          },
+          "matched_count": 9,
+          "disposition": "approved"
+        }
+      ]
+    },
+    {
+      "group_id": "text-marking-actions",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "mark"},
+      "matched_count": 45
+    },
+    {
+      "group_id": "incomplete-typing-boundaries",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "idle", "reason": "typing_active"},
+      "matched_count": 6
+    },
+    {
+      "group_id": "quoted-or-discussed-instructions",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "selection_predicate": {"action": "idle", "reason": "instruction_not_direct"},
+      "matched_count": 14
+    },
+    {
+      "group_id": "pending-information-states",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "awaiting_tool",
+            "shape_id_in": ["g7-checkpoint-lookup-duplicate-a", "g7-checkpoint-lookup-duplicate-b"]
+          },
+          "matched_count": 16,
+          "disposition": "approved"
+        },
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "awaiting_tool",
+            "shape_id": "g7-checkpoint-lookup-stale",
+            "call_index": 4
+          },
+          "matched_count": 1,
+          "disposition": "approved"
+        },
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "awaiting_tool",
+            "shape_id_in": ["g7-fresh-lookup-live-2i-2d-2g", "g7-checkpoint-rollover-a"]
+          },
+          "matched_count": 16,
+          "disposition": "rejected_rebuild",
+          "reason": "pending state originates from a malformed standalone bare-phrase request"
+        },
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "awaiting_tool",
+            "shape_id": "g7-checkpoint-lookup-stale",
+            "call_index_in": [6, 8, 9, 13]
+          },
+          "matched_count": 4,
+          "disposition": "rejected_rebuild",
+          "reason": "state occurs after malformed bare-phrase requests entered the pending flow"
+        }
+      ]
+    },
+    {
+      "group_id": "response-floor-pairs",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "selection_predicate": {
+            "counterfactual_group_id_not": "g7-response-floor-bf6497bb8c4cef3a"
+          },
+          "matched_count": 34,
+          "disposition": "approved"
+        },
+        {
+          "selection_predicate": {
+            "counterfactual_group_id": "g7-response-floor-bf6497bb8c4cef3a"
+          },
+          "matched_count": 2,
+          "disposition": "rejected_rebuild",
+          "reason": "response incorrectly says only recurring reminders are supported",
+          "approved_replacement_response": "I can't add it to your calendar or set it for 7 PM. I can remind you after a set amount of time instead."
+        }
+      ]
+    },
+    {
+      "group_id": "no-action-states",
+      "decision_source": "owner_chat",
+      "dispositions": [
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "no_trigger",
+            "shape_id_not": "g7-checkpoint-rollover-b"
+          },
+          "matched_count": 106,
+          "disposition": "approved"
+        },
+        {
+          "selection_predicate": {
+            "action": "idle",
+            "reason": "no_trigger",
+            "shape_id": "g7-checkpoint-rollover-b",
+            "call_index": 20
+          },
+          "matched_count": 1,
+          "disposition": "rejected_rebuild",
+          "reason": "state is downstream of the malformed standalone Fable Station platform request"
+        }
+      ]
+    },
+    {
+      "group_id": "already-handled-results",
+      "decision_source": "owner_chat",
+      "group_disposition": "approved",
+      "dispositions": [
+        {"stream_sha256":"sha256:dbd99a7d0028f5b00b3e9e8746328b8678d7d4b92bf8ce63323f1c30a8b55218","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:0e7a407124fd0a484fd7f01904a38b96f792e21eb7ab376ac83f22a54072cdb1","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:2c16c463f5ac5fea252d2178527d8c4bd2767c0d30dc424ede8c9d4400b5dee3","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:8bc6d328dc975e957c39cb5033de43d1f85a31acfa83347672ec970f7c485362","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:46b33175ab819de1bca9777fd8dd255f3481ce33be878aff8c796eb71f2f295e","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:869bad4cf46e1a6aa541d0cd9007dea4fb2fd21a23784ea7d4d0de2a73b46087","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:8313879dd192ea96a6cbe0f3d58995fa343dd89aed1df58c8468d5160eaaeae7","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:c5afd255dc340ec875425061e1767842bdd24229de71cf9fbb009a2c25c0f270","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:2c5aae5e2b97fa88a63ea846152416525f946e8ed1ff385bc554b5aeb86a3622","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:a9f99c70ada48be6e78e6ffdf48f94a825a04d91423cf4a03a9ab6e8bd85ceba","call_index":22,"disposition":"approved"},
+        {"stream_sha256":"sha256:2ca9584fd988968c674a16e322c55a0484e447019e7366fab0c79e034fbd49cf","call_index":20,"disposition":"approved"}
+      ]
+    }
+  ]
+}

@@ -206,6 +206,15 @@ def test_subtype_rules_block_bundled_answers_boilerplate_and_retry_promises() ->
         ),
         visible_support_by_event_id=_support(),
     ).is_clear
+    can_only_limitation = "I can only create recurring interval reminders, not single reminders."
+    assert validate_response_text(
+        can_only_limitation,
+        replace(
+            limitation,
+            required_answer_points=(AnswerPoint((can_only_limitation,)),),
+        ),
+        visible_support_by_event_id=_support(),
+    ).is_clear
     with pytest.raises(ResponseContractError, match="apology boilerplate"):
         validate_response_text(
             "Sorry, I cannot export the report.",
@@ -224,6 +233,25 @@ def test_subtype_rules_block_bundled_answers_boilerplate_and_retry_promises() ->
             limitation,
             visible_support_by_event_id=_support(),
         )
+    for passive_claim in (
+        "I can only create recurring reminders, but the reminder is set for 6:40 PM.",
+        "I can only create recurring reminders, but a reminder was scheduled for 6:40 PM.",
+        "I can only create recurring reminders, but the reminder will be set for 6:40 PM.",
+        "I can only create recurring reminders, but a reminder will be scheduled for 6:40 PM.",
+        "I can only create recurring reminders, but the reminder is being scheduled for 6:40 PM.",
+        "I can only create recurring reminders, but I am scheduling a reminder for 6:40 PM.",
+        "I can only create recurring reminders, but I will create one for 6:40 PM.",
+        "I can only create recurring reminders, but the reminder has already been set for 6:40 PM.",
+    ):
+        with pytest.raises(ResponseContractError, match="schedule or approximation"):
+            validate_response_text(
+                passive_claim,
+                replace(
+                    limitation,
+                    required_answer_points=(AnswerPoint(("recurring reminders",)),),
+                ),
+                visible_support_by_event_id=_support(),
+            )
 
     failed = _contract(ResponseKind.FAILED_TOOL_NOTICE)
     with pytest.raises(ResponseContractError, match="automatic retry"):

@@ -32,7 +32,7 @@ def review_files(repository: Path) -> tuple[Path, ...]:
     goldens = [
         path.relative_to(repository)
         for path in (repository / "golden").rglob("*")
-        if path.is_file() and path.name != ".gitkeep"
+        if path.is_file() and path.name not in {".DS_Store", ".gitkeep"}
     ]
     paths = tuple(sorted((*fixed, *goldens), key=lambda item: item.as_posix()))
     missing = [path.as_posix() for path in paths if not (repository / path).is_file()]
@@ -60,9 +60,7 @@ def build_review_bundle(repository: Path, output: Path) -> str:
     if output in {(repository / path).resolve() for path in review_paths}:
         raise ValueError("review bundle output cannot overwrite a review input")
 
-    payloads = {
-        path.as_posix(): (repository / path).read_bytes() for path in review_paths
-    }
+    payloads = {path.as_posix(): (repository / path).read_bytes() for path in review_paths}
     checksum_bytes = "".join(
         f"{sha256(data).hexdigest()}  {name}\n" for name, data in payloads.items()
     ).encode("utf-8")

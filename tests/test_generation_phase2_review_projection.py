@@ -122,19 +122,30 @@ def test_projection_emits_and_requires_cluster_priority_order() -> None:
         parse_phase2_review_evidence(canonical_artifact_bytes(payload))
 
 
-def test_projection_fails_closed_for_missing_packet_decision_or_source_reuse() -> None:
+def test_projection_individually_queues_source_reused_non_equivalence() -> None:
     inputs = (_input(1, "source-a", 0), _input(2, "source-b", 1), _input(3, "source-a", 2))
     identities = tuple(
         (item.decision.stream_sha256, item.decision.decision_policy_seq) for item in inputs
     )
 
-    with pytest.raises(Phase2ReviewProjectionError, match="three distinct source units"):
+    payload = parse_phase2_review_evidence(
         project_phase2_review_evidence(
             inputs,
             packet_decision_identities=identities,
             teacher_evidence_identity=f"sha256:{'d' * 64}",
             blind_seed="phase2-review-blind-v1",
         )
+    )
+    assert payload["clusters"] == []
+    assert len(payload["decisions"]) == 3
+    assert all(len(decision["candidates"]) == 2 for decision in payload["decisions"])
+
+
+def test_projection_fails_closed_for_missing_packet_decision() -> None:
+    inputs = (_input(1, "source-a", 0), _input(2, "source-b", 1), _input(3, "source-a", 2))
+    identities = tuple(
+        (item.decision.stream_sha256, item.decision.decision_policy_seq) for item in inputs
+    )
 
     with pytest.raises(Phase2ReviewProjectionError, match="do not close"):
         project_phase2_review_evidence(

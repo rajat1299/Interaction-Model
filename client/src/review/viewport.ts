@@ -3,7 +3,7 @@
  * Independent of shell navigation so Phase 6 can restyle without changing semantics.
  */
 
-import type { Action } from "./types";
+import type { Action, CanonicalEventEnvelope } from "./types";
 import type { VisibleState } from "./reducer";
 
 export type Utf16Span = { start: number; end: number; className: string };
@@ -94,14 +94,6 @@ export function renderSnapshotSurface(host: HTMLElement, state: VisibleState): v
   const pre = el("pre", "vp-snapshot-text", host);
   pre.appendChild(buildHighlightedNodes(state.text, spans));
 
-  const meta = el("div", "vp-snapshot-meta", host);
-  meta.textContent = [
-    `activity=${state.activity}`,
-    `edit=${state.editKind}`,
-    `composing=${state.isComposing}`,
-    `sel=${state.selectionStart}-${state.selectionEnd} (utf16)`,
-    `t=${state.elapsedMs}ms`,
-  ].join(" · ");
 }
 
 export function renderMarkList(host: HTMLElement, state: VisibleState): void {
@@ -236,6 +228,7 @@ export function renderActionRow(
 export type OracleEvidenceOverlay = {
   floorOpen: boolean;
   staleToolResultEventIds: string[];
+  openTimerFireEventIds?: string[];
 };
 
 export function renderVisibleContext(
@@ -278,29 +271,249 @@ export function renderCheckpointMarker(host: HTMLElement, state: VisibleState): 
     ` · prev ${state.checkpoint.previousSegmentHash.slice(0, 19)}…`;
 }
 
+export type ActionReferences = {
+  timerMessages: ReadonlyMap<string, string>;
+  fireMessages: ReadonlyMap<string, string>;
+  resultSubjects: ReadonlyMap<string, string>;
+};
+
+export function actionReferencesFor(
+  events: CanonicalEventEnvelope[],
+  beforeSeq = Number.POSITIVE_INFINITY,
+): ActionReferences {
+  const timerMessages = new Map<string, string>();
+  const fireMessages = new Map<string, string>();
+  const requestSubjects = new Map<string, string>();
+  const resultSubjects = new Map<string, string>();
+  for (const event of events) {
+    if (event.seq > beforeSeq) break;
+    if (event.kind === "scheduled") timerMessages.set(event.payload.timer_id, event.payload.message);
+    if (event.kind === "fire") fireMessages.set(event.id, timerMessages.get(event.payload.timer_id) ?? "due reminder");
+    if (event.kind === "state_checkpoint") {
+      event.payload.pending_tools.forEach((item) => requestSubjects.set(item.request_id, item.args.query));
+      event.payload.open_tool_results.forEach((item) => resultSubjects.set(item.event_id, item.args.query));
+    }
+    if (event.kind === "tool_requested") requestSubjects.set(event.payload.request_id, event.payload.args.query);
+    if (event.kind === "result") {
+      const subject = requestSubjects.get(event.payload.request_id);
+      if (subject) resultSubjects.set(event.id, subject);
+    }
+  }
+  return { timerMessages, fireMessages, resultSubjects };
+}
+
+function elapsedTimes(events: CanonicalEventEnvelope[]): Map<number, number> {
+  let elapsed = 0;
+  const result = new Map<number, number>();
+  for (const event of events) {
+    elapsed += event.dt_ms;
+    result.set(event.seq, elapsed);
+  }
+  return result;
+}
+
+function elapsedLabel(ms: number): string {
+  if (ms < 1_000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1_000).toFixed(1)}s`;
+  const minutes = Math.floor(ms / 60_000);
+  const remainder = ms % 60_000;
+  if (remainder === 0) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return `${minutes}m ${(remainder / 1_000).toFixed(1)}s`;
+}
+
+function renderTimeline(
+  host: HTMLElement,
+  events: CanonicalEventEnvelope[],
+  currentSeq: number,
+  references: ActionReferences,
+): void {
+  const times = elapsedTimes(events);
+  const list = document.createElement("ol");
+  list.className = "vp-timeline-list";
+  let priorText: string | null = null;
+  const add = (event: CanonicalEventEnvelope, text: string) => {
+    const item = document.createElement("li");
+    const time = document.createElement("time");
+    time.textContent = `+${elapsedLabel(times.get(event.seq) ?? 0)}`;
+    const description = document.createElement("span");
+    description.textContent = text;
+    item.append(time, description);
+    list.append(item);
+  };
+
+  for (const event of events) {
+    if (event.seq >= currentSeq) break;
+    switch (event.kind) {
+      case "snapshot":
+        if (event.payload.text !== priorText) {
+          add(event, `User wrote: “${event.payload.text}”`);
+          priorText = event.payload.text;
+        }
+        break;
+      case "annotation":
+        add(event, `User added a note: “${event.payload.text}”`);
+        break;
+      case "scheduled":
+        add(event, `Reminder created: “${event.payload.message}” — repeats every ${elapsedLabel(event.payload.interval_ms)}.`);
+        break;
+      case "fire":
+        add(event, `Reminder became due: “${references.fireMessages.get(event.id) ?? "due reminder"}”.`);
+        break;
+      case "tool_requested":
+        add(event, `Lookup started for “${event.payload.args.query}”.`);
+        break;
+      case "result":
+        add(event, `The lookup ${event.payload.status === "succeeded" ? "returned a result" : "failed"}.`);
+        break;
+      case "action_rejected":
+        add(event, `A proposed action was blocked because of ${event.payload.reason.replaceAll("_", " ")}.`);
+        break;
+      case "action_executed": {
+        const action = event.payload.action;
+        if (action.type === "nudge") add(event, `Reminder delivered: “${references.fireMessages.get(action.fire_event_id) ?? "due reminder"}”.`);
+        else if (action.type === "cancel") {
+          const messages = action.target.kind === "timer"
+            ? [references.timerMessages.get(action.target.timer_id) ?? "selected reminder"]
+            : action.target.kind === "timers"
+              ? action.target.timer_ids.map((id) => references.timerMessages.get(id) ?? "selected reminder")
+              : ["all active reminders"];
+          add(event, `Reminder canceled: ${messages.map((message) => `“${message}”`).join(", ")}.`);
+        } else if (action.type === "respond") add(event, `Assistant replied: “${action.text}”`);
+        else if (action.type === "delegate") add(event, `Assistant requested a lookup for “${action.args.query}”.`);
+        else if (action.type === "integrate") add(event, `Assistant used the lookup result: “${action.text}”`);
+        else if (action.type === "skip") add(event, `Assistant left a result unused because it was ${action.reason.replaceAll("_", " ")}.`);
+        else if (action.type === "mark") add(event, `Assistant marked “${action.target.text}”.`);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  host.replaceChildren(list);
+}
+
+function renderAttention(
+  host: HTMLElement,
+  state: VisibleState,
+  events: CanonicalEventEnvelope[],
+  evidence: OracleEvidenceOverlay | null,
+  references: ActionReferences,
+): void {
+  host.replaceChildren();
+  host.className = "vp-attention";
+  const title = el("h3", "", host);
+  title.textContent = "What needs attention now";
+  const text = el("p", "", host);
+  if (state.activity === "active" || state.isComposing) {
+    text.textContent = "The user is still typing, so the assistant should not interrupt.";
+    return;
+  }
+  const openFires = evidence?.openTimerFireEventIds ?? state.openTimerFireEventIds;
+  const target = openFires.at(-1);
+  if (target) {
+    const event = events.find((item) => item.id === target);
+    const times = elapsedTimes(events);
+    const age = Math.max(0, (times.get(state.eventSeq) ?? state.elapsedMs) - (event ? times.get(event.seq) ?? 0 : 0));
+    text.textContent = `The reminder “${references.fireMessages.get(target) ?? "due reminder"}” became due ${elapsedLabel(age)} ago.`;
+  } else if (evidence?.staleToolResultEventIds.length) {
+    text.textContent = "A lookup result is stale and should not be used as if it were current.";
+  } else if (state.openToolResultEventIds.length) {
+    text.textContent = "A lookup result is ready for the assistant to use or explicitly leave unused.";
+  } else if (state.pendingRequestIds.length) {
+    text.textContent = "A lookup is still running; the assistant should wait for its result.";
+  } else {
+    text.textContent = "No pending reminder or lookup explains this decision. Review the proposed action against the visible request and state.";
+  }
+}
+
+function renderSituationFacts(
+  host: HTMLElement,
+  state: VisibleState,
+  oracleEvidence: OracleEvidenceOverlay | null,
+): void {
+  host.replaceChildren();
+  host.className = "vp-facts";
+  const facts: string[] = [
+    state.activity === "active"
+      ? "The user is still editing and owns the floor."
+      : "The user has paused editing.",
+  ];
+  if (oracleEvidence?.floorOpen) facts.push("A response window is open for the assistant.");
+
+  const activeTimers = state.timers.filter((timer) => timer.status === "active");
+  if (activeTimers.length) {
+    facts.push(`Active reminders: ${activeTimers.map((timer) => `“${timer.message}”`).join(", ")}.`);
+  } else {
+    facts.push("There are no active reminders.");
+  }
+  const openFires = oracleEvidence?.openTimerFireEventIds ?? state.openTimerFireEventIds;
+  if (openFires.length) facts.push(`${openFires.length} reminder${openFires.length === 1 ? " is" : "s are"} due now.`);
+  if (state.pendingRequestIds.length) facts.push(`${state.pendingRequestIds.length} lookup request${state.pendingRequestIds.length === 1 ? " is" : "s are"} still pending.`);
+  if (state.openToolResultEventIds.length) facts.push(`${state.openToolResultEventIds.length} lookup result${state.openToolResultEventIds.length === 1 ? " is" : "s are"} available.`);
+  if (oracleEvidence?.staleToolResultEventIds.length) facts.push(`${oracleEvidence.staleToolResultEventIds.length} lookup result${oracleEvidence.staleToolResultEventIds.length === 1 ? " is" : "s are"} stale.`);
+  if (state.marks.length || state.ambiguousMarks.length) facts.push(`${state.marks.length + state.ambiguousMarks.length} text mark${state.marks.length + state.ambiguousMarks.length === 1 ? " is" : "s are"} in scope.`);
+
+  const list = document.createElement("ul");
+  for (const fact of facts) {
+    const item = document.createElement("li");
+    item.textContent = fact;
+    list.append(item);
+  }
+  host.append(list);
+}
+
 export function renderViewport(
   root: HTMLElement,
   state: VisibleState,
   oracle: Action | null,
   oracleEvidence: OracleEvidenceOverlay | null = null,
+  events: CanonicalEventEnvelope[] = [],
 ): void {
   root.replaceChildren();
   root.className = "vp-root";
 
   const section = (cls: string) => el("div", cls, root);
 
-  renderCheckpointMarker(section("vp-checkpoint"), state);
-  renderSnapshotSurface(section("vp-snapshot"), state);
-  renderActionRow(section("vp-action-row"), {
+  const heading = section("vp-heading");
+  const title = el("h2", "", heading);
+  title.textContent = `Review at +${elapsedLabel(state.elapsedMs)}`;
+  const guidance = el("p", "", heading);
+  guidance.textContent = "This story stops immediately before the proposed action you are judging.";
+
+  const references = actionReferencesFor(events, state.eventSeq);
+  renderAttention(section("vp-attention"), state, events, oracleEvidence, references);
+
+  const timeline = section("vp-timeline");
+  const timelineTitle = el("h3", "", timeline);
+  timelineTitle.textContent = "Earlier in this interaction";
+  const timelineBody = el("div", "", timeline);
+  renderTimeline(timelineBody, events, state.eventSeq, references);
+
+  const snapshot = section("vp-visible-text");
+  const snapshotLabel = el("p", "vp-snapshot-label", snapshot);
+  snapshotLabel.textContent = "Still visible in the editor";
+  const snapshotSurface = el("div", "vp-snapshot-surface", snapshot);
+  renderSnapshotSurface(snapshotSurface, state);
+  renderSituationFacts(section("vp-facts"), state, oracleEvidence);
+
+  const technical = document.createElement("details");
+  technical.className = "vp-technical";
+  const technicalLabel = document.createElement("summary");
+  technicalLabel.textContent = "Technical details";
+  technical.append(technicalLabel);
+  root.append(technical);
+  const technicalSection = (cls: string) => el("div", cls, technical);
+  renderCheckpointMarker(technicalSection("vp-checkpoint"), state);
+  renderActionRow(technicalSection("vp-action-row"), {
     executed: state.executedAction,
     attempted: state.rawAttemptedAction,
     license: state.licenseBlockCode,
     oracle,
   });
-  renderVisibleContext(section("vp-context"), state, oracleEvidence);
-  renderMarkList(section("vp-marks"), state);
-  renderToolCards(section("vp-tools"), state);
-  renderTimerStatus(section("vp-timers"), state);
-  renderIntegrations(section("vp-integrations"), state);
-  renderNudgeChips(section("vp-nudges"), state);
+  renderVisibleContext(technicalSection("vp-context"), state, oracleEvidence);
+  renderMarkList(technicalSection("vp-marks"), state);
+  renderToolCards(technicalSection("vp-tools"), state);
+  renderTimerStatus(technicalSection("vp-timers"), state);
+  renderIntegrations(technicalSection("vp-integrations"), state);
+  renderNudgeChips(technicalSection("vp-nudges"), state);
 }

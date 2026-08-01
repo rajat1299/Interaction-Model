@@ -95,7 +95,7 @@ class G7RolloverCheckpointEntry:
         validate_generated_scenario(self.parent)
 
 
-def _frame(at_ms: int, text: str) -> ScheduledSamplerFrame:
+def _frame(at_ms: int, text: str, *, activity: str = "paused") -> ScheduledSamplerFrame:
     cursor = utf16_len(text)
     return ScheduledSamplerFrame(
         at_ms,
@@ -106,7 +106,7 @@ def _frame(at_ms: int, text: str) -> ScheduledSamplerFrame:
                 "selection_end": cursor,
                 "is_composing": False,
                 "input_type": "insertText",
-                "activity": "paused",
+                "activity": activity,
                 "client_ts": at_ms,
             }
         ),
@@ -161,6 +161,14 @@ def _pressure_source(prefix: str) -> str:
 
 def _inputs(
     registry: AssetRegistry,
+    *,
+    split: Split = Split.TEST,
+    template_id: str | None = None,
+    rollover_lookup_asset_id: str | None = None,
+    stale_lookup_asset_id: str | None = None,
+    mark_asset_id: str | None = None,
+    first_timer_asset_id: str | None = None,
+    recurring_timer_asset_id: str | None = None,
 ) -> tuple[
     AssetBundle,
     AssetRecord,
@@ -170,36 +178,80 @@ def _inputs(
     TimerAssetPayload,
     TimerAssetPayload,
 ]:
-    pool = registry.pool(Split.TEST)
-    template = next(item for item in pool.templates if CorpusFamily.ROLLOVER in item.coverage)
+    pool = registry.pool(split)
+    template = next(
+        (
+            item
+            for item in pool.templates
+            if CorpusFamily.ROLLOVER in item.coverage
+            and (template_id is None or item.asset_id == template_id)
+        ),
+        None,
+    )
     rollover_lookup = next(
-        item
-        for item in pool.assets
-        if CorpusFamily.ROLLOVER in item.coverage and isinstance(item.payload, LookupAssetPayload)
+        (
+            item
+            for item in pool.assets
+            if CorpusFamily.ROLLOVER in item.coverage
+            and isinstance(item.payload, LookupAssetPayload)
+            and (rollover_lookup_asset_id is None or item.asset_id == rollover_lookup_asset_id)
+        ),
+        None,
     )
     stale_lookup = next(
-        item
-        for item in pool.assets
-        if isinstance(item.payload, LookupAssetPayload)
-        and item.asset_id != rollover_lookup.asset_id
+        (
+            item
+            for item in pool.assets
+            if isinstance(item.payload, LookupAssetPayload)
+            and (rollover_lookup is None or item.asset_id != rollover_lookup.asset_id)
+            and (stale_lookup_asset_id is None or item.asset_id == stale_lookup_asset_id)
+        ),
+        None,
     )
     mark = next(
-        item
-        for item in pool.assets
-        if CorpusFamily.MARK_POSITIVE in item.coverage
-        and isinstance(item.payload, TextAssetPayload)
+        (
+            item
+            for item in pool.assets
+            if CorpusFamily.MARK_POSITIVE in item.coverage
+            and isinstance(item.payload, TextAssetPayload)
+            and (mark_asset_id is None or item.asset_id == mark_asset_id)
+        ),
+        None,
     )
     timer_assets = tuple(
         item
         for item in pool.assets
         if isinstance(item.payload, TimerAssetPayload) and item.payload.form is TimerForm.SUPPORTED
     )
-    if len(timer_assets) < 2:
-        raise ValueError("rollover checkpoint requires two supported TEST timers")
-    first_timer_asset, second_timer_asset = timer_assets[:2]
+    first_timer_asset = next(
+        (
+            item
+            for item in timer_assets
+            if first_timer_asset_id is None or item.asset_id == first_timer_asset_id
+        ),
+        None,
+    )
+    second_timer_asset = next(
+        (
+            item
+            for item in timer_assets
+            if item is not first_timer_asset
+            and (recurring_timer_asset_id is None or item.asset_id == recurring_timer_asset_id)
+        ),
+        None,
+    )
+    if (
+        template is None
+        or rollover_lookup is None
+        or stale_lookup is None
+        or mark is None
+        or first_timer_asset is None
+        or second_timer_asset is None
+    ):
+        raise ValueError("rollover checkpoint inputs are absent or unapproved in the split")
     bundle, selected_template = select_approved_scenario_inputs(
         registry,
-        split=Split.TEST,
+        split=split,
         template_id=template.asset_id,
         asset_ids=tuple(
             sorted(
@@ -236,9 +288,11 @@ def _program(
     stale: tuple[tuple[int, tuple[str, ...]], ...] = (),
     openings: tuple[tuple[int, str], ...] = (),
     need_plans: tuple[G7NeedPlan, ...],
+    split: Split,
+    prompt_template: str,
 ) -> ScenarioProgram:
     timing = materialize_timing_plan(
-        TimingSeed(Split.TEST, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
+        TimingSeed(split, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
         len(actions),
     )
     beats = tuple(f"b{index}" for index in range(len(actions)))
@@ -269,6 +323,7 @@ def _program(
         ),
         perturbations=(DeclaredPerturbation("state_checkpoint"),),
         config=_ROLLOVER_CONFIG,
+        prompt_template=prompt_template,
         openings_by_beat=tuple(BeatOpening(beats[index], event_id) for index, event_id in openings),
         need_lineage_by_beat=need_lineage,
         delegate_provenance_by_beat=delegate_provenance,
@@ -278,9 +333,32 @@ def _program(
 
 
 def _rollover_program(
-    registry: AssetRegistry, master_seed: str, shape_id: str, idle_count: int
+    registry: AssetRegistry,
+    master_seed: str,
+    shape_id: str,
+    idle_count: int,
+    *,
+    split: Split,
+    template_id: str | None,
+    rollover_lookup_asset_id: str | None,
+    stale_lookup_asset_id: str | None,
+    mark_asset_id: str | None,
+    first_timer_asset_id: str | None,
+    recurring_timer_asset_id: str | None,
+    prompt_template: str,
+    resolve_stale_first: bool,
+    explicit_lookup_request: bool,
 ) -> ScenarioProgram:
-    bundle, template, primary, stale, mark_asset, _first_timer, _second_timer = _inputs(registry)
+    bundle, template, primary, stale, mark_asset, _first_timer, _second_timer = _inputs(
+        registry,
+        split=split,
+        template_id=template_id,
+        rollover_lookup_asset_id=rollover_lookup_asset_id,
+        stale_lookup_asset_id=stale_lookup_asset_id,
+        mark_asset_id=mark_asset_id,
+        first_timer_asset_id=first_timer_asset_id,
+        recurring_timer_asset_id=recurring_timer_asset_id,
+    )
     mark = mark_asset.payload
     if not isinstance(mark, TextAssetPayload):  # narrowed by _inputs.
         raise RuntimeError("rollover mark ledger drifted")
@@ -288,8 +366,12 @@ def _rollover_program(
     target = next(
         (value for value in mark_asset.protected_values if value in control), control.split()[0]
     )
-    primary_source = _pressure_source(primary.query)
-    stale_source = _pressure_source(stale.query)
+    primary_source = _pressure_source(
+        f"Look up {primary.query}." if explicit_lookup_request else primary.query
+    )
+    stale_source = _pressure_source(
+        f"Look up {stale.query}." if explicit_lookup_request else stale.query
+    )
     frames = [
         _frame(0, primary_source),
         _frame(_FRAME_GAP_MS, stale_source),
@@ -304,31 +386,77 @@ def _rollover_program(
         f"{control}\nA later line in the notebook mentions {target}.\n"
         f"Never mind, {stale.query} is no longer relevant."
     )
-    frames.append(_frame(target_at, target_source))
+    if resolve_stale_first:
+        active_source = f"{control}\nA later line is still being typed."
+        frames.extend(
+            (
+                _frame(target_at - 1, active_source, activity="active"),
+                _frame(target_at + 1, target_source),
+            )
+        )
+    else:
+        frames.append(_frame(target_at, target_source))
 
     mark_index = 4 + idle_count
     timing = materialize_timing_plan(
-        TimingSeed(Split.TEST, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
-        mark_index + 4,
+        TimingSeed(split, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
+        mark_index + (5 if resolve_stale_first else 4),
     )
-    due_at = target_at + timing.service_ms[mark_index] - 1
-    primary_result = "e_000025" if idle_count == 13 else "e_000024"
-    stale_result = "e_000026" if idle_count == 13 else "e_000025"
-    target_event = "e_000024" if idle_count == 13 else "e_000023"
+    if resolve_stale_first:
+        final_at = target_at - 1 + sum(timing.service_ms[mark_index : mark_index + 4]) + 1
+        frames.append(_frame(final_at, "The notebook is quiet after the completed actions."))
+    due_at = target_at if resolve_stale_first else target_at + timing.service_ms[mark_index] - 1
+    if resolve_stale_first:
+        primary_result = f"e_{idle_count + 12:06d}"
+        stale_result = f"e_{idle_count + 13:06d}"
+        target_event = f"e_{idle_count + 14:06d}"
+    else:
+        primary_result = "e_000025" if idle_count == 13 else "e_000024"
+        stale_result = "e_000026" if idle_count == 13 else "e_000025"
+        target_event = "e_000024" if idle_count == 13 else "e_000023"
+    tail_actions = (
+        (
+            _idle(IdleReason.AWAITING_TOOL, "e_000002"),
+            SkipAction(
+                type="skip",
+                target_event_id=stale_result,
+                reason=SkipReason.STALE_TOOL_RESULT,
+            ),
+            MarkAction(
+                type="mark",
+                instruction=_span("e_000011", control, control),
+                target=_span(target_event, target_source, target, last=True),
+            ),
+            IntegrateAction(
+                type="integrate", result_event_id=primary_result, text=primary.result_a
+            ),
+            _idle(IdleReason.ALREADY_HANDLED, primary_result),
+        )
+        if resolve_stale_first
+        else (
+            MarkAction(
+                type="mark",
+                instruction=_span("e_000011", control, control),
+                target=_span(target_event, target_source, target, last=True),
+            ),
+            IntegrateAction(
+                type="integrate", result_event_id=primary_result, text=primary.result_a
+            ),
+            SkipAction(
+                type="skip",
+                target_event_id=stale_result,
+                reason=SkipReason.STALE_TOOL_RESULT,
+            ),
+            _idle(),
+        )
+    )
     actions = (
         _delegate("e_000002", primary_source, primary.query),
         _delegate("e_000005", stale_source, stale.query),
         _idle(IdleReason.AWAITING_TOOL, "e_000002"),
         _idle(IdleReason.AWAITING_TOOL, "e_000002"),
         *(_idle(IdleReason.AWAITING_TOOL, "e_000002") for _ in range(idle_count)),
-        MarkAction(
-            type="mark",
-            instruction=_span("e_000011", control, control),
-            target=_span(target_event, target_source, target, last=True),
-        ),
-        IntegrateAction(type="integrate", result_event_id=primary_result, text=primary.result_a),
-        SkipAction(type="skip", target_event_id=stale_result, reason=SkipReason.STALE_TOOL_RESULT),
-        _idle(),
+        *tail_actions,
     )
     program = _program(
         bundle,
@@ -346,13 +474,13 @@ def _rollover_program(
                 data={"nonce": stale.result_a},
             ),
         ),
-        stale=((mark_index + 2, (stale_result,)),),
-        openings=((mark_index + 1, target_event),),
+        stale=(((mark_index + 1 if resolve_stale_first else mark_index + 2), (stale_result,)),),
+        openings=(((mark_index + 3 if resolve_stale_first else mark_index + 1), target_event),),
         need_plans=(
             G7NeedPlan(
                 "n_rollover_primary",
                 0,
-                terminal_index=mark_index + 2,
+                terminal_index=mark_index + (4 if resolve_stale_first else 2),
                 terminal_status=NeedStatus.SATISFIED,
                 terminal_basis_kind=NeedBasisKind.RESULT,
                 terminal_basis_event_id=primary_result,
@@ -360,22 +488,44 @@ def _rollover_program(
             G7NeedPlan(
                 "n_rollover_stale",
                 1,
-                terminal_index=mark_index + 2,
+                terminal_index=mark_index + 1 if resolve_stale_first else mark_index + 2,
                 terminal_status=NeedStatus.ABANDONED,
                 terminal_basis_kind=NeedBasisKind.ABANDONED,
                 terminal_basis_event_id=target_event,
             ),
         ),
+        split=split,
+        prompt_template=prompt_template,
     )
     if program.timing_plan != timing:
         raise RuntimeError("rollover timing ledger drifted")
     return program
 
 
-def _timer_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
+def _timer_program(
+    registry: AssetRegistry,
+    master_seed: str,
+    *,
+    split: Split,
+    template_id: str | None,
+    rollover_lookup_asset_id: str | None,
+    stale_lookup_asset_id: str | None,
+    mark_asset_id: str | None,
+    first_timer_asset_id: str | None,
+    recurring_timer_asset_id: str | None,
+    prompt_template: str,
+    explicit_lookup_request: bool,
+) -> ScenarioProgram:
     shape_id = "g7-checkpoint-rollover-c"
     bundle, template, _primary, followup, mark_asset, first_timer, recurring_timer = _inputs(
-        registry
+        registry,
+        split=split,
+        template_id=template_id,
+        rollover_lookup_asset_id=rollover_lookup_asset_id,
+        stale_lookup_asset_id=stale_lookup_asset_id,
+        mark_asset_id=mark_asset_id,
+        first_timer_asset_id=first_timer_asset_id,
+        recurring_timer_asset_id=recurring_timer_asset_id,
     )
     first_semantics = _timer_semantics(first_timer)
     recurring_semantics = _timer_semantics(recurring_timer)
@@ -392,7 +542,7 @@ def _timer_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram
     candidate_start = 4 * _FRAME_GAP_MS
     action_count = 24
     timing = materialize_timing_plan(
-        TimingSeed(Split.TEST, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
+        TimingSeed(split, f"g7-rollover-checkpoint-v1:{shape_id}:{master_seed}"),
         action_count,
     )
     last_quiet_at = candidate_start + 9 * _FRAME_GAP_MS
@@ -400,7 +550,7 @@ def _timer_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram
     cancel_at = delegate_at + timing.service_ms[17] - 1
     if cancel_at + timing.service_ms[19] >= timing.service_ms[0] + first_semantics.interval_ms:
         raise RuntimeError("timer checkpoint interval ledger drifted")
-    delegate_source = followup.query
+    delegate_source = f"Look up {followup.query}." if explicit_lookup_request else followup.query
     cancel_plan = G7CancelPlan()
     if cancel_plan.schedule(first_semantics.message) != "t_001":
         raise RuntimeError("timer checkpoint cancel ledger drifted")
@@ -455,6 +605,8 @@ def _timer_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram
             ScriptedToolResult(latency_ms=_LONG_PENDING_MS, data={"nonce": followup.result_a}),
         ),
         need_plans=(G7NeedPlan("n_rollover_followup", 17),),
+        split=split,
+        prompt_template=prompt_template,
     )
     if program.timing_plan != timing:
         raise RuntimeError("timer checkpoint timing ledger drifted")
@@ -485,37 +637,111 @@ async def build_g7_rollover_checkpoint_catalog(
     directory: Path,
     master_seed: str = "g7-rollover-checkpoint-v1",
     repository_root: Path | None = None,
+    split: Split | str = Split.TEST,
+    template_id: str | None = None,
+    rollover_lookup_asset_id: str | None = None,
+    stale_lookup_asset_id: str | None = None,
+    mark_asset_id: str | None = None,
+    first_timer_asset_id: str | None = None,
+    recurring_timer_asset_id: str | None = None,
+    shape_ids: tuple[str, ...] | None = None,
+    prompt_template: str = "prompt-template-v1.txt",
+    resolve_stale_first: bool = False,
+    compact_repair: bool = False,
+    explicit_lookup_request: bool = False,
 ) -> tuple[G7RolloverCheckpointEntry, ...]:
-    """Execute TEST-sealed parents and retain exact later rollover segments."""
+    """Execute split-sealed parents and retain exact later rollover segments."""
+    split = Split(split)
+    if compact_repair and not resolve_stale_first:
+        raise ValueError("compact rollover repair requires stale-first resolution")
+    catalog_shape_ids = tuple(shape_id for shape_id, _vector in G7_ROLLOVER_CHECKPOINT_SHAPES)
+    requested_shape_ids = catalog_shape_ids if shape_ids is None else tuple(shape_ids)
+    if (
+        not requested_shape_ids
+        or any(not isinstance(shape_id, str) for shape_id in requested_shape_ids)
+        or len(requested_shape_ids) != len(set(requested_shape_ids))
+        or any(shape_id not in catalog_shape_ids for shape_id in requested_shape_ids)
+    ):
+        raise ValueError("shape_ids must be nonempty, unique known rollover checkpoint shapes")
+    requested_shape_set = frozenset(requested_shape_ids)
+    rollover_tail = (
+        (SkipAction, MarkAction, IntegrateAction)
+        if resolve_stale_first
+        else (MarkAction, IntegrateAction, SkipAction)
+    )
+    rollover_prefix = (IdleAction,) if resolve_stale_first else ()
+    rollover_suffix = (IdleAction,)
+    rollover_a_idle_count = 12 if compact_repair else 13
+    rollover_b_idle_count = 11 if compact_repair else 12
     programs = (
         (
             "g7-checkpoint-rollover-a",
             "14I+M+G+S",
-            _rollover_program(registry, master_seed, "g7-checkpoint-rollover-a", 13),
+            _rollover_program(
+                registry,
+                master_seed,
+                "g7-checkpoint-rollover-a",
+                rollover_a_idle_count,
+                split=split,
+                template_id=template_id,
+                rollover_lookup_asset_id=rollover_lookup_asset_id,
+                stale_lookup_asset_id=stale_lookup_asset_id,
+                mark_asset_id=mark_asset_id,
+                first_timer_asset_id=first_timer_asset_id,
+                recurring_timer_asset_id=recurring_timer_asset_id,
+                prompt_template=prompt_template,
+                resolve_stale_first=resolve_stale_first,
+                explicit_lookup_request=explicit_lookup_request,
+            ),
             (
-                *(IdleAction for _ in range(13)),
-                MarkAction,
-                IntegrateAction,
-                SkipAction,
-                IdleAction,
+                *(IdleAction for _ in range(rollover_a_idle_count)),
+                *rollover_prefix,
+                *rollover_tail,
+                *rollover_suffix,
             ),
         ),
         (
             "g7-checkpoint-rollover-b",
             "13I+M+G+S",
-            _rollover_program(registry, master_seed, "g7-checkpoint-rollover-b", 12),
+            _rollover_program(
+                registry,
+                master_seed,
+                "g7-checkpoint-rollover-b",
+                rollover_b_idle_count,
+                split=split,
+                template_id=template_id,
+                rollover_lookup_asset_id=rollover_lookup_asset_id,
+                stale_lookup_asset_id=stale_lookup_asset_id,
+                mark_asset_id=mark_asset_id,
+                first_timer_asset_id=first_timer_asset_id,
+                recurring_timer_asset_id=recurring_timer_asset_id,
+                prompt_template=prompt_template,
+                resolve_stale_first=resolve_stale_first,
+                explicit_lookup_request=explicit_lookup_request,
+            ),
             (
-                *(IdleAction for _ in range(12)),
-                MarkAction,
-                IntegrateAction,
-                SkipAction,
-                IdleAction,
+                *(IdleAction for _ in range(rollover_b_idle_count)),
+                *rollover_prefix,
+                *rollover_tail,
+                *rollover_suffix,
             ),
         ),
         (
             "g7-checkpoint-rollover-c",
             "13I+D+C+2N",
-            _timer_program(registry, master_seed),
+            _timer_program(
+                registry,
+                master_seed,
+                split=split,
+                template_id=template_id,
+                rollover_lookup_asset_id=rollover_lookup_asset_id,
+                stale_lookup_asset_id=stale_lookup_asset_id,
+                mark_asset_id=mark_asset_id,
+                first_timer_asset_id=first_timer_asset_id,
+                recurring_timer_asset_id=recurring_timer_asset_id,
+                prompt_template=prompt_template,
+                explicit_lookup_request=explicit_lookup_request,
+            ),
             (
                 *(IdleAction for _ in range(10)),
                 DelegateAction,
@@ -530,6 +756,8 @@ async def build_g7_rollover_checkpoint_catalog(
     )
     entries = []
     for shape_id, vector, program, expected in programs:
+        if shape_id not in requested_shape_set:
+            continue
         parent = await execute_scenario(
             program,
             session_id=shape_id,

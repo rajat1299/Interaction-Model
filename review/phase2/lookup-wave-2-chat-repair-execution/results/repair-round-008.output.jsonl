@@ -1,0 +1,28 @@
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-active.d013.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000008"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-yielded.d013.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}

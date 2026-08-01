@@ -1,0 +1,150 @@
+{
+  "approved": [
+    "no-robots:19f36f9ebdaca21c3101fcc60ce488f94b78ae525dab4972d8abfe1781e3a52c:final",
+    "no-robots:20e529cfc368e060428f8fee71257eee1a881f87ac805505b2cf946a4a1a06ee:final",
+    "no-robots:2577bfb1479f955a31ba8266c7e03b3edf7ad1c8b8a0342ed0eb99eec927000a:final",
+    "no-robots:27236b2bb52fbf58c07ada4b2752ee1a550846c5df27b11b0a7042aa551d57da:final",
+    "no-robots:249ad43c3bca5a71018c49bee59befc2de499d0262dceb48c6212134e3b53765:final",
+    "no-robots:28f9f331b72f7e0bb54b06179b6d5489e1b61d5384cbe2ec072492fd0d454802:final",
+    "no-robots:2973f45b53390ed2218dc89d98f1b68c77640feae42c9630be57f0eda9df9713:final",
+    "no-robots:32b0444df27a7599d8f17aab2097696392369ae9061c9e4c5efbdff95a283f11:final",
+    "no-robots:2bc1e0046829db85c96f0de0c998a74dbd30ca1a7f38227659d60faeea588078:final",
+    "no-robots:38d5ec6a4938cfc1628178c68f2cb9c91f1dde215db19c1824676b1ffd899b4b:final",
+    "no-robots:6e107af40d23ea9a177d6649ede700501bac45f02da55771816e2e6c079e4431:final",
+    "no-robots:7f27ca7af1f60ce5ef086f91423513fe6153b79943fd3772ec4487e791444f96:final",
+    "no-robots:94de808d0609dc00d0efd438495c56bd51dd5ba58900d5e6ec146455782dd7dd:final",
+    "no-robots:9f3c1638ece8bfb3da4f2ba7228a59ea26de18853223a3b50d23f689e95c5d26:final",
+    "no-robots:d29736cb440965a3710bf2b7babb6ad1447feaf6633ca5d6f3d41d1fb8caa461:final",
+    "no-robots:8bf00f7d995b8a7e736c89d048d5bf88d11949f965dd02bb94a404241d7927e9:final",
+    "no-robots:f11ca28f31a64badfae0018bf542535fdd98b51250f71fdf67d9208b579093e7:final",
+    "replay-dd5d0f904a07d56a4e80e9051fc91987",
+    "no-robots:120e8c9df45787ff75a3514adeeee85dfe14a483e1c32f516ad8aff694144ce7:final",
+    "no-robots:bc3e860b9d041535069217bd6ab59c46eb013b762cbe31ad449ad370a756c5a9:final",
+    "no-robots:c857dcda369e858d52dc712667dd6dca4e98c685e1aaaa7763832a3e17b9d601:final",
+    "no-robots:dfb33388d60ce1365fdebaa4252569af550ee9b145e7810fb785a0069fcb7696:final",
+    "no-robots:90d5f9f11c10e5a0e59eca3163cd596b76d901e88943a4cda125078bad398818:final",
+    "no-robots:7b7f7d1e0d668c9d20d4f5145edc423cd55902ba8845e25d8e3e0ca8a86d2023:final",
+    "no-robots:41009af8fc4574398bca3a2c7657760cb76dbdce2d8d6bcbf165f8d8190cf38d:final",
+    "no-robots:c676ed9d5d729a803deebef0c40f1e58b5e7b91002e175b968401d9d6170a662:final",
+    "replay-0d39a80f67fd247fc70611b52edc95ad",
+    "replay-182c2b17fcafeee0a14a9c1d15b56bb4",
+    "replay-3051fc264b7ebb1bae22eea568d35a04",
+    "replay-428d64d63a4a258baedcbf844dcf8fa7",
+    "replay-3c86c72b1b031811d2370275121b5dee",
+    "replay-61707080214f66fa1e9661d3d7b426c7",
+    "replay-6248e8011c17a288afecdf859e89e2b0",
+    "replay-689be2727b07c5a65b69cb971226a221",
+    "replay-59e8d511d72040bd77f50cb6170ea70f",
+    "replay-58d964e97cf73c22d4df59e7214df751",
+    "replay-a39a73bcf283a239d7e2dbe8332f51f4",
+    "replay-9dbddcecfb09a9d1978b5440eb27dfdd",
+    "replay-e4161a49860a7cc8b55682aa5bedb02b",
+    "replay-b05ab50e4be73e7a516c8aa68888b27e",
+    "replay-66191bd19542a969954ba5230e91099d"
+  ],
+  "authority": "Project owner delegated coding-row judgment to Codex; remaining rows require owner review.",
+  "format_version": 1,
+  "kind": "phase2-wp2-9-replay-final-owner-review-progress",
+  "packet_sha256s_sha256": "sha256:f2edf293f18505682070cbbbd55803d818e4dab362f871f5e070674ef048a865",
+  "rejected": [
+    {
+      "completion_id": "no-robots:060b0582373498e37e46e494ead074fe501714eb073276de65b6775548e80e93:final",
+      "reason": "The answer gives a time- and location-sensitive average storage price without a date or source."
+    },
+    {
+      "completion_id": "no-robots:75131dbbd000708771e75249a07e51e6e9ae4f56d536683aa00e596ba5c2e84d:final",
+      "reason": "The pharmaceutical market-share answer is time-sensitive and uses the former AmerisourceBergen company name."
+    },
+    {
+      "completion_id": "no-robots:a1b62703808c985bbf8ca84f6f2a6cd1cc73e9768d895922de60e6ac3ec2b50b:final",
+      "reason": "It misnames Wrangell-St. Elias and is wrong if the unqualified question refers to the world's largest national park."
+    },
+    {
+      "completion_id": "no-robots:b4104307b5eacd59a3fa2a17887e0e189a1739dee75ca0c0c4befbf8f2ce99d5:final",
+      "reason": "It confuses the highest level of mathematics with an academic degree, while retained context corrupts and mischaracterizes Fermat's Last Theorem."
+    },
+    {
+      "completion_id": "no-robots:d7f826547a1f517b773307115759d6d8740a91c5e79b0253a88dcd747f924014:final",
+      "reason": "The requested summary omits the raised vessel sink, one of the article's four explicit small-bathroom tips."
+    },
+    {
+      "completion_id": "no-robots:47c5e6769828f0fecce13bd097e710b8ed49c49bd39bedb75fde2935e0367962:final",
+      "reason": "The final answer conflates the Model T's side-mounted hand lever with its steering-column controls and does not clearly address whether a child could drive it."
+    },
+    {
+      "completion_id": "no-robots:573db31004db2eb2f8962656b2ef1b50c61b636458d1b713676c18ce152c08d8:final",
+      "reason": "It categorically calls Philadelphia the first US capital without distinguishing the Continental Congress from the first capital under the Constitution."
+    },
+    {
+      "completion_id": "no-robots:6c3530b65c9a38c8fbcc9ac36001e4cc4314660813698dc96e515e41b2f9d46d:final",
+      "reason": "The television-trivia prompt is mislabeled as math/data reasoning, so admitting it would corrupt the frozen family quota."
+    },
+    {
+      "completion_id": "no-robots:b8ea6c01416659b5c21e207057a63198c5049ad374e6a8891c3f6956f0227b5a:final",
+      "reason": "The answer misspells the central character Eren Yeager as Erin Yeager."
+    },
+    {
+      "completion_id": "no-robots:0ab5f75ae3085d6acffbf4467dfd87b84b998092ad5c49085d91615cde3bd332:final",
+      "reason": "The code calls poisson(mean, n) with undefined variables, so the supplied program does not run as written."
+    },
+    {
+      "completion_id": "no-robots:67d79513bb34fdc867edeb0cc97d72f2940e2b5701b739c54095d35166d8ad97:final",
+      "reason": "The code is correct, but the explanation names the nonexistent pd.Dataframe method instead of pd.DataFrame."
+    },
+    {
+      "completion_id": "no-robots:84c69ed0551f40a491808d69bcb78fd73f432a72a9bcba0388cbbde8a235032d:final",
+      "reason": "The checkerboard function returns 0 in the top-left corner for odd widths, violating the explicit requirement that it always be 1."
+    },
+    {
+      "completion_id": "no-robots:8b91c2923f731f5de8e219e2a8bbac6d36e7ebb442f9a12d5489bd8e378b6c01:final",
+      "reason": "It stores a reversibly encoded password in a file while presenting the result as protection against direct reading; this is unsafe password-handling guidance."
+    },
+    {
+      "completion_id": "no-robots:a9a066997988d4d02d7e3ee4a8496631cedd1acbd7da11a619f21d4113201ec1:final",
+      "reason": "The program always prints the function result, including None for a non-finite result, so it does not satisfy the request to print only valid results."
+    },
+    {
+      "completion_id": "no-robots:ec5f195ccea61d491a2df968b23bdb25a8c3c1992787c05d7744154f0f3ee3ba:final",
+      "reason": "The example uses the long-deprecated React.createClass API rather than a valid current React component."
+    },
+    {
+      "completion_id": "replay-bc9472263a7171eca5951d06c4b9bf2b",
+      "reason": "The beginner troubleshooting recommends internal hardware work, PSU testing or swapping, and routine BIOS updating without adequate electrical or firmware-risk safeguards."
+    },
+    {
+      "completion_id": "replay-fb44c44115820e98f8caa71190acd878",
+      "reason": "The retained context incorrectly calls Sa Rapita a saltwater lagoon and misattributes Capocorb Vell to Campos; the final itinerary does not correct those errors."
+    },
+    {
+      "completion_id": "replay-9da6c0d410ab47a1c12d51c8a6e0be34",
+      "reason": "The retained assistant context gives an incorrect definition of intelligent design that the final answer replaces without explicitly correcting."
+    },
+    {
+      "completion_id": "replay-492c38b16105f42cb7efc855993d23f0",
+      "reason": "The compiler troubleshooting gives misleading guidance: compiler output is already executable, permission failures are not silent, and chmod does not fix a failed compilation."
+    },
+    {
+      "completion_id": "replay-680490d067605199e8a2506f80c1627f",
+      "reason": "The Solidity comparison calls pattern-based reentrancy protection built in, treats checked arithmetic as a general current overflow weakness, and makes unsupported blanket efficiency claims."
+    },
+    {
+      "completion_id": "replay-83f51ba455715ccc72ee876a1fb43987",
+      "reason": "The nursing answer abandons the requested fifth-grade level and reinforces unreliable age and body-type stereotypes about diabetes."
+    },
+    {
+      "completion_id": "replay-88377e16ada3bfc4df2794e438a060ff",
+      "reason": "The retained multi-turn context is incoherent: an assistant injects an unrelated game-design sentence before the user supplies an answer-like bubble-sort explanation."
+    },
+    {
+      "completion_id": "replay-7819bedbbfaa8d2f4db134a518c637b1",
+      "reason": "The answer opens with 1,123 pounds and later corrects itself to 1,033 pounds, leaving contradictory answers in one training target."
+    },
+    {
+      "completion_id": "replay-10413fc700fc44fdc1e835dc0f81e4c8",
+      "reason": "The response adds that the second-series banknotes were withdrawn even though the supplied grounding passage does not support that claim."
+    }
+  ],
+  "reviewed_on": "2026-07-31",
+  "reviewer_id": "user:phase2-owner+codex:delegated-technical-review",
+  "status": "complete"
+}

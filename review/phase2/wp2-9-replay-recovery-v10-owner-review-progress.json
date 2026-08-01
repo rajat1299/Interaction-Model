@@ -1,0 +1,23 @@
+{
+  "authority": "Project-owner decisions given in conversation; transcription only.",
+  "approved": [
+    "project-replay-recovery-v10-01",
+    "project-replay-recovery-v10-02",
+    "project-replay-recovery-v10-03",
+    "project-replay-recovery-v10-04",
+    "project-replay-recovery-v10-05",
+    "project-replay-recovery-v10-06",
+    "project-replay-recovery-v10-07",
+    "project-replay-recovery-v10-08",
+    "project-replay-recovery-v10-09",
+    "project-replay-recovery-v10-10",
+    "project-replay-recovery-v10-11"
+  ],
+  "format_version": 1,
+  "kind": "phase2-wp2-9-replay-recovery-v10-owner-review-progress",
+  "packet_sha256s_sha256": "sha256:b271fa04cf6cacdf1b206120e54fad6126d467c7f805e6b610881b92266118bc",
+  "rejected": [],
+  "reviewed_on": "2026-07-31",
+  "reviewer_id": "user:phase2-owner",
+  "status": "complete"
+}

@@ -1,0 +1,7 @@
+{"custom_id":"t2w2r1.normal_compact-00.d003.a1","action":{"type":"schedule","instruction":{"event_id":"e_000006","start_utf16":0,"end_utf16":91,"text":"Set another reminder every thirty-seven minutes to open the fern ledger for the atlas card."},"interval_ms":2220000,"message":"open the fern ledger for the atlas card"}}
+{"custom_id":"t2w2r1.normal_wide-00.d002.a1","action":{"type":"schedule","instruction":{"event_id":"e_000005","start_utf16":0,"end_utf16":96,"text":"Set another reminder every thirty-seven minutes to open the fern ledger for the rehearsal notes."},"interval_ms":2220000,"message":"open the fern ledger for the rehearsal notes"}}
+{"custom_id":"t2w2r1.cancel-checkpoint-00.d014.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2w2r1.contention-control-00.d002.a1","action":{"type":"schedule","instruction":{"event_id":"e_000005","start_utf16":53,"end_utf16":152,"text":"Set another reminder every eighty-three minutes to dust the rose cabinet for the archive checklist."},"interval_ms":4980000,"message":"dust the rose cabinet for the archive checklist"}}
+{"custom_id":"t2w2r1.contention-checkpoint-00.d013.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000019"}}
+{"custom_id":"t2w2r1.rollover_a-00.d020.a1","action":{"type":"integrate","result_event_id":"e_000025","text":"Dune Junction docket is moss."}}
+{"custom_id":"t2w2r1.rollover_b-02.d017.a1","action":{"type":"skip","target_event_id":"e_000025","reason":"stale_tool_result"}}

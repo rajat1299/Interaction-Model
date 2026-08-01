@@ -27,6 +27,52 @@ class AllocationResult[Candidate]:
     supervised_token_total: int
 
 
+def choose_feasibility_witness[Candidate](
+    candidates: Sequence[Candidate],
+    *,
+    family_quotas: Mapping[str, int],
+    replay_bands: ReplayBands,
+    multi_turn_target: int,
+    target_examples: int,
+    supervised_token_minimum: int,
+    supervised_token_maximum: int,
+    classify: Callable[[Candidate], Cell],
+    token_count: Callable[[Candidate], int],
+    rank: Callable[[Candidate], str],
+) -> AllocationResult[Candidate] | AllocationFailure:
+    """Prove exact feasibility without choosing the binding seed-ranked corpus."""
+    _validate_replay_bands(replay_bands)
+    grouped: dict[Cell, list[Candidate]] = defaultdict(list)
+    for candidate in candidates:
+        grouped[classify(candidate)].append(candidate)
+    for values in grouped.values():
+        values.sort(key=lambda candidate: (-token_count(candidate), rank(candidate)))
+    bounds: list[tuple[int, int]] = []
+    for band, (_minimum, _maximum, target) in replay_bands:
+        multi = sum(len(grouped.get((family, band, "multi"), ())) for family in family_quotas)
+        single = sum(len(grouped.get((family, band, "single"), ())) for family in family_quotas)
+        bounds.append((max(0, target - single), min(target, multi)))
+    for short in range(bounds[0][0], bounds[0][1] + 1):
+        for medium in range(bounds[1][0], bounds[1][1] + 1):
+            long = multi_turn_target - short - medium
+            if not bounds[2][0] <= long <= bounds[2][1]:
+                continue
+            selected = _feasibility_for_allocation(
+                grouped,
+                (short, medium, long),
+                family_quotas,
+                replay_bands,
+                target_examples,
+                token_count,
+            )
+            if selected is None:
+                continue
+            total = sum(token_count(candidate) for candidate in selected)
+            if supervised_token_minimum <= total <= supervised_token_maximum:
+                return AllocationResult(tuple(sorted(selected, key=rank)), total)
+    return AllocationFailure(joint_constraint_failure=True)
+
+
 def review_plan_sha256(
     manifest_sha256: str, selection_seed: str, selected: Sequence[object], queue: Sequence[object]
 ) -> str:
@@ -63,7 +109,7 @@ def review_rounds_sha256(review_rounds: Sequence[tuple[str, Mapping[str, bool]]]
     )
 
 
-def choose_maximum_token_selection[Candidate](
+def choose_deterministic_selection[Candidate](
     candidates: Sequence[Candidate],
     *,
     family_quotas: Mapping[str, int],
@@ -71,11 +117,12 @@ def choose_maximum_token_selection[Candidate](
     multi_turn_target: int,
     target_examples: int,
     supervised_token_minimum: int,
+    supervised_token_maximum: int,
     classify: Callable[[Candidate], Cell],
     token_count: Callable[[Candidate], int],
     rank: Callable[[Candidate], str],
 ) -> AllocationResult[Candidate] | AllocationFailure:
-    """Choose the maximum supervised-token feasible corpus over every turn/band allocation."""
+    """Choose a seed-ranked corpus inside the hard supervised-token range."""
     _validate_replay_bands(replay_bands)
     grouped: dict[Cell, list[Candidate]] = defaultdict(list)
     for candidate in candidates:
@@ -90,10 +137,15 @@ def choose_maximum_token_selection[Candidate](
         token_count,
     )
     best: AllocationResult[Candidate] | None = None
+    maximum_achievable: int | None = None
+    ranked = sorted(rank(candidate) for candidate in candidates)
+    rank_order = {value: index for index, value in enumerate(ranked)}
     for allocation, upper_bound in allocations:
-        if best is not None and upper_bound <= best.supervised_token_total:
+        if upper_bound >= 0:
+            maximum_achievable = max(maximum_achievable or 0, upper_bound)
+        if upper_bound < supervised_token_minimum:
             continue
-        selected = _maximum_for_allocation(
+        token_maximum = _selection_for_allocation(
             grouped,
             allocation,
             family_quotas,
@@ -101,26 +153,40 @@ def choose_maximum_token_selection[Candidate](
             target_examples,
             token_count,
             rank,
+            prefer_tokens=True,
+        )
+        if token_maximum is None:
+            continue
+        counts = Counter(classify(candidate) for candidate in token_maximum)
+        selected = tuple(
+            candidate
+            for cell, values in sorted(grouped.items())
+            for candidate in sorted(values, key=rank)[: counts[cell]]
+        )
+        selected = _raise_to_token_floor(
+            grouped,
+            selected,
+            supervised_token_minimum,
+            supervised_token_maximum,
+            classify,
+            token_count,
+            rank,
+            rank_order,
         )
         if selected is None:
             continue
-        total = sum(token_count(candidate) for candidate in selected)
         ordered = tuple(sorted(selected, key=rank))
-        result = AllocationResult(ordered, total)
-        if (
-            best is None
-            or (
-                result.supervised_token_total == best.supervised_token_total
-                and tuple(rank(candidate) for candidate in result.selected)
-                < tuple(rank(candidate) for candidate in best.selected)
-            )
-            or result.supervised_token_total > best.supervised_token_total
+        result = AllocationResult(
+            ordered, sum(token_count(candidate) for candidate in ordered)
+        )
+        if best is None or _selection_rank(result.selected, rank_order, rank) < _selection_rank(
+            best.selected, rank_order, rank
         ):
             best = result
     if best is None:
+        if maximum_achievable is not None and maximum_achievable < supervised_token_minimum:
+            return AllocationFailure(supervised_token_total=maximum_achievable)
         return AllocationFailure(joint_constraint_failure=True)
-    if best.supervised_token_total < supervised_token_minimum:
-        return AllocationFailure(supervised_token_total=best.supervised_token_total)
     return best
 
 
@@ -222,7 +288,7 @@ def _token_upper_bound[Candidate](
     return total
 
 
-def _maximum_for_allocation[Candidate](
+def _selection_for_allocation[Candidate](
     grouped: Mapping[Cell, Sequence[Candidate]],
     allocation: tuple[int, int, int],
     family_quotas: Mapping[str, int],
@@ -230,6 +296,8 @@ def _maximum_for_allocation[Candidate](
     target_examples: int,
     token_count: Callable[[Candidate], int],
     rank: Callable[[Candidate], str],
+    *,
+    prefer_tokens: bool,
 ) -> tuple[Candidate, ...] | None:
     families = tuple(family_quotas)
     bands = tuple(band for band, _specification in replay_bands)
@@ -249,7 +317,9 @@ def _maximum_for_allocation[Candidate](
     candidate_edges: list[tuple[Candidate, int, int]] = []
     for (family, band, turn), values in grouped.items():
         for candidate in values:
-            score = token_count(candidate) * scale + len(rank_order) - rank_order[rank(candidate)]
+            score = len(rank_order) - rank_order[rank(candidate)]
+            if prefer_tokens:
+                score += token_count(candidate) * scale
             edge_index = graph.add_edge(family_nodes[family], type_nodes[(band, turn)], 1, score)
             candidate_edges.append((candidate, family_nodes[family], edge_index))
     for index, (band, (_minimum, _maximum, target)) in enumerate(replay_bands):
@@ -262,6 +332,103 @@ def _maximum_for_allocation[Candidate](
     return tuple(
         candidate for candidate, node, edge_index in candidate_edges if graph.used(node, edge_index)
     )
+
+
+def _feasibility_for_allocation[Candidate](
+    grouped: Mapping[Cell, Sequence[Candidate]],
+    allocation: tuple[int, int, int],
+    family_quotas: Mapping[str, int],
+    replay_bands: ReplayBands,
+    target_examples: int,
+    token_count: Callable[[Candidate], int],
+) -> tuple[Candidate, ...] | None:
+    families = tuple(family_quotas)
+    bands = tuple(band for band, _specification in replay_bands)
+    source, sink = 0, 1
+    family_nodes = {family: index + 2 for index, family in enumerate(families)}
+    band_turns = tuple((band, turn) for band in bands for turn in ("single", "multi"))
+    type_nodes = {key: index + 2 + len(family_nodes) for index, key in enumerate(band_turns)}
+    band_nodes = {
+        band: index + 2 + len(family_nodes) + len(type_nodes) for index, band in enumerate(bands)
+    }
+    graph = _MaxCostFlow(2 + len(family_nodes) + len(type_nodes) + len(band_nodes))
+    for family, quota in family_quotas.items():
+        graph.add_edge(source, family_nodes[family], quota, 0)
+    cell_edges: list[tuple[Cell, int, int]] = []
+    for cell, values in sorted(grouped.items()):
+        family, band, turn = cell
+        useful = values[: min(len(values), family_quotas[family])]
+        score = sum(token_count(candidate) for candidate in useful) // len(useful)
+        edge = graph.add_edge(
+            family_nodes[family],
+            type_nodes[(band, turn)],
+            len(values),
+            score,
+        )
+        cell_edges.append((cell, family_nodes[family], edge))
+    for index, (band, (_minimum, _maximum, target)) in enumerate(replay_bands):
+        multi = allocation[index]
+        graph.add_edge(type_nodes[(band, "multi")], band_nodes[band], multi, 0)
+        graph.add_edge(type_nodes[(band, "single")], band_nodes[band], target - multi, 0)
+        graph.add_edge(band_nodes[band], sink, target, 0)
+    if graph.max_flow(source, sink, target_examples) != target_examples:
+        return None
+    selected: list[Candidate] = []
+    for cell, node, edge_index in cell_edges:
+        edge = graph.graph[node][edge_index]
+        count = edge.original_capacity - edge.capacity
+        selected.extend(grouped[cell][:count])
+    return tuple(selected)
+
+
+def _raise_to_token_floor[Candidate](
+    grouped: Mapping[Cell, Sequence[Candidate]],
+    selected: tuple[Candidate, ...],
+    minimum: int,
+    maximum: int,
+    classify: Callable[[Candidate], Cell],
+    token_count: Callable[[Candidate], int],
+    rank: Callable[[Candidate], str],
+    rank_order: Mapping[str, int],
+) -> tuple[Candidate, ...] | None:
+    chosen = set(selected)
+    total = sum(token_count(candidate) for candidate in chosen)
+    while total < minimum:
+        swaps: list[tuple[int, int, str, str, Candidate, Candidate]] = []
+        chosen_by_cell: dict[Cell, tuple[Candidate, ...]] = {
+            cell: tuple(candidate for candidate in values if candidate in chosen)
+            for cell, values in grouped.items()
+        }
+        for cell, values in grouped.items():
+            for incoming in values:
+                if incoming in chosen:
+                    continue
+                for outgoing in chosen_by_cell[cell]:
+                    gain = token_count(incoming) - token_count(outgoing)
+                    if gain <= 0:
+                        continue
+                    penalty = rank_order[rank(incoming)] - rank_order[rank(outgoing)]
+                    swaps.append(
+                        (penalty, -gain, rank(incoming), rank(outgoing), incoming, outgoing)
+                    )
+        if not swaps:
+            return None
+        _penalty, negative_gain, _in_rank, _out_rank, incoming, outgoing = min(swaps)
+        chosen.remove(outgoing)
+        chosen.add(incoming)
+        total -= negative_gain
+    if total > maximum:
+        return None
+    return tuple(chosen)
+
+
+def _selection_rank[Candidate](
+    selected: Sequence[Candidate],
+    rank_order: Mapping[str, int],
+    rank: Callable[[Candidate], str],
+) -> tuple[int, tuple[int, ...]]:
+    ordered = tuple(sorted(rank_order[rank(candidate)] for candidate in selected))
+    return sum(ordered), ordered
 
 
 @dataclass(slots=True)

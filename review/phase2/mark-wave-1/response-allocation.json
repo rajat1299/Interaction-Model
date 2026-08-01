@@ -1,0 +1,1 @@
+{"format_version":1,"kind":"phase2-mark-response-allocation-v1","mark_activation_positive":[35,36,37,38,40,41,42,43,44,45],"mark_lifecycle_negative":[46,47,48,49,50,51,52,53,54,55],"rule":"fixed before candidate execution; one distinct ten-asset profile per family","selection_sha256":"sha256:62253d32d0b07a5401af103516b1a4a7e50f6a772e812dc22e23f9b2cd73d63c"}

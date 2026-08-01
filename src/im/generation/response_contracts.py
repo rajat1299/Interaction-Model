@@ -118,6 +118,8 @@ EXPECTED_RESPONSE_KIND_COUNTS: Mapping[ResponseKind, int] = {
 
 _APPROVED_PROTECTED_SCOPE_RESPONSES: Mapping[ProtectedClaimScope, tuple[str, ...]] = {
     ProtectedClaimScope.CALENDAR_TIMER: (
+        "I can't add it to your calendar or set it for 7 PM. "
+        "I can remind you after a set amount of time instead.",
         "I can’t add calendar events or schedule reminders for a specific clock time. "
         "I can only set indefinite fixed-interval recurring reminders.",
         "I cannot add calendar events. I cannot schedule reminders for a specific clock time; "
@@ -449,7 +451,8 @@ def _validate_kind(text: str, kind: ResponseKind) -> None:
         return
     if kind is ResponseKind.UNSUPPORTED_FEATURE_LIMITATION:
         if not search(
-            r"\b(cannot|can['’]t|unable|not available|do not support|doesn['’]t support)\b",
+            r"\b(cannot|can['’]t|can only|unable|not available|do not support|"
+            r"doesn['’]t support)\b",
             lowered,
         ):
             raise ResponseContractError("unsupported-feature response must state a limitation")
@@ -459,10 +462,11 @@ def _validate_kind(text: str, kind: ResponseKind) -> None:
             )
         if search(
             r"\b(?:"
-            r"i(?:'ve| have)?\s+(?:scheduled|set|booked)"
-            r"|i(?:'ll| will| can)\s+(?:schedule|set|book)"
-            r"|it\s+(?:will\s+be|is|was)\s+(?:scheduled|set|booked)"
-            r"|your\s+(?:schedule|reminder)\s+(?:is|was)\s+(?:set|booked)"
+            r"i(?:'ve| have)(?:\s+already)?\s+(?:scheduled|set|booked|created)"
+            r"|i(?:'m| am)(?:\s+already)?\s+(?:scheduling|setting|booking|creating)"
+            r"|i(?:'ll| will| can)\s+(?:schedule|set|book|create)"
+            r"|(?:it|(?:a|the|your)\s+(?:schedule|reminder))\s+(?:is|was|has|will)"
+            r"(?:\s+(?:already|being|been|be))*\s+(?:scheduled|set|booked|created)"
             r")\b",
             lowered,
         ) or search(r"\b(?:about|around|approximately|roughly)\b", lowered):
@@ -472,7 +476,8 @@ def _validate_kind(text: str, kind: ResponseKind) -> None:
         return
     if kind is ResponseKind.FAILED_TOOL_NOTICE:
         if not search(
-            r"\b(failed|failure|error|unavailable|couldn't complete|cannot complete|no result)\b",
+            r"\b(failed|failure|error|unavailable|couldn['’]t complete|"
+            r"cannot complete|no result)\b",
             lowered,
         ):
             raise ResponseContractError("failed-tool response must state the failure")
@@ -496,11 +501,9 @@ def _validate_no_tautological_adapter_error_clause(
     if not error_text:
         return
     lowered = text.casefold()
-    error_clause = search(
-        rf":\s*{escape(error_text.casefold())}(?=\s*(?:[;.!?]|$))", lowered
-    )
+    error_clause = search(rf":\s*{escape(error_text.casefold())}(?=\s*(?:[;.!?]|$))", lowered)
     if error_clause is not None and search(
-        r"\b(?:failed|failure|error|unavailable|couldn't complete|cannot complete)\b",
+        r"\b(?:failed|failure|error|unavailable|couldn['’]t complete|cannot complete)\b",
         lowered[: error_clause.start()],
     ):
         raise ResponseContractError(

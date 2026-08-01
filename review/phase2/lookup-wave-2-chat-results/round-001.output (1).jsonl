@@ -1,0 +1,110 @@
+{"custom_id":"t2lw2.a-00.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-01.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-02.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-03.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-04.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-05.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-06.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-07.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-08.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-09.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-10.d010.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.b-00.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-01.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-02.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-03.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-04.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-05.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-06.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-07.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-08.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-active.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-yielded.d006.a1","action":{"type":"respond","reply_to_event_id":"e_000008","text":"The lookup failed."}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-00-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-00-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which ferry do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-01-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-01-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which parcel do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-02-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-02-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which crossing do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-03-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-03-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which item do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-04-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-04-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which place do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-05-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-05-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which market do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-06-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-06-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which station do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-07-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-07-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which location do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-08-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-08-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which venue do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-09-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-09-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which location do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-10-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-10-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which terminal do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-11-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-11-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which case do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-12-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-12-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which site do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-13-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-ambiguity-lookup-live-13-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which shipment do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-00-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-00-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which ferry do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-01-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-01-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can look up a fare, but I can’t buy tickets. Which trip do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-02-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-02-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which parcel do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-03-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-03-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can check table availability, but I can’t place reservations. Which restaurant do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-04-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-04-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which crossing do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-05-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-05-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can find an account page, but I can’t sign in for you. Which service do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-06-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-06-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which item do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-07-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-07-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can look up an address, but I can’t change it on your account. Which account or service do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-08-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-08-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which place do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-09-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-09-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can find a venue’s phone number, but I can’t place a call. Which venue do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-10-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-10-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which market do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-11-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-11-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can look up a contact address, but I can’t send the message. Which contact do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-12-active.d000.a1","action":{"type":"idle","reason":"ambiguous","related_event_id":null}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-12-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"Which station do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-13-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-mixed-13-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can check a page, but I can’t subscribe you to updates. Which page do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-00-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-00-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can look up a fare, but I can’t buy tickets. Which trip do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-01-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-01-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can check table availability, but I can’t place reservations. Which restaurant do you mean?"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-02-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2lw2.g7-response-floor-lookup-stale-unsupported-02-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"I can find an account page, but I can’t sign in for you. Which service do you mean?"}}

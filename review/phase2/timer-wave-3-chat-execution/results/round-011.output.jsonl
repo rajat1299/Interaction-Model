@@ -1,0 +1,13 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-00.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-01.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w3.wave3-normal_compact-00.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w3.wave3-normal_compact-01.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d017.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

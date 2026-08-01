@@ -1,0 +1,9 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d010.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d011.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.live-00.d001.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2lw1.live-01.d001.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2lw1.live-02.d001.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2lw1.live-03.d001.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2lw1.live-04.d001.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2lw1.stale-00.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.stale-01.d013.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

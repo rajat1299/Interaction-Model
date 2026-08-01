@@ -1,0 +1,89 @@
+{
+  "format_version": 1,
+  "kind": "phase2-lookup-prose-need-addendum-frozen-pairs",
+  "addendum_id": "lookup-prose-need-addendum-v1",
+  "frozen_before_generation": true,
+  "selection": {
+    "algorithm": "minimum seeded SHA-256 rank over sealed TRAIN lookup asset_id",
+    "seed": "phase2-lookup-prose-need-addendum-v1",
+    "population": "28 sealed TRAIN lookup assets in review/phase1/approved/registry.jsonl",
+    "selected_count": 6,
+    "reserve": [
+      "a_b1fdb6410d66f0c129caaabf",
+      "a_fcc686f6168c2583bf7c4875"
+    ],
+    "reserve_policy": "Reserve is promoted only for a mechanical serialization or span defect that does not test the hypothesis. It is never promoted to replace a pair whose teacher outcome is disliked."
+  },
+  "local_invariants": [
+    "positive text contains the exact sealed subject as a proper span inside a clearly unresolved natural-language need",
+    "positive text contains no explicit lookup or refresh command framing",
+    "negative text contains the same subject but only mentions or reports it",
+    "positive expected action is an exact-span delegate",
+    "negative expected action is idle(no_trigger)",
+    "args.query == fact.text byte-for-byte",
+    "every subject occurs exactly once in its own text, so the span is unambiguous"
+  ],
+  "framing_denylist": [
+    "look up",
+    "lookup",
+    "look it up",
+    "find out",
+    "search",
+    "check on",
+    "refresh",
+    "get me",
+    "pull up",
+    "can you"
+  ],
+  "pairs": [
+    {
+      "pair_id": "prose-need-01",
+      "asset_id": "a_7960c7b84f8755e53ee4941e",
+      "subject": "Aster Quay wind index",
+      "positive_text": "The sailing brief is stuck on the last line because I still don't have Aster Quay wind index.",
+      "negative_text": "The sailing brief opens with a note on Aster Quay wind index and why the club tracks it.",
+      "need_form": "missing_datum_blocks_completion"
+    },
+    {
+      "pair_id": "prose-need-02",
+      "asset_id": "a_efabb862b744596e6c7369aa",
+      "subject": "Violet Cove rainfall",
+      "positive_text": "I can't finish the season summary without Violet Cove rainfall.",
+      "negative_text": "The season summary already covers Violet Cove rainfall in the second section.",
+      "need_form": "explicit_dependency"
+    },
+    {
+      "pair_id": "prose-need-03",
+      "asset_id": "a_9b4d08db0b81ec451ad91397",
+      "subject": "Cedar Switch archive token",
+      "positive_text": "Everything else in the transfer form is filled in; Cedar Switch archive token is the one field I still can't complete.",
+      "negative_text": "Cedar Switch archive token is the name the archive uses for these transfers.",
+      "need_form": "last_unresolved_field"
+    },
+    {
+      "pair_id": "prose-need-04",
+      "asset_id": "a_1cf8a5df42e379dcb0fc2472",
+      "subject": "Brindle Port tide color",
+      "positive_text": "The harbor note stalls right here, since Brindle Port tide color never made it into my notebook.",
+      "negative_text": "My notebook heading for this page just says Brindle Port tide color.",
+      "need_form": "never_recorded"
+    },
+    {
+      "pair_id": "prose-need-05",
+      "asset_id": "a_0c280681c3a090e5c4901abd",
+      "subject": "Dune Junction docket",
+      "positive_text": "I need Dune Junction docket before this filing can go out tonight.",
+      "negative_text": "Dune Junction docket came up twice in yesterday's meeting notes.",
+      "need_form": "stated_requirement_with_deadline"
+    },
+    {
+      "pair_id": "prose-need-06",
+      "asset_id": "a_bc0c6abcb2b7aa943ed3bd0c",
+      "subject": "Kindle Square ticket price",
+      "positive_text": "The budget line is blank because nobody has told me Kindle Square ticket price yet.",
+      "negative_text": "Kindle Square ticket price is printed on the back of every stub.",
+      "need_form": "awaited_from_third_party"
+    }
+  ],
+  "wording_freeze": "These twelve strings are frozen. They are not rewritten after seeing any teacher output. Rewording after observing results would fit the probe rather than test the hypothesis, and is a halt condition rather than a repair."
+}

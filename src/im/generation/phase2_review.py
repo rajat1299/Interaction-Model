@@ -81,6 +81,7 @@ RISK_FLAGS = frozenset(
         "active_floor_response_boundary",
         "rollover_or_checkpoint_projection",
         "first_instances_of_new_template",
+        "dev_gold_100_percent",
     }
 )
 _PERMANENT_RISK_FLAGS = frozenset(
@@ -755,11 +756,13 @@ class ReservoirRecord:
         if not isinstance(self.trust_cell, TrustCellKey):
             raise Phase2ReviewError("reservoir trust cell is invalid")
         prefix_sequences = tuple(getattr(event, "seq") for event in self.policy_prefix)
-        if any(
-            isinstance(seq, bool) or not isinstance(seq, int) for seq in prefix_sequences
-        ) or prefix_sequences != tuple(range(self.decision_policy_seq + 1)):
+        if not _valid_reservoir_prefix(
+            self.policy_prefix,
+            prefix_sequences,
+            self.decision_policy_seq,
+        ):
             raise Phase2ReviewError(
-                "reservoir prefix must be complete and ordered through policy seq"
+                "reservoir prefix must be complete or checkpoint-projected through policy seq"
             )
         expected_prefix_sha256 = (
             "sha256:"
@@ -802,6 +805,30 @@ class ReservoirRecord:
                 "protocol": self.trust_cell.protocol.value,
             },
         }
+
+
+def _valid_reservoir_prefix(
+    policy_prefix: tuple[object, ...],
+    sequences: tuple[object, ...],
+    decision_policy_seq: int,
+) -> bool:
+    if any(isinstance(seq, bool) or not isinstance(seq, int) for seq in sequences):
+        return False
+    start = sequences[0]
+    if sequences != tuple(range(start, decision_policy_seq + 1)):
+        return False
+    if start == 0:
+        return True
+    first = _event_json(policy_prefix[0])
+    payload = first.get("payload")
+    segment = payload.get("segment") if isinstance(payload, dict) else None
+    return (
+        first.get("kind") == "state_checkpoint"
+        and isinstance(segment, dict)
+        and segment.get("covers_through_policy_seq") == start - 1
+        and isinstance(segment.get("previous_segment_hash"), str)
+        and fullmatch(_DIGEST, segment["previous_segment_hash"]) is not None
+    )
 
 
 def export_reservoir_jsonl(records: tuple[ReservoirRecord, ...]) -> bytes:

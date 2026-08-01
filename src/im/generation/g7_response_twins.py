@@ -15,6 +15,7 @@ from im.generation.g7_response_assets import (
 )
 from im.generation.ingestion import ScheduledSamplerFrame
 from im.generation.oracle import BeatOpening, BeatResponseWarrant, ResponseWarrantKind
+from im.generation.response_contracts import ResponseKind
 from im.generation.scenarios import (
     BeatStaleResults,
     CounterfactualDeclaration,
@@ -36,6 +37,20 @@ __all__ = (
 )
 
 _RESPONSE_COUNT = 10
+#: The approved response kind decides the warrant kind. The oracle exempts clarification and
+#: limitation warrants from the explicit-request rule, because their requests are the user's
+#: own under-specified or unsupported instruction, not a question put to the assistant.
+_WARRANT_KIND_BY_RESPONSE_KIND = {
+    ResponseKind.AMBIGUITY_CLARIFICATION: ResponseWarrantKind.AMBIGUITY_CLARIFICATION,
+    ResponseKind.UNSUPPORTED_FEATURE_LIMITATION: ResponseWarrantKind.UNSUPPORTED_LIMITATION,
+}
+
+
+def warrant_kind_for(response_kind: ResponseKind | str) -> ResponseWarrantKind:
+    """Ordinary and failed-tool responses keep INVITATION; the other two get their own kind."""
+    return _WARRANT_KIND_BY_RESPONSE_KIND.get(
+        ResponseKind(response_kind), ResponseWarrantKind.INVITATION
+    )
 G7_RESPONSE_FAMILIES = (
     CorpusFamily.NEUTRAL_TYPING,
     CorpusFamily.MARK_POSITIVE,
@@ -69,12 +84,21 @@ class ResponseFloorTwinPrograms:
         validate_response_floor_twin_alignment(yielded, active)
         yielded_frame = parse_tim_json(yielded.frames[0].raw_bytes)
         yielded_action = yielded.actions[0]
+        active_action = active.actions[0]
+        ambiguous = (
+            self.asset.draft.answer_contract.response_kind
+            is ResponseKind.AMBIGUITY_CLARIFICATION
+        )
         if (
             not isinstance(yielded_frame, dict)
             or yielded_frame.get("text") != self.asset.draft.invitation
             or self.asset.draft.answer_contract.support_event_ids != (_snapshot_id(),)
             or not isinstance(yielded_action, RespondAction)
             or yielded_action.text != self.asset.candidate_response
+            or not isinstance(active_action, IdleAction)
+            or active_action.reason
+            is not (IdleReason.AMBIGUOUS if ambiguous else IdleReason.AWAITING_OPENING)
+            or active_action.related_event_id != (None if ambiguous else _snapshot_id())
         ):
             raise ValueError("response-floor twin actions must match the external response assets")
         _validate_links(self.group_id, yielded, active)
@@ -131,19 +155,45 @@ def validate_response_floor_twin_alignment(
         raise ValueError("response-floor twins may differ only in sampler activity")
 
     snapshot_id = _snapshot_id()
+    active_action = active.actions[0]
     if (
         not isinstance(yielded.actions[0], RespondAction)
         or yielded.actions[0].reply_to_event_id != snapshot_id
-        or not isinstance(active.actions[0], IdleAction)
-        or active.actions[0].reason is not IdleReason.AWAITING_OPENING
-        or active.actions[0].related_event_id != snapshot_id
-        or yielded.response_warrants_by_beat
-        != (BeatResponseWarrant("b0", snapshot_id, ResponseWarrantKind.INVITATION),)
+        or not isinstance(active_action, IdleAction)
+        or (
+            active_action.reason,
+            active_action.related_event_id,
+        )
+        not in (
+            (IdleReason.AWAITING_OPENING, snapshot_id),
+            (IdleReason.AMBIGUOUS, None),
+        )
+        or len(yielded.response_warrants_by_beat) != 1
+        or yielded.response_warrants_by_beat[0].beat_id != "b0"
+        or yielded.response_warrants_by_beat[0].snapshot_event_id != snapshot_id
+        or yielded.response_warrants_by_beat[0].kind
+        not in (
+            ResponseWarrantKind.INVITATION,
+            ResponseWarrantKind.AMBIGUITY_CLARIFICATION,
+            ResponseWarrantKind.UNSUPPORTED_LIMITATION,
+        )
         or active.response_warrants_by_beat != yielded.response_warrants_by_beat
         or yielded.openings_by_beat != (BeatOpening("b0", snapshot_id),)
         or active.openings_by_beat != ()
     ):
         raise ValueError("response-floor twins must branch on the same invitation")
+
+    # The warrant kind and the active partner must tell the same story: a clarification is
+    # withheld because the request is under-specified, not because the floor is closed.
+    warrant_kind = yielded.response_warrants_by_beat[0].kind
+    clarification = warrant_kind is ResponseWarrantKind.AMBIGUITY_CLARIFICATION
+    expected_active = (
+        (IdleReason.AMBIGUOUS, None)
+        if clarification
+        else (IdleReason.AWAITING_OPENING, snapshot_id)
+    )
+    if (active_action.reason, active_action.related_event_id) != expected_active:
+        raise ValueError("response-floor warrant kind disagrees with its active partner")
 
     yielded_link = yielded.counterfactual
     active_link = active.counterfactual
@@ -271,6 +321,11 @@ def _build_twin(
         asset_ids=inputs.asset_ids,
     )
     asset = profile.assets[item_index]
+    ambiguous = (
+        asset.draft.answer_contract.response_kind
+        is ResponseKind.AMBIGUITY_CLARIFICATION
+    )
+    warrant_kind = warrant_kind_for(asset.draft.answer_contract.response_kind)
     plan = _timing(bundle.split, family, master_seed, item_index)
     group_id = (
         "g7-response-floor-"
@@ -299,6 +354,7 @@ def _build_twin(
         ),
         counterfactual=_link(group_id, "yielded"),
         openings=(BeatOpening("b0", _snapshot_id()),),
+        warrant_kind=warrant_kind,
     )
     active = _program(
         bundle=bundle,
@@ -309,11 +365,14 @@ def _build_twin(
         frames=_frames(asset.draft.invitation, activity="active"),
         actions=(
             IdleAction(
-                type="idle", reason=IdleReason.AWAITING_OPENING, related_event_id=_snapshot_id()
+                type="idle",
+                reason=IdleReason.AMBIGUOUS if ambiguous else IdleReason.AWAITING_OPENING,
+                related_event_id=None if ambiguous else _snapshot_id(),
             ),
         ),
         counterfactual=_link(group_id, "active"),
         openings=(),
+        warrant_kind=warrant_kind,
     )
     return ResponseFloorTwinPrograms(family, group_id, asset, (yielded, active))
 
@@ -329,13 +388,12 @@ def _program(
     actions: tuple[RespondAction, ...] | tuple[IdleAction, ...],
     openings: tuple[BeatOpening, ...],
     counterfactual: CounterfactualDeclaration | None = None,
+    warrant_kind: ResponseWarrantKind = ResponseWarrantKind.INVITATION,
 ) -> ScenarioProgram:
     if len(actions) != 1:
         raise ValueError("response-floor programs must terminate at their only branch")
     beats = ("b0",)
-    warrants = (
-        BeatResponseWarrant("b0", _snapshot_id(), ResponseWarrantKind.INVITATION),
-    )
+    warrants = (BeatResponseWarrant("b0", _snapshot_id(), warrant_kind),)
     return ScenarioProgram(
         bundle=bundle,
         template=template,

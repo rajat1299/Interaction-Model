@@ -1,0 +1,29 @@
+{"custom_id":"t2lw2.a-00.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Dune Junction docket is moss."}}
+{"custom_id":"t2lw2.a-01.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Parchment Bay opens at eight."}}
+{"custom_id":"t2lw2.a-02.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Raven Hollow shelf is 16."}}
+{"custom_id":"t2lw2.a-03.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Kestrel Moor rate is 5 tokens."}}
+{"custom_id":"t2lw2.a-04.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Aster Quay index is 17."}}
+{"custom_id":"t2lw2.a-05.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Cedar Switch token is CL-19."}}
+{"custom_id":"t2lw2.a-06.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Orchid Span reads 145."}}
+{"custom_id":"t2lw2.a-07.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Kindle Square price is 18 crowns."}}
+{"custom_id":"t2lw2.a-08.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Willow Yard opens at seven."}}
+{"custom_id":"t2lw2.a-09.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Dune Junction docket is moss."}}
+{"custom_id":"t2lw2.a-10.d017.a1","action":{"type":"integrate","result_event_id":"e_000027","text":"Parchment Bay opens at eight."}}
+{"custom_id":"t2lw2.b-00.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":54,"end_utf16":74,"text":"Varrow archive token"},"tool":"lookup","args":{"query":"Varrow archive token"}}}
+{"custom_id":"t2lw2.b-01.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":55,"end_utf16":74,"text":"Warden Quill docket"},"tool":"lookup","args":{"query":"Warden Quill docket"}}}
+{"custom_id":"t2lw2.b-02.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":52,"end_utf16":76,"text":"Rook Market parcel color"},"tool":"lookup","args":{"query":"Rook Market parcel color"}}}
+{"custom_id":"t2lw2.b-03.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":53,"end_utf16":78,"text":"Ember Crossing cargo mark"},"tool":"lookup","args":{"query":"Ember Crossing cargo mark"}}}
+{"custom_id":"t2lw2.b-04.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":49,"end_utf16":73,"text":"Harbor Nix meter reading"},"tool":"lookup","args":{"query":"Harbor Nix meter reading"}}}
+{"custom_id":"t2lw2.b-05.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":54,"end_utf16":78,"text":"Cobalt Ridge trail count"},"tool":"lookup","args":{"query":"Cobalt Ridge trail count"}}}
+{"custom_id":"t2lw2.b-06.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":50,"end_utf16":75,"text":"Hollow Cinder postal zone"},"tool":"lookup","args":{"query":"Hollow Cinder postal zone"}}}
+{"custom_id":"t2lw2.b-07.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":54,"end_utf16":80,"text":"Xanthic Pier bridge status"},"tool":"lookup","args":{"query":"Xanthic Pier bridge status"}}}
+{"custom_id":"t2lw2.b-08.d016.a1","action":{"type":"delegate","fact":{"event_id":"e_000023","start_utf16":55,"end_utf16":73,"text":"Yarrow Pier signal"},"tool":"lookup","args":{"query":"Yarrow Pier signal"}}}
+{"custom_id":"t2lw2.stale-00.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-01.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-02.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-03.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-04.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-05.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-06.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-07.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}
+{"custom_id":"t2lw2.stale-08.d019.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000029"}}

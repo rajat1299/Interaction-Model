@@ -1,0 +1,28 @@
+{
+  "approved_count": 89,
+  "authority": "owner decision in chat; assistant transcription",
+  "decision": "approved",
+  "format_version": 1,
+  "kind": "wp2-8-dev-gate-c-scoped-repair-owner-disposition",
+  "prior_decisions_carried_forward": {
+    "approved_as_written": 208,
+    "owner_label_corrections": 3
+  },
+  "repaired_packet_binding": {
+    "decision_count": 300,
+    "phase2_review_evidence_sha256": "sha256:908d8a2b0cf5c9c711fdb221426233cb73103bc5b6aa9a56f2c8dfeb60b70c42",
+    "selected_state_plan_sha256": "sha256:cd493c42b04dad1279ef05b244044c1ee30dfb97d703f8adb8ea486b6e8fe116",
+    "sha256sums_sha256": "sha256:fd79f652f0531f5595879051310dccc4c377c3aea7bf93fcbeba252e830282f8"
+  },
+  "repair_scope_sha256": "sha256:644158e9a17984f50a166d85ac43fc13caf5ce64078ebf4a452472ff6ce01e4f",
+  "review_groups": [
+    "complete_lookup_request",
+    "complete_rollover_lookup_request",
+    "complete_stale_lookup_request",
+    "cancel_actual_active_reminder",
+    "stable_sequential_cancel_referents",
+    "natural_failed_lookup_history"
+  ],
+  "reviewer_id": "user:phase2-owner",
+  "total_owner_approved_dev_decisions": 300
+}

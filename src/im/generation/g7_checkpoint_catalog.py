@@ -61,7 +61,12 @@ from im.schema.common import ToolName
 from im.schema.textspan import utf16_len
 from im.tools import ScriptedToolResult
 
-__all__ = ("G7CheckpointCatalogEntry", "build_g7_checkpoint_catalog")
+__all__ = (
+    "G7CheckpointCatalogEntry",
+    "build_g7_checkpoint_catalog",
+    "build_g7_lookup_checkpoint_program",
+    "build_g7_timer_cancel_checkpoint_program",
+)
 
 
 _FRAME_GAP_MS = 5_000
@@ -270,7 +275,7 @@ def _asset_text(asset: AssetRecord) -> str:
     raise TypeError("working documents use atomic source assets")
 
 
-def _lookups(pool: SplitPool) -> tuple[AssetRecord, ...]:
+def _lookups(pool: AssetBundle | SplitPool) -> tuple[AssetRecord, ...]:
     return tuple(item for item in pool.assets if isinstance(item.payload, LookupAssetPayload))
 
 
@@ -289,12 +294,18 @@ def _supported_timer(pool: SplitPool) -> TimerAssetPayload:
     return timer
 
 
-def _lookup(pool: SplitPool, family: CorpusFamily) -> LookupAssetPayload:
+def _lookup(
+    pool: AssetBundle | SplitPool,
+    family: CorpusFamily,
+    asset_id: str | None = None,
+) -> LookupAssetPayload:
     payload = next(
         (
             item.payload
             for item in pool.assets
-            if family in item.coverage and isinstance(item.payload, LookupAssetPayload)
+            if family in item.coverage
+            and isinstance(item.payload, LookupAssetPayload)
+            and (asset_id is None or item.asset_id == asset_id)
         ),
         None,
     )
@@ -303,12 +314,12 @@ def _lookup(pool: SplitPool, family: CorpusFamily) -> LookupAssetPayload:
     return payload
 
 
-def _working_document(pool: SplitPool) -> str:
+def _working_document(pool: AssetBundle | SplitPool) -> str:
     values = {item.asset_id: _asset_text(item) for item in pool.assets}
     return build_checkpoint_working_document(values.values())
 
 
-def _quiet_sources(pool: SplitPool) -> tuple[str, ...]:
+def _quiet_sources(pool: AssetBundle | SplitPool) -> tuple[str, ...]:
     texts = tuple(
         item.payload.text for item in pool.assets if isinstance(item.payload, TextAssetPayload)
     )
@@ -345,6 +356,15 @@ def _seeded_quiet_sources(pool: SplitPool, master_seed: str, count: int) -> tupl
         draw, index = divmod(draw, len(choices))
         selected.append(choices[index])
     return tuple(selected)
+
+
+def _lookup_result(
+    lookup: LookupAssetPayload,
+    result: str,
+    *,
+    restate_subject: bool,
+) -> str:
+    return f"{lookup.query}: {result}" if restate_subject else result
 
 
 def _inputs(
@@ -460,7 +480,19 @@ def _prelude(recipe: _Recipe, document: str, *, count: int = _PRELUDE_DOCUMENT_C
 
 def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
     bundle, template, pool = _inputs(registry, CorpusFamily.LOOKUP_DUPLICATE)
-    duplicate = _lookup(pool, CorpusFamily.LOOKUP_DUPLICATE)
+    return _lookup_duplicate_a_recipe(bundle, template, pool, master_seed)
+
+
+def _lookup_duplicate_a_recipe(
+    bundle: AssetBundle,
+    template: AssetRecord,
+    pool: AssetBundle | SplitPool,
+    master_seed: str,
+    *,
+    primary_asset_id: str | None = None,
+    restate_subject: bool = False,
+) -> ScenarioProgram:
+    duplicate = _lookup(pool, CorpusFamily.LOOKUP_DUPLICATE, primary_asset_id)
     other = tuple(item.payload for item in _lookups(pool) if item.payload is not duplicate)
     if len(other) < 3:
         raise ValueError("lookup duplicate A needs three other applied lookup subjects")
@@ -505,6 +537,11 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
 
     first_result_at = latest_quiet_at + _RESULT_GAP_MS
     first_result = recipe.world_event()
+    first_result_text = _lookup_result(
+        first,
+        first.result_a,
+        restate_subject=restate_subject,
+    )
     first_integrate = recipe.action(
         IntegrateAction(type="integrate", result_event_id=first_result, text=first.result_a)
     )
@@ -525,6 +562,11 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
     )
     second_result_at = _causal_at(timing, (third_action, third_at))
     second_result = recipe.world_event()
+    second_result_text = _lookup_result(
+        second,
+        second.result_a,
+        restate_subject=restate_subject,
+    )
     second_integrate = recipe.action(
         IntegrateAction(type="integrate", result_event_id=second_result, text=second.result_a)
     )
@@ -556,10 +598,28 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
         master_seed,
         recipe,
         _nonce_plans(
-            (first_action, first_at, first_result_at, first.result_a),
-            (second_action, second_at, second_result_at, second.result_a),
-            (third_action, third_at, third_result_at, third.result_a),
-            (fourth_action, fourth_at, fourth_at + _LONG_PENDING_MS, fourth.result_a),
+            (first_action, first_at, first_result_at, first_result_text),
+            (second_action, second_at, second_result_at, second_result_text),
+            (
+                third_action,
+                third_at,
+                third_result_at,
+                _lookup_result(
+                    third,
+                    third.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
+            (
+                fourth_action,
+                fourth_at,
+                fourth_at + _LONG_PENDING_MS,
+                _lookup_result(
+                    fourth,
+                    fourth.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
         ),
         openings=(
             (first_integrate, latest_quiet_id),
@@ -598,7 +658,19 @@ def _lookup_duplicate_a_program(registry: AssetRegistry, master_seed: str) -> Sc
 
 def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
     bundle, template, pool = _inputs(registry, CorpusFamily.LOOKUP_DUPLICATE)
-    first = _lookup(pool, CorpusFamily.LOOKUP_DUPLICATE)
+    return _lookup_duplicate_b_recipe(bundle, template, pool, master_seed)
+
+
+def _lookup_duplicate_b_recipe(
+    bundle: AssetBundle,
+    template: AssetRecord,
+    pool: AssetBundle | SplitPool,
+    master_seed: str,
+    *,
+    primary_asset_id: str | None = None,
+    restate_subject: bool = False,
+) -> ScenarioProgram:
+    first = _lookup(pool, CorpusFamily.LOOKUP_DUPLICATE, primary_asset_id)
     others = tuple(item.payload for item in _lookups(pool) if item.payload is not first)
     if len(others) < 2:
         raise ValueError("lookup duplicate B needs two other applied lookup subjects")
@@ -607,6 +679,8 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
         " The writer leaves the atlas open with the cards undisturbed, keeping the familiar "
         "page available for one brief factual heading after the pause."
     )
+    if restate_subject:
+        pressure_document += " The page remains open."
     if len(pressure_document.encode("utf-8")) > 4_096:
         raise ValueError("duplicate B working document exceeds the sampler-size ceiling")
     total_actions = 22
@@ -622,16 +696,9 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
     recipe.checkpoint()
 
     quiet = _quiet_sources(pool)
-    quiet_reasons = (
-        IdleReason.TYPING_ACTIVE,
-        IdleReason.NO_TRIGGER,
-        IdleReason.NO_TRIGGER,
-        IdleReason.TYPING_ACTIVE,
-        IdleReason.INSTRUCTION_NOT_DIRECT,
-    )
-    for text, reason in zip(quiet[:5], quiet_reasons, strict=True):
+    for text in quiet[:5]:
         recipe.snapshot(text)
-        recipe.action(_idle(reason), runtime_events=0)
+        recipe.action(_idle(), runtime_events=0)
 
     first_source = f"Please look up {first.query}."
     first_id, first_at, first_action = _delegate_snapshot(recipe, first_source, first.query)
@@ -659,6 +726,11 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
     second_skip = recipe.action(
         SkipAction(type="skip", target_event_id=third_result, reason=SkipReason.STALE_TOOL_RESULT)
     )
+    first_result_text = _lookup_result(
+        first,
+        first.result_a,
+        restate_subject=restate_subject,
+    )
     first_integrate = recipe.action(
         IntegrateAction(type="integrate", result_event_id=first_result, text=first.result_a)
     )
@@ -678,9 +750,7 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
             + 100,
         ),
     )
-    terminal_idle = recipe.action(
-        _idle(IdleReason.ALREADY_HANDLED, first_result), runtime_events=0
-    )
+    terminal_idle = recipe.action(_idle(IdleReason.ALREADY_HANDLED, first_result), runtime_events=0)
     if len(recipe.actions) != total_actions:
         raise RuntimeError("duplicate B action ledger drifted")
     return _materialize(
@@ -690,9 +760,27 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
         master_seed,
         recipe,
         _nonce_plans(
-            (first_action, first_at, result_at, first.result_a),
-            (second_action, second_at, result_at, second.result_a),
-            (third_action, third_at, result_at, third.result_a),
+            (first_action, first_at, result_at, first_result_text),
+            (
+                second_action,
+                second_at,
+                result_at,
+                _lookup_result(
+                    second,
+                    second.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
+            (
+                third_action,
+                third_at,
+                result_at,
+                _lookup_result(
+                    third,
+                    third.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
         ),
         stale=(
             (first_skip, (second_result, third_result)),
@@ -730,7 +818,20 @@ def _lookup_duplicate_b_program(registry: AssetRegistry, master_seed: str) -> Sc
 
 def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
     bundle, template, pool = _inputs(registry, CorpusFamily.LOOKUP_STALE)
-    original = _lookup(pool, CorpusFamily.LOOKUP_STALE)
+    return _lookup_stale_recipe(bundle, template, pool, master_seed)
+
+
+def _lookup_stale_recipe(
+    bundle: AssetBundle,
+    template: AssetRecord,
+    pool: AssetBundle | SplitPool,
+    master_seed: str,
+    *,
+    primary_asset_id: str | None = None,
+    explicit_requests: bool = False,
+    restate_subject: bool = False,
+) -> ScenarioProgram:
+    original = _lookup(pool, CorpusFamily.LOOKUP_STALE, primary_asset_id)
     others = tuple(item.payload for item in _lookups(pool) if item.payload is not original)
     if len(others) != 3:
         raise ValueError("stale lookup shape needs the other three applied lookup subjects")
@@ -751,16 +852,15 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
         f"Please refresh this atlas fact when the current note is settled: {original.query}. "
         "Keep the lookup tied to the gallery-wing entry, not the nearby courtyard caption. "
         "The atlas is open beside a ruled notebook, with the relevant card resting above the "
-        "margin and a pencil marking the line that prompted the question. The surrounding notes "
-        "describe the building in a calm, continuous paragraph so the requested fact should remain "
-        "the only external detail being checked. Nothing else on the page changes the subject: the "
-        "desk lamp, the paper edges, and the quiet room are merely context for the same atlas "
-        "entry. "
-        "When the answer arrives, it belongs with this card and can be compared with the later "
-        "refresh rather than folded into any unrelated station or cistern note. The writer is "
-        "still working through the same outline, leaving enough space below the card for a concise "
-        "result "
-        "and keeping the rest of the notebook deliberately unchanged while the lookup is pending."
+        "margin and a pencil marking the line that prompted the question. The surrounding "
+        "notes describe the building in a calm, continuous paragraph so the requested fact "
+        "should remain the only external detail being checked. Nothing else on the page "
+        "changes the subject: the desk lamp, the paper edges, and the quiet room are merely "
+        "context for the same atlas entry. When the answer arrives, it belongs with this card "
+        "and can be compared with the later refresh rather than folded into any unrelated "
+        "station or cistern note. The writer is still working through the same outline, "
+        "leaving enough space below the card for a concise result and keeping the rest of the "
+        "notebook deliberately unchanged while the lookup is pending."
     )
     original_id, original_at, original_action = _delegate_snapshot(
         recipe, original_source, original.query
@@ -768,7 +868,7 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
     quiet_trigger = "Still."
     fable_id, fable_at, fable_action = _triggered_delegate_snapshot(
         recipe,
-        fable.query,
+        f"Look up {fable.query}." if explicit_requests else fable.query,
         fable.query,
         quiet_trigger,
         at_ms=_causal_at(
@@ -780,7 +880,7 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
     original_idle = recipe.action(_idle(IdleReason.AWAITING_TOOL, original_id), runtime_events=0)
     morrow_id, morrow_at, morrow_action = _triggered_delegate_snapshot(
         recipe,
-        morrow.query,
+        f"Look up {morrow.query}." if explicit_requests else morrow.query,
         morrow.query,
         quiet_trigger,
         at_ms=_causal_at(
@@ -792,7 +892,7 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
     morrow_idle = recipe.action(_idle(IdleReason.AWAITING_TOOL, original_id), runtime_events=0)
     alder_id, alder_at, alder_action = _triggered_delegate_snapshot(
         recipe,
-        alder.query,
+        f"Look up {alder.query}." if explicit_requests else alder.query,
         alder.query,
         quiet_trigger,
         at_ms=_causal_at(
@@ -825,10 +925,28 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
         _delegate(refresh_id, refresh_source, refreshed_query), runtime_events=2
     )
     combined_query = f"{fable.query} and {alder.query}"
-    combined_result = f"{fable.result_a} {alder.result_a}"
+    combined_source = (
+        f"Look up {combined_query}." if explicit_requests else combined_query
+    )
+    combined_result = " ".join(
+        (
+            _lookup_result(
+                fable,
+                fable.result_a,
+                restate_subject=restate_subject,
+            ),
+            _lookup_result(
+                alder,
+                alder.result_a,
+                restate_subject=restate_subject,
+            ),
+        )
+    )
+    if restate_subject:
+        combined_result = f"{combined_query}: {combined_result}"
     _, combined_at, combined_action = _triggered_delegate_snapshot(
         recipe,
-        combined_query,
+        combined_source,
         combined_query,
         quiet_trigger,
         at_ms=_causal_at(
@@ -841,9 +959,17 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
     refresh_idle = recipe.action(_idle(IdleReason.AWAITING_TOOL, fable_id), runtime_events=0)
 
     abandoned = (
-        f"Those lookups — {fable.query}, {morrow.query}, and {alder.query}, "
-        "including the refreshed gallery-wing and combined requests — are no longer relevant; "
-        "I’m returning to the notebook outline."
+        (
+            f"Those lookups — {fable.query}, {morrow.query}, and {alder.query} — plus the "
+            f"refreshed {original.query} and combined {combined_query} requests are no longer "
+            "relevant; I’m returning to the notebook outline."
+        )
+        if explicit_requests
+        else (
+            f"Those lookups — {fable.query}, {morrow.query}, and {alder.query}, including the "
+            "refreshed gallery-wing and combined requests — are no longer relevant; I’m "
+            "returning to the notebook outline."
+        )
     )
     abandoned_at = max(
         recipe.next_at_ms,
@@ -853,7 +979,7 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
         abandoned,
         at_ms=abandoned_at,
     )
-    abandoned_idle = recipe.action(_idle(IdleReason.AWAITING_TOOL, fable_id), runtime_events=0)
+    abandoned_idle = recipe.action(_idle(), runtime_events=0)
 
     # Deliver the abandoned results during the evidence-bearing idle decision so the
     # next tick sees both the visible abandonment and every late result.
@@ -880,7 +1006,7 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
         )
         for result in stale_results
     )
-    recipe.action(_idle(), runtime_events=0)
+    recipe.action(_idle(IdleReason.ALREADY_HANDLED, fable_result), runtime_events=0)
     if len(recipe.actions) != total_actions:
         raise RuntimeError("stale lookup action ledger drifted")
     return _materialize(
@@ -890,15 +1016,55 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
         master_seed,
         recipe,
         _nonce_plans(
-            (original_action, original_at, original_result_at, original.result_a),
-            (fable_action, fable_at, due_at, fable.result_a),
-            (morrow_action, morrow_at, due_at, morrow.result_a),
-            (alder_action, alder_at, due_at, alder.result_a),
+            (
+                original_action,
+                original_at,
+                original_result_at,
+                _lookup_result(
+                    original,
+                    original.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
+            (
+                fable_action,
+                fable_at,
+                due_at,
+                _lookup_result(
+                    fable,
+                    fable.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
+            (
+                morrow_action,
+                morrow_at,
+                due_at,
+                _lookup_result(
+                    morrow,
+                    morrow.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
+            (
+                alder_action,
+                alder_at,
+                due_at,
+                _lookup_result(
+                    alder,
+                    alder.result_a,
+                    restate_subject=restate_subject,
+                ),
+            ),
             (
                 refresh_action,
                 refresh_at + timing.service_ms[original_skip],
                 due_at,
-                original.result_b,
+                _lookup_result(
+                    original,
+                    original.result_b,
+                    restate_subject=restate_subject,
+                ),
             ),
             (combined_action, combined_at, due_at, combined_result),
         ),
@@ -965,21 +1131,158 @@ def _lookup_stale_program(registry: AssetRegistry, master_seed: str) -> Scenario
     )
 
 
-def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
-    _, template, pool = _inputs(registry, CorpusFamily.TIMER_CANCEL)
-    timer_records = tuple(
-        item
-        for item in pool.assets
-        if isinstance(item.payload, TimerAssetPayload) and item.payload.form is TimerForm.SUPPORTED
+def build_g7_lookup_checkpoint_program(
+    registry: AssetRegistry,
+    *,
+    split: Split | str,
+    shape_id: str,
+    template_id: str,
+    primary_lookup_asset_id: str,
+    lookup_asset_ids: tuple[str, ...],
+    text_asset_ids: tuple[str, str],
+    master_seed: str,
+) -> ScenarioProgram:
+    """Build one TRAIN-capable lookup checkpoint while preserving TEST defaults."""
+    specs = {
+        "g7-checkpoint-lookup-duplicate-a": (
+            CorpusFamily.LOOKUP_DUPLICATE,
+            4,
+            _lookup_duplicate_a_recipe,
+        ),
+        "g7-checkpoint-lookup-duplicate-b": (
+            CorpusFamily.LOOKUP_DUPLICATE,
+            3,
+            _lookup_duplicate_b_recipe,
+        ),
+        "g7-checkpoint-lookup-stale": (
+            CorpusFamily.LOOKUP_STALE,
+            4,
+            _lookup_stale_recipe,
+        ),
+    }
+    try:
+        family, lookup_count, recipe = specs[shape_id]
+    except KeyError as error:
+        raise ValueError("unknown lookup checkpoint shape") from error
+    split = Split(split)
+    pool = registry.pool(split)
+    by_id = {item.asset_id: item for item in (*pool.assets, *pool.templates)}
+    template = by_id.get(template_id)
+    primary = by_id.get(primary_lookup_asset_id)
+    if (
+        template is None
+        or family not in template.coverage
+        or primary is None
+        or family not in primary.coverage
+    ):
+        raise ValueError("lookup checkpoint primary inputs do not cover the shape family")
+    if (
+        len(lookup_asset_ids) != lookup_count
+        or len(set(lookup_asset_ids)) != lookup_count
+        or primary_lookup_asset_id not in lookup_asset_ids
+        or any(
+            not isinstance(getattr(by_id.get(asset_id), "payload", None), LookupAssetPayload)
+            for asset_id in lookup_asset_ids
+        )
+        or len(set(text_asset_ids)) != 2
+        or any(
+            not isinstance(getattr(by_id.get(asset_id), "payload", None), TextAssetPayload)
+            for asset_id in text_asset_ids
+        )
+    ):
+        raise ValueError("lookup checkpoint source assets do not match the shape")
+    bundle, selected_template = select_approved_scenario_inputs(
+        registry,
+        split=split,
+        template_id=template_id,
+        asset_ids=(*lookup_asset_ids, *text_asset_ids),
     )
-    short_record = min(timer_records, key=lambda item: item.payload.interval_ms or 0)
-    long_record = max(timer_records, key=lambda item: item.payload.interval_ms or 0)
+    options = {
+        "primary_asset_id": primary_lookup_asset_id,
+        # Preserve the already-proven checkpoint byte pressure. Only model-authored
+        # integration text is naturalized; tool evidence keeps its reviewed subject label.
+        "restate_subject": True,
+    }
+    if family is CorpusFamily.LOOKUP_STALE:
+        options["explicit_requests"] = True
+    return recipe(
+        bundle,
+        selected_template,
+        bundle,
+        master_seed,
+        **options,
+    )
+
+
+def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> ScenarioProgram:
+    """Retain the historical TEST checkpoint program unchanged."""
+    pool = registry.pool(Split.TEST)
+    template = next(item for item in pool.templates if CorpusFamily.TIMER_CANCEL in item.coverage)
     family_record = next(
         item
         for item in pool.assets
         if CorpusFamily.TIMER_CANCEL in item.coverage
         and isinstance(item.payload, TimerAssetPayload)
     )
+    timer_ids = tuple(
+        item.asset_id
+        for item in pool.assets
+        if isinstance(item.payload, TimerAssetPayload) and item.payload.form is TimerForm.SUPPORTED
+    )
+    return build_g7_timer_cancel_checkpoint_program(
+        registry,
+        split=Split.TEST,
+        template_id=template.asset_id,
+        cancel_asset_id=family_record.asset_id,
+        timer_asset_ids=timer_ids,
+        master_seed=master_seed,
+    )
+
+
+def build_g7_timer_cancel_checkpoint_program(
+    registry: AssetRegistry,
+    *,
+    split: Split | str,
+    template_id: str,
+    cancel_asset_id: str,
+    timer_asset_ids: tuple[str, ...],
+    master_seed: str,
+    timing_seed: str = "g7-timer-compact:29460",
+    repaired_controls: bool = False,
+) -> ScenarioProgram:
+    """Build the real timer-cancel checkpoint against an approved split.
+
+    The historical TEST catalog supplies a timer asset whose coverage includes
+    ``TIMER_CANCEL``.  TRAIN deliberately has direct cancellation text instead,
+    so callers bind that text explicitly and pair it with approved supported
+    timers.  The selected bundle still contains a family-covered cancellation
+    source, while the G7 plan retains its independently-proven ordinal targets.
+    The default timing seed retains the frozen TEST catalog. TRAIN callers may
+    bind another deterministic seed whose service profile keeps recurring fires
+    open through their scripted nudges.
+    """
+    split = Split(split)
+    pool = registry.pool(split)
+    template = next((item for item in pool.templates if item.asset_id == template_id), None)
+    cancel_record = next((item for item in pool.assets if item.asset_id == cancel_asset_id), None)
+    if template is None or cancel_record is None:
+        raise ValueError("timer cancel checkpoint inputs are absent from the selected split")
+    if (
+        CorpusFamily.TIMER_CANCEL not in template.coverage
+        or CorpusFamily.TIMER_CANCEL not in cancel_record.coverage
+    ):
+        raise ValueError("timer cancel checkpoint inputs do not cover TIMER_CANCEL")
+    if not timer_asset_ids or len(timer_asset_ids) != len(set(timer_asset_ids)):
+        raise ValueError("timer cancel checkpoint needs distinct supported timer asset ids")
+    timer_records = tuple(item for item in pool.assets if item.asset_id in set(timer_asset_ids))
+    if len(timer_records) != len(timer_asset_ids) or any(
+        not isinstance(item.payload, TimerAssetPayload)
+        or item.payload.form is not TimerForm.SUPPORTED
+        for item in timer_records
+    ):
+        raise ValueError("timer cancel checkpoint timer inputs must be supported assets")
+    short_record = min(timer_records, key=lambda item: item.payload.interval_ms or 0)
+    long_record = max(timer_records, key=lambda item: item.payload.interval_ms or 0)
     short = short_record.payload
     long = long_record.payload
     if (
@@ -991,12 +1294,12 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
         raise ValueError("timer checkpoint recipe requires applied supported timers")
     bundle, template = select_approved_scenario_inputs(
         registry,
-        split=Split.TEST,
+        split=split,
         template_id=template.asset_id,
         asset_ids=tuple(
             sorted(
                 (
-                    family_record.asset_id,
+                    cancel_record.asset_id,
                     short_record.asset_id,
                     long_record.asset_id,
                 )
@@ -1008,10 +1311,17 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
     # newly scheduled timer then supplies two handled fires and one canceled
     # fire, leaving two independent canceled targets without lookup lineage.
     total_actions = 26
-    timing = materialize_timing_plan(
-        TimingSeed(bundle.split, "g7-timer-compact:29460"), total_actions
+    timing = materialize_timing_plan(TimingSeed(bundle.split, timing_seed), total_actions)
+    neutral_sources = _seeded_quiet_sources(pool, master_seed, 4)
+    if repaired_controls:
+        neutral_sources = tuple(
+            f"The notebook reports this text without requesting it: “{source}”"
+            for source in neutral_sources
+        )
+    neutral = iter(neutral_sources)
+    neutral_idle = (
+        IdleReason.INSTRUCTION_NOT_DIRECT if repaired_controls else IdleReason.NO_TRIGGER
     )
-    neutral = iter(_seeded_quiet_sources(pool, master_seed, 4))
     recipe = _Recipe([], [])
     cancel_plan = G7CancelPlan()
     pressure_unit = (
@@ -1068,11 +1378,15 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
         return at_ms + timing.service_ms[cancel_index] + timing.service_ms[idle_index] + 1_000
 
     next_cancel_at = selected_cancel("t_001", at_ms=first_cancel_at)
-    next_cancel_at = selected_cancel("t_002", at_ms=next_cancel_at)
-    next_cancel_at = selected_cancel("t_003", at_ms=next_cancel_at)
+    next_cancel_at = selected_cancel(
+        "t_003" if repaired_controls else "t_002", at_ms=next_cancel_at
+    )
+    next_cancel_at = selected_cancel(
+        "t_002" if repaired_controls else "t_003", at_ms=next_cancel_at
+    )
 
     recipe.snapshot(next(neutral), at_ms=next_cancel_at)
-    extra_idle = recipe.action(_idle(), runtime_events=0)
+    extra_idle = recipe.action(_idle(neutral_idle), runtime_events=0)
     next_cancel_at += timing.service_ms[extra_idle] + 1_000
 
     fourth_cancel_at = max(next_cancel_at, fourth_due_at - 100)
@@ -1115,19 +1429,20 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
     )
 
     second_fire = recipe.world_event()
-    first_idle = recipe.action(_idle(), runtime_events=0)
+    first_idle = recipe.action(_idle(neutral_idle), runtime_events=0)
+    second_fire_ready_at = (
+        recurring_anchor
+        + timing.service_ms[first_skip]
+        + timing.service_ms[first_nudge]
+        + timing.service_ms[first_idle]
+        + 100
+    )
     recipe.snapshot(
         next(neutral),
-        at_ms=(
-            recurring_anchor
-            + timing.service_ms[first_skip]
-            + timing.service_ms[first_nudge]
-            + timing.service_ms[first_idle]
-            + 100
-        ),
+        at_ms=second_fire_ready_at,
     )
     recipe.action(NudgeAction(type="nudge", fire_event_id=second_fire), runtime_events=1)
-    recipe.action(_idle(), runtime_events=0)
+    recipe.action(_idle(neutral_idle), runtime_events=0)
 
     third_due_at = recurring_anchor + 3 * recurring_interval_ms
     carrier_source = long.instruction
@@ -1172,7 +1487,7 @@ def _timer_cancel_program(registry: AssetRegistry, master_seed: str) -> Scenario
     recipe.action(
         SkipAction(type="skip", target_event_id=third_fire, reason=SkipReason.CANCELED_TIMER)
     )
-    recipe.action(_idle(), runtime_events=0)
+    recipe.action(_idle(neutral_idle), runtime_events=0)
 
     if len(recipe.actions) != total_actions:
         raise RuntimeError("timer checkpoint action ledger drifted")

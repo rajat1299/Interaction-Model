@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   adoptLoadedPacket,
   loadPacketEntries,
@@ -6,7 +6,7 @@ import {
   mountReviewShell,
 } from "./shell";
 import { loadPacketFromEntries } from "./packet-loader";
-import { loadCanaryEntries, loadCanaryTeacherLabels } from "./test-fixtures";
+import { loadCanaryEntries, loadCanaryTeacherLabels, loadTimerWave1Entries } from "./test-fixtures";
 import type { LoadedPacket } from "./types";
 
 const PHASE2_EVIDENCE_SHA = `sha256:${"f".repeat(64)}`;
@@ -95,6 +95,16 @@ function phase2LegacyPacket(packet: LoadedPacket): LoadedPacket {
   } as LoadedPacket;
 }
 
+function queueGroupFor(button: Element): HTMLButtonElement[] {
+  let label: Element | null = button.previousElementSibling;
+  while (label && !label.classList.contains("queue-stream-label")) label = label.previousElementSibling;
+  const result: HTMLButtonElement[] = [];
+  for (let item = label?.nextElementSibling ?? null; item && !item.classList.contains("queue-stream-label"); item = item.nextElementSibling) {
+    if (item instanceof HTMLButtonElement) result.push(item);
+  }
+  return result;
+}
+
 describe("review shell", () => {
   let cleanup: (() => void) | null = null;
 
@@ -111,17 +121,47 @@ describe("review shell", () => {
     cleanup = mountReviewShell(root);
 
     expect(document.getElementById("empty-state")!.hidden).toBe(false);
-    expect(document.getElementById("empty-state")!.textContent).toContain("Load a checksum-verified packet to begin");
+    expect(document.getElementById("empty-state")!.textContent).toContain("Open a review packet to begin");
+    expect(document.getElementById("empty-state")!.textContent).toContain("Choose the better blinded result");
     expect(document.getElementById("review-workspace")!.hidden).toBe(true);
     expect((document.getElementById("btn-save-cluster") as HTMLButtonElement).disabled).toBe(true);
     expect((document.getElementById("import-review") as HTMLInputElement).disabled).toBe(true);
     expect((document.getElementById("btn-export") as HTMLButtonElement).disabled).toBe(true);
+    expect((document.getElementById("btn-reset-packet") as HTMLButtonElement).disabled).toBe(true);
 
     expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
     expect(document.getElementById("empty-state")!.hidden).toBe(true);
     expect(document.getElementById("review-workspace")!.hidden).toBe(false);
     expect((document.getElementById("import-review") as HTMLInputElement).disabled).toBe(false);
     expect((document.getElementById("btn-export") as HTMLButtonElement).disabled).toBe(false);
+    expect((document.getElementById("btn-reset-packet") as HTMLButtonElement).disabled).toBe(false);
+    expect((document.querySelector('#decision-decision option[value="accept"]') as HTMLOptionElement).textContent).toBe("Correct");
+    expect((document.querySelector('#decision-decision option[value="reject"]') as HTMLOptionElement).textContent).toBe("Incorrect");
+    expect((document.querySelector('#decision-decision option[value="flag"]') as HTMLOptionElement).textContent).toBe("Unsure");
+  });
+
+  it("starts only the current packet over after confirmation", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
+
+    const outcome = document.getElementById("stream-decision") as HTMLSelectElement;
+    outcome.value = "accept";
+    document.getElementById("btn-save-stream")!.click();
+    window.localStorage.setItem("another-packet", "keep");
+    const before = Object.keys(window.localStorage).filter((key) => key.startsWith("wp1-8-review-draft"));
+    expect(before.length).toBeGreaterThan(0);
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    document.getElementById("btn-reset-packet")!.click();
+    expect((document.getElementById("stream-decision") as HTMLSelectElement).value).toBe("accept");
+    document.getElementById("btn-reset-packet")!.click();
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect((document.getElementById("stream-decision") as HTMLSelectElement).value).toBe("");
+    expect(Object.keys(window.localStorage).filter((key) => key.startsWith("wp1-8-review-draft"))).toEqual([]);
+    expect(window.localStorage.getItem("another-packet")).toBe("keep");
   });
 
   it("supports essential keyboard navigation after load", async () => {
@@ -133,27 +173,29 @@ describe("review shell", () => {
     expect(err).toBeNull();
 
     const meta = () => document.getElementById("nav-meta")!.textContent ?? "";
-    expect(meta()).toMatch(/decision \d+\//);
-    const initialEvent = Number(meta().match(/event (\d+)\//)?.[1]);
+    expect(meta()).toMatch(/Decision \d+ of \d+/);
+    const initialEvent = JSON.parse(document.getElementById("inspect-event")!.textContent!).seq;
     const event = JSON.parse(document.getElementById("inspect-event")!.textContent!);
     const oracle = JSON.parse(document.getElementById("inspect-oracle")!.textContent!);
     expect(event.seq).toBe(oracle.observed_policy_seq);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "j" }));
-    expect(Number(meta().match(/event (\d+)\//)?.[1])).toBe(initialEvent + 1);
+    expect(JSON.parse(document.getElementById("inspect-event")!.textContent!).seq).toBe(initialEvent + 1);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
-    expect(Number(meta().match(/event (\d+)\//)?.[1])).toBe(initialEvent);
+    expect(JSON.parse(document.getElementById("inspect-event")!.textContent!).seq).toBe(initialEvent);
 
-    const initialDecision = Number(meta().match(/decision (\d+)\//)?.[1]);
+    const initialDecision = Number(meta().match(/Decision (\d+) of/)?.[1]);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
-    expect(Number(meta().match(/decision (\d+)\//)?.[1])).toBe(initialDecision + 1);
+    expect(Number(meta().match(/Decision (\d+) of/)?.[1])).toBe(initialDecision + 1);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }));
-    expect(Number(meta().match(/decision (\d+)\//)?.[1])).toBe(initialDecision);
+    expect(Number(meta().match(/Decision (\d+) of/)?.[1])).toBe(initialDecision);
 
+    const activeBefore = document.querySelector(".stream-item.active")?.textContent;
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "]" }));
-    expect(document.getElementById("load-status")!.textContent).toContain("family=");
+    expect(document.querySelector(".stream-item.active")?.textContent).not.toBe(activeBefore);
+    expect(document.getElementById("load-status")!.textContent).not.toContain("family");
   });
 
   it("queues and opens a different-type teacher disagreement by decision identity", async () => {
@@ -186,9 +228,7 @@ describe("review shell", () => {
     ).toBeNull();
     expect((document.getElementById("stream-decision") as HTMLSelectElement).value).toBe("");
 
-    const button = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")].find(
-      (item) => item.textContent?.includes(target.sha256.slice(0, 10)),
-    );
+    const button = document.querySelector<HTMLButtonElement>(`.stream-item[data-stream-sha="${target.sha256}"]`);
     expect(button).toBeTruthy();
     button!.click();
     const event = JSON.parse(document.getElementById("inspect-event")!.textContent!);
@@ -233,9 +273,7 @@ describe("review shell", () => {
       ),
     ).toBeNull();
 
-    const button = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")].find(
-      (item) => item.textContent?.includes(target.sha256.slice(0, 10)),
-    );
+    const button = document.querySelector<HTMLButtonElement>(`.stream-item[data-stream-sha="${target.sha256}"]`);
     expect(button).toBeTruthy();
     button!.click();
     const oracle = JSON.parse(document.getElementById("inspect-oracle")!.textContent!);
@@ -243,9 +281,7 @@ describe("review shell", () => {
     expect(document.getElementById("teacher-panel")!.textContent).toContain(
       "SEMANTIC REVIEW REQUIRED",
     );
-    expect(document.getElementById("progress")!.textContent).toContain(
-      "unresolved disagreements: 1",
-    );
+    expect(document.getElementById("progress")!.textContent).toContain("1 left");
   });
 
   it("loads the repaired canary labels into the real review queue", async () => {
@@ -254,9 +290,7 @@ describe("review shell", () => {
     cleanup = mountReviewShell(root);
     expect(await loadPacketEntries(loadCanaryEntries())).toBeNull();
     expect(await loadTeacherLabelsText(loadCanaryTeacherLabels())).toBeNull();
-    expect(document.getElementById("progress")!.textContent).toContain(
-      "unresolved disagreements: 50",
-    );
+    expect(document.getElementById("progress")!.textContent).toContain("50 left");
   });
 
   it("persists a packet-keyed draft and guards unexported work", async () => {
@@ -311,8 +345,10 @@ describe("review shell", () => {
     const box = document.getElementById("divergence")!;
     expect(box.hidden).toBe(false);
     expect(box.getAttribute("role")).toBe("alert");
-    expect(box.textContent).toContain("DIVERGENCE");
-    expect(box.textContent).toContain("active_timer_ids");
+    expect(box.querySelector(".divergence-summary")!.textContent).toContain("Packet replay differs");
+    expect(box.querySelector(".divergence-summary")!.textContent).not.toMatch(/active_timer_ids|[etr]_\d+/);
+    expect(box.querySelector("details")!.hasAttribute("open")).toBe(false);
+    expect(box.querySelector("details")!.textContent).toContain("active_timer_ids");
   });
 
   it("keeps Phase 2 origin evidence blind until a valid saved disposition, then restores it", async () => {
@@ -323,6 +359,8 @@ describe("review shell", () => {
     document.body.appendChild(root);
     cleanup = mountReviewShell(root);
     adoptLoadedPacket(phase2Packet(loaded.packet));
+    expect(document.getElementById("progress")!.textContent).toContain("3 left");
+    expect(document.querySelector(".rail-heading")!.textContent).toContain("Work through each interaction in order");
 
     document.querySelector<HTMLButtonElement>(".cluster-item")!.click();
     const preSave = [
@@ -399,6 +437,213 @@ describe("review shell", () => {
     expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
   });
 
+  it("queues equivalent decisions when their Phase 2 route requires human review", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const packet = phase2Packet(loaded.packet);
+    const equivalent = packet.phase2ReviewEvidence!.decisions.find(
+      (decision) => decision.comparison === "equivalent",
+    )!;
+    equivalent.review_evidence.review_route.review_required = true;
+    equivalent.review_evidence.review_route.mandatory = true;
+    equivalent.review_evidence.review_route.reasons = ["mandatory_action"];
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(packet);
+
+    expect(document.getElementById("progress")!.textContent).toContain("0 of 4 decisions reviewed · 4 left");
+    expect(document.querySelectorAll(".stream-item")).toHaveLength(4);
+    const verify = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")].find(
+      (button) => button.textContent?.includes("Verify "),
+    );
+    expect(verify).toBeTruthy();
+    verify!.click();
+    expect(document.getElementById("compare-title")!.textContent).toBe("Is this action correct?");
+    expect(document.getElementById("oracle-panel")!.textContent).not.toContain("Oracle:");
+    expect(document.getElementById("legacy-decision-fields")!.hidden).toBe(false);
+    expect(document.getElementById("legacy-decision-fields")!.tagName).toBe("DIV");
+    expect(document.getElementById("legacy-decision-fields")!.textContent).toContain("Correct");
+    expect((document.getElementById("decision-reason") as HTMLInputElement).type).toBe("hidden");
+    const beforeSave = document.getElementById("nav-meta")!.textContent;
+    (document.getElementById("decision-decision") as HTMLSelectElement).value = "accept";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "The action matches the visible request.";
+    document.getElementById("btn-save-decision")!.click();
+    expect(document.getElementById("nav-meta")!.textContent).not.toBe(beforeSave);
+    expect(document.querySelectorAll(".stream-item.reviewed")).toHaveLength(1);
+  });
+
+  it("resolves the due reminder message in the real Wave-1 single-action panel", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    expect(await loadPacketEntries(loadTimerWave1Entries())).toBeNull();
+
+    const reminders = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")]
+      .filter((button) => button.querySelector(".queue-title")?.textContent === "Verify send reminder");
+    expect(reminders.length).toBeGreaterThanOrEqual(2);
+    const target = reminders.find((button) => {
+      button.click();
+      const attention = document.querySelector(".vp-attention")?.textContent ?? "";
+      return attention.includes("open the fern ledger for the desk note") && attention.includes("580 ms ago");
+    });
+    expect(target).toBeTruthy();
+
+    expect(document.querySelector(".vp-attention")?.textContent).toContain("open the fern ledger for the desk note");
+    expect(document.querySelector(".vp-attention")?.textContent).toContain("580 ms ago");
+    expect(document.getElementById("oracle-panel")!.textContent).toBe(
+      "Send reminder: Send the due reminder: “open the fern ledger for the desk note”.",
+    );
+    expect(document.getElementById("legacy-decision-fields")!.hidden).toBe(false);
+  });
+
+  it("filters and navigates Phase 2 work at decision scope", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const packet = phase2Packet(loaded.packet);
+    for (const decision of packet.phase2ReviewEvidence!.decisions) {
+      decision.review_evidence.review_route.review_required = true;
+    }
+    const expected = packet.phase2ReviewEvidence!.decisions.filter(
+      (decision) => decision.oracle_action.type === "schedule",
+    ).length;
+    expect(expected).toBeGreaterThan(0);
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(packet);
+    const actionFilter = document.getElementById("filter-action") as HTMLSelectElement;
+    actionFilter.value = "schedule";
+    actionFilter.dispatchEvent(new Event("change"));
+
+    expect(document.querySelectorAll(".stream-item")).toHaveLength(expected);
+    expect(document.getElementById("nav-meta")!.textContent).toContain(`of ${expected}`);
+    for (const item of document.querySelectorAll(".stream-item")) {
+      expect(item.textContent).toContain("create reminder");
+    }
+  });
+
+  it("orders stream groups by their highest-priority pending decision and keeps each stream chronological", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const packet = phase2Packet(loaded.packet);
+    const streams = [...new Set(packet.phase2ReviewEvidence!.decisions.map((decision) => decision.stream_sha256))];
+    const first = packet.phase2ReviewEvidence!.decisions.find((decision) => decision.stream_sha256 === streams[0])!;
+    const second = packet.phase2ReviewEvidence!.decisions.find((decision) => decision.stream_sha256 === streams[1])!;
+    for (const decision of packet.phase2ReviewEvidence!.decisions) decision.review_evidence.review_route.review_required = false;
+    first.review_evidence.review_route.review_required = true;
+    second.review_evidence.review_route.review_required = true;
+    first.priority_rank = 10;
+    second.priority_rank = 0;
+    second.comparison = "equivalent";
+    second.candidates = [];
+    second.cluster_signature = null;
+    second.oracle_action = { type: "respond", reply_to_event_id: "e_1", text: "Priority interaction" };
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(packet);
+
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")];
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0].querySelector(".queue-title")!.textContent).toBe("Verify reply to user");
+    expect(buttons[0].querySelector(".queue-meta")!.textContent).toBe("Needs review");
+    expect(buttons[0].textContent).not.toContain("timer_creation_normal_fire");
+  });
+
+  it("rejects a stream at its first confirmed causal disagreement and removes its ordinary suffix", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const packet = phase2Packet(loaded.packet);
+    const target = packet.phase2ReviewEvidence!.decisions.find((decision) => decision.comparison === "causal_disagreement")!;
+    for (const decision of packet.phase2ReviewEvidence!.decisions) {
+      decision.review_evidence.wave_id = "timer-wave-1";
+      if (decision.stream_sha256 === target.stream_sha256) decision.review_evidence.review_route.review_required = true;
+    }
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(packet);
+    const active = document.querySelector<HTMLButtonElement>(".stream-item.active")!;
+    expect(queueGroupFor(active).length).toBeGreaterThan(1);
+    (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
+    (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "The causal action is wrong.";
+    document.getElementById("btn-save-decision")!.click();
+
+    const reviewed = document.querySelector<HTMLButtonElement>(".stream-item.reviewed")!;
+    expect(reviewed).toBeTruthy();
+    expect(queueGroupFor(reviewed)).toHaveLength(1);
+    reviewed.click();
+    expect((document.getElementById("stream-decision") as HTMLSelectElement).value).toBe("reject");
+  });
+
+  it("honors an explicit interaction rejection by removing ordinary detailed-review rows", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const packet = phase2Packet(loaded.packet);
+    const target = packet.phase2ReviewEvidence!.decisions.find((decision) => decision.comparison === "causal_disagreement")!;
+    for (const decision of packet.phase2ReviewEvidence!.decisions) {
+      decision.review_evidence.wave_id = "timer-wave-1";
+      if (decision.stream_sha256 === target.stream_sha256) decision.review_evidence.review_route.review_required = true;
+    }
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(packet);
+    const active = document.querySelector<HTMLButtonElement>(".stream-item.active")!;
+    expect(queueGroupFor(active).length).toBeGreaterThan(1);
+    (document.getElementById("stream-decision") as HTMLSelectElement).value = "reject";
+    document.getElementById("btn-save-stream")!.click();
+
+    const remaining = [...document.querySelectorAll<HTMLButtonElement>(".stream-item")]
+      .find((button) => button.classList.contains("active"));
+    expect(remaining ? queueGroupFor(remaining).length : 0).toBeLessThan(2);
+  });
+
+  it("shows a visible validation error and preserves an existing comparison outcome on resave", async () => {
+    const loaded = await loadPacketFromEntries(loadCanaryEntries());
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    cleanup = mountReviewShell(root);
+    adoptLoadedPacket(phase2Packet(loaded.packet));
+
+    document.getElementById("btn-save-decision")!.click();
+    expect(document.getElementById("decision-error")!.hidden).toBe(false);
+    expect(document.getElementById("decision-error")!.textContent).toContain("Choose Candidate A or Candidate B");
+    expect(document.activeElement).toBe(document.getElementById("phase2-choice-A"));
+
+    (document.getElementById("decision-decision") as HTMLSelectElement).value = "reject";
+    (document.getElementById("phase2-choice-A") as HTMLInputElement).checked = true;
+    (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Initial review.";
+    document.getElementById("btn-save-decision")!.click();
+    document.querySelector<HTMLButtonElement>(".stream-item.reviewed")!.click();
+    expect((document.getElementById("decision-decision") as HTMLSelectElement).value).toBe("reject");
+
+    (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Reviewed again.";
+    document.getElementById("btn-save-decision")!.click();
+    const draft = [...Array(window.localStorage.length).keys()]
+      .map((index) => window.localStorage.getItem(window.localStorage.key(index)!) ?? "")
+      .find((text) => text.includes("Reviewed again."))!;
+    const record = draft.trim().split("\n").map((line) => JSON.parse(line)).find(
+      (item) => item.note === "Reviewed again.",
+    );
+    expect(record.decision).toBe("reject");
+  });
+
   it("never restores or reveals a paired decision from a replaced Phase 2 evidence hash", async () => {
     const loaded = await loadPacketFromEntries(loadCanaryEntries());
     expect(loaded.ok).toBe(true);
@@ -413,6 +658,7 @@ describe("review shell", () => {
     (document.getElementById("phase2-category") as HTMLSelectElement).value = "teacher_error";
     (document.getElementById("decision-note") as HTMLTextAreaElement).value = "Bound to the first evidence root.";
     document.getElementById("btn-save-decision")!.click();
+    document.querySelector<HTMLButtonElement>(".stream-item.reviewed")!.click();
     expect(document.getElementById("phase2-compare")!.textContent).toContain("Origin:");
 
     cleanup();
@@ -443,6 +689,7 @@ describe("review shell", () => {
     (document.getElementById("decision-note") as HTMLTextAreaElement).value = "legacy compatible";
     document.getElementById("btn-save-decision")!.click();
 
+    document.querySelector<HTMLButtonElement>(".stream-item.reviewed")!.click();
     expect((document.getElementById("decision-decision") as HTMLSelectElement).value).toBe("accept");
     expect(document.getElementById("phase2-compare")!.hidden).toBe(true);
   });

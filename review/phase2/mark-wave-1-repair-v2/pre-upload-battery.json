@@ -1,0 +1,1 @@
+{"case_count":8,"checks":{"ambiguous_line_absent_from_target_snapshot":true,"direct_control_continuous":true,"final_materialized_stream_checked":true,"only_negative_core_a_changed_suffix_selected":true,"prompt_v3_unchanged":true},"format_version":1,"kind":"phase2-mark-wave1-final-a-repair-pre-upload-battery","oracle_actions":{"idle":5,"mark":3},"stream_count":1}

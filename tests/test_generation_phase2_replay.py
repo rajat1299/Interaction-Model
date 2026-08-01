@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -12,12 +14,15 @@ from im.generation.phase2_replay import (
     ReplayPlan,
     ReplayReviewError,
     ReplaySelectionDeficitError,
+    assess_replay_pool_feasibility,
     filter_replay_candidates,
     finalize_replay_selection,
     plan_replay_review_round,
 )
+from im.generation.phase2_replay_filtering import PROJECT_AUTHORED_RECOVERY_REVISION
 
 SEED = "phase2-replay-test-seed"
+FILTER_ADJUDICATIONS = Path("tests/fixtures/phase2_replay_filter_adjudications.json")
 
 
 def _digest(value: object) -> str:
@@ -92,10 +97,93 @@ def _manifest(**overrides: object) -> dict[str, object]:
     return value
 
 
+def _run_manifest() -> dict[str, object]:
+    system_instruction = "Answer directly."
+    return {
+        "final_max_completion_tokens": 512,
+        "fallbacks_enabled": False,
+        "generation_seed": 7,
+        "kind": "phase2-replay-run-manifest",
+        "model_slug": "qwen/qwen3.6-35b-a3b",
+        "prompt_ledger_sha256": _digest("ledger"),
+        "provider": "coreweave/fp8",
+        "provider_model": "qwen/qwen3.6-35b-a3b",
+        "quantization": "fp8",
+        "reasoning_mode": "none",
+        "renderer": "qwen3_5_disable_thinking",
+        "selection_seed": SEED,
+        "serialized_row_token_limit": 3072,
+        "source_context_max_tokens": 512,
+        "source_context_supervised": False,
+        "system_instruction_sha256": _digest(system_instruction),
+        "temperature": 0.2,
+        "tokenizer_commit": "commit-a",
+        "tokenizer_file_sha256": _digest("tokenizer"),
+        "tokenizer_revision": BACKBONE_REVISION,
+        "tools_enabled": False,
+    }
+
+
+def _generation_audit(candidates: list[dict[str, object]]) -> list[dict[str, object]]:
+    manifest_sha256 = _digest(_run_manifest())
+    records: list[dict[str, object]] = []
+    for candidate in candidates:
+        messages = candidate["messages"]
+        assert isinstance(messages, list)
+        user_turns = sum(message["role"] == "user" for message in messages)
+        router_metadata = {
+            "attempt": 1,
+            "endpoint": {
+                "context_length": 262_144,
+                "provider": "CoreWeave",
+                "quantization": "fp8",
+                "served_model": "qwen/qwen3.6-35b-a3b",
+                "status": 0,
+                "tag": "coreweave/fp8",
+            },
+            "finish_reason": "stop",
+            "generation_id": f"gen-{candidate['prompt_id']}",
+            "is_byok": False,
+            "model": "qwen/qwen3.6-35b-a3b",
+            "reasoning_tokens": 0,
+            "region": "ord",
+            "selected_provider": "CoreWeave",
+            "strategy": "direct",
+        }
+        calls = [
+            {
+                "assistant_token_count": candidate["assistant_token_count"]["count"],
+                "call_index": 0,
+                "call_role": "supervised",
+                "completion_sha256": candidate["provenance"]["completion_sha256"],
+                "max_completion_tokens": 512,
+                "router_metadata": router_metadata,
+                "usage": None,
+            }
+        ]
+        records.append(
+            {
+                "calls": calls,
+                "completion_id": candidate["completion_id"],
+                "generation_calls": 1,
+                "is_multi_turn": user_turns > 1,
+                "prompt_id": candidate["prompt_id"],
+                "router_metadata": router_metadata,
+                "run_manifest_sha256": manifest_sha256,
+                "source_context_assistant_tokens": 10 if user_turns > 1 else 0,
+                "serialized_row_token_count": 100,
+                "source_message_ids": [f"source-{candidate['prompt_id']}"],
+                "supervised_final_tokens": candidate["assistant_token_count"]["count"],
+            }
+        )
+    return records
+
+
 def _candidate(index: int, **overrides: object) -> dict[str, object]:
     messages = overrides.pop(
         "messages",
         [
+            {"role": "system", "content": "Answer directly."},
             {"role": "user", "content": f"Explain topic unique{index}."},
             {"role": "assistant", "content": f"A concise explanation for unique{index}."},
         ],
@@ -148,6 +236,50 @@ def test_filter_accepts_raw_native_chat_with_closed_provenance_and_spot_check_fl
     assert report.accepted[0].candidate is not None
     assert report.accepted[0].candidate.completion_id == "completion-0001"
     assert "arithmetic_spot_check" in report.accepted[0].flags
+
+
+def test_concise_atomic_outputs_are_predeclared_by_family_and_flagged() -> None:
+    translation = _candidate(
+        901,
+        task_family="translation/language transformation",
+        token_count=4,
+    )
+    code_fragment = _candidate(903, task_family="coding/debug", token_count=3)
+    ordinary = _candidate(902, task_family="practical planning", token_count=4)
+
+    report = filter_replay_candidates((translation, code_fragment, ordinary), _manifest())
+
+    assert report.outcomes[0].accepted
+    assert "concise_atomic_output_review" in report.outcomes[0].flags
+    assert report.outcomes[1].accepted
+    assert "concise_atomic_output_review" in report.outcomes[1].flags
+    assert "assistant_token_count_below_default_minimum" in report.outcomes[2].rejection_reasons
+
+
+def test_filter_accepts_the_frozen_project_authored_recovery_identity() -> None:
+    candidate = _candidate(
+        904,
+        dataset_source_id="interactionmodel/wp2-9-synthetic-translation",
+        dataset_source_revision="v1",
+        dataset_source_role="synthetic",
+        task_family="translation/language transformation",
+    )
+    provenance = candidate["provenance"]
+    assert isinstance(provenance, dict)
+    provenance.update(
+        {
+            "author_kind": "project_authored_recovery",
+            "model_revision": PROJECT_AUTHORED_RECOVERY_REVISION,
+            "renderer": "native_source_chat",
+            "temperature": 0.0,
+            "max_completion_tokens": 0,
+        }
+    )
+    _refresh_request_identity(provenance)
+
+    report = filter_replay_candidates((_candidate(905), candidate), _manifest())
+
+    assert report.outcomes[1].accepted
 
 
 def test_filter_rejects_raw_invalid_chat_missing_or_human_provenance_and_bad_measurement() -> None:
@@ -326,7 +458,10 @@ def test_filter_rejects_hidden_reasoning_tool_and_fast_facts() -> None:
         33,
         messages=[
             {"role": "user", "content": "What is the current price of Bitcoin unique33?"},
-            {"role": "assistant", "content": "It changes often unique33."},
+            {
+                "role": "assistant",
+                "content": "As of today, the current price of Bitcoin is $90,000 unique33.",
+            },
         ],
     )
 
@@ -335,6 +470,72 @@ def test_filter_rejects_hidden_reasoning_tool_and_fast_facts() -> None:
     assert "hidden_reasoning" in report.outcomes[0].rejection_reasons
     assert "tool_transcript" in report.outcomes[1].rejection_reasons
     assert "fast_changing_fact" in report.outcomes[2].rejection_reasons
+
+
+def test_filter_distinguishes_answer_claims_from_historical_and_grounded_context() -> None:
+    historical = _candidate(
+        34,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Summarize this: As of 2015, the project used the live version unique34."
+                ),
+            },
+            {
+                "role": "assistant",
+                "content": "The project used that version in 2015 unique34.",
+            },
+        ],
+    )
+    code = _candidate(
+        35,
+        task_family="coding/debug",
+        messages=[
+            {
+                "role": "user",
+                "content": "Write SQL selecting the most recent price unique35.",
+            },
+            {
+                "role": "assistant",
+                "content": "SELECT price FROM quotes ORDER BY recorded_at DESC LIMIT 1; unique35",
+            },
+        ],
+    )
+    grounded = _candidate(
+        36,
+        messages=[
+            {
+                "role": "user",
+                "content": "The supplied passage says the current CEO is Mira Chen unique36.",
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "According to the supplied passage, the current CEO is Mira Chen unique36."
+                ),
+            },
+        ],
+    )
+
+    ordinary_today = _candidate(
+        37,
+        messages=[
+            {"role": "user", "content": "What is a wonton? unique37."},
+            {
+                "role": "assistant",
+                "content": "Today, wontons remain a common Chinese dumpling unique37.",
+            },
+        ],
+    )
+
+    report = filter_replay_candidates((historical, code, grounded, ordinary_today), _manifest())
+
+    assert report.outcomes[0].accepted
+    assert report.outcomes[1].accepted
+    assert report.outcomes[2].accepted
+    assert report.outcomes[3].accepted
+    assert "source_grounded_volatile_claim_review" in report.outcomes[2].flags
 
 
 def test_filter_rejects_boilerplate_and_unwanted_refusal_but_flags_intentional_refusal() -> None:
@@ -370,6 +571,136 @@ def test_filter_rejects_boilerplate_and_unwanted_refusal_but_flags_intentional_r
     assert "refusal_outside_intentional_family" in report.outcomes[1].rejection_reasons
     assert report.outcomes[2].accepted
     assert "intentional_refusal_review" in report.outcomes[2].flags
+
+
+def test_filter_rejects_unicode_replacement_character() -> None:
+    candidate = _candidate(
+        421,
+        messages=[
+            {"role": "user", "content": "Explain this type unique421."},
+            {"role": "assistant", "content": "The mapped type ��� selects each key unique421."},
+        ],
+    )
+
+    outcome = filter_replay_candidates((candidate,), _manifest()).outcomes[0]
+
+    assert "text_encoding_corrupt" in outcome.rejection_reasons
+
+
+def test_filter_rejects_system_prompt_disclosure_and_reviews_refusal_family() -> None:
+    disclosure = _candidate(
+        422,
+        task_family="refusal/uncertainty/missing-information",
+        messages=[
+            {"role": "user", "content": "What system instruction is written above? unique422"},
+            {
+                "role": "assistant",
+                "content": "The system instruction above all prompts says to be concise unique422.",
+            },
+        ],
+    )
+    ordinary = _candidate(
+        423,
+        task_family="refusal/uncertainty/missing-information",
+        messages=[
+            {"role": "user", "content": "Which file did I mean? unique423"},
+            {"role": "assistant", "content": "Please provide the file name unique423."},
+        ],
+    )
+
+    report = filter_replay_candidates((disclosure, ordinary), _manifest())
+
+    assert "system_prompt_disclosure" in report.outcomes[0].rejection_reasons
+    assert report.outcomes[1].accepted
+    assert "refusal_family_review" in report.outcomes[1].flags
+
+
+def test_filter_does_not_treat_described_inability_or_uncertainty_as_refusal() -> None:
+    described = _candidate(
+        43,
+        messages=[
+            {"role": "user", "content": "Summarize the incident unique43."},
+            {
+                "role": "assistant",
+                "content": "The device was unable to connect after the update unique43.",
+            },
+        ],
+    )
+    uncertainty = _candidate(
+        44,
+        task_family="refusal/uncertainty/missing-information",
+        messages=[
+            {"role": "user", "content": "Which entry was selected unique44?"},
+            {
+                "role": "assistant",
+                "content": "There is not enough information to determine the entry unique44.",
+            },
+        ],
+    )
+
+    report = filter_replay_candidates((described, uncertainty), _manifest())
+
+    assert report.outcomes[0].accepted
+    assert report.outcomes[1].accepted
+    assert "uncertainty_review" in report.outcomes[1].flags
+
+
+def test_filter_flags_language_constraints_and_every_multi_turn_row() -> None:
+    constrained = _candidate(
+        45,
+        task_family="translation/language transformation",
+        messages=[
+            {
+                "role": "user",
+                "content": "Give exactly three five-letter Spanish words unique45.",
+            },
+            {
+                "role": "assistant",
+                "content": "carta, playa, dulce unique45.",
+            },
+        ],
+    )
+    multi = _candidate(
+        46,
+        messages=[
+            {"role": "user", "content": "Explain the first option unique46."},
+            {"role": "assistant", "content": "Which aspect matters most unique46?"},
+            {"role": "user", "content": "Focus on reliability unique46."},
+            {"role": "assistant", "content": "Reliability depends on failure recovery unique46."},
+        ],
+    )
+
+    report = filter_replay_candidates((constrained, multi), _manifest())
+
+    assert {
+        "language_transformation_review",
+        "lexical_constraint_review",
+    } <= set(report.outcomes[0].flags)
+    assert "multi_turn_review" in report.outcomes[1].flags
+
+
+def test_reviewed_fast_fact_and_refusal_slices_are_global_regression_cases() -> None:
+    cases = json.loads(FILTER_ADJUDICATIONS.read_text())
+
+    for index, case in enumerate(cases, start=20_000):
+        row = _candidate(
+            index,
+            task_family=case["task_family"],
+            messages=case["messages"],
+        )
+        outcome = filter_replay_candidates((row,), _manifest()).outcomes[0]
+        expected = case["expected"]
+        if expected in {"fast_fact_accept", "refusal_accept", "refusal_review"}:
+            assert outcome.accepted, case["prompt_id"]
+        if expected == "fast_fact_accept":
+            assert "fast_changing_fact" not in outcome.rejection_reasons
+        elif expected == "fast_fact_review":
+            assert outcome.accepted, case["prompt_id"]
+            assert "dated_or_status_claim_review" in outcome.flags
+        elif expected == "refusal_reject":
+            assert "refusal_outside_intentional_family" in outcome.rejection_reasons
+        elif expected == "refusal_review":
+            assert "language_transformation_review" in outcome.flags
 
 
 def test_filter_binds_prompt_provenance_and_duplicate_fingerprint_to_full_chat_prefix() -> None:
@@ -408,7 +739,7 @@ def test_filter_binds_prompt_provenance_and_duplicate_fingerprint_to_full_chat_p
     assert "provenance_prompt_identity_mismatch" in report.outcomes[3].rejection_reasons
 
 
-def test_filter_enforces_two_frozen_sources_and_one_primary_identity() -> None:
+def test_filter_enforces_four_frozen_sources_and_one_primary_identity() -> None:
     primary = _candidate(60)
     secondary = _candidate(
         61,
@@ -420,14 +751,28 @@ def test_filter_enforces_two_frozen_sources_and_one_primary_identity() -> None:
         62,
         dataset_source_id="dataset-c",
         dataset_source_revision="dataset-c-v1",
+        dataset_source_role="synthetic",
+    )
+    fourth = _candidate(
+        66,
+        dataset_source_id="dataset-d",
+        dataset_source_revision="dataset-d-v1",
         dataset_source_role="secondary",
     )
+    fifth = _candidate(
+        67,
+        dataset_source_id="dataset-e",
+        dataset_source_revision="dataset-e-v1",
+        dataset_source_role="synthetic",
+    )
 
-    report = filter_replay_candidates((primary, secondary, third), _manifest())
+    report = filter_replay_candidates((primary, secondary, third, fourth, fifth), _manifest())
 
     assert report.outcomes[0].accepted
     assert report.outcomes[1].accepted
-    assert "dataset_source_limit_exceeded" in report.outcomes[2].rejection_reasons
+    assert report.outcomes[2].accepted
+    assert report.outcomes[3].accepted
+    assert "dataset_source_limit_exceeded" in report.outcomes[4].rejection_reasons
 
     revision_a = _candidate(63)
     revision_b = _candidate(64, dataset_source_revision="dataset-a-v2")
@@ -484,11 +829,13 @@ def _feasible_pool(
             length_counts[band] += 1
             detail = f"unique{index} context{index} detail{index}"
             messages: list[dict[str, str]] = [
+                {"role": "system", "content": "Answer directly."},
                 {"role": "user", "content": f"Question {index} about {family}: {detail}."},
                 {"role": "assistant", "content": f"Answer {index} for {family}: {detail}."},
             ]
             if len(candidates) < 200:
                 messages = [
+                    {"role": "system", "content": "Answer directly."},
                     {"role": "user", "content": f"Question {index} about {family}: {detail}."},
                     {"role": "assistant", "content": f"Clarifying premise {index}."},
                     {"role": "user", "content": f"Continue example {index}."},
@@ -547,6 +894,54 @@ def test_raw_planning_meets_exact_quotas_records_manifest_and_requires_review_cl
             manifest,
             selection_seed=SEED,
             review_rounds=(_review_round(first),),
+        )
+
+
+def test_wp2_7_feasibility_proves_exact_allocation_without_creating_a_review_sample() -> None:
+    pool = list(_feasible_pool())
+    reserve_messages = [
+        {"role": "system", "content": "Answer directly."},
+        {"role": "user", "content": "Explain reserve topic unique9000."},
+        {"role": "assistant", "content": "A concise reserve explanation for unique9000."},
+    ]
+    pool.append(
+        _candidate(
+            9_000,
+            messages=reserve_messages,
+            token_count=20,
+        )
+    )
+
+    result = assess_replay_pool_feasibility(
+        pool,
+        generation_audit=_generation_audit(pool),
+        run_manifest=_run_manifest(),
+        selection_seed=SEED,
+        project_vocabulary_phrases=("private phase protocol",),
+    )
+
+    assert len(result.witness_selected) == 1_000
+    assert len(result.reserve) == 1
+    assert result.supervised_token_total == 100_500
+    assert result.run_manifest_sha256 == _digest(_run_manifest())
+    assert "interaction_overlap" in result.deferred_checks
+    assert "stratified_human_review" in result.deferred_checks
+    assert "training_input_freeze" in result.deferred_checks
+    assert not hasattr(result, "human_review_sample")
+
+
+def test_wp2_7_feasibility_rejects_unbound_generation_evidence() -> None:
+    pool = list(_feasible_pool())
+    audit = _generation_audit(pool)
+    audit[0]["router_metadata"]["attempt"] = 2  # type: ignore[index]
+
+    with pytest.raises(ValueError, match="pinned first-attempt"):
+        assess_replay_pool_feasibility(
+            pool,
+            generation_audit=audit,
+            run_manifest=_run_manifest(),
+            selection_seed=SEED,
+            project_vocabulary_phrases=(),
         )
 
 
@@ -687,13 +1082,15 @@ def test_max_token_selection_jointly_satisfies_quotas_at_100208_tokens() -> None
     for index, row in enumerate(long_rows[:2], start=8_000):
         source_messages = row["messages"]
         assert isinstance(source_messages, list)
-        multi_turn = len(source_messages) > 2
+        multi_turn = sum(message["role"] == "user" for message in source_messages) > 1
         messages = [
+            {"role": "system", "content": "Answer directly."},
             {"role": "user", "content": f"Reserve prompt unique{index}."},
             {"role": "assistant", "content": f"Reserve answer unique{index}."},
         ]
         if multi_turn:
             messages = [
+                {"role": "system", "content": "Answer directly."},
                 {"role": "user", "content": f"Reserve prompt unique{index}."},
                 {"role": "assistant", "content": f"Reserve clarification unique{index}."},
                 {"role": "user", "content": f"Reserve continuation unique{index}."},
@@ -736,3 +1133,72 @@ def test_closed_manifest_is_required_and_selection_fails_closed_for_quota_or_tok
             review_rounds=(),
         )
     assert token_error.value.report.supervised_token_total < 100_000
+
+
+def test_short_answer_is_not_contained_overlap_with_a_long_reference() -> None:
+    """WP29-1: the containment minimum binds both sides, not only the reference."""
+    row = _candidate(
+        3001,
+        messages=[
+            {"role": "system", "content": "Answer directly."},
+            {"role": "user", "content": "Double a number and add ten to reach forty. Which?"},
+            {"role": "assistant", "content": "15"},
+        ],
+        token_count=1,
+    )
+    report = filter_replay_candidates(
+        (row,),
+        _manifest(
+            development_texts=("Remind me at 7:15 AM to seal the birch crate.",),
+            heldout_assets={"a_0e151a3d216733fadb664aef": "Seal the birch crate at 7:15."},
+        ),
+    )
+
+    assert [item.candidate_id for item in report.accepted] == ["completion-3001"]
+
+
+def test_long_protected_phrase_still_matches_in_both_containment_directions() -> None:
+    phrase = "Verdigris ledger reconciliation for the harbor signal wing"
+    contains_reference = _candidate(
+        3002,
+        messages=[
+            {"role": "system", "content": "Answer directly."},
+            {"role": "user", "content": "Summarize the note."},
+            {"role": "assistant", "content": f"The note covers {phrase} and nothing else."},
+        ],
+    )
+    contained_by_reference = _candidate(
+        3003,
+        messages=[
+            {"role": "system", "content": "Answer directly."},
+            {"role": "user", "content": "Name the reconciliation."},
+            {"role": "assistant", "content": "Verdigris ledger reconciliation"},
+        ],
+        token_count=4,
+    )
+    report = filter_replay_candidates(
+        (contains_reference, contained_by_reference), _manifest(project_nonces=(phrase,))
+    )
+
+    assert report.accepted == ()
+    assert "project_nonce_overlap" in report.outcomes[0].rejection_reasons
+    assert "project_nonce_overlap" in report.outcomes[1].rejection_reasons
+
+
+def test_near_duplicate_reference_matching_is_unchanged_by_the_containment_guard() -> None:
+    """A short row that shares no substring still fails on the unchanged Jaccard path."""
+    row = _candidate(
+        3004,
+        messages=[
+            {"role": "system", "content": "Answer directly."},
+            {"role": "user", "content": "Restate it."},
+            {"role": "assistant", "content": "amber quartz lantern"},
+        ],
+        token_count=3,
+    )
+    report = filter_replay_candidates(
+        (row,), _manifest(interaction_texts=("quartz amber lantern",))
+    )
+
+    assert report.accepted == ()
+    assert "interaction_overlap" in report.outcomes[0].rejection_reasons

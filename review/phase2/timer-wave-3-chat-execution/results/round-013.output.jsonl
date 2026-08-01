@@ -1,0 +1,11 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d020.a1","action":{"type":"nudge","fire_event_id":"e_000040"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d020.a1","action":{"type":"nudge","fire_event_id":"e_000040"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d020.a1","action":{"type":"nudge","fire_event_id":"e_000040"}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d020.a1","action":{"type":"nudge","fire_event_id":"e_000040"}}
+{"custom_id":"t2w3.wave3-normal_compact-00.d012.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-normal_compact-01.d012.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d012.a1","action":{"type":"nudge","fire_event_id":"e_000027"}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d012.a1","action":{"type":"nudge","fire_event_id":"e_000027"}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d012.a1","action":{"type":"nudge","fire_event_id":"e_000027"}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d012.a1","action":{"type":"nudge","fire_event_id":"e_000027"}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d019.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000022"}}

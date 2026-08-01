@@ -1,0 +1,1 @@
+{"format_version":1,"kind":"phase2-wp2-9-d13-closure","record_count":2000,"stage2_selection_proof":{"artifact_path":"review/phase2/wp2-9-stage2-selection-proof/stage2-selection-proof.json","sha256":"ffc3451ff82e9d0d4f7157740135a8f13557550b880cbf9aef8bd7f670ebdf71"},"totals":{"human":512,"oracle_teacher_agreement":1488,"teacher_auto_trusted":0},"unresolved":0}

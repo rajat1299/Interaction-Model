@@ -1,0 +1,15 @@
+{
+  "call_index": 0,
+  "call_role": "scaffolding",
+  "finish_reason": "length",
+  "generation_id": null,
+  "generation_id_status": "not preserved by the pre-repair runner",
+  "kind": "phase2-replay-failed-attempt",
+  "max_completion_tokens": 512,
+  "model_slug": "qwen/qwen3.6-35b-a3b",
+  "outcome": "rejected",
+  "prompt_id": "c1db4da0f8c7b34fb3997dc86c0a48e7",
+  "provider_endpoint": "coreweave/fp8",
+  "routing_evidence_status": "the request was endpoint-pinned with fallback disabled, but inline response evidence was not preserved before finish-reason validation",
+  "run_manifest_sha256": "sha256:ddc1c65410abbd1382fd24183905f767d696b52559a0dc307f7d2a754c29a50d"
+}

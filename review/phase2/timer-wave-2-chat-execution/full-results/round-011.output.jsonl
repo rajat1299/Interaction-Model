@@ -1,0 +1,40 @@
+{"custom_id":"t2w2r2.cancel-checkpoint-00.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-01.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-02.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-03.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-04.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-05.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-06.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-07.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-08.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-09.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-10.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-11.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-12.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-13.d018.a1","action":{"type":"nudge","fire_event_id":"e_000036"}}
+{"custom_id":"t2w2r2.contention-checkpoint-00.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w2r2.contention-checkpoint-01.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w2r2.contention-checkpoint-02.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w2r2.contention-checkpoint-03.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w2r2.contention-checkpoint-04.d026.a1","action":{"type":"cancel","instruction":{"event_id":"e_000041","start_utf16":0,"end_utf16":48,"text":"Cancel the second active mint-envelope reminder."},"target":{"kind":"timer","timer_id":"t_002"}}}
+{"custom_id":"t2w2r2.normal_compact-00.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w2r2.normal_compact-01.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w2r2.normal_compact-02.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w2r2.normal_compact-03.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w2r2.normal_compact-04.d010.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000015"}}
+{"custom_id":"t2w2r2.normal_wide-00.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-01.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-02.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-03.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-04.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-05.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-06.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-07.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-08.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-09.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.normal_wide-10.d010.a1","action":{"type":"nudge","fire_event_id":"e_000024"}}
+{"custom_id":"t2w2r2.rollover_a-00.d014.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_a-01.d014.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-02.d014.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-03.d014.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-04.d014.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}

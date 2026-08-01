@@ -20,6 +20,9 @@ dev = [
     "hypothesis",
     "ruff",
     "jsonschema>=4.26.0",
+    "tokenizers>=0.23.1",
+    "z3-solver>=5.0.0.0",
+    "highspy>=1.15.1",
 ]
 
 [build-system]

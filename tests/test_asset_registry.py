@@ -399,7 +399,8 @@ def test_heldout_seals_refuse_any_pending_corpus_record(split: Split) -> None:
         create_split_seal(registry, split)
 
 
-def test_dev_seals_remain_strict_until_dev_readiness_is_authorized() -> None:
+def test_dev_seals_are_cumulative_and_omit_pending_records() -> None:
+    """WP2-8 owner decision: DEV joined TRAIN's cumulative approved-subset seal policy."""
     reviewed = asset(
         "a_dev_approved_strict",
         Split.DEV,
@@ -408,10 +409,26 @@ def test_dev_seals_remain_strict_until_dev_readiness_is_authorized() -> None:
     )
     pending = asset("a_dev_pending_strict", Split.DEV, "pending dev text")
 
-    with pytest.raises(AssetValidationError, match="dev seal requires every"):
-        create_split_seal(
-            AssetRegistry(assets=(reviewed, pending), reviews=(approved(reviewed),)), Split.DEV
+    registry = AssetRegistry(assets=(reviewed, pending), reviews=(approved(reviewed),))
+    seal = create_split_seal(registry, Split.DEV)
+    assert [entry.asset_id for entry in seal.entries] == [reviewed.asset_id]
+    with pytest.raises(AssetRegistryError, match="not approved"):
+        registry.pool(Split.DEV).bundle(pending.asset_id)
+
+
+def test_test_and_demo_seals_remain_strict() -> None:
+    for split in (Split.TEST, Split.DEMO):
+        reviewed = asset(
+            f"a_{split.value}_approved_strict",
+            split,
+            f"approved {split.value} text",
+            coverage=tuple(sorted(CorpusFamily, key=str)),
         )
+        pending = asset(f"a_{split.value}_pending_strict", split, f"pending {split.value} text")
+        with pytest.raises(AssetValidationError, match="seal requires every"):
+            create_split_seal(
+                AssetRegistry(assets=(reviewed, pending), reviews=(approved(reviewed),)), split
+            )
 
 
 def test_seals_ignore_errors_confined_to_omitted_unapproved_records() -> None:

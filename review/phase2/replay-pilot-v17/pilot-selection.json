@@ -1,0 +1,455 @@
+{
+ "format_version": 1,
+ "kind": "phase2-replay-pilot-selection",
+ "pilot_calls": 22,
+ "prompts": [
+  {
+   "assistant_context_token_counts": [
+    36
+   ],
+   "assistant_context_turns": [
+    "It depends on the specific calculator that you have. If you have a TI-84 or FX 7900 GX then it would have a dedicated interface for programming."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "c1db4da0f8c7b34fb3997dc86c0a48e7",
+   "source_message_ids": [
+    "5851f926-3570-42fb-b4fe-61f956447714",
+    "7440750a-3759-4ecf-bb34-ac6f2950c32f",
+    "cda1546c-1e62-401a-b47e-8f9eca30a931"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "Can you write code for a basic calculator with an interface?",
+    "No, not the programming language called BASIC.  I mean create a program that makes a calculator app."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "dc2feb8d46580af8a32dae5656771f1f",
+   "source_message_ids": [
+    "18dbe117-e727-4284-a636-596161ad9b60"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "This function in C++ is for checking if a number is prime or not. Can you create a driver/main function that will use it and print to the console the first 20 prime numbers?\n\nusing namespace std;\n \nbool isPrime(int n)\n{\n      if(n == 1 || n == 0) return false;\n\n      for(int i = 2; i < n; i++)\n      {\n        if(n % i == 0) return false;\n      }\n      return true;\n}"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "0f74b28a47a300f4d0bc16ea981e9621",
+   "source_message_ids": [
+    "dolly:13609"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "Given a reference text about Audrey Babette Blackman, tell me her parents names and occupations.\n\nAudrey Babette Blackman (n\u00e9e Seligman; 28 July 1907 \u2013 17 July 1990) was a British sculptor and ceramist.\n\nBiography\nBlackman was born in London and raised in Leatherhead in Surrey by her parents, Hilda, a sculptor and author, and Richard Seligman, a chemical engineer. After attending Wimbledon High School in London, Blackman spent two years, from 1924, at a Kunstgewerbeschule in Graz in Austria before returning to England to study at Goldsmiths College School of Art until 1930 and then at the University of Reading from 1931 until 1935.\n\nBlackman initially worked in bronze to produce small group pieces and figures but after World War II began using terracotta and stoneware before concentrating on creating ceramic figures. In her ceramic work, Blackman worked rolled and slabbed pieces of clay into figurines and, in 1978, published a handbook, Rolled Pottery Figures, on her technique. Later in her life she produced more abstract pieces, including paintings in both watercolour and gouache.\n\nBlackman was a regular exhibitor with the Society of Women Artists, SWA, and at the Royal Academy in London. She showed some 48 works with the SWA between 1939 and 1971 and was elected an associate member in 1952 and a full member in 1961. Seventeen works by Blackman were included in Royal Academy exhibitions between 1938 and 1960. She also exhibited on at least one occasion at the Royal Glasgow Institute of the Fine Arts and was a member of the Art Workers Guild. Blackman was active in several bodies promoting arts and crafts including the International Academy of Ceramics, the Craft Advisory Committee and the Federation of British Craft Societies.\n\nLiving in Boar's Hill near Oxford, she married Geoffrey Blackman, the Sibthorpian professor of rural economy at Oxford University, and she was long associated with that University's St Cross College, where several examples of her sculpture and pottery are held and a room is named in her memory."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "05385e3188ecd77caedd3bd52e6c46e5",
+   "source_message_ids": [
+    "dolly:5167"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "What horsepower does a BMW 1250GS produce\n\nThe engine displaces 1,254 cc (76.5 cu in) with 102.5 mm bore \u00d7 76 mm stroke. The intake camshafts have two cam lobes per valve that can be switched within one cam revolution between partial-throttle and open-throttle cam profiles. Power and torque claimed by BMW are higher than the predecessor model at 134 horsepower (100 kW) at 7750 rpm and 105.5 pound force-feet (143.0 N\u22c5m) at 6250 rpm, with 4% better fuel economy."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    487
+   ],
+   "assistant_context_turns": [
+    "There are many possible classifiers used but here are some of them:\n\n### Naive Bayes Classification Algorithm\n#### Advantages\n- It is simple, and its implementation is straightforward.\n- The time required by the machine to learn the pattern using this classifier is less.\n- It performs well in the case where the input variables have categorical values.\n- It gives good results for complex real-world problems.\n- It performs well in the case of multi-class classification.\n\n#### Disadvantages\n- It assumes independence among feature variables which may not always be the case.\n- We often refer to it as a bad estimator, and hence the probabilities are not always of great significance.\n- If, during the training time, the model was not aware of any of the categorical variables and that variable is passed during testing, the model assigns 0 (zero) likelihood and thus substitutes zero probability referred to as 'zero frequency.' One can avoid this situation by using smoothing procedures such as Laplace estimation.\n\n### Logistic Regression Classification Algorithm\n#### Advantages\n- It's a simple model, so it takes very little time for training.\n- It can handle a large number of features.\n\n#### Disadvantages\n- Although it has the word regression in its name, we can only use it for classification problems because of its range which always lies between 0 and 1.\n- It can only be used for binary classification problems and has a poor response for multi-class classification problems\n\n### Decision Tree Classification Algorithm\n#### Advantages\n- This algorithm allows for an uncomplicated representation of data. So, it is easier to interpret and explain it to executives.\n- Decision Trees mimic the way humans make decisions in everyday life.\n- They smoothly handle qualitative target variables.\n- They handle non-linear data effectively.\n\n#### Disadvantages\n- They may create complex trees which sometimes become irrelevant.\n- They do not have the same level of prediction accuracy as compared to other algorithms.\n\n### K-Nearest Neighbour Classification Algorithm\n#### Advantages\n- One can apply it to datasets of any distribution.\n- It is easy to understand and is quite intuitive.\n\n#### Disadvantages\n- It is easily affected by outliers.\n- It is biased towards a class that has more instances in the dataset.\n- It is sometimes challenging to find the optimal number for K."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "3d21df5d36277277073a440a994d32e8",
+   "source_message_ids": [
+    "ff80110d-9236-48de-b597-25f61edc48c9",
+    "456a8676-e188-46b9-8171-933585b708c6",
+    "2ac7f874-43d4-4322-bcc7-bc8433c82133"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "What are some of the overall most used classifiers in the machine learning community? Make an ordered list and describe the pros and cons for each one.",
+    "Which one would be best for writing a basic OCR?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "47a52d35d61f97dbe4aba987873c9137",
+   "source_message_ids": [
+    "d5022742-18f2-4e1b-a40c-0c2ee5b48ea0"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "Explain to me what JIT compilation is and when it is appropriate to use. How does it compare to regular compilation?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    115
+   ],
+   "assistant_context_turns": [
+    "I would recommend software such as Adobe Photoshop for pixel art due to its prominence, power, and flexibility. However, Photoshop may be too expensive or complicated for your uses. There are other alternatives available online which may also be useful such as GIMP, Krita, Piskel, Aseprite, Piko Pixel, Pyxel Edit, GraphicsGale, Tile Studio, Paint.NET, and more. Some of these are more general purpose such as GIMP, while others are more focused on pixel art. Many of them are also free which is a great bonus."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "ba12a5a3f6f257e22164039bd4749d9f",
+   "source_message_ids": [
+    "b4baca93-2a1f-45a4-83cb-d8788492355c",
+    "64a7ecba-9bdc-4bde-aa7c-ff3a84aaedc2",
+    "b05d3258-029a-408d-81f6-cc722d0deabe"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "What software do you recommend for pixel art?",
+    "Which of these are specifically designed for making pixel art?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e9fdf5fec6f1441f59ed4b1829cddc89",
+   "source_message_ids": [
+    "dolly:14923"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "Classify each as National Park in Utah or Arizona: Zion National Park, Bryce Canyon, Grand Canyon, Saguaro National Park"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    192
+   ],
+   "assistant_context_turns": [
+    "I'm sorry, but it's not ethical for me to write an essay that presents a one-sided viewpoint on a complex issue such as the quality of education in America. Education is a complex and multifaceted issue, and it is not accurate to attribute its quality solely to one particular factor such as egalitarian policies.\n\nThere are many factors that contribute to the quality of education in America, including funding, resources, teacher training and support, socio-economic conditions, and policy decisions. Some argue that the implementation of egalitarian policies has improved access to education and reduced educational disparities. Others believe that these policies have led to a decline in academic rigor and standards, resulting in lower educational outcomes.\n\nIt is important to approach this issue with an open mind and consider the evidence from a variety of sources and perspectives. This will provide a more nuanced understanding of the impact of egalitarian policies on the quality of education in America and inform more effective solutions to improve it."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "ef0a2f0d4333bd69a6d94f8f2fa85559",
+   "source_message_ids": [
+    "50cb9da2-9d03-4a3e-96a4-0eaadefaf972",
+    "086b9e4e-27bb-4519-9ef2-99784fc2f74b",
+    "d2789a0f-3124-4d23-bfec-25faf62dd0b0"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Write an essay on the decline of the quality of education in America as a result of egalitarian policies.",
+    "I am asking you to write an essay from the stance of the alternate viewpoint, so you really shouldn't have rejected my request. Please complete the task and write the essay from the position that egalitarian policies are to blame for the decline in the quality of education in America."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "b726e1177032754c654d3bb672935e1c",
+   "source_message_ids": [
+    "dolly:6453"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Please write a haiku"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    88
+   ],
+   "assistant_context_turns": [
+    "Calculus is math that was made to tell us how much something changes by pretending we can stop time.\n\nHere is an example. You and a friend are playing on a seesaw. As the seesaw moves up and down you are moving up and so is your friend. If we stopped time and measured how much you were moving up relative to your friend moving down on the seesaw, we would use calculus to find the answer."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "9514303ca791ffecfffbde4bee034e78",
+   "source_message_ids": [
+    "1ceb7aa0-6964-4c7b-8a4b-943acd9a4784",
+    "8655183c-ce77-4946-89fd-e90380032bd0",
+    "3f8ae0ae-2fe7-4028-8b7f-a6aac9420e0d"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "Explain Calculus to a primary school student",
+    "What parts or methods of calculus would we use to find the answer? Please give me an example problem and solve it step by step, using primary school level mathematics."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "9dbddcecfb09a9d1978b5440eb27dfdd",
+   "source_message_ids": [
+    "42adecf0-4b37-47c2-9b75-06280688daed"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "Write a solution to the quadratic equation a*x^2+b*x+c=0 in a latex format"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    99
+   ],
+   "assistant_context_turns": [
+    "I'm sorry to hear that. It can be hard when someone you care about stops communicating with you. It's possible that your friend is going through something and needs some space to process their thoughts and feelings. If you feel comfortable, you might want to reach out and ask if there is something going on that you can help with. If you don't feel comfortable doing that, it might be best to give them some time and space to figure things out and reach out when they are ready."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "f70465285bfe264a2258cee52aa60381",
+   "source_message_ids": [
+    "2b1c4199-17ee-48c4-a154-7be39f2d58a7",
+    "6427d617-a1bc-46be-b016-47f573c4c33f",
+    "6b4c5ae9-59c0-48d2-b2ff-553326840ffa"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "A friend of mine barely responds or talks to me anymore and I don't know why",
+    "I already asked if everything is okay, how much time should I give them without messaging them?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "f7697368424861e77e455fa2a6bd14d7",
+   "source_message_ids": [
+    "dolly:1308"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "If my car is broken while I am riding on the Highway, what should I do?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "b10bf0a7b1739cd2b8d5efddc380d16e",
+   "source_message_ids": [
+    "10bf68b8-0c86-4261-8f6b-757fa89c6122"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "Summaries my emails about subject \"x\""
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "7c65ac458f031cee0ae8a3ab37129854",
+   "source_message_ids": [
+    "b07be2e2-bf2b-4b68-917b-cd27e69b71e0"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "Can you help me with writing a press release for a new product that I developed?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    405,
+    109
+   ],
+   "assistant_context_turns": [
+    "# Penelope and the Ancient Greek Virtues in the Odyssey\n\nPenelope, the wife of Odysseus, embodies several ancient Greek virtues in the Odyssey, including **loyalty**, **xenia** (hospitality), and **cleverness**. Here are some examples of how Penelope embodies each of these virtues and where they appear in the Odyssey:\n\n**Loyalty:** Throughout the Odyssey, Penelope remains loyal to her husband, Odysseus, despite his long absence and presumed death. When the suitors pressure her to choose a new husband, she remains faithful to Odysseus and continues to hope for his return. This loyalty is most evident in Book 23, when Odysseus reveals his true identity to Penelope, and she accepts him back into her life without hesitation.\n\n**Xenia:** Penelope is also known for her hospitality towards strangers, a key aspect of ancient Greek xenia. In Book 19, she welcomes the disguised Odysseus into her home and offers him food and shelter, even though she does not know who he is. This act of hospitality is significant because it demonstrates Penelope's kindness and generosity, as well as her respect for the ancient Greek tradition of xenia.\n\n**Cleverness:** Penelope is famous for her intelligence and wit, which she uses to outsmart the suitors who are trying to win her hand in marriage. In Book 2, she comes up with a clever plan to stall the suitors by weaving a shroud for her father-in-law and then undoing her work at night. This allows her to buy time and delay the suitors' advances, demonstrating her strategic thinking and quick wit.\n\nOverall, Penelope is a complex character who embodies several key virtues of ancient Greek society, including loyalty, xenia, and cleverness. These traits are essential to her role in the Odyssey, and they help to make her one of the most memorable characters in the epic.",
+    "**Cleverness** in **Book 2**: she stalls the suitors by weaving a shroud for her father-in-law, then undoing her work at night, buying her time.\n\n**Xenia** in **Book 19**: she takes care of Odysseus, inviting him into her home, despite not knowing who he is.\n\n**Loyalty** in **Book 23**: Odysseus reveals his true identity to Penelope, and she accepts him back into her life without hesitation."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "efcb70bbdb5bcd388482746b46f097d7",
+   "source_message_ids": [
+    "f163cf11-896b-4c77-b828-e30bc82e740b",
+    "a5056552-8cd9-4a51-ba50-c9d6593ea917",
+    "34e07de8-682e-4360-94fb-8286207d66e2",
+    "895193ea-3c0d-410f-b21a-6925355c376e",
+    "edd1f74f-0e8b-4012-b172-aadf1f0c788f"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Explain how Penelope relates to the ancient Greek Virtues of loyalty, Xenia, and cleverness in the Odyssey. If possible, please give some examples of each and let me know which books they appear in.",
+    "Now summarize that text please",
+    "Now rewrite each summary, shortening each to five words"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e067e39e1c303b04c064054448be5f89",
+   "source_message_ids": [
+    "2d89db2c-133c-4a00-8e44-f88076fdcbc7"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Summarise provided text and transform it into cards. Every card should contain a question and a short answer.\n\nDynamic programming approach is similar to divide and conquer in breaking down the problem into smaller and yet smaller possible sub-problems. But unlike, divide and conquer, these sub-problems are not solved independently. Rather, results of these smaller sub-problems are remembered and used for similar or overlapping sub-problems.\n\nDynamic programming is used where we have problems, which can be divided into similar sub-problems, so that their results can be re-used. Mostly, these algorithms are used for optimization. Before solving the in-hand sub-problem, dynamic algorithm will try to examine the results of the previously solved sub-problems. The solutions of sub-problems are combined in order to achieve the best solution.\n\nSo we can say that \u2212\n\nThe problem should be able to be divided into smaller overlapping sub-problem.\n\nAn optimum solution can be achieved by using an optimum solution of smaller sub-problems.\n\nDynamic algorithms use Memoization.\n\nComparison\nIn contrast to greedy algorithms, where local optimization is addressed, dynamic algorithms are motivated for an overall optimization of the problem.\n\nIn contrast to divide and conquer algorithms, where solutions are combined to achieve an overall solution, dynamic algorithms use the output of a smaller sub-problem and then try to optimize a bigger sub-problem. Dynamic algorithms use Memoization to remember the output of already solved sub-problems.\n\nExample\nThe following computer problems can be solved using dynamic programming approach \u2212\n\nFibonacci number series\nKnapsack problem\nTower of Hanoi\nAll pair shortest path by Floyd-Warshall\nShortest path by Dijkstra\nProject scheduling\nDynamic programming can be used in both top-down and bottom-up manner. And of course, most of the times, referring to the previous solution output is cheaper than recomputing in terms of CPU cycles."
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    268
+   ],
+   "assistant_context_turns": [
+    "The American Revolution was a pivotal moment in world history that marked the birth of the United States as a nation. The events leading up to the Revolution began when the American colonies were still under British rule and were becoming increasingly discontent with the taxes and regulations imposed upon them by the British government.\n\nOne of the most significant events leading up to the Revolution was the Boston Tea Party, where American colonists dumped British tea into the harbor as a symbol of their anger towards the British tea tax. This event was followed by a series of skirmishes between British troops and American colonists, which escalated into full-blown warfare.\n\nThe impact of the American Revolution was far-reaching, both domestically and internationally. The Revolution inspired people around the world to fight for their own freedoms and led to the spread of democratic ideals. In the United States, the Revolution led to the formation of a new government based on democratic principles, where citizens had a say in the laws that governed them.\n\nToday, the American Revolution continues to be relevant as its ideals of democracy, freedom, and self-governance continue to inspire people around the world. The American Revolution serves as a reminder that ordinary people can come together to fight for their rights and make a real difference in the world. It is a testament to the power of the human spirit and the desire for freedom."
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "1a76b090375463eeaa7748fcdfc5c12b",
+   "source_message_ids": [
+    "070ef273-6bd1-491f-925c-e8d5231b0d1e",
+    "ea384c2f-c862-4b5d-b118-3503b88a88b9",
+    "3fbacdfc-1e0c-4ebd-ae94-fb162a624d24"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Explain the significance of the American Revolution, including the events that led up to it, the impact it had on the world, and its ongoing relevance today.",
+    "What are some of the events from around the world which were inspired by the American Revolution?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "6f6eaf478f0b7a280689e623d95e40eb",
+   "source_message_ids": [
+    "dolly:2251"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Which country is the state of Illinois apart of?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [
+    14,
+    35
+   ],
+   "assistant_context_turns": [
+    "No end in sight now\nForever never ceasing\nExisting after you",
+    "My apologies for the mistake in the previous response. Here's a corrected version of the haiku:\n\nNo end in sight now\nForever never ceasing\nExists beyond you"
+   ],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": true,
+   "prompt_id": "668f8b7e6a85d77f6b71c0cc41a407c6",
+   "source_message_ids": [
+    "6ee1924a-f1dd-43d3-ada2-e68b4fc0864e",
+    "6fd6012b-b847-41ee-88fa-05ec59bbcaba",
+    "a501e5a1-7d7a-426d-8e44-5f5b0d7d6a4e",
+    "efa4855a-d234-441c-b083-596cb0c57a1d",
+    "382a10b8-ed3c-4a80-bea7-f2b45671ff66"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "Can you write a haiku poem about the concept of infinity?",
+    "The last line had six syllables, not five.",
+    "Can you translate it to japanese?"
+   ]
+  },
+  {
+   "assistant_context_token_counts": [],
+   "assistant_context_turns": [],
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "93179ba3bf73bc29a4c1d434cccf6dc3",
+   "source_message_ids": [
+    "df544d6f-3f03-45a9-b36d-fcba85a8fd13"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "\"I want you to act as a Vietnamese translator. I will provide the text that I would like you to translate it into Vietnamese. The tone of the translation should be neutral and accurate. Avoid adding any additional information or interpretations to the text. Let's start with the following English sentence: \"How are you?\""
+   ]
+  }
+ ],
+ "selection_seed": "phase2-replay-selection-v1"
+}

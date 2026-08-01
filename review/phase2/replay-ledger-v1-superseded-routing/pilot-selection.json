@@ -1,0 +1,371 @@
+{
+ "format_version": 1,
+ "kind": "phase2-replay-pilot-selection",
+ "pilot_calls": 33,
+ "prompts": [
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "691147cf167910f99de3f72aa1ee2c88",
+   "source_message_ids": [
+    "213d6f16-9cc3-4d32-ab0a-192482f91768",
+    "2b644791-9962-4159-a238-f89e839b6285",
+    "f27b13ff-6cff-4615-b74a-940a14840229"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "Hi! I would like you to help me with developing my HTML website based around cooking. I want to have four pages in total: 1. page would be the home page with hyperlinks to all other pages and information about what is the website for. 2. page would be filled with my favourite recipes. Third page would contain my favourite cooking websites / sources / chefs. Please make it look good and modern!",
+    "Why did you write a JavaScript-style comment at the top of an HTML file?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "dc2feb8d46580af8a32dae5656771f1f",
+   "source_message_ids": [
+    "18dbe117-e727-4284-a636-596161ad9b60"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "This function in C++ is for checking if a number is prime or not. Can you create a driver/main function that will use it and print to the console the first 20 prime numbers?\n\nusing namespace std;\n \nbool isPrime(int n)\n{\n      if(n == 1 || n == 0) return false;\n\n      for(int i = 2; i < n; i++)\n      {\n        if(n % i == 0) return false;\n      }\n      return true;\n}"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "0f74b28a47a300f4d0bc16ea981e9621",
+   "source_message_ids": [
+    "dolly:13609"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "Given a reference text about Audrey Babette Blackman, tell me her parents names and occupations.\n\nAudrey Babette Blackman (n\u00e9e Seligman; 28 July 1907 \u2013 17 July 1990) was a British sculptor and ceramist.\n\nBiography\nBlackman was born in London and raised in Leatherhead in Surrey by her parents, Hilda, a sculptor and author, and Richard Seligman, a chemical engineer. After attending Wimbledon High School in London, Blackman spent two years, from 1924, at a Kunstgewerbeschule in Graz in Austria before returning to England to study at Goldsmiths College School of Art until 1930 and then at the University of Reading from 1931 until 1935.\n\nBlackman initially worked in bronze to produce small group pieces and figures but after World War II began using terracotta and stoneware before concentrating on creating ceramic figures. In her ceramic work, Blackman worked rolled and slabbed pieces of clay into figurines and, in 1978, published a handbook, Rolled Pottery Figures, on her technique. Later in her life she produced more abstract pieces, including paintings in both watercolour and gouache.\n\nBlackman was a regular exhibitor with the Society of Women Artists, SWA, and at the Royal Academy in London. She showed some 48 works with the SWA between 1939 and 1971 and was elected an associate member in 1952 and a full member in 1961. Seventeen works by Blackman were included in Royal Academy exhibitions between 1938 and 1960. She also exhibited on at least one occasion at the Royal Glasgow Institute of the Fine Arts and was a member of the Art Workers Guild. Blackman was active in several bodies promoting arts and crafts including the International Academy of Ceramics, the Craft Advisory Committee and the Federation of British Craft Societies.\n\nLiving in Boar's Hill near Oxford, she married Geoffrey Blackman, the Sibthorpian professor of rural economy at Oxford University, and she was long associated with that University's St Cross College, where several examples of her sculpture and pottery are held and a room is named in her memory."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "05385e3188ecd77caedd3bd52e6c46e5",
+   "source_message_ids": [
+    "dolly:5167"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "What horsepower does a BMW 1250GS produce\n\nThe engine displaces 1,254 cc (76.5 cu in) with 102.5 mm bore \u00d7 76 mm stroke. The intake camshafts have two cam lobes per valve that can be switched within one cam revolution between partial-throttle and open-throttle cam profiles. Power and torque claimed by BMW are higher than the predecessor model at 134 horsepower (100 kW) at 7750 rpm and 105.5 pound force-feet (143.0 N\u22c5m) at 6250 rpm, with 4% better fuel economy."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 3,
+   "is_multi_turn": true,
+   "prompt_id": "eb86f13fc50972eb931e6e0343a5080f",
+   "source_message_ids": [
+    "9ef870b4-0c21-45b5-8d04-4fac9d43dc5c",
+    "e33f1a7a-4859-4743-bc46-6362290b402b",
+    "d94a852b-c7d4-4325-9691-cc643961c9f0",
+    "0e2a8809-1453-40af-85d1-513136120ed0",
+    "6a078642-6d54-417d-a8e3-7c5211360caa"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "Recommend me some Sci-Fi novels about AI.",
+    "Thank you. Are any of those also available as a movie or series?\n\nI would like to look into one of them together with my son but reading isn't his favorite past time. I was hoping if I could watch something with him that is based on a book and also features his interest in AI it may encourage him to check out the source material and discorver the positives aspects of reading.",
+    "My son is 8 years old - which of your suggestions are kid-friendly?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e067e39e1c303b04c064054448be5f89",
+   "source_message_ids": [
+    "2d89db2c-133c-4a00-8e44-f88076fdcbc7"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "Summarise provided text and transform it into cards. Every card should contain a question and a short answer.\n\nDynamic programming approach is similar to divide and conquer in breaking down the problem into smaller and yet smaller possible sub-problems. But unlike, divide and conquer, these sub-problems are not solved independently. Rather, results of these smaller sub-problems are remembered and used for similar or overlapping sub-problems.\n\nDynamic programming is used where we have problems, which can be divided into similar sub-problems, so that their results can be re-used. Mostly, these algorithms are used for optimization. Before solving the in-hand sub-problem, dynamic algorithm will try to examine the results of the previously solved sub-problems. The solutions of sub-problems are combined in order to achieve the best solution.\n\nSo we can say that \u2212\n\nThe problem should be able to be divided into smaller overlapping sub-problem.\n\nAn optimum solution can be achieved by using an optimum solution of smaller sub-problems.\n\nDynamic algorithms use Memoization.\n\nComparison\nIn contrast to greedy algorithms, where local optimization is addressed, dynamic algorithms are motivated for an overall optimization of the problem.\n\nIn contrast to divide and conquer algorithms, where solutions are combined to achieve an overall solution, dynamic algorithms use the output of a smaller sub-problem and then try to optimize a bigger sub-problem. Dynamic algorithms use Memoization to remember the output of already solved sub-problems.\n\nExample\nThe following computer problems can be solved using dynamic programming approach \u2212\n\nFibonacci number series\nKnapsack problem\nTower of Hanoi\nAll pair shortest path by Floyd-Warshall\nShortest path by Dijkstra\nProject scheduling\nDynamic programming can be used in both top-down and bottom-up manner. And of course, most of the times, referring to the previous solution output is cheaper than recomputing in terms of CPU cycles."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "eb16334ed2b373f8e5d9d18ae80992be",
+   "source_message_ids": [
+    "6edc37e7-068b-4887-bb2b-db013e048407",
+    "10138b17-dbf4-4177-8de4-4527b314c905",
+    "47259565-6cb1-4e32-a6d0-9369ec5baf8b"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "do you know about Highwaytools, you can find it on github what does it do and on what server is it mainly used on?",
+    "Is it right to classify it as a 'cheating tool' though? Are there other creative servers where it is used?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "f50f67d108e89c2a5397ac4d41ec53b6",
+   "source_message_ids": [
+    "dolly:10647"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "Which is an imperial or a metric measurement: inch, millimetres"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "4818a5351cfe0f842b229c4761e6d0df",
+   "source_message_ids": [
+    "f22c23d4-05a1-4f16-9516-a10c8c5ef160",
+    "4f9fc2d2-cf71-49a0-bd80-d9e2f75d41e0",
+    "47fe468c-f658-493a-aa1d-45813f842142"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Four kids want to convince their parents to let them all play together outside but, since it's pretty late, their parents won't let them since they might wake up or disrupt their neighbors. The kids then decided to write a song, convincing their parents that they'll be quite outside. What song could've they come up with?",
+    "Can you write me some fitting example alternate lyrics that fit the melody of \"Softly Fall The Stars\"?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "b726e1177032754c654d3bb672935e1c",
+   "source_message_ids": [
+    "dolly:6453"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Please write a haiku"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "397c7ed29b7cb22f30c779c2991d085c",
+   "source_message_ids": [
+    "0388e5f8-82d2-468c-86af-b31b0f49fe1c",
+    "2abb980a-447a-492e-87be-20482d310b43",
+    "b52b9566-56d0-475d-9adb-6df2ba45f46e"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "mondegreen the following data and create any data or context based on known data and context.",
+    "Sure, here is a starting data and context that you can use to create further data and context:\n\nData:\n\nThe average temperature in a specific city, Nairobi, over the past 5 years.\nThe population of the city, Nairobi, over the same 5 years.\nContext:\n\nThe city, Nairobi, is a major global hub for business, finance, media, and culture.\nIt experiences four distinct seasons and is located in the Southeast region of the Kenya.\nThe city has a large and diverse population, with over 8 million residents from many different backgrounds.\nFrom this data and context, you can create further data and context, such as:\n\nThe number of tourists visiting Nairobi over the past 5 years, and the impact of the changing temperature and population on the city's tourism industry.\nThe trends in energy consumption in the city over the past 5 years, and how they have been affected by changes in temperature and population.\nThe changes in real estate prices in the city over the past 5 years, and how they have been affected by changes in temperature, population, and other factors.\nYou can also create other data and context related to the city, Nairobi, based on your specific needs and interests."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "ffb38248154c38fcf91adebe880d180f",
+   "source_message_ids": [
+    "fc1bef42-b965-4638-b503-4b288e4276cc"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "If we assume that Pluto is a planet, how many planets there are in the solar system?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "eb329eeaadb0fc64c15ff07dd8f5c5c1",
+   "source_message_ids": [
+    "a9e203f5-a103-41b6-bc23-9c690af74ebd",
+    "e21d692d-ecab-4917-9228-1a06715032ca",
+    "9207cb7a-58e9-4da5-8067-7c7cc12d9065"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "How do I create a new language?",
+    "generate an example of a new language, vocabulary and grammar showing usage in sentences and sample programming code created using this new language. give the language a name and story of origin."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "6ec0bf0557fb8052d1db8a20c16a49b8",
+   "source_message_ids": [
+    "dolly:8112"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "Why indian Marriage is so long process"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "7c65ac458f031cee0ae8a3ab37129854",
+   "source_message_ids": [
+    "b07be2e2-bf2b-4b68-917b-cd27e69b71e0"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "Can you help me with writing a press release for a new product that I developed?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "da3c2d73e0ebdcbdd46b477766d2b247",
+   "source_message_ids": [
+    "33111955-b2c3-4b86-bb0a-85160ddc60cd"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "I don't understand the riddle about 3 chests, can you explain it to me?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "7cfa0c6fccc1a809758d0acb7e2d7c14",
+   "source_message_ids": [
+    "e23adc74-2eb7-4059-9307-163329f50e83",
+    "e7a6dfe4-d96a-4980-af7c-5d6d8d5c3747",
+    "e1727b88-69dc-49b8-adb1-d8a179af218e"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Let's write a story together. I'm going to provide a short summary, you will expand that summary in the first part of the story, then suggest a few summaries of alternative ways to continue the story. I'll pick one of those, then you will expand that and provide further summaries, and so on.\n\n\"One day, while on a hunt, a group of goblins stumbled upon a small settlement of dwarves. To their surprise, the dwarves were friendly and welcoming, and they offered to trade goods and resources with the goblin tribe.\"",
+    "Expand on number 3 and provide more summaries."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "4d6bb78179dff49159c2898a52856912",
+   "source_message_ids": [
+    "dolly:12364"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "What is the Kentucky Derby Trophy\n\nThe Kentucky Derby Trophy is a set of four trophies that are awarded to the winning connections of America's most famous race: the grade one $3,000,000 Kentucky Derby. The owner receives a gold trophy while the trainer, the jockey and the breeder win a silver half size replica of the main gold trophy. The trophy itself has been run for since the 50th running of the Kentucky Derby in 1924. Churchill Downs Race Course of Louisville, Kentucky has annually presented a gold trophy to the winning owner of the famed \"Run for the Roses.\""
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "360c56f261098fe0039ae3ca32c53b6a",
+   "source_message_ids": [
+    "1042c8d3-3a11-4515-a179-d28502161e68",
+    "5da4baf7-2eb7-4d01-abe1-2b08c19045d1",
+    "4ffa4fad-c48c-4d5f-bb79-6ed09f85abf1"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Can you explain why logical NOR is considered a functionally complete operation?",
+    "it is helpful."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "844142ac6feb5423c2318a8061ce5425",
+   "source_message_ids": [
+    "dolly:1145"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "What's the best country in the world?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 3,
+   "is_multi_turn": true,
+   "prompt_id": "b1c3f588d965715c2262b59bba4f7707",
+   "source_message_ids": [
+    "51b60610-9f0d-4d4f-85fa-4aa8fcce8f38",
+    "49bad082-b03d-4a33-b197-d864d2bd4802",
+    "293ca8c3-44f9-4c9a-8c60-6309053481db",
+    "67d623ad-62a3-4285-9b6a-6ea12f5ce283",
+    "3622ea74-70a0-4925-a184-29986164290d"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "translate the following proverb from Icelandic to English:\n\u00dea\u00f0 fer n\u00fa a\u00f0 ver\u00f0a verra fer\u00f0a ve\u00f0ri\u00f0",
+    "is that the literal translation? or would it be different",
+    "What would you interpret to be the meaning behind the proverb?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "93179ba3bf73bc29a4c1d434cccf6dc3",
+   "source_message_ids": [
+    "df544d6f-3f03-45a9-b36d-fcba85a8fd13"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "\"I want you to act as a Vietnamese translator. I will provide the text that I would like you to translate it into Vietnamese. The tone of the translation should be neutral and accurate. Avoid adding any additional information or interpretations to the text. Let's start with the following English sentence: \"How are you?\""
+   ]
+  }
+ ],
+ "selection_seed": "phase2-replay-selection-v1"
+}

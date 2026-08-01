@@ -6,6 +6,8 @@ venv/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.cache/
+.cursor/
 .ipynb_checkpoints/
 
 # Secrets / env
@@ -28,6 +30,8 @@ wandb/
 *.sqlite-*
 *.sqlite.lock
 *.db
+*.log
+ledger.lock
 
 # Private calibration recordings (retained locally, never committed)
 browsersessions/

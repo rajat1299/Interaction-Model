@@ -1,0 +1,8 @@
+{"custom_id":"t2mw1.negative-core-a.d001.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-core-b.d001.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-replacement.d001.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-stop.d001.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-a.d001.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":69,"text":"Highlight the phrase Silver Orchard wherever it appears in the draft."},"target":{"event_id":"e_000003","start_utf16":103,"end_utf16":117,"text":"Silver Orchard"}}}
+{"custom_id":"t2mw1.positive-core-b.d001.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":66,"text":"Underline every occurrence of Meridian Finch in the route summary."},"target":{"event_id":"e_000003","start_utf16":100,"end_utf16":114,"text":"Meridian Finch"}}}
+{"custom_id":"t2mw1.positive-directness-direct.d001.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":61,"text":"Bold each mention of Kestrel Arcade in the inspection report."},"target":{"event_id":"e_000003","start_utf16":101,"end_utf16":115,"text":"Kestrel Arcade"}}}
+{"custom_id":"t2mw1.positive-lexical-standalone.d001.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":61,"text":"Bold each mention of Kestrel Arcade in the inspection report."},"target":{"event_id":"e_000003","start_utf16":101,"end_utf16":115,"text":"Kestrel Arcade"}}}

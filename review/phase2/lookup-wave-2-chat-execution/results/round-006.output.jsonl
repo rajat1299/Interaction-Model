@@ -1,0 +1,53 @@
+{"custom_id":"t2lw2.a-00.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-01.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-02.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-03.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-04.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-05.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-06.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-07.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-08.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-09.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.a-10.d013.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000010"}}
+{"custom_id":"t2lw2.b-00.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-01.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-02.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-03.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-04.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-05.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-06.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-07.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.b-08.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-00-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-01-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-02-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-03-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-04-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-05-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-06-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-07-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-08-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-09-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-10-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-11-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-12-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-active.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.g7-checkpoint-lookup-live-failed-response-13-yielded.d009.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000012"}}
+{"custom_id":"t2lw2.live-00.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":28,"text":"Dune Junction docket"},"tool":"lookup","args":{"query":"Dune Junction docket"}}}
+{"custom_id":"t2lw2.live-01.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Parchment Bay museum hour"},"tool":"lookup","args":{"query":"Parchment Bay museum hour"}}}
+{"custom_id":"t2lw2.live-02.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Raven Hollow parcel shelf"},"tool":"lookup","args":{"query":"Raven Hollow parcel shelf"}}}
+{"custom_id":"t2lw2.live-03.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":31,"text":"Kestrel Moor ferry rate"},"tool":"lookup","args":{"query":"Kestrel Moor ferry rate"}}}
+{"custom_id":"t2lw2.live-04.d003.a1","action":{"type":"delegate","fact":{"event_id":"e_000008","start_utf16":8,"end_utf16":33,"text":"Hollow Cinder postal zone"},"tool":"lookup","args":{"query":"Hollow Cinder postal zone"}}}

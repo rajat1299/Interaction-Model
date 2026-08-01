@@ -44,6 +44,16 @@ def _sealed_test_registry(repository: Path):
     return registry
 
 
+def _sealed_train_registry(repository: Path):
+    registry, seals = load_verified_registry_seals(
+        (repository / "review/phase1/approved/registry.jsonl").read_bytes(),
+        ((repository / "review/phase1/approved/train-seal.json").read_bytes(),),
+        required_splits=(Split.TRAIN,),
+    )
+    assert tuple(seal.split for seal in seals) == (Split.TRAIN,)
+    return registry
+
+
 def _events(entry) -> dict[str, object]:
     return {
         event.id: event
@@ -108,12 +118,15 @@ async def test_rollover_checkpoint_parents_are_sealed_runtime_valid_and_causal(
     }
 
     assert tuple(entry.shape_id for entry in entries) == tuple(expected)
-    assert {entry.shape_id: entry.parent.stream.sha256 for entry in entries[:2]} == {
+    assert {entry.shape_id: entry.parent.stream.sha256 for entry in entries} == {
         "g7-checkpoint-rollover-a": (
             "sha256:28c7afae3d6a5e6547391ab6e56ff91c3adec53ba01cb4b96a6c3e21b15e4739"
         ),
         "g7-checkpoint-rollover-b": (
             "sha256:682c175a83aa86da961fb547be2b0380fc4fcae3fc3fb39a2589a6b933f0f426"
+        ),
+        "g7-checkpoint-rollover-c": (
+            "sha256:25e90d5da17a1a539be727b2ab8d454425bd01495365f3d1341690c597367995"
         ),
     }
     for entry in entries:
@@ -266,3 +279,118 @@ async def test_rollover_checkpoint_parents_are_sealed_runtime_valid_and_causal(
             item for item in boundary.license_view.timers if item.timer_id == fire.timer_id
         )
         assert (timer.interval_ms, timer.message) in expected_timer_semantics
+
+
+@pytest.mark.asyncio
+async def test_rollover_checkpoint_train_catalog_uses_explicit_sealed_inputs(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).parents[1]
+    entries = await build_g7_rollover_checkpoint_catalog(
+        _sealed_train_registry(repository),
+        directory=tmp_path,
+        repository_root=repository,
+        split=Split.TRAIN,
+        template_id="a_95c425c1e1736f407ccc54db",
+        rollover_lookup_asset_id="a_0c280681c3a090e5c4901abd",
+        stale_lookup_asset_id="a_12a569c4e22df60dcf02afba",
+        mark_asset_id="a_4d9e7e5fdf179993fd3d8367",
+        first_timer_asset_id="a_067f59d6c56633412a0d45b4",
+        recurring_timer_asset_id="a_11d7f848364801c6724c9d75",
+        prompt_template="prompt-template-v3.txt",
+    )
+    expected = {
+        "g7-checkpoint-rollover-a": (
+            "14I+M+G+S",
+            tuple(range(5, 22)),
+            (
+                *(IdleAction for _ in range(13)),
+                MarkAction,
+                IntegrateAction,
+                SkipAction,
+                IdleAction,
+            ),
+        ),
+        "g7-checkpoint-rollover-b": (
+            "13I+M+G+S",
+            tuple(range(5, 21)),
+            (
+                *(IdleAction for _ in range(12)),
+                MarkAction,
+                IntegrateAction,
+                SkipAction,
+                IdleAction,
+            ),
+        ),
+        "g7-checkpoint-rollover-c": (
+            "13I+D+C+2N",
+            tuple(range(8, 25)),
+            (
+                *(IdleAction for _ in range(10)),
+                DelegateAction,
+                CancelAction,
+                IdleAction,
+                NudgeAction,
+                IdleAction,
+                NudgeAction,
+                IdleAction,
+            ),
+        ),
+    }
+    expected_asset_ids = {
+        "a_067f59d6c56633412a0d45b4",
+        "a_0c280681c3a090e5c4901abd",
+        "a_11d7f848364801c6724c9d75",
+        "a_12a569c4e22df60dcf02afba",
+        "a_4d9e7e5fdf179993fd3d8367",
+    }
+
+    assert tuple(entry.shape_id for entry in entries) == tuple(expected)
+    for entry in entries:
+        vector, calls, action_types = expected[entry.shape_id]
+
+        assert entry.action_vector == vector
+        assert validate_generated_scenario(entry.parent) == entry.parent.sidecar
+        assert entry.candidate.parent is entry.parent
+        assert entry.candidate.segment_index == 1
+        assert entry.candidate.selected_call_indices == calls
+        assert tuple(type(action) for action in entry.candidate.selected_actions) == action_types
+        assert entry.parent.program.bundle.split is Split.TRAIN
+        assert entry.parent.program.timing_plan.seed.split is Split.TRAIN
+        assert entry.parent.program.prompt_template == "prompt-template-v3.txt"
+        assert entry.parent.program.template.asset_id == "a_95c425c1e1736f407ccc54db"
+        assert (
+            {asset.asset_id for asset in entry.parent.program.bundle.assets} == expected_asset_ids
+        )
+
+
+@pytest.mark.asyncio
+async def test_rollover_checkpoint_shape_filter_avoids_unrequested_parents(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).parents[1]
+    registry = _sealed_test_registry(repository)
+    entries = await build_g7_rollover_checkpoint_catalog(
+        registry,
+        directory=tmp_path,
+        repository_root=repository,
+        shape_ids=("g7-checkpoint-rollover-b", "g7-checkpoint-rollover-a"),
+    )
+
+    assert tuple(entry.shape_id for entry in entries) == (
+        "g7-checkpoint-rollover-a",
+        "g7-checkpoint-rollover-b",
+    )
+    assert not (tmp_path / "g7-checkpoint-rollover-c").exists()
+    with pytest.raises(ValueError, match="unique known rollover checkpoint shapes"):
+        await build_g7_rollover_checkpoint_catalog(
+            registry,
+            directory=tmp_path,
+            shape_ids=("g7-checkpoint-rollover-a", "g7-checkpoint-rollover-a"),
+        )
+    with pytest.raises(ValueError, match="unique known rollover checkpoint shapes"):
+        await build_g7_rollover_checkpoint_catalog(
+            registry,
+            directory=tmp_path,
+            shape_ids=("g7-checkpoint-rollover-unknown",),
+        )

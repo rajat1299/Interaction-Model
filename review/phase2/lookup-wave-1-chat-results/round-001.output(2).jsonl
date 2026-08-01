@@ -1,0 +1,9 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d010.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.live-00.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":29,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"t2lw1.live-01.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":31,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"t2lw1.live-02.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":30,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"t2lw1.live-03.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":33,"text":"Hollow Cinder postal zone"},"tool":"lookup","args":{"query":"Hollow Cinder postal zone"}}}
+{"custom_id":"t2lw1.live-04.d000.a1","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":8,"end_utf16":34,"text":"Kindle Square ticket price"},"tool":"lookup","args":{"query":"Kindle Square ticket price"}}}
+{"custom_id":"t2lw1.stale-00.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.stale-01.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

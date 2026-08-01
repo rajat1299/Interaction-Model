@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "kind": "wp2-8-dev-gate-c-scoped-repair-review",
+  "owner_disposition_binding": {
+    "owner_disposition_sha256": "sha256:a4654dce2618894f66ef81c4e250e98b70bdd05d24cd65883141fee9e6f1b377",
+    "owner_review_sha256sums_sha256": "sha256:6ac33e74e7a3e0cced086856d5e8052abe0ba6888630b64d60c0c4f6800cc0c2"
+  },
+  "repaired_packet_binding": {
+    "decision_count": 300,
+    "phase2_review_evidence_sha256": "sha256:908d8a2b0cf5c9c711fdb221426233cb73103bc5b6aa9a56f2c8dfeb60b70c42",
+    "selected_state_plan_sha256": "sha256:cd493c42b04dad1279ef05b244044c1ee30dfb97d703f8adb8ea486b6e8fe116",
+    "sha256sums_sha256": "sha256:fd79f652f0531f5595879051310dccc4c377c3aea7bf93fcbeba252e830282f8"
+  },
+  "review_count": 89,
+  "review_groups": [
+    {
+      "decision_ranges": ["1-48"],
+      "repair": "complete_lookup_request"
+    },
+    {
+      "decision_ranges": ["116-118", "263-264"],
+      "repair": "complete_rollover_lookup_request"
+    },
+    {
+      "decision_ranges": ["124-136"],
+      "repair": "complete_stale_lookup_request"
+    },
+    {
+      "decision_ranges": ["139-141", "143-144", "147-150", "152-154", "157-159"],
+      "repair": "cancel_actual_active_reminder"
+    },
+    {
+      "decision_ranges": ["199-200"],
+      "repair": "stable_sequential_cancel_referents"
+    },
+    {
+      "decision_ranges": ["271-276"],
+      "repair": "natural_failed_lookup_history"
+    }
+  ],
+  "review_scope": "rebuilt decisions only"
+}

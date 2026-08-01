@@ -1,0 +1,22 @@
+{
+ "added": [
+  {
+   "message_id": "cfd7ab3b-5b37-45c3-b044-1ea3a06ad3e6",
+   "text_sha256": "0f83dbfcf2a891d35e94de7ab8c7c98e2a8ca47018e5564e4612e12598196f01"
+  },
+  {
+   "message_id": "f77f0b1c-83dd-48d7-9221-777e6a054c73",
+   "text_sha256": "0dcae98bdb71d03a38a903cd2df50874909d229ace2f32e0ac583482e5a66d99"
+  }
+ ],
+ "base_allowlist": "review/phase2/replay-ledger-v1-superseded-routing/refusal-allowlist.json",
+ "format_version": 1,
+ "kind": "phase2-replay-refusal-allowlist-amendment",
+ "removed_message_ids": [
+  "05fb6ef5-06f4-4af9-8b80-0fdafcfdd221",
+  "196dae11-1967-45fc-8d77-1f1514cd1d04"
+ ],
+ "result_count": 50,
+ "review_artifact": "AMENDMENT.md",
+ "review_artifact_sha256": "6ab1d085aa5293e962d33216316be75db90e22b976ac68b2f460964ac1c52659"
+}

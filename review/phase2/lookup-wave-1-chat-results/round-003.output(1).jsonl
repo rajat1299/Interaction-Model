@@ -1,0 +1,9 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d011.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d012.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2lw1.live-00.d002.a1","action":{"type":"integrate","result_event_id":"e_000006","text":"Aster Quay index is 17."}}
+{"custom_id":"t2lw1.live-01.d002.a1","action":{"type":"integrate","result_event_id":"e_000006","text":"Brindle Port reports violet water."}}
+{"custom_id":"t2lw1.live-02.d002.a1","action":{"type":"integrate","result_event_id":"e_000006","text":"Dawn Ferry gate is M."}}
+{"custom_id":"t2lw1.live-03.d002.a1","action":{"type":"integrate","result_event_id":"e_000006","text":"Hollow Cinder zone is 14."}}
+{"custom_id":"t2lw1.live-04.d002.a1","action":{"type":"integrate","result_event_id":"e_000006","text":"Kindle Square price is 18 crowns."}}
+{"custom_id":"t2lw1.stale-00.d014.a1","action":{"type":"skip","target_event_id":"e_000029","reason":"stale_tool_result"}}
+{"custom_id":"t2lw1.stale-01.d014.a1","action":{"type":"skip","target_event_id":"e_000029","reason":"stale_tool_result"}}

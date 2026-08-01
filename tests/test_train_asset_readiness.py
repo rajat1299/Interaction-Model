@@ -165,7 +165,11 @@ def test_wp2_0a_packet_materializes_a_closed_directory(tmp_path) -> None:
 
 def test_wp2_0a_ignores_heldout_only_validation_flags(tmp_path) -> None:
     root = Path(__file__).parents[1]
-    canonical = load_registry_jsonl((root / "review/phase1/approved/registry.jsonl").read_bytes())
+    canonical = load_registry_jsonl(
+        (
+            root / "review/phase2/train-asset-readiness-repair-review/source-registry.jsonl"
+        ).read_bytes()
+    )
     heldout = AssetRecord.build(
         asset_id="a_test_heldout_flag",
         split=Split.TEST,
@@ -184,7 +188,11 @@ def test_wp2_0a_ignores_heldout_only_validation_flags(tmp_path) -> None:
 
 def test_wp2_0a_mixed_split_review_flag_stays_train_scoped_and_consistent(tmp_path) -> None:
     root = Path(__file__).parents[1]
-    canonical = load_registry_jsonl((root / "review/phase1/approved/registry.jsonl").read_bytes())
+    canonical = load_registry_jsonl(
+        (
+            root / "review/phase2/train-asset-readiness-repair-review/source-registry.jsonl"
+        ).read_bytes()
+    )
     train_asset = next(
         asset for asset in canonical.assets if asset.asset_id == "a_0a86fd6dd35ddf5743c1f5c1"
     )

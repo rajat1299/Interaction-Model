@@ -30,7 +30,13 @@ from im.generation.phase2_train_coverage import (
 from im.generation.response_contracts import AnswerContract, RequiredAnswerPoint, ResponseKind
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_TRAIN_REGISTRY = _REPOSITORY_ROOT / "review" / "phase1" / "approved" / "registry.jsonl"
+DEFAULT_TRAIN_REGISTRY = (
+    _REPOSITORY_ROOT
+    / "review"
+    / "phase2"
+    / "train-asset-readiness-repair-review"
+    / "source-registry.jsonl"
+)
 DEFAULT_SELECTION_CONTRACT = _REPOSITORY_ROOT / "spec" / "phase2-selection-v1.json"
 DEFAULT_TRAIN_READINESS_OUTPUT = _REPOSITORY_ROOT / "review" / "phase2" / "train-asset-readiness"
 REVIEW_SAMPLING_SEED = "wp2-0a-train-asset-review-v1-2026-07-19"

@@ -515,7 +515,9 @@ function validateSidecar(value: unknown, label: string): Sidecar {
     previousCallIndex = callIndex;
     string(decision.beat_id, `${label}.decisions[${i}].beat_id`);
     for (const key of ["active_timer_ids", "canceled_timer_ids", "pending_request_ids", "open_tool_result_event_ids", "stale_tool_result_event_ids", "open_timer_fire_event_ids"]) stringList(decision[key], `${label}.decisions[${i}].${key}`);
-    bool(decision.floor_open, `${label}.decisions[${i}].floor_open`);
+    if (decision.floor_open !== undefined) {
+      bool(decision.floor_open, `${label}.decisions[${i}].floor_open`);
+    }
     bool(decision.floor_owned, `${label}.decisions[${i}].floor_owned`);
   }
   return value as Sidecar;

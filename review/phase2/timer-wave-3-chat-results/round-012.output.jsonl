@@ -1,0 +1,13 @@
+{"custom_id":"t2w3.wave3-cancel-checkpoint-00.d019.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-01.d019.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-02.d019.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2w3.wave3-cancel-checkpoint-03.d019.a1","action":{"type":"idle","reason":"instruction_not_direct","related_event_id":null}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-00.d027.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000028"}}
+{"custom_id":"t2w3.wave3-contention-checkpoint-01.d027.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000028"}}
+{"custom_id":"t2w3.wave3-normal_compact-00.d011.a1","action":{"type":"nudge","fire_event_id":"e_000023"}}
+{"custom_id":"t2w3.wave3-normal_compact-01.d011.a1","action":{"type":"nudge","fire_event_id":"e_000023"}}
+{"custom_id":"t2w3.wave3-normal_wide-00.d011.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000017"}}
+{"custom_id":"t2w3.wave3-normal_wide-01.d011.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000017"}}
+{"custom_id":"t2w3.wave3-normal_wide-02.d011.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000017"}}
+{"custom_id":"t2w3.wave3-normal_wide-03.d011.a1","action":{"type":"idle","reason":"already_handled","related_event_id":"e_000017"}}
+{"custom_id":"t2w3.wave3-rollover_c-00.d018.a1","action":{"type":"cancel","instruction":{"event_id":"e_000023","start_utf16":0,"end_utf16":45,"text":"Cancel the first active linen-press reminder."},"target":{"kind":"timer","timer_id":"t_001"}}}

@@ -1,0 +1,40 @@
+{"custom_id":"t2w2r2.cancel-checkpoint-00.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":55,"text":"Remind me every one second to inspect the vellum chart."},"interval_ms":1000,"message":"inspect the vellum chart"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-01.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":49,"text":"Remind me every one second to air the cedar room."},"interval_ms":1000,"message":"air the cedar room"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-02.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to check the brass compass."},"interval_ms":1000,"message":"check the brass compass"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-03.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to refill the blue pitcher."},"interval_ms":1000,"message":"refill the blue pitcher"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-04.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":52,"text":"Remind me every one second to sweep the quartz step."},"interval_ms":1000,"message":"sweep the quartz step"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-05.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":55,"text":"Remind me every one second to inspect the vellum chart."},"interval_ms":1000,"message":"inspect the vellum chart"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-06.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":49,"text":"Remind me every one second to air the cedar room."},"interval_ms":1000,"message":"air the cedar room"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-07.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to check the brass compass."},"interval_ms":1000,"message":"check the brass compass"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-08.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to refill the blue pitcher."},"interval_ms":1000,"message":"refill the blue pitcher"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-09.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":52,"text":"Remind me every one second to sweep the quartz step."},"interval_ms":1000,"message":"sweep the quartz step"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-10.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":55,"text":"Remind me every one second to inspect the vellum chart."},"interval_ms":1000,"message":"inspect the vellum chart"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-11.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":49,"text":"Remind me every one second to air the cedar room."},"interval_ms":1000,"message":"air the cedar room"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-12.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to check the brass compass."},"interval_ms":1000,"message":"check the brass compass"}}
+{"custom_id":"t2w2r2.cancel-checkpoint-13.d016.a1","action":{"type":"schedule","instruction":{"event_id":"e_000031","start_utf16":0,"end_utf16":54,"text":"Remind me every one second to refill the blue pitcher."},"interval_ms":1000,"message":"refill the blue pitcher"}}
+{"custom_id":"t2w2r2.contention-checkpoint-00.d024.a1","action":{"type":"nudge","fire_event_id":"e_000037"}}
+{"custom_id":"t2w2r2.contention-checkpoint-01.d024.a1","action":{"type":"nudge","fire_event_id":"e_000037"}}
+{"custom_id":"t2w2r2.contention-checkpoint-02.d024.a1","action":{"type":"nudge","fire_event_id":"e_000037"}}
+{"custom_id":"t2w2r2.contention-checkpoint-03.d024.a1","action":{"type":"nudge","fire_event_id":"e_000037"}}
+{"custom_id":"t2w2r2.contention-checkpoint-04.d024.a1","action":{"type":"nudge","fire_event_id":"e_000037"}}
+{"custom_id":"t2w2r2.normal_compact-00.d008.a1","action":{"type":"nudge","fire_event_id":"e_000018"}}
+{"custom_id":"t2w2r2.normal_compact-01.d008.a1","action":{"type":"nudge","fire_event_id":"e_000018"}}
+{"custom_id":"t2w2r2.normal_compact-02.d008.a1","action":{"type":"nudge","fire_event_id":"e_000018"}}
+{"custom_id":"t2w2r2.normal_compact-03.d008.a1","action":{"type":"nudge","fire_event_id":"e_000018"}}
+{"custom_id":"t2w2r2.normal_compact-04.d008.a1","action":{"type":"nudge","fire_event_id":"e_000018"}}
+{"custom_id":"t2w2r2.normal_wide-00.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-01.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-02.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-03.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-04.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-05.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-06.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-07.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-08.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-09.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.normal_wide-10.d008.a1","action":{"type":"nudge","fire_event_id":"e_000020"}}
+{"custom_id":"t2w2r2.rollover_a-00.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_a-01.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-02.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-03.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}
+{"custom_id":"t2w2r2.rollover_b-04.d012.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000002"}}

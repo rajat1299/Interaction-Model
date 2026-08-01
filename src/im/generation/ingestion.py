@@ -529,6 +529,7 @@ class RuntimeIngestionRunner:
         master_seed: str,
         config: RuntimeConfig | None = None,
         repository_root: Path | None = None,
+        prompt_template: str = "prompt-template-v1.txt",
         tool_script: ToolScript | None = None,
         decision_boundary_observer: DecisionBoundaryObserver | None = None,
         generation_input_hash: str | None = None,
@@ -541,6 +542,12 @@ class RuntimeIngestionRunner:
             raise TypeError("timing_plan must be a TimingPlan")
         if not isinstance(config, RuntimeConfig | type(None)):
             raise TypeError("config must be a RuntimeConfig or None")
+        if (
+            not isinstance(prompt_template, str)
+            or not prompt_template
+            or Path(prompt_template).name != prompt_template
+        ):
+            raise ValueError("prompt_template must be a spec filename")
         if generation_input_hash is not None and (
             not isinstance(generation_input_hash, str)
             or _DIGEST.fullmatch(generation_input_hash) is None
@@ -561,8 +568,15 @@ class RuntimeIngestionRunner:
         self.master_seed = master_seed
         self.config = config or RuntimeConfig()
         self.repository_root = repository_root or Path(__file__).resolve().parents[3]
+        artifact_paths = ArtifactPaths.from_repository(self.repository_root)
         self.artifacts = load_session_artifacts(
-            ArtifactPaths.from_repository(self.repository_root), self.config
+            ArtifactPaths(
+                event_schema=artifact_paths.event_schema,
+                action_schema=artifact_paths.action_schema,
+                behavior_spec=artifact_paths.behavior_spec,
+                prompt_template=self.repository_root / "spec" / prompt_template,
+            ),
+            self.config,
         )
         self.tool_script = tool_script
         self.decision_boundary_observer = decision_boundary_observer

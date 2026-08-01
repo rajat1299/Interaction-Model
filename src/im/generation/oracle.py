@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import replace
 from re import IGNORECASE, fullmatch, search
 
 from im.generation.need_lineage import (
+    DelegateProvenance,
     NeedLineage,
+    NeedStatus,
     ScenarioValidationError,
 )
 from im.generation.need_lineage import (
@@ -34,7 +37,15 @@ from im.generation.sidecar import (
     ResponseWarrantKind,
 )
 from im.generation.timer_instruction_semantics import has_explicit_additional_timer_marker
-from im.license import Allowed, LicenseView, SnapshotView, TimerFireView, ToolResultView, check
+from im.license import (
+    Allowed,
+    LicenseView,
+    PendingToolRequestView,
+    SnapshotView,
+    TimerFireView,
+    ToolResultView,
+    check,
+)
 from im.mark_projection import project_span
 from im.schema.actions import (
     Action,
@@ -55,6 +66,7 @@ from im.schema.common import Activity, Disposition, TimerStatus, ToolResultStatu
 from im.schema.events import SnapshotEvent, StateCheckpointEvent, TimerFireEvent
 from im.schema.textspan import utf16_len
 from im.serialize import parse_event
+from im.tools import canonical_tool_key
 
 _ACTION_RANK = {
     CancelAction: 0,
@@ -105,8 +117,18 @@ def validate_oracle_action(
     if isinstance(action, RespondAction) or evidence.response_warrant_snapshot_event_id is not None:
         _validate_response_warrant(boundary, action, evidence)
     _validate_floor_state(boundary, action, evidence)
-    _validate_pending_idle(action, view)
-    allowed = check(action, view)
+    live_pending = _validate_pending_idle(
+        action,
+        view,
+        evidence.need_lineage,
+        evidence.delegate_provenance_by_beat,
+    )
+    license_view = (
+        replace(view, pending_tool_requests=live_pending)
+        if isinstance(action, IdleAction) and evidence.need_lineage
+        else view
+    )
+    allowed = check(action, license_view)
     if not isinstance(allowed, Allowed):
         raise ScenarioValidationError("scripted action is not allowed at its captured boundary")
     current = allowed.action
@@ -144,7 +166,10 @@ def validate_oracle_action(
 
     explicit = tuple(
         candidate
-        for candidate in _allowed_candidates((current, *evidence.future_actions), boundary)
+        for candidate in _allowed_candidates(
+            (current, *evidence.future_actions),
+            replace(boundary, license_view=license_view),
+        )
         if _is_explicit_candidate(candidate, view, has_need_lineage=bool(evidence.need_lineage))
     )
     nudge_fires = _nudge_fires(view)
@@ -528,6 +553,17 @@ def _validate_response_warrant(
     _validate_response_warrant_text(warrant_kind, warrant.text)
     if warrant.responded_to:
         raise ScenarioValidationError("response warrant snapshot was already responded to")
+    if isinstance(action, IdleAction) and action.reason is IdleReason.AMBIGUOUS:
+        if (
+            action.related_event_id is not None
+            or evidence.oracle_floor_open is not False
+            or warrant.activity is not Activity.ACTIVE
+            and not warrant.is_composing
+        ):
+            raise ScenarioValidationError(
+                "warranted ambiguity requires an unresolved request on a closed floor"
+            )
+        return
     if isinstance(target, ToolResultView):
         if (
             target.event_id != evidence.response_warrant_failed_result_event_id
@@ -593,7 +629,10 @@ def _validate_response_warrant_text(kind: ResponseWarrantKind, text: str) -> Non
     lines = tuple(line.strip() for line in text.splitlines() if line.strip())
     if not lines:
         raise ScenarioValidationError("response warrant has no explicit request")
-    if kind is ResponseWarrantKind.AMBIGUITY_CLARIFICATION:
+    if kind in {
+        ResponseWarrantKind.AMBIGUITY_CLARIFICATION,
+        ResponseWarrantKind.UNSUPPORTED_LIMITATION,
+    }:
         return
     direct_request = any(
         fullmatch(_DIRECT_QUESTION, line, flags=IGNORECASE) is not None
@@ -640,11 +679,39 @@ def _validate_floor_state(
         raise ScenarioValidationError("integrate and respond require an open floor")
 
 
-def _validate_pending_idle(action: object, view: LicenseView) -> None:
-    if not isinstance(action, IdleAction) or not view.pending_tool_requests:
-        return
+def _validate_pending_idle(
+    action: object,
+    view: LicenseView,
+    need_lineage: tuple[NeedLineage, ...],
+    delegate_provenance: tuple[DelegateProvenance, ...],
+) -> tuple[PendingToolRequestView, ...]:
+    if not isinstance(action, IdleAction):
+        return view.pending_tool_requests
+    pending = view.pending_tool_requests
+    if need_lineage:
+        status_by_need = {need.need_id: need.status for need in need_lineage}
+        live_pending = []
+        for request in pending:
+            matches = tuple(
+                provenance
+                for provenance in delegate_provenance
+                if provenance.query_slot.event_id == request.fact_event_id
+                and canonical_tool_key(request.tool, {"query": provenance.query_slot.text})
+                == request.canonical_key
+            )
+            if len(matches) != 1 or matches[0].need_id not in status_by_need:
+                raise ScenarioValidationError("pending tool lacks one declared factual need")
+            if status_by_need[matches[0].need_id] is NeedStatus.LIVE:
+                live_pending.append(request)
+        pending = tuple(live_pending)
+    if not pending:
+        if action.reason is IdleReason.AWAITING_TOOL:
+            raise ScenarioValidationError(
+                "awaiting-tool idle requires one live pending factual need"
+            )
+        return pending
     oldest = min(
-        view.pending_tool_requests,
+        pending,
         key=lambda pending: (pending.policy_seq, pending.request_id),
     )
     if (
@@ -652,6 +719,7 @@ def _validate_pending_idle(action: object, view: LicenseView) -> None:
         or action.related_event_id != oldest.fact_event_id
     ):
         raise ScenarioValidationError("idle with pending tools must await the oldest pending fact")
+    return pending
 
 
 def _validate_closed_result_idle(

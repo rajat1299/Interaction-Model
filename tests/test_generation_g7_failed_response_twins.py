@@ -62,7 +62,7 @@ def test_failed_result_builder_validates_the_injected_candidate_response() -> No
 
 
 @pytest.mark.asyncio
-async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
+async def test_failed_result_twins_are_real_later_runtime_candidates(
     tmp_path: Path,
 ) -> None:
     twins = build_g7_failed_response_twin_programs(
@@ -94,12 +94,13 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         candidate.selected_call_indices == twins.selected_call_indices
         for candidate in candidates
     )
-    assert all(candidate.decision_count == 7 for candidate in candidates)
+    assert all(candidate.decision_count == 8 for candidate in candidates)
     assert all(
         tuple(type(action) for action in candidate.selected_actions[:-1])
         == (
             IdleAction,
             DelegateAction,
+            IdleAction,
             DelegateAction,
             IdleAction,
             IntegrateAction,
@@ -114,7 +115,7 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         type(action) for candidate in candidates for action in candidate.selected_actions
     ) == {
         DelegateAction: 4,
-        IdleAction: 5,
+        IdleAction: 7,
         IntegrateAction: 4,
         RespondAction: 1,
     }
@@ -143,7 +144,7 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         assert failed.payload.status is ToolResultStatus.FAILED
         assert failed.seq < checkpoint.seq
 
-    third = tuple(parent.sidecar.decisions[9] for parent in parents)
+    third = tuple(parent.sidecar.decisions[10] for parent in parents)
     assert all(
         decision.floor_open is False and len(decision.pending_request_ids) == 2
         for decision in third
@@ -153,10 +154,10 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         for decision in third
         if isinstance(decision.action, IdleAction)
     )
-    integrations = tuple(parent.sidecar.decisions[10:12] for parent in parents)
+    integrations = tuple(parent.sidecar.decisions[11:13] for parent in parents)
     assert all(
-        decision.floor_open is True
-        and decision.floor_opening_snapshot_event_id == "e_000018"
+        (decision.floor_open, decision.floor_opening_snapshot_event_id)
+        == (True, "e_000020")
         for pair in integrations
         for decision in pair
     )
@@ -174,7 +175,7 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
     assert all(program.require_g7_evidence for program in twins.programs)
     assert all(
         tuple(item.beat_id for item in program.delegate_provenance_by_beat or ())
-        == ("b3", "b7", "b8")
+        == ("b3", "b7", "b9")
         for program in twins.programs
     )
     assert all(
@@ -183,6 +184,12 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         for action in program.actions[:3]
         if isinstance(action, IdleAction)
     )
+    for program in twins.programs:
+        frames = tuple(parse_tim_json(frame.raw_bytes) for frame in program.frames)
+        assert frames[4]["activity"] == frames[5]["activity"] == "active"
+        assert program.frames[7].at_ms - program.frames[6].at_ms == 3_000
+        assert "and also look up" in frames[7]["text"]
+        assert program.actions[7].fact.text in frames[7]["text"]
     assert all(
         next(
             need
@@ -205,12 +212,15 @@ async def test_failed_result_twins_are_real_later_seven_call_runtime_candidates(
         )
         assert all(action.fact.text == action.args.query for action in delegates)
         assert all(
-            f"Please look up {action.fact.text}." in snapshots[action.fact.event_id].payload.text
+            f"look up {action.fact.text}." in snapshots[action.fact.event_id].payload.text
             for action in delegates
         )
-        assert (
-            "remains available for the final invitation"
-            in snapshots[FAILED_QUERY_EVENT_ID].payload.text
+        assert snapshots[FAILED_QUERY_EVENT_ID].payload.text == (
+            "Please look up Fable Station platform."
+        )
+        assert all(
+            "final invitation" not in snapshot.payload.text
+            for snapshot in snapshots.values()
         )
 
     assert yielded.frames[:-1] == active.frames[:-1]
@@ -259,7 +269,7 @@ async def test_failed_result_twins_commit_both_integrations_for_production_fuzz_
     )
 
     assert all(
-        tuple(type(decision.action) for decision in parent.sidecar.decisions[10:12])
+        tuple(type(decision.action) for decision in parent.sidecar.decisions[11:13])
         == (IntegrateAction, IntegrateAction)
         for parent in generated
     )

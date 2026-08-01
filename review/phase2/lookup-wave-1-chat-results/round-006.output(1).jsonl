@@ -1,0 +1,9 @@
+{"custom_id":"t2lw1.duplicate-abandonment-00.d014.a1","action":{"type":"delegate","fact":{"event_id":"e_000017","start_utf16":15,"end_utf16":36,"text":"Iron Vale signal word"},"tool":"lookup","args":{"query":"Iron Vale signal word"}}}
+{"custom_id":"t2lw1.duplicate-replacement-00.d015.a1","action":{"type":"skip","target_event_id":"e_000022","reason":"stale_tool_result"}}
+{"custom_id":"t2lw1.live-00.d005.a1","action":{"type":"integrate","result_event_id":"e_000012","text":"Dune Junction docket is slate."}}
+{"custom_id":"t2lw1.live-01.d005.a1","action":{"type":"integrate","result_event_id":"e_000012","text":"Varrow token is BK-42."}}
+{"custom_id":"t2lw1.live-02.d005.a1","action":{"type":"integrate","result_event_id":"e_000012","text":"Cobalt Ridge has 58 open trails."}}
+{"custom_id":"t2lw1.live-03.d005.a1","action":{"type":"integrate","result_event_id":"e_000012","text":"Ivory Loop stamp is ember."}}
+{"custom_id":"t2lw1.live-04.d005.a1","action":{"type":"integrate","result_event_id":"e_000012","text":"Yarrow Pier signal is foxglove."}}
+{"custom_id":"t2lw1.stale-00.d017.a1","action":{"type":"skip","target_event_id":"e_000032","reason":"stale_tool_result"}}
+{"custom_id":"t2lw1.stale-01.d017.a1","action":{"type":"skip","target_event_id":"e_000032","reason":"stale_tool_result"}}

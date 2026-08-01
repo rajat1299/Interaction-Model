@@ -1,0 +1,10 @@
+{"custom_id":"t2rw1.response-006-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2rw1.response-006-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"The final item is 11 tokens."}}
+{"custom_id":"t2rw1.response-009-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2rw1.response-009-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"The current selection is 17 October 2031."}}
+{"custom_id":"t2rw1.response-018-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2rw1.response-018-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"The final item is Aster Quay."}}
+{"custom_id":"t2rw1.response-026-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2rw1.response-026-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"The ready item is bronze card."}}
+{"custom_id":"t2rw1.response-033-active.d000.a1","action":{"type":"idle","reason":"awaiting_opening","related_event_id":"e_000002"}}
+{"custom_id":"t2rw1.response-033-yielded.d000.a1","action":{"type":"respond","reply_to_event_id":"e_000002","text":"The current selection is clear bridge."}}

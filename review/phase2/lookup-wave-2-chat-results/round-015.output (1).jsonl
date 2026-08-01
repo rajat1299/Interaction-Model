@@ -1,0 +1,20 @@
+{"custom_id":"t2lw2.a-00.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":63,"end_utf16":86,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"t2lw2.a-01.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":62,"end_utf16":84,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"t2lw2.a-02.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":67,"end_utf16":93,"text":"Peregrine Dock signal word"},"tool":"lookup","args":{"query":"Peregrine Dock signal word"}}}
+{"custom_id":"t2lw2.a-03.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":68,"end_utf16":89,"text":"Xylo Basin cargo mark"},"tool":"lookup","args":{"query":"Xylo Basin cargo mark"}}}
+{"custom_id":"t2lw2.a-04.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":67,"end_utf16":84,"text":"Opal Run rainfall"},"tool":"lookup","args":{"query":"Opal Run rainfall"}}}
+{"custom_id":"t2lw2.a-05.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":67,"end_utf16":87,"text":"Juniper Arcade stall"},"tool":"lookup","args":{"query":"Juniper Arcade stall"}}}
+{"custom_id":"t2lw2.a-06.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":68,"end_utf16":92,"text":"Quartz Fen bridge status"},"tool":"lookup","args":{"query":"Quartz Fen bridge status"}}}
+{"custom_id":"t2lw2.a-07.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":69,"end_utf16":89,"text":"Violet Cove rainfall"},"tool":"lookup","args":{"query":"Violet Cove rainfall"}}}
+{"custom_id":"t2lw2.a-08.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":61,"end_utf16":82,"text":"Iron Vale signal word"},"tool":"lookup","args":{"query":"Iron Vale signal word"}}}
+{"custom_id":"t2lw2.a-09.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":63,"end_utf16":86,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"t2lw2.a-10.d018.a1","action":{"type":"delegate","fact":{"event_id":"e_000029","start_utf16":62,"end_utf16":84,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"t2lw2.b-00.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-01.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-02.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-03.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-04.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-05.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-06.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-07.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}
+{"custom_id":"t2lw2.b-08.d017.a1","action":{"type":"idle","reason":"awaiting_tool","related_event_id":"e_000017"}}

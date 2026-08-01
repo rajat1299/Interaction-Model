@@ -69,6 +69,40 @@ describe("reducer canary stream-derivable subset coverage", () => {
     expect(fid.divergences).toEqual([]);
   });
 
+  it("does not compare ledger history omitted by a checkpoint", async () => {
+    const packet = await loadCanary();
+    const original = byFamily(packet.streams, "rollover_continuity");
+    expect(original.checkpointSelection).not.toBeNull();
+    const stream: LoadedStream = {
+      ...original,
+      runtimeLedger: {
+        ...original.runtimeLedger,
+        dispositions: [
+          ...original.runtimeLedger.dispositions,
+          { event_id: "e_999999", by_action_event_id: "e_999998", state: "skipped" },
+        ],
+        tool_requests: [
+          ...original.runtimeLedger.tool_requests,
+          {
+            request_id: "r_999",
+            tool: "lookup",
+            args: { query: "historical lookup" },
+            status: "completed",
+            fact_event_id: "e_999997",
+            result_event_id: "e_999999",
+            result_status: "succeeded",
+            due_mono_ns: 1,
+            requested_mono_ns: 0,
+            canonical_key: `sha256:${"0".repeat(64)}`,
+          },
+        ],
+      },
+    };
+    const fid = checkStreamFidelity(stream);
+    expect(fid.unavailableFields).toContain("pre_checkpoint_ledger_history");
+    expect(fid.divergences).toEqual([]);
+  });
+
   it("matches stream-derivable fields on stale-tool skip stream", async () => {
     const packet = await loadCanary();
     const stream = byFamily(packet.streams, "lookup_latency_duplicate_pressure");

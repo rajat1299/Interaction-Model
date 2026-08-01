@@ -1,0 +1,4 @@
+{"custom_id":"t2mw1.negative-core-a.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.negative-core-b.d005.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-a.d005.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":69,"text":"Highlight the phrase Silver Orchard wherever it appears in the draft."},"target":{"event_id":"e_000003","start_utf16":265,"end_utf16":279,"text":"Silver Orchard"}}}
+{"custom_id":"t2mw1.positive-core-b.d005.a1","action":{"type":"mark","instruction":{"event_id":"e_000002","start_utf16":0,"end_utf16":66,"text":"Underline every occurrence of Meridian Finch in the route summary."},"target":{"event_id":"e_000003","start_utf16":262,"end_utf16":276,"text":"Meridian Finch"}}}

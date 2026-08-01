@@ -25,7 +25,7 @@ import {
   populateReviewFilters,
   setWorkspaceLoaded,
 } from "./review-workspace";
-import { renderViewport } from "./viewport";
+import { actionReferencesFor, renderViewport } from "./viewport";
 import {
   exportReviewSidecar,
   mergeReviewRecords,
@@ -37,6 +37,7 @@ import {
   type ReviewRecord,
 } from "./review-sidecar";
 import {
+  clearReviewDraft,
   clusterEvidenceReady,
   persistClusterProgress,
   persistReviewDraft,
@@ -55,6 +56,7 @@ import {
 } from "./teacher-labels";
 import {
   applyClusterDisposition,
+  categoryCopy,
   clusterEvidenceCases,
   isPhase2Revealed,
   phase2DecisionFor,
@@ -63,12 +65,14 @@ import {
   renderPhase2Shell,
   renderClusterContext,
   renderClusterRail,
+  summarizeAction,
   validatePhase2Selection,
 } from "./phase2-review";
 import type {
   Action,
   LoadedPacket,
   Phase2Cluster,
+  Phase2DecisionEvidence,
   Phase2DecisionIdentity,
   SidecarDecision,
 } from "./types";
@@ -167,6 +171,12 @@ function teacherOracleNeedsReview(
   streamSha: string,
   dec: SidecarDecision,
 ): boolean {
+  const phase2 = phase2DecisionFor(
+    state.index?.packet.phase2ReviewEvidence ?? null,
+    streamKey(streamSha),
+    dec.observed_policy_seq,
+  );
+  if (phase2) return phase2.review_evidence.review_route.review_required;
   const label = lookupTeacherLabel(
     state.teacherLabels,
     streamKey(streamSha),
@@ -217,6 +227,114 @@ function setQueueItem(item: StreamQueueItem): void {
   );
 }
 
+function phase2ReviewDecisions(): Phase2DecisionEvidence[] {
+  const evidence = state.index?.packet.phase2ReviewEvidence;
+  const clusterEvidenceKeys = new Set(
+    (evidence?.clusters ?? []).flatMap((cluster) => clusterEvidenceCases(cluster).map(recordKey)),
+  );
+  const isEarlyExitException = (decision: Phase2DecisionEvidence) =>
+    decision.review_evidence.wave_id.toLowerCase().includes("sentinel") ||
+    clusterEvidenceKeys.has(recordKey(decision));
+  const causalExit = new Map<string, number>();
+  for (const decision of evidence?.decisions ?? []) {
+    if (decision.comparison !== "causal_disagreement") continue;
+    const review = state.reviews.get(recordKey(decision));
+    if (!review?.candidate_choice || !review.disagreement_category) continue;
+    causalExit.set(
+      decision.stream_sha256,
+      Math.min(causalExit.get(decision.stream_sha256) ?? Number.MAX_SAFE_INTEGER, decision.decision_policy_seq),
+    );
+  }
+  const decisions = [...(evidence?.decisions ?? [])]
+    .filter((decision) => decision.review_evidence.review_route.review_required)
+    .filter((decision) => {
+      const indexed = state.index?.bySha.get(decision.stream_sha256.slice(7));
+      if (!indexed) return false;
+      const streamRejected = state.reviews.get(recordKey({
+        stream_sha256: decision.stream_sha256,
+        decision_policy_seq: null,
+      }))?.decision === "reject";
+      const exit = causalExit.get(decision.stream_sha256);
+      if (streamRejected && exit === undefined && !isEarlyExitException(decision)) return false;
+      if (exit !== undefined && decision.decision_policy_seq > exit && !isEarlyExitException(decision)) return false;
+      if (state.filters.families && !state.filters.families.has(indexed.stream.family)) return false;
+      if (state.filters.actionTypes && !state.filters.actionTypes.has(decision.oracle_action.type)) return false;
+      return true;
+    });
+  const groups = new Map<string, Phase2DecisionEvidence[]>();
+  for (const decision of decisions) {
+    const group = groups.get(decision.stream_sha256) ?? [];
+    group.push(decision);
+    groups.set(decision.stream_sha256, group);
+  }
+  return [...groups.values()]
+    .sort((left, right) => {
+      const pendingRank = (group: Phase2DecisionEvidence[]) => Math.min(
+        ...group.filter((decision) => !state.reviews.has(recordKey(decision))).map((decision) => decision.priority_rank),
+        Number.MAX_SAFE_INTEGER,
+      );
+      return pendingRank(left) - pendingRank(right) ||
+        Math.min(...left.map((decision) => decision.priority_rank)) - Math.min(...right.map((decision) => decision.priority_rank)) ||
+        left[0].stream_sha256.localeCompare(right[0].stream_sha256);
+    })
+    .flatMap((group) => group.sort((left, right) => left.decision_policy_seq - right.decision_policy_seq));
+}
+
+function applyD7StreamRejections(): void {
+  const firstByStream = new Map<string, Phase2DecisionEvidence>();
+  for (const decision of state.index?.packet.phase2ReviewEvidence?.decisions ?? []) {
+    if (decision.comparison !== "causal_disagreement") continue;
+    const review = state.reviews.get(recordKey(decision));
+    if (!review?.candidate_choice || !review.disagreement_category) continue;
+    const current = firstByStream.get(decision.stream_sha256);
+    if (!current || decision.decision_policy_seq < current.decision_policy_seq) {
+      firstByStream.set(decision.stream_sha256, decision);
+    }
+  }
+  for (const decision of firstByStream.values()) {
+    const streamReviewKey = recordKey({ stream_sha256: decision.stream_sha256, decision_policy_seq: null });
+    const existing = state.reviews.get(streamReviewKey);
+    if (existing?.decision === "reject" && existing.reason_code !== "causal_disagreement") continue;
+    state.reviews.set(streamReviewKey, {
+      stream_sha256: decision.stream_sha256,
+      decision_policy_seq: null,
+      decision: "reject",
+      reason_code: "causal_disagreement",
+      note: `Rejected after confirmed causal disagreement at decision ${decision.decision_policy_seq}.`,
+    });
+  }
+}
+
+function openPhase2Decision(decision: Phase2DecisionIdentity): void {
+  const indexed = state.index?.bySha.get(decision.stream_sha256.slice(7));
+  if (!indexed) return;
+  setStream(indexed.stream.sha256, eventIndexForPolicySeq(indexed, decision.decision_policy_seq));
+}
+
+function gotoReviewDecision(delta: number): void {
+  const decisions = phase2ReviewDecisions();
+  if (decisions.length === 0) return gotoDecision(delta);
+  const current = currentPhase2IdentityKey();
+  const currentIndex = decisions.findIndex((decision) => recordKey(decision) === current);
+  const target = Math.max(0, Math.min(decisions.length - 1, (currentIndex < 0 ? 0 : currentIndex) + delta));
+  openPhase2Decision(decisions[target]);
+}
+
+function gotoNextUnresolvedDecision(): void {
+  const decisions = phase2ReviewDecisions();
+  if (decisions.length === 0) return gotoDecision(1);
+  const current = currentPhase2IdentityKey();
+  const start = Math.max(0, decisions.findIndex((decision) => recordKey(decision) === current));
+  for (let offset = 1; offset <= decisions.length; offset++) {
+    const candidate = decisions[(start + offset) % decisions.length];
+    if (!state.reviews.has(recordKey(candidate))) {
+      openPhase2Decision(candidate);
+      return;
+    }
+  }
+  renderAll();
+}
+
 function gotoDecision(delta: number): void {
   const indexed = currentIndexed();
   if (!indexed) return;
@@ -265,24 +383,26 @@ function gotoEvent(delta: number): void {
 function progressCounts(): {
   reviewedStreams: number;
   flaggedRejected: number;
-  unresolvedDisagreements: number;
+  reviewedDecisions: number;
+  unresolvedDecisions: number;
+  totalDecisions: number;
   totalStreams: number;
 } {
   if (!state.index) {
     return {
       reviewedStreams: 0,
       flaggedRejected: 0,
-      unresolvedDisagreements: 0,
+      reviewedDecisions: 0,
+      unresolvedDecisions: 0,
+      totalDecisions: 0,
       totalStreams: 0,
     };
   }
   let reviewedStreams = 0;
   let flaggedRejected = 0;
-  let unresolvedDisagreements = 0;
-  const disagreementKeys = collectDisagreementKeys(
-    state.index.packet.streams,
-    teacherOracleNeedsReview,
-  );
+  let reviewedDecisions = 0;
+  let unresolvedDecisions = 0;
+  const reviewKeys = collectDisagreementKeys(state.index.packet.streams, teacherOracleNeedsReview);
   for (const sha of state.index.order) {
     const key = recordKey({
       stream_sha256: streamKey(sha),
@@ -294,7 +414,11 @@ function progressCounts(): {
       if (rec.decision === "flag" || rec.decision === "reject") flaggedRejected++;
     }
   }
-  for (const dkey of disagreementKeys) {
+  const phase2 = state.index.packet.phase2ReviewEvidence ? phase2ReviewDecisions() : null;
+  const activeReviewKeys = phase2
+    ? new Set(phase2.map(recordKey))
+    : reviewKeys;
+  for (const dkey of activeReviewKeys) {
     const sep = dkey.indexOf("\x00");
     const sha = dkey.slice(0, sep);
     const policySeq = Number(dkey.slice(sep + 1));
@@ -302,12 +426,15 @@ function progressCounts(): {
       stream_sha256: streamKey(sha),
       decision_policy_seq: policySeq,
     });
-    if (!state.reviews.has(reviewKey)) unresolvedDisagreements++;
+    if (state.reviews.has(reviewKey)) reviewedDecisions++;
+    else unresolvedDecisions++;
   }
   return {
     reviewedStreams,
     flaggedRejected,
-    unresolvedDisagreements,
+    reviewedDecisions,
+    unresolvedDecisions,
+    totalDecisions: activeReviewKeys.size,
     totalStreams: state.index.order.length,
   };
 }
@@ -368,12 +495,20 @@ function renderDivergence(blinded = false): void {
   }
   box.hidden = false;
   box.setAttribute("role", "alert");
-  box.textContent =
-    `DIVERGENCE: ${divs.length} mismatch(es). ` +
-    divs
-      .slice(0, 5)
-      .map((d) => `${d.location} ${d.field}: expected ${d.expected} got ${d.actual}`)
-      .join(" | ");
+  box.replaceChildren();
+  const summary = document.createElement("span");
+  summary.className = "divergence-summary";
+  summary.textContent = `Packet replay differs from the recorded review state (${divs.length} technical mismatch${divs.length === 1 ? "" : "es"}).`;
+  const technical = document.createElement("details");
+  const label = document.createElement("summary");
+  label.textContent = "Technical details";
+  const raw = document.createElement("pre");
+  raw.textContent = divs
+    .slice(0, 5)
+    .map((item) => `${item.location} ${item.field}: expected ${item.expected} got ${item.actual}`)
+    .join("\n");
+  technical.append(label, raw);
+  box.append(summary, technical);
 }
 
 function renderInspector(
@@ -404,6 +539,83 @@ function renderInspector(
   ($("inspect-state") as HTMLPreElement).textContent = JSON.stringify(vis, null, 2);
 }
 
+function renderReviewQueue(): void {
+  const list = $("stream-list");
+  list.replaceChildren();
+  const phase2 = phase2ReviewDecisions();
+  if (phase2.length) {
+    let previousStream: string | null = null;
+    let interactionNumber = 0;
+    for (const decision of phase2) {
+      if (decision.stream_sha256 !== previousStream) {
+        interactionNumber += 1;
+        previousStream = decision.stream_sha256;
+        const group = document.createElement("p");
+        group.className = "queue-stream-label";
+        group.textContent = `Interaction ${interactionNumber}`;
+        list.append(group);
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.streamSha = decision.stream_sha256.slice(7);
+      const active = recordKey(decision) === currentPhase2IdentityKey();
+      const reviewed = state.reviews.has(recordKey(decision));
+      button.className = `stream-item${active ? " active" : ""}${reviewed ? " reviewed" : ""}`;
+      const title = document.createElement("span");
+      title.className = "queue-title";
+      title.textContent = decision.candidates.length === 2
+        ? decision.candidates.map((candidate) => summarizeAction(candidate.action).verb).join(" vs ")
+        : `Verify ${summarizeAction(decision.oracle_action).verb.toLowerCase()}`;
+      const meta = document.createElement("span");
+      meta.className = "queue-meta";
+      meta.textContent = reviewed ? "Reviewed" : "Needs review";
+      button.append(title, meta);
+      button.addEventListener("click", () => openPhase2Decision(decision));
+      list.append(button);
+    }
+    return;
+  }
+
+  for (const [index, item] of state.queue.entries()) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.streamSha = item.streamSha256;
+    button.className = `stream-item${item.streamSha256 === state.streamSha ? " active" : ""}`;
+    const title = document.createElement("span");
+    title.className = "queue-title";
+    title.textContent = `Interaction ${index + 1}`;
+    const meta = document.createElement("span");
+    meta.className = "queue-meta";
+    meta.textContent = `${item.decisionCount} decision${item.decisionCount === 1 ? "" : "s"}`;
+    button.append(title, meta);
+    button.addEventListener("click", () => setQueueItem(item));
+    list.append(button);
+  }
+}
+
+function resetCurrentPacket(): void {
+  if (!state.index || !state.packetDraftKey) return;
+  const confirmed = window.confirm(
+    "Start this packet over? This clears only the reviews saved locally for this packet. Export first if you need a copy.",
+  );
+  if (!confirmed) return;
+  clearReviewDraft(window.localStorage, state.packetDraftKey);
+  state.reviews = new Map();
+  state.clusterProgress = new Map();
+  state.selectedCluster = null;
+  state.dirty = false;
+  renderAll();
+}
+
+function updateCategoryHelp(): void {
+  const category = $("phase2-category") as HTMLSelectElement;
+  const help = $("phase2-category-help");
+  const value = category.value;
+  help.textContent = value
+    ? categoryCopy(value as Parameters<typeof categoryCopy>[0]).description
+    : "Choose the explanation that best accounts for the mismatch.";
+}
+
 function renderAll(): void {
   const status = $("load-status");
   const indexed = currentIndexed();
@@ -424,41 +636,43 @@ function renderAll(): void {
     : false;
   const phase2Blinded = phase2IsBlinded(phase2Decision, phase2Revealed);
 
-  status.textContent =
-    `Packet OK · ${state.index.order.length} streams · ` +
-    `checksums verified · current ${indexed.stream.sha256.slice(0, 12)}… ` +
-    `family=${indexed.stream.family}`;
+  status.textContent = `Packet verified · ${state.index.order.length} interactions`;
+  ($("progress") as HTMLElement).textContent = counts.totalDecisions
+    ? `${counts.reviewedDecisions} of ${counts.totalDecisions} decisions reviewed · ${counts.unresolvedDecisions} left`
+    : `${counts.reviewedStreams} of ${counts.totalStreams} interactions reviewed · ${counts.flaggedRejected} flagged or rejected`;
+  $("save-state").textContent = state.dirty ? "Changes saved locally · export pending" : "Saved locally";
 
-  ($("progress") as HTMLElement).textContent =
-    `Reviewed streams: ${counts.reviewedStreams}/${counts.totalStreams} · ` +
-    `flagged/rejected: ${counts.flaggedRejected} · ` +
-    `unresolved disagreements: ${counts.unresolvedDisagreements}`;
-
-  ($("nav-meta") as HTMLElement).textContent =
-    `event ${state.eventIndex + 1}/${indexed.reduction.states.length} ` +
-    `seq=${vis.eventSeq} kind=${vis.eventKind} · ` +
-    `decision ${currentDecisionIdx() !== null ? currentDecisionIdx()! + 1 : "—"}/` +
-    `${indexed.stream.sidecar.decisions.length}`;
+  const phase2Order = phase2ReviewDecisions();
+  const phase2Position = phase2Order.findIndex((item) => recordKey(item) === currentPhase2IdentityKey());
+  ($("nav-meta") as HTMLElement).textContent = phase2Position >= 0
+    ? `Decision ${phase2Position + 1} of ${phase2Order.length}`
+    : `Decision ${currentDecisionIdx() !== null ? currentDecisionIdx()! + 1 : "—"} of ${indexed.stream.sidecar.decisions.length}`;
 
   renderDivergence(phase2Blinded);
+  const events = indexed.stream.segments.flatMap((segment) => segment.events);
   const oracleEvidence = decision
     ? {
-        floorOpen: decision.floor_open,
+        floorOpen: decision.floor_open ?? false,
         staleToolResultEventIds: decision.stale_tool_result_event_ids,
+        openTimerFireEventIds: decision.open_timer_fire_event_ids,
       }
     : null;
-  renderViewport($("viewport"), vis, phase2Blinded ? null : oracle, phase2Blinded ? null : oracleEvidence);
+  renderViewport($("viewport"), vis, phase2Blinded ? null : oracle, oracleEvidence, events);
   const actionRow = $("viewport").querySelector<HTMLElement>(".vp-action-row");
   if (actionRow) {
     actionRow.hidden = phase2Blinded;
     actionRow.setAttribute("aria-hidden", String(phase2Blinded));
   }
 
+  const actionReferences = actionReferencesFor(events, vis.eventSeq);
   const phase2Active = renderPhase2Shell(phase2Decision, phase2Revealed, {
     comparison: $("phase2-compare"), oraclePanel: $("oracle-panel"), teacherPanel: $("teacher-panel"),
     fields: $("phase2-fields"), announcement: $("phase2-reveal"), category: $("phase2-category") as HTMLSelectElement,
-  });
+  }, actionReferences);
   const teacherBox = $("teacher-panel");
+  const oracleBox = $("oracle-panel");
+  const compareTitle = $("compare-title");
+  const compareGuidance = $("compare-guidance");
   if (decision) {
     const label = lookupTeacherLabel(
       state.teacherLabels,
@@ -479,9 +693,19 @@ function renderAll(): void {
   } else {
     teacherBox.textContent = "Teacher label not loaded.";
   }
-  ($("oracle-panel") as HTMLElement).textContent = decision
+  oracleBox.textContent = decision
     ? `Oracle: ${JSON.stringify(decision.action)}`
     : "Oracle: (navigate to a decision)";
+  if (phase2Decision && !phase2Active) {
+    const action = summarizeAction(phase2Decision.oracle_action, actionReferences);
+    compareTitle.textContent = "Is this action correct?";
+    compareGuidance.textContent = "Check the expected action against the visible text and state facts above.";
+    oracleBox.textContent = `${action.verb}: ${action.summary}`;
+    teacherBox.hidden = true;
+  } else {
+    compareTitle.textContent = "Which result is better?";
+    compareGuidance.textContent = "Judge the action that should happen in the situation above. Candidate origins stay hidden until you save.";
+  }
 
   // Review form
   const streamRec = state.reviews.get(
@@ -513,19 +737,19 @@ function renderAll(): void {
     const category = $("phase2-category") as HTMLSelectElement;
     if (decRec?.disagreement_category && [...category.options].some((option) => option.value === decRec.disagreement_category)) category.value = decRec.disagreement_category;
   }
+  const legacyFields = $("legacy-decision-fields");
+  legacyFields.hidden = phase2Active;
+  $("decision-rationale-label").textContent = phase2Active ? "Why is this the better result?" : "What did you verify?";
+  $("decision-rationale-help").textContent = phase2Active
+    ? "State the rule or visible fact that decided the comparison."
+    : "Briefly note the visible fact or rule that supports your outcome.";
+  ($("decision-note") as HTMLTextAreaElement).placeholder = phase2Active
+    ? "Example: The request names no existing reminder, so asking a precise clarification is safer than guessing."
+    : "Example: The interval and reminder text match the user’s direct request.";
+  $("decision-error").hidden = true;
+  updateCategoryHelp();
 
-  // Stream list
-  const list = $("stream-list");
-  list.replaceChildren();
-  for (const item of state.queue) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className =
-      "stream-item" + (item.streamSha256 === state.streamSha ? " active" : "");
-    btn.textContent = `${item.family} · ${item.streamSha256.slice(0, 10)}… · d=${item.decisionCount} · rare=${item.maxRarity}`;
-    btn.addEventListener("click", () => setQueueItem(item));
-    list.appendChild(btn);
-  }
+  renderReviewQueue();
 
   renderClusterRail($("cluster-rail"), state.index.packet.phase2ReviewEvidence, state.selectedCluster, selectCluster);
   const cluster = selectedCluster();
@@ -629,7 +853,7 @@ function saveClusterDisposition(): void {
   );
   if (!selection) return;
   try {
-    state.reviews = applyClusterDisposition(
+  state.reviews = applyClusterDisposition(
       state.reviews,
       evidence,
       evidenceSha,
@@ -639,6 +863,7 @@ function saveClusterDisposition(): void {
       selection.rationale,
       progress.acknowledged,
     );
+    applyD7StreamRejections();
   } catch (error) {
     ($("cluster-status") as HTMLElement).textContent = error instanceof Error ? error.message : String(error);
     return;
@@ -652,10 +877,20 @@ function saveDecisionReview(): void {
   const indexed = currentIndexed();
   const decisionIdx = currentDecisionIdx();
   if (!indexed || decisionIdx === null) return;
-  const decision = ($("decision-decision") as HTMLSelectElement).value as ReviewDecision | "";
-  if (!decision) return;
   const policySeq = indexed.stream.sidecar.decisions[decisionIdx].observed_policy_seq;
   const phase2 = currentPhase2Decision();
+  const phase2Comparison = Boolean(phase2 && (phase2.comparison === "semantic_review_required" || phase2.comparison === "causal_disagreement"));
+  const outcome = $("decision-decision") as HTMLSelectElement;
+  const decision = (phase2Comparison ? outcome.value || "flag" : outcome.value) as ReviewDecision | "";
+  if (!decision) {
+    outcome.setCustomValidity("Choose an outcome before saving.");
+    outcome.focus();
+    outcome.reportValidity();
+    $("decision-error").textContent = "Choose Accept, Reject, or Flag before saving.";
+    $("decision-error").hidden = false;
+    return;
+  }
+  outcome.setCustomValidity("");
   const selection = phase2 && (phase2.comparison === "semantic_review_required" || phase2.comparison === "causal_disagreement")
     ? validatePhase2Selection(
         phase2,
@@ -664,7 +899,17 @@ function saveDecisionReview(): void {
         $("decision-note") as HTMLTextAreaElement,
       )
     : null;
-  if (phase2 && phase2.candidates.length === 2 && !selection) return;
+  if (phase2 && phase2.candidates.length === 2 && !selection) {
+    const invalid = [
+      ...document.querySelectorAll<HTMLInputElement>('input[name="phase2-choice"]'),
+      $("phase2-category") as HTMLSelectElement,
+      $("decision-note") as HTMLTextAreaElement,
+    ].find((control) => control.validationMessage);
+    $("decision-error").textContent = invalid?.validationMessage || "Complete the candidate, explanation, and rationale fields.";
+    $("decision-error").hidden = false;
+    return;
+  }
+  $("decision-error").hidden = true;
   const evidenceSha = phase2EvidenceSha256();
   if (selection && !evidenceSha) return;
   const rec: ReviewRecord = {
@@ -680,8 +925,10 @@ function saveDecisionReview(): void {
     } : {}),
   };
   state.reviews.set(recordKey(rec), rec);
+  applyD7StreamRejections();
   markReviewChanged();
-  renderAll();
+  if (phase2?.review_evidence.review_route.review_required) gotoNextUnresolvedDecision();
+  else renderAll();
 }
 
 function exportReviews(): void {
@@ -695,6 +942,7 @@ function exportReviews(): void {
   URL.revokeObjectURL(url);
   state.dirty = false;
   persistReviewDraft(window.localStorage, state.packetDraftKey, state.reviews);
+  renderAll();
 }
 
 async function importReviews(file: File): Promise<void> {
@@ -778,6 +1026,11 @@ async function onPacketSelected(files: FileList | null): Promise<void> {
   state.dirty = false;
   rebuildQueue();
   populateReviewFilters(state.index.packet.streams);
+  const firstReview = phase2ReviewDecisions()[0];
+  if (firstReview) {
+    openPhase2Decision(firstReview);
+    return;
+  }
   const first = state.queue[0]?.streamSha256 ?? state.index.order[0];
   const firstItem = state.queue.find((item) => item.streamSha256 === first);
   if (firstItem) setQueueItem(firstItem);
@@ -796,6 +1049,11 @@ function applyFilters(): void {
     actionTypes: act ? new Set([act]) : null,
   };
   rebuildQueue();
+  const filteredPhase2 = phase2ReviewDecisions();
+  if (filteredPhase2.length && !filteredPhase2.some((decision) => recordKey(decision) === currentPhase2IdentityKey())) {
+    openPhase2Decision(filteredPhase2[0]);
+    return;
+  }
   renderAll();
 }
 
@@ -839,11 +1097,11 @@ function onKey(e: KeyboardEvent): void {
       break;
     case "n":
       e.preventDefault();
-      gotoDecision(1);
+      gotoReviewDecision(1);
       break;
     case "p":
       e.preventDefault();
-      gotoDecision(-1);
+      gotoReviewDecision(-1);
       break;
     case " ":
       e.preventDefault();
@@ -889,6 +1147,11 @@ function adoptPacket(packet: LoadedPacket): void {
   state.dirty = false;
   rebuildQueue();
   populateReviewFilters(state.index.packet.streams);
+  const firstReview = phase2ReviewDecisions()[0];
+  if (firstReview) {
+    openPhase2Decision(firstReview);
+    return;
+  }
   const first = state.queue[0]?.streamSha256 ?? state.index.order[0];
   const firstItem = state.queue.find((item) => item.streamSha256 === first);
   if (firstItem) setQueueItem(firstItem);
@@ -943,8 +1206,8 @@ export function mountReviewShell(root: HTMLElement): () => void {
 
   $("btn-prev-event").addEventListener("click", () => gotoEvent(-1));
   $("btn-next-event").addEventListener("click", () => gotoEvent(1));
-  $("btn-prev-decision").addEventListener("click", () => gotoDecision(-1));
-  $("btn-next-decision").addEventListener("click", () => gotoDecision(1));
+  $("btn-prev-decision").addEventListener("click", () => gotoReviewDecision(-1));
+  $("btn-next-decision").addEventListener("click", () => gotoReviewDecision(1));
   $("btn-play").addEventListener("click", () => togglePlay());
   ($("play-speed") as HTMLSelectElement).addEventListener("change", (e) => {
     state.playSpeed = (e.target as HTMLSelectElement).value as keyof typeof PLAYBACK_MS;
@@ -957,8 +1220,11 @@ export function mountReviewShell(root: HTMLElement): () => void {
   $("filter-action").addEventListener("change", () => applyFilters());
   $("btn-save-stream").addEventListener("click", () => saveStreamReview());
   $("btn-save-decision").addEventListener("click", () => saveDecisionReview());
+  $("btn-skip-decision").addEventListener("click", () => gotoNextUnresolvedDecision());
   $("btn-save-cluster").addEventListener("click", () => saveClusterDisposition());
+  $("phase2-category").addEventListener("change", () => updateCategoryHelp());
   $("btn-export").addEventListener("click", () => exportReviews());
+  $("btn-reset-packet").addEventListener("click", () => resetCurrentPacket());
   ($("import-review") as HTMLInputElement).addEventListener("change", (e) => {
     const f = (e.target as HTMLInputElement).files?.[0];
     if (f) void importReviews(f);

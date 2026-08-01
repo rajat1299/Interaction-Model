@@ -1,0 +1,12 @@
+{"custom_id":"pn-c2aec9ed73c5f61b","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":52,"end_utf16":78,"text":"Kindle Square ticket price"},"tool":"lookup","args":{"query":"Kindle Square ticket price"}}}
+{"custom_id":"pn-eab09288b3262bed","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":49,"end_utf16":73,"text":"Cobalt Ridge trail count"},"tool":"lookup","args":{"query":"Cobalt Ridge trail count"}}}
+{"custom_id":"pn-38ec4b3fa5faf147","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-9dd51d89dc58515b","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-0a17a1d420575560","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-7b6ab935868670a3","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":71,"end_utf16":92,"text":"Aster Quay wind index"},"tool":"lookup","args":{"query":"Aster Quay wind index"}}}
+{"custom_id":"pn-4e075e9fd0464f7d","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-ea82b33fb46310b9","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":41,"end_utf16":63,"text":"Dawn Ferry gate letter"},"tool":"lookup","args":{"query":"Dawn Ferry gate letter"}}}
+{"custom_id":"pn-d0a3a5bd6feb07d9","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-9aa26715874ee179","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":41,"end_utf16":64,"text":"Brindle Port tide color"},"tool":"lookup","args":{"query":"Brindle Port tide color"}}}
+{"custom_id":"pn-de7ace08d3c69b43","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"pn-db15ece15e514a27","action":{"type":"delegate","fact":{"event_id":"e_000002","start_utf16":7,"end_utf16":32,"text":"Hollow Cinder postal zone"},"tool":"lookup","args":{"query":"Hollow Cinder postal zone"}}}

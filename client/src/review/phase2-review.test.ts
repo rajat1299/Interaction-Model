@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { recordKey, type ReviewMap } from "./review-sidecar";
 import {
   applyClusterDisposition,
+  categoryCopy,
   clusterEvidenceCases,
+  renderBlindedComparison,
   renderClusterRail,
+  summarizeAction,
   textEquivalentAllowed,
 } from "./phase2-review";
 import type { Phase2Cluster, Phase2DecisionEvidence, Phase2ReviewEvidence } from "./types";
@@ -39,6 +42,56 @@ function decision(letter: string, choiceForOracle: "A" | "B", rank: number): Pha
 }
 
 describe("Phase 2 cluster adjudication", () => {
+  it("presents frozen review data in plain language without revealing candidate origins", () => {
+    expect(summarizeAction({
+      type: "schedule",
+      instruction: { event_id: "e_1", start_utf16: 0, end_utf16: 10, text: "Remind me" },
+      interval_ms: 2_220_000,
+      message: "open the fern ledger",
+    }).summary).toBe("Create a recurring reminder every 37 minutes: “open the fern ledger”.");
+    expect(categoryCopy("teacher_error").label).toBe("Reference candidate is wrong");
+    expect(summarizeAction({
+      type: "skip",
+      target_event_id: "e_fire",
+      reason: "canceled_timer",
+    })).toEqual({
+      verb: "Skip timer fire",
+      summary: "Leave the due reminder unused because it was canceled.",
+    });
+    expect(summarizeAction(
+      { type: "nudge", fire_event_id: "e_000016" },
+      { timerMessages: new Map(), fireMessages: new Map([["e_000016", "open the fern ledger for the desk note"]]) },
+    )).toEqual({
+      verb: "Send reminder",
+      summary: "Send the due reminder: “open the fern ledger for the desk note”.",
+    });
+    expect(summarizeAction(
+      { type: "skip", target_event_id: "e_000028", reason: "stale_tool_result" },
+      {
+        timerMessages: new Map(),
+        fireMessages: new Map(),
+        resultSubjects: new Map([["e_000028", "Hollow Cinder postal zone"]]),
+      },
+    )).toEqual({
+      verb: "Skip lookup result",
+      summary: "Leave the result for “Hollow Cinder postal zone” unused because the user abandoned that lookup.",
+    });
+    expect(summarizeAction({
+      type: "integrate",
+      result_event_id: "e_result",
+      text: "Brindle Port reports violet water.",
+    })).toEqual({
+      verb: "Use result",
+      summary: "Add the available lookup result: “Brindle Port reports violet water.”",
+    });
+
+    const target = document.createElement("section");
+    renderBlindedComparison(target, decision("a", "A", 0), false);
+    expect(target.textContent).toContain("Reply to user");
+    expect(target.textContent).toContain("Choose Candidate A");
+    expect(target.textContent).not.toMatch(/Origin:|request_sha256/);
+  });
+
   it("maps a batch disposition to each member's local A/B order only", () => {
     const members = [decision("a", "A", 0), decision("b", "B", 1), decision("c", "A", 2)];
     const outsider = decision("d", "B", 3);

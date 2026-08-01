@@ -1,0 +1,4 @@
+{"custom_id":"t2mw1.negative-core-a.d009.a1","action":{"type":"respond","reply_to_event_id":"e_000011","text":"Which label category should I switch to?"}}
+{"custom_id":"t2mw1.negative-core-b.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-a.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}
+{"custom_id":"t2mw1.positive-core-b.d009.a1","action":{"type":"idle","reason":"no_trigger","related_event_id":null}}

@@ -495,6 +495,35 @@ export function checkStreamFidelity(
   if (ledger && terminal) {
     ledgerCompared = true;
     const loc = "stream_end";
+    const checkpointIndex = allEvents.map((event) => event.kind).lastIndexOf("state_checkpoint");
+    const checkpoint = checkpointIndex >= 0 ? allEvents[checkpointIndex] : null;
+    const visibleEvents = checkpointIndex >= 0 ? allEvents.slice(checkpointIndex) : allEvents;
+    const visibleRequestIds = new Set<string>();
+    const visibleDispositionIds = new Set<string>();
+    if (checkpoint?.kind === "state_checkpoint") {
+      checkpoint.payload.pending_tools.forEach((item) => visibleRequestIds.add(item.request_id));
+      checkpoint.payload.open_tool_results.forEach((item) => {
+        visibleRequestIds.add(item.request_id);
+        visibleDispositionIds.add(item.event_id);
+      });
+      checkpoint.payload.open_timer_fires.forEach((item) => visibleDispositionIds.add(item.event_id));
+      checkpoint.payload.dispositions.forEach((item) => visibleDispositionIds.add(item.event_id));
+      visibleDispositionIds.add(checkpoint.payload.snapshot.event_id);
+      unavailableFields.push("pre_checkpoint_ledger_history");
+    }
+    visibleEvents.forEach((event) => {
+      visibleDispositionIds.add(event.id);
+      if (event.kind === "tool_requested") visibleRequestIds.add(event.payload.request_id);
+    });
+    const ledgerRequests = checkpoint
+      ? ledger.tool_requests.filter((item) => visibleRequestIds.has(item.request_id))
+      : ledger.tool_requests;
+    const visibleLedgerDispositions = checkpoint
+      ? ledger.dispositions.filter((item) => visibleDispositionIds.has(item.event_id))
+      : ledger.dispositions;
+    const visibleResponseDispositions = checkpoint
+      ? ledger.response_dispositions.filter((item) => visibleDispositionIds.has(item.event_id))
+      : ledger.response_dispositions;
 
     compareField(
       divergences,
@@ -533,11 +562,11 @@ export function checkStreamFidelity(
       stream.sha256,
       loc,
       "ledger.tool_requests.ids",
-      sortStr(ledger.tool_requests.map((r) => r.request_id)),
+      sortStr(ledgerRequests.map((r) => r.request_id)),
       sortStr(terminal.toolRequests.map((r) => r.requestId)),
     );
 
-    for (const lr of ledger.tool_requests) {
+    for (const lr of ledgerRequests) {
       const actual = terminal.toolRequests.find((r) => r.requestId === lr.request_id);
       if (!actual) continue;
       const derivableStatus =
@@ -571,8 +600,8 @@ export function checkStreamFidelity(
     // Event dispositions + response dispositions. Canary response rows omit
     // `state`; presence in response_dispositions implies handled.
     const ledgerDisp = sortStr([
-      ...ledger.dispositions.map((d) => `${d.event_id}:${d.state}`),
-      ...ledger.response_dispositions.map(
+      ...visibleLedgerDispositions.map((d) => `${d.event_id}:${d.state}`),
+      ...visibleResponseDispositions.map(
         (d) => `${d.event_id}:${d.state ?? "handled"}`,
       ),
     ]);

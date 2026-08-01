@@ -1,0 +1,198 @@
+{
+  "baseline": {
+    "accepted_decisions": 146,
+    "families": {
+      "live_lookup_lifecycle": {
+        "accepted": {
+          "delegate": 14,
+          "idle": 14,
+          "integrate": 14,
+          "respond": 0
+        },
+        "remaining": {
+          "delegate": 66,
+          "idle": 86,
+          "integrate": 66,
+          "respond": 20
+        },
+        "target": {
+          "delegate": 80,
+          "idle": 100,
+          "integrate": 80,
+          "respond": 20
+        }
+      },
+      "lookup_latency_duplicate_pressure": {
+        "accepted": {
+          "delegate": 15,
+          "idle": 39,
+          "integrate": 9,
+          "skip": 9
+        },
+        "remaining": {
+          "delegate": 35,
+          "idle": 91,
+          "integrate": 21,
+          "skip": 21
+        },
+        "target": {
+          "delegate": 50,
+          "idle": 130,
+          "integrate": 30,
+          "skip": 30
+        }
+      },
+      "stale_result_opening_boundary": {
+        "accepted": {
+          "idle": 12,
+          "respond": 0,
+          "skip": 20
+        },
+        "remaining": {
+          "idle": 38,
+          "respond": 20,
+          "skip": 30
+        },
+        "target": {
+          "idle": 50,
+          "respond": 20,
+          "skip": 50
+        }
+      }
+    },
+    "wave_0_decisions": 76,
+    "wave_1_decisions": 70
+  },
+  "bindings": {
+    "lookup_wave0_repaired_packet_sha256": "sha256:4dadf45f821b0b6020a79d62d447230499f8913663cfed179f2393a3eea73305",
+    "lookup_wave1_owner_disposition_sha256": "sha256:08168bda832b0d851cce5d8c861c9032d3b2a481eb8369507b3aa14e0e409950",
+    "lookup_wave1_repaired_packet_sha256": "sha256:2eaf3d895a6de19f4e6f07273fff5cc25a9220db716bb526e85082fe47e32f83",
+    "response_catalog_sha256": "sha256:c5e8888f4ef7bd00f2466c17d1ad294f08a15341f79f56098b6514b234e68362",
+    "selection_contract_sha256": "sha256:c1b8b1345bf289f27ae156e91ef71c145546710ae3c7222cd3cfe302b4208d97"
+  },
+  "candidate_generation": [
+    {
+      "candidate_decisions": 84,
+      "candidate_source_units": 14,
+      "candidate_streams": 14,
+      "multiplier_band": "standard",
+      "required_target_source_units": 8,
+      "shape_id": "g7-fresh-lookup-live-2i-2d-2g",
+      "target_decisions": 48
+    },
+    {
+      "candidate_decisions": 196,
+      "candidate_source_units": 14,
+      "candidate_streams": 28,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 6,
+      "shape_id": "g7-checkpoint-lookup-live-failed-response",
+      "target_decisions": 84
+    },
+    {
+      "candidate_decisions": 28,
+      "candidate_source_units": 14,
+      "candidate_streams": 28,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 6,
+      "shape_id": "g7-response-floor-ambiguity-lookup-live",
+      "target_decisions": 12
+    },
+    {
+      "candidate_decisions": 121,
+      "candidate_source_units": 11,
+      "candidate_streams": 11,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 5,
+      "shape_id": "g7-checkpoint-lookup-duplicate-a",
+      "target_decisions": 55
+    },
+    {
+      "candidate_decisions": 117,
+      "candidate_source_units": 9,
+      "candidate_streams": 9,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 4,
+      "shape_id": "g7-checkpoint-lookup-duplicate-b",
+      "target_decisions": 52
+    },
+    {
+      "candidate_decisions": 72,
+      "candidate_source_units": 9,
+      "candidate_streams": 9,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 4,
+      "shape_id": "g7-checkpoint-lookup-stale",
+      "target_decisions": 32
+    },
+    {
+      "candidate_decisions": 28,
+      "candidate_source_units": 14,
+      "candidate_streams": 28,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 6,
+      "shape_id": "g7-response-floor-lookup-stale-mixed",
+      "target_decisions": 12
+    },
+    {
+      "candidate_decisions": 28,
+      "candidate_source_units": 14,
+      "candidate_streams": 28,
+      "multiplier_band": "fragile",
+      "required_target_source_units": 6,
+      "shape_id": "g7-response-floor-lookup-stale-unsupported",
+      "target_decisions": 12
+    }
+  ],
+  "candidate_totals": {
+    "decisions": 674,
+    "source_units": 99,
+    "streams": 155
+  },
+  "external_model_call_performed": false,
+  "format_version": 1,
+  "kind": "phase2-lookup-wave2-candidate-plan",
+  "prediction": {
+    "expected_result": "At least one valid whole-stream candidate remains for every target unit after mechanical checks and mandatory review.",
+    "kill_criteria": [
+      "any contract_gap",
+      "any repeated repaired-oracle defect",
+      "any response text without owner-approved response-asset identity",
+      "any final-materialized-stream coherence invariant failure"
+    ]
+  },
+  "response_dependency": {
+    "approved_unique_records_required_for_wave_2_target": {
+      "ambiguity_clarification": 9,
+      "failed_tool_notice": 6,
+      "unsupported_feature_limitation": 9
+    },
+    "fragile_multiplier_applies_to_streams_not_response_text": true,
+    "full_lookup_allocation_consumes_final_response_pool": {
+      "ambiguity_clarification": 15,
+      "failed_tool_notice": 10,
+      "unsupported_feature_limitation": 15
+    },
+    "status": "owner_sequencing_decision_required"
+  },
+  "target": {
+    "decisions": 307,
+    "families": {
+      "live_lookup_lifecycle": {
+        "decisions": 144,
+        "fraction_of_remaining": 0.605
+      },
+      "lookup_latency_duplicate_pressure": {
+        "decisions": 107,
+        "fraction_of_remaining": 0.637
+      },
+      "stale_result_opening_boundary": {
+        "decisions": 56,
+        "fraction_of_remaining": 0.636
+      }
+    },
+    "source_units": 45,
+    "streams": 69
+  },
+  "wave_id": "lookup-wave-2"
+}

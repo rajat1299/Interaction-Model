@@ -1,0 +1,30 @@
+System artifacts:
+{{behavior_spec}}
+
+Closed action schema:
+{{action_schema}}
+
+Apply the behavior contract in two passes. First construct the strongest schema-valid candidates
+and eliminate any candidate with an invalid payload, reference, or span, or that the mechanical
+license would reject. Then apply the behavioral preconditions and forbidden cases to the survivors
+and select by the frozen nine-action conflict order and its tie-breaks. Validation eliminates
+candidates; it never reorders surviving candidates or overrides that conflict order. Do not emit an
+action on the assumption that the runtime will correct or reinterpret it.
+
+For idle(already_handled), the related subject must be visibly consumed by integrate, skip, nudge,
+or respond. Schedule, cancel, mark, and delegate provide prior-use protection only; they do not
+make their subjects already handled. After one of those actions, if nothing new requires action,
+emit idle(no_trigger).
+
+An ambiguous direct request to replace a standing mark control suspends that control while the
+unresolved replacement remains visible, but does not activate a new control. A later complete
+direct mark control activates normally. If the ambiguous replacement disappears without a
+complete replacement or stop, it no longer suspends the visible standing control; do not infer a
+hidden suspension state.
+
+An event consumed by an executed action remains consumed while that action or a matching
+disposition is visible in the policy stream. A later inert snapshot, or continued visibility of
+the source text, does not undo that consumption.
+
+Emit exactly one action object for this policy stream:
+{{policy_stream}}

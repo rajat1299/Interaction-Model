@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "run": {
+    "requested_model": "qwen/qwen3.7-max",
+    "provider_model": "qwen/qwen3.7-max-20260520",
+    "provider": "Alibaba",
+    "calls": 1200,
+    "completed": 1192,
+    "runtime_failures": 8,
+    "actual_cost_usd": 1.547586225
+  },
+  "preliminary_filter": {
+    "accepted": 1069,
+    "rejected": {
+      "assistant_token_count_out_of_band": 92,
+      "fast_changing_fact": 23,
+      "refusal_outside_intentional_family": 5,
+      "near_duplicate": 3
+    },
+    "length_bands": {
+      "short": 98,
+      "medium": 251,
+      "long": 720
+    },
+    "multi_turn": 194
+  },
+  "independent_raw_review": {
+    "recovered_false_positive_rejects": {
+      "fast_changing_fact": 21,
+      "refusal_outside_intentional_family": 3
+    },
+    "definite_bad_admissions": [
+      "a75b91919ee18f98e36641a701a85240",
+      "97395cf8b43b7db055a43ac58af3857a",
+      "545b0c3610ecde831a5727bed14ec0f6",
+      "cf88775a97b9eb9d20a37ceb6fd94831"
+    ],
+    "corrected_working_pool": 1089,
+    "length_bands": {
+      "short": 101,
+      "medium": 258,
+      "long": 730
+    },
+    "multi_turn": 195,
+    "families": {
+      "rewrite_edit_summarize": 215,
+      "extraction_classification_format_conversion": 175,
+      "context_grounded_qa": 170,
+      "practical_planning": 100,
+      "coding_debug": 71,
+      "math_data_reasoning": 67,
+      "stable_knowledge_explanation": 95,
+      "evidence_grounded_comparison_recommendation": 70,
+      "translation_language_transformation": 36,
+      "refusal_uncertainty_missing_information": 41,
+      "light_creative_casual": 49
+    }
+  },
+  "minimum_joint_topup": {
+    "accepted_total": 491,
+    "short": 399,
+    "medium": 92,
+    "long": 0,
+    "multi_turn_at_least": 14
+  },
+  "recommended_topup": {
+    "accepted_total": 571,
+    "short": 449,
+    "medium": 122,
+    "multi_turn": 24,
+    "generated_manifest_calls_at_80_percent_yield": 722,
+    "matrix": {
+      "coding": {
+        "short_single": 88,
+        "short_multi": 4,
+        "medium_single": 5,
+        "medium_multi": 0
+      },
+      "context_qa": {
+        "short_single": 18,
+        "short_multi": 0,
+        "medium_single": 16,
+        "medium_multi": 0
+      },
+      "comparison": {
+        "short_single": 38,
+        "short_multi": 0,
+        "medium_single": 0,
+        "medium_multi": 0
+      },
+      "extraction": {
+        "short_single": 13,
+        "short_multi": 0,
+        "medium_single": 6,
+        "medium_multi": 0
+      },
+      "creative": {
+        "short_single": 19,
+        "short_multi": 0,
+        "medium_single": 0,
+        "medium_multi": 0
+      },
+      "math": {
+        "short_single": 66,
+        "short_multi": 0,
+        "medium_single": 5,
+        "medium_multi": 0
+      },
+      "planning": {
+        "short_single": 84,
+        "short_multi": 0,
+        "medium_single": 5,
+        "medium_multi": 0
+      },
+      "refusal": {
+        "short_single": 38,
+        "short_multi": 0,
+        "medium_single": 0,
+        "medium_multi": 0
+      },
+      "rewrite": {
+        "short_single": 0,
+        "short_multi": 6,
+        "medium_single": 71,
+        "medium_multi": 14
+      },
+      "stable_explanation": {
+        "short_single": 61,
+        "short_multi": 0,
+        "medium_single": 0,
+        "medium_multi": 0
+      },
+      "translation": {
+        "short_single": 14,
+        "short_multi": 0,
+        "medium_single": 0,
+        "medium_multi": 0
+      }
+    }
+  },
+  "recommended_pilot": {
+    "calls": 96,
+    "intended_short": 75,
+    "intended_medium": 21,
+    "multi_turn": 8,
+    "minimum_completed": 92,
+    "minimum_short_in_band": 68,
+    "minimum_medium_in_band": 19,
+    "minimum_multi_turn_accepted_in_band": 7,
+    "maximum_substantive_errors": 4
+  }
+}

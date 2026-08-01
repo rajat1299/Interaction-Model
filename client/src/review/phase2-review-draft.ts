@@ -79,6 +79,17 @@ function progressStorageKey(packetDraftKey: string | null): string | null {
   return packetDraftKey ? `${packetDraftKey}:cluster-evidence` : null;
 }
 
+/** Clear only the locally saved work bound to one verified packet/evidence identity. */
+export function clearReviewDraft(storage: Storage, packetDraftKey: string | null): void {
+  if (!packetDraftKey) return;
+  try {
+    storage.removeItem(packetDraftKey);
+    storage.removeItem(progressStorageKey(packetDraftKey)!);
+  } catch {
+    // The in-memory reset still succeeds when browser storage is unavailable.
+  }
+}
+
 export function persistClusterProgress(
   storage: Storage,
   packetDraftKey: string | null,

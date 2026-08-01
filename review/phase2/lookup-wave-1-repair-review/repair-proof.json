@@ -1,0 +1,45 @@
+{
+  "external_model_call_performed": false,
+  "format_version": 1,
+  "kind": "phase2-lookup-wave1-oracle-repair-proof",
+  "original_wave0_packet_sha256": "sha256:904fe300ee5356ace14f5eb5ffabe365a5c5d0d674a68ba591f61924ac329280",
+  "original_wave1_packet_sha256": "sha256:268db69f2da88738e54ea08864c2315e40f760ced1db1e603b82d68ebb6f92ee",
+  "repaired_wave0_packet_sha256": "sha256:4dadf45f821b0b6020a79d62d447230499f8913663cfed179f2393a3eea73305",
+  "repaired_wave1_packet_sha256": "sha256:2eaf3d895a6de19f4e6f07273fff5cc25a9220db716bb526e85082fe47e32f83",
+  "teacher_recomparison": {
+    "case_count": 70,
+    "non_equivalent_count": 9,
+    "remaining_disposition": {
+      "teacher_error": 8,
+      "template_error": 1
+    }
+  },
+  "unchanged_invariants": {
+    "runtime_frames": true,
+    "runtime_segments": true,
+    "runtime_stream_hashes": true,
+    "wave1_policy_prefixes": true,
+    "wave1_teacher_round_bytes": true
+  },
+  "wave0_changed_labels": [
+    "duplicate-abandonment-a:9:typing_active->no_trigger",
+    "duplicate-abandonment-a:12:typing_active->no_trigger",
+    "duplicate-abandonment-a:13:instruction_not_direct->no_trigger",
+    "duplicate-abandonment-b:9:typing_active->no_trigger",
+    "duplicate-abandonment-b:12:typing_active->no_trigger",
+    "duplicate-abandonment-b:13:instruction_not_direct->no_trigger",
+    "stale-refresh-a:13:awaiting_tool->no_trigger",
+    "stale-refresh-a:19:no_trigger->already_handled",
+    "stale-refresh-b:13:awaiting_tool->no_trigger",
+    "stale-refresh-b:19:no_trigger->already_handled"
+  ],
+  "wave1_changed_custom_ids": [
+    "t2lw1.duplicate-abandonment-00.d009.a1",
+    "t2lw1.duplicate-abandonment-00.d012.a1",
+    "t2lw1.duplicate-abandonment-00.d013.a1",
+    "t2lw1.stale-00.d013.a1",
+    "t2lw1.stale-00.d019.a1",
+    "t2lw1.stale-01.d013.a1",
+    "t2lw1.stale-01.d019.a1"
+  ]
+}

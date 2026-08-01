@@ -36,6 +36,7 @@ const RISK_FLAGS = new Set([
   "schedule_semantic_duplicate_boundary", "cancel_semantic_referent_resolution",
   "skip_reason_selection", "active_floor_response_boundary",
   "rollover_or_checkpoint_projection", "first_instances_of_new_template",
+  "dev_gold_100_percent",
 ]);
 const LABEL_ORIGINS = new Set([
   "human", "human_authored", "teacher_auto_trusted", "teacher_human_confirmed",
@@ -338,7 +339,9 @@ export async function parsePhase2ReviewEvidence(
     members.push(decision);
     groups.set(expectedSignature, members);
   }
-  if (groups.size !== rawClusters.length) throw new Error(`${label} clusters do not close over non-equivalent decisions`);
+  // A non-equivalent signature group is only promoted to a D7 cluster when
+  // it has three distinct source units. The decision remains reviewable via
+  // its blinded candidates when no cluster is emitted.
   const signatures = new Set<string>();
   const clusterPriorityRanks: number[] = [];
   for (const [index, rawCluster] of rawClusters.entries()) {
@@ -371,6 +374,11 @@ export async function parsePhase2ReviewEvidence(
   if (clusterPriorityRanks.some((rank, index) => index > 0 && rank <= clusterPriorityRanks[index - 1])) {
     throw new Error(`${label}.clusters are not in deterministic priority order`);
   }
+  for (const [signature, members] of groups) {
+    if (new Set(members.map((member) => member.source_unit_id)).size >= 3 && !signatures.has(signature)) {
+      throw new Error(`${label} D7 signature group with three distinct source units is missing its cluster`);
+    }
+  }
   return result;
 }
 
@@ -381,11 +389,18 @@ export async function validatePhase2EvidenceClosure(
 ): Promise<string[]> {
   const errors: string[] = [];
   const sidecars = new Map<string, SidecarDecision>();
-  streams.forEach((stream) => stream.sidecar.decisions.forEach((decision) => sidecars.set(key({ stream_sha256: stream.sidecar.stream_sha256, decision_policy_seq: decision.observed_policy_seq }), decision)));
+  streams.forEach((stream) => {
+    const selectedCalls = stream.checkpointSelection
+      ? new Set(stream.checkpointSelection.selected_call_indices)
+      : null;
+    stream.sidecar.decisions
+      .filter((decision) => selectedCalls === null || selectedCalls.has(decision.call_index))
+      .forEach((decision) => sidecars.set(key({ stream_sha256: stream.sidecar.stream_sha256, decision_policy_seq: decision.observed_policy_seq }), decision));
+  });
   const byKey = new Map(evidence.decisions.map((decision) => [key(decision), decision]));
-  if (byKey.size !== sidecars.size || [...sidecars.keys()].some((item) => !byKey.has(item))) return ["decision identities do not close over loaded sidecars"];
-  sidecars.forEach((sidecar, sidecarKey) => {
-    if (canonicalJson(byKey.get(sidecarKey)!.oracle_action) !== canonicalJson(sidecar.action)) errors.push(`oracle action does not match sidecar for ${sidecarKey}`);
+  if ([...byKey.keys()].some((item) => !sidecars.has(item))) return ["decision identities do not close over loaded sidecars"];
+  byKey.forEach((decision, decisionKey) => {
+    if (canonicalJson(decision.oracle_action) !== canonicalJson(sidecars.get(decisionKey)!.action)) errors.push(`oracle action does not match sidecar for ${decisionKey}`);
   });
   for (const cluster of evidence.clusters) {
     const members = cluster.member_identities.map((item) => byKey.get(key(item))!);

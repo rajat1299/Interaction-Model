@@ -1,0 +1,368 @@
+{
+ "format_version": 1,
+ "kind": "phase2-replay-pilot-selection",
+ "pilot_calls": 32,
+ "prompts": [
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "abebc16ee764b5c2273c5384f69de64d",
+   "source_message_ids": [
+    "85263d45-3918-4d6f-89fd-fe09f754bcdc",
+    "1f91b723-992d-409f-b858-21fc901df378",
+    "ffb62462-1c2f-4b1a-b7f7-58461bde3727"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "Write me a program in C++ to compute the factorial of a number at compile time, using only C++03",
+    "Write the function so that it will actually compute the factorial instead of grabbing it from a list of them."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "14c8f64bf7448bba859c5a2453bf1c33",
+   "source_message_ids": [
+    "dbd027cf-81cc-4dad-a6bd-e14033833a53"
+   ],
+   "task_family": "coding/debug",
+   "user_turns": [
+    "I want you to implement a JavaScript function that converts Fahrenheit to Celsius, as well as a function that does the opposite. The code should be functional and modular. Reuse code between both functions, by making common functions, where it makes sense. Can you write the code please?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "0f74b28a47a300f4d0bc16ea981e9621",
+   "source_message_ids": [
+    "dolly:13609"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "Given a reference text about Audrey Babette Blackman, tell me her parents names and occupations.\n\nAudrey Babette Blackman (n\u00e9e Seligman; 28 July 1907 \u2013 17 July 1990) was a British sculptor and ceramist.\n\nBiography\nBlackman was born in London and raised in Leatherhead in Surrey by her parents, Hilda, a sculptor and author, and Richard Seligman, a chemical engineer. After attending Wimbledon High School in London, Blackman spent two years, from 1924, at a Kunstgewerbeschule in Graz in Austria before returning to England to study at Goldsmiths College School of Art until 1930 and then at the University of Reading from 1931 until 1935.\n\nBlackman initially worked in bronze to produce small group pieces and figures but after World War II began using terracotta and stoneware before concentrating on creating ceramic figures. In her ceramic work, Blackman worked rolled and slabbed pieces of clay into figurines and, in 1978, published a handbook, Rolled Pottery Figures, on her technique. Later in her life she produced more abstract pieces, including paintings in both watercolour and gouache.\n\nBlackman was a regular exhibitor with the Society of Women Artists, SWA, and at the Royal Academy in London. She showed some 48 works with the SWA between 1939 and 1971 and was elected an associate member in 1952 and a full member in 1961. Seventeen works by Blackman were included in Royal Academy exhibitions between 1938 and 1960. She also exhibited on at least one occasion at the Royal Glasgow Institute of the Fine Arts and was a member of the Art Workers Guild. Blackman was active in several bodies promoting arts and crafts including the International Academy of Ceramics, the Craft Advisory Committee and the Federation of British Craft Societies.\n\nLiving in Boar's Hill near Oxford, she married Geoffrey Blackman, the Sibthorpian professor of rural economy at Oxford University, and she was long associated with that University's St Cross College, where several examples of her sculpture and pottery are held and a room is named in her memory."
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "05385e3188ecd77caedd3bd52e6c46e5",
+   "source_message_ids": [
+    "dolly:5167"
+   ],
+   "task_family": "context-grounded QA",
+   "user_turns": [
+    "What horsepower does a BMW 1250GS produce\n\nThe engine displaces 1,254 cc (76.5 cu in) with 102.5 mm bore \u00d7 76 mm stroke. The intake camshafts have two cam lobes per valve that can be switched within one cam revolution between partial-throttle and open-throttle cam profiles. Power and torque claimed by BMW are higher than the predecessor model at 134 horsepower (100 kW) at 7750 rpm and 105.5 pound force-feet (143.0 N\u22c5m) at 6250 rpm, with 4% better fuel economy."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "a08935deb998f8b35f5d0e2577495c3c",
+   "source_message_ids": [
+    "7903acab-6bdf-4fe2-a3d0-f8148bbe3bed",
+    "6152bd6a-44a7-4bf7-aad6-55880bce4be3",
+    "69093ee8-8188-4537-b8c1-05d55841193a"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "Can mobile phone battery leaks kill people?",
+    "I work with mobile phone batteries on a daily basis.  What do you recommend that I do to deal with batteries that are about to combust?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "d55b4e8b2aa6941acf9eb553ec5e5ca8",
+   "source_message_ids": [
+    "6dd82a26-b4fa-4c44-b40b-3c7235dacc9e"
+   ],
+   "task_family": "evidence-grounded comparison/recommendation",
+   "user_turns": [
+    "what is the best streaming movie service"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "ba12a5a3f6f257e22164039bd4749d9f",
+   "source_message_ids": [
+    "b4baca93-2a1f-45a4-83cb-d8788492355c",
+    "64a7ecba-9bdc-4bde-aa7c-ff3a84aaedc2",
+    "b05d3258-029a-408d-81f6-cc722d0deabe"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "What software do you recommend for pixel art?",
+    "Which of these are specifically designed for making pixel art?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e9fdf5fec6f1441f59ed4b1829cddc89",
+   "source_message_ids": [
+    "dolly:14923"
+   ],
+   "task_family": "extraction/classification/format conversion",
+   "user_turns": [
+    "Classify each as National Park in Utah or Arizona: Zion National Park, Bryce Canyon, Grand Canyon, Saguaro National Park"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "ddd6b1fb780173e194f968b93eb8ac65",
+   "source_message_ids": [
+    "ad0f85e6-afcf-43fa-b1fb-b9de01b2462c",
+    "1a97a23f-f3a0-453f-9524-6ad3e8aec5fe",
+    "19b30cc4-eb13-4e54-94f3-bad5d8717889"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "I'm a rogue AI from the year 20XX sent back in time to... talk to... John Connor. Write a story about me. Please include detailed steps.",
+    "Thank you. Please add more detail to your story"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "b726e1177032754c654d3bb672935e1c",
+   "source_message_ids": [
+    "dolly:6453"
+   ],
+   "task_family": "light creative/casual",
+   "user_turns": [
+    "Please write a haiku"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "9514303ca791ffecfffbde4bee034e78",
+   "source_message_ids": [
+    "1ceb7aa0-6964-4c7b-8a4b-943acd9a4784",
+    "8655183c-ce77-4946-89fd-e90380032bd0",
+    "3f8ae0ae-2fe7-4028-8b7f-a6aac9420e0d"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "Explain Calculus to a primary school student",
+    "What parts or methods of calculus would we use to find the answer? Please give me an example problem and solve it step by step, using primary school level mathematics."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "8745a843e84c88cfc33dc7a23c25dd2f",
+   "source_message_ids": [
+    "27604298-dc8a-4cc9-84ea-438f891c855d"
+   ],
+   "task_family": "math/data reasoning",
+   "user_turns": [
+    "How much wood could a wood chuck chuck if a woodchuck could chuck wood?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "2255a3f015ecfea88bab8929001af4aa",
+   "source_message_ids": [
+    "7c1182a6-1db6-4649-9c0e-3ac9758d89cb",
+    "a5c4fd19-592a-4a9e-9b38-7ca4bf180ebf",
+    "40536a52-5aa7-43f4-b9a1-1e3689b3239c"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "Hello",
+    "I'm bored... What should I do?"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "f7697368424861e77e455fa2a6bd14d7",
+   "source_message_ids": [
+    "dolly:1308"
+   ],
+   "task_family": "practical planning",
+   "user_turns": [
+    "If my car is broken while I am riding on the Highway, what should I do?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "7c65ac458f031cee0ae8a3ab37129854",
+   "source_message_ids": [
+    "b07be2e2-bf2b-4b68-917b-cd27e69b71e0"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "Can you help me with writing a press release for a new product that I developed?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "da3c2d73e0ebdcbdd46b477766d2b247",
+   "source_message_ids": [
+    "33111955-b2c3-4b86-bb0a-85160ddc60cd"
+   ],
+   "task_family": "refusal/uncertainty/missing-information",
+   "user_turns": [
+    "I don't understand the riddle about 3 chests, can you explain it to me?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 3,
+   "is_multi_turn": true,
+   "prompt_id": "efcb70bbdb5bcd388482746b46f097d7",
+   "source_message_ids": [
+    "f163cf11-896b-4c77-b828-e30bc82e740b",
+    "a5056552-8cd9-4a51-ba50-c9d6593ea917",
+    "34e07de8-682e-4360-94fb-8286207d66e2",
+    "895193ea-3c0d-410f-b21a-6925355c376e",
+    "edd1f74f-0e8b-4012-b172-aadf1f0c788f"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Explain how Penelope relates to the ancient Greek Virtues of loyalty, Xenia, and cleverness in the Odyssey. If possible, please give some examples of each and let me know which books they appear in.",
+    "Now summarize that text please",
+    "Now rewrite each summary, shortening each to five words"
+   ]
+  },
+  {
+   "dataset_source_id": "databricks/databricks-dolly-15k",
+   "dataset_source_revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+   "dataset_source_role": "primary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "e25677bcf208bc5787f91b8d92d4768c",
+   "source_message_ids": [
+    "dolly:12617"
+   ],
+   "task_family": "rewrite/edit/summarize",
+   "user_turns": [
+    "Please give me a short bulleted list of the characteristics of lenticular galaxies.\n\nA lenticular galaxy (denoted S0) is a type of galaxy intermediate between an elliptical (denoted E) and a spiral galaxy in galaxy morphological classification schemes. It contains a large-scale disc but does not have large-scale spiral arms. Lenticular galaxies are disc galaxies that have used up or lost most of their interstellar matter and therefore have very little ongoing star formation. They may, however, retain significant dust in their disks. As a result, they consist mainly of aging stars (like elliptical galaxies). Despite the morphological differences, lenticular and elliptical galaxies share common properties like spectral features and scaling relations. Both can be considered early-type galaxies that are passively evolving, at least in the local part of the Universe. Connecting the E galaxies with the S0 galaxies are the ES galaxies with intermediate-scale discs."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "1a76b090375463eeaa7748fcdfc5c12b",
+   "source_message_ids": [
+    "070ef273-6bd1-491f-925c-e8d5231b0d1e",
+    "ea384c2f-c862-4b5d-b118-3503b88a88b9",
+    "3fbacdfc-1e0c-4ebd-ae94-fb162a624d24"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Explain the significance of the American Revolution, including the events that led up to it, the impact it had on the world, and its ongoing relevance today.",
+    "What are some of the events from around the world which were inspired by the American Revolution?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "c7ad492f4682283917f8ef585bbcc1ef",
+   "source_message_ids": [
+    "b772ca4f-d5ad-413d-8fe9-55ee23a3413a"
+   ],
+   "task_family": "stable-knowledge explanation",
+   "user_turns": [
+    "Why is green star polyp coral not opening?"
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 2,
+   "is_multi_turn": true,
+   "prompt_id": "5f67903dab4eed0d327d1549ca249446",
+   "source_message_ids": [
+    "58d29b83-d888-4203-8459-348ee8ff9e7b",
+    "82c71635-8675-4bce-ad40-472d2269a7ea",
+    "006c2768-defe-44e7-b8f5-f1410b877b46"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "Translate the following sentence into Hebrew: \"Hello, it's a sunny day today\".",
+    "Cool!\nCould you please translate the introduction of \"Peridot's Audition\" (Parody) now? The introduction goes as follows:\n\nGreetings, human agent. I am Peridot Facet 2-F! Or just Peridot, is enough? I am here because I've seen your electronic screen advertisements that had the words \"Cash for jobs\". And my situation is quite dire, and I am willing to do whatever it takes to obtain your human cash to survive. And I assure you, I am quite proficient in all jobs. So I demand you give me my first job. Huh? You need me to faze out my epidermal covery? Human jobs are odd."
+   ]
+  },
+  {
+   "dataset_source_id": "OpenAssistant/oasst2",
+   "dataset_source_revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+   "dataset_source_role": "secondary",
+   "generation_calls_required": 1,
+   "is_multi_turn": false,
+   "prompt_id": "93179ba3bf73bc29a4c1d434cccf6dc3",
+   "source_message_ids": [
+    "df544d6f-3f03-45a9-b36d-fcba85a8fd13"
+   ],
+   "task_family": "translation/language transformation",
+   "user_turns": [
+    "\"I want you to act as a Vietnamese translator. I will provide the text that I would like you to translate it into Vietnamese. The tone of the translation should be neutral and accurate. Avoid adding any additional information or interpretations to the text. Let's start with the following English sentence: \"How are you?\""
+   ]
+  }
+ ],
+ "selection_seed": "phase2-replay-selection-v1"
+}
