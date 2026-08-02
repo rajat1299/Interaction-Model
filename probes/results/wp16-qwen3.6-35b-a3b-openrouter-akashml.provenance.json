@@ -1,0 +1,64 @@
+{
+  "artifact_hashes": {
+    "raw_sqlite": "sha256:fca368b5dc3faa1e3f5e35e7840bae48f829f56958021913a441d86be51cfc8e",
+    "raw_summary": "sha256:0877a8a7b7dd4bf2c529f64f9d739d8d3d952b3bd79e4e3e82e5431c01b7ae84",
+    "report": "sha256:d80d0d89ce082455ac50d9dfa5848af87d55111b51286536ffba373542ead42e"
+  },
+  "failure_indices": {
+    "behavioral_or_payload_mismatch": [
+      "f01-t01-b/v1",
+      "f02-t01-a/v1",
+      "f08-t01-b/v1",
+      "f11-t04-b/v1"
+    ],
+    "license_blocked": [
+      "f05-t01-b/v1:reason_mismatch",
+      "f10-t01-a/v1:floor_owned"
+    ],
+    "schema_invalid": [
+      "f01-t01-a/v1",
+      "f04-t01-a/v1",
+      "f06-t01-a/v1",
+      "f06-t01-b/v1"
+    ]
+  },
+  "format_version": 1,
+  "logical_results": {
+    "completed_provider_requests": 30,
+    "generation": 30,
+    "license_allowed": 24,
+    "reference_valid": 26,
+    "schema_valid": 26,
+    "structural_match": 20
+  },
+  "model": "qwen/qwen3.6-35b-a3b",
+  "provider": "openrouter-responses",
+  "reasoning": {
+    "exclude": true,
+    "reasoning_tokens": 0,
+    "request_effort": "none",
+    "usage_records": 30,
+    "visible_reasoning_responses": 0
+  },
+  "repository_commit": "d93b2e8c8f2a33e3ef9b1167e1f903a4fc10bd05",
+  "routing": {
+    "allow_fallbacks": false,
+    "metadata_records": 30,
+    "require_parameters": true,
+    "selected_provider": "AkashML",
+    "upstream_pin_verified": true
+  },
+  "usage": {
+    "cache_write_tokens": 0,
+    "cached_input_tokens": 0,
+    "input_tokens": 432893,
+    "output_tokens": 948,
+    "provider_reported_cost_usd": "0.061553",
+    "recomputed_pinned_cost_usd": "0.061553020",
+    "reasoning_tokens": 0
+  },
+  "verdict": "complete_non_promotional_sanity_run",
+  "wp14_manifest_sha256": "sha256:87c824a2dad3c24fa05f7bd474dd8ef66a87532d3131dd9feb6932a4afee63b5",
+  "wp14_review_sha256": "sha256:761cb4a5f8c2f6755863741ad1d3c69fd1522073c5b29f3c0efc9bfed184a9e9",
+  "wp16_spec_sha256": "sha256:722cdfe6b2759d441bfae7387fcff6ed7e053f02c422112df2d423718371e4bc"
+}

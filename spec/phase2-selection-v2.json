@@ -1,0 +1,156 @@
+{
+  "amendment": {
+    "changes": [
+      "idle_reason_quotas"
+    ],
+    "decision_path": "review/phase2/wp2-6-selection-v2-amendment/OWNER-DISPOSITION.md",
+    "decision_sha256": "sha256:59a95d1f6c4ba365157ab040fe48291639fbfcac95ef1e1164d9724da8649cd4",
+    "rationale": "The v1 idle-reason split was an unratified implementation choice that over-weighted action-prematurity typing boundaries; v2 restores a product-grounded curriculum before final selection without using teacher-derived evidence.",
+    "teacher_derived_evidence_used": false
+  },
+  "candidate_order": {
+    "algorithm": "sha256",
+    "input": "phase2-selection-v1|<seed>|<stream_sha256>|<decision_policy_seq>"
+  },
+  "eligibility": [
+    "split_is_train",
+    "mechanical_validation_passed",
+    "leak_lint_passed",
+    "stream_coherence_approved",
+    "mandatory_reviews_complete",
+    "no_unresolved_contract_gap",
+    "whole_stream_accepted"
+  ],
+  "family_action_quotas": {
+    "live_lookup_lifecycle": {
+      "delegate": 80,
+      "idle": 100,
+      "integrate": 80,
+      "respond": 20
+    },
+    "lookup_latency_duplicate_pressure": {
+      "delegate": 50,
+      "idle": 130,
+      "integrate": 30,
+      "skip": 30
+    },
+    "mark_activation_positive": {
+      "idle": 120,
+      "mark": 150,
+      "respond": 10
+    },
+    "mark_lifecycle_negative": {
+      "idle": 150,
+      "mark": 60,
+      "respond": 10
+    },
+    "neutral_typing_revision_pause": {
+      "idle": 250,
+      "respond": 30
+    },
+    "reserved_annotation_unknown_kind": {
+      "idle": 10
+    },
+    "rollover_continuity": {
+      "cancel": 1,
+      "delegate": 1,
+      "idle": 40,
+      "integrate": 2,
+      "mark": 2,
+      "nudge": 2,
+      "skip": 2
+    },
+    "stale_result_opening_boundary": {
+      "idle": 50,
+      "respond": 20,
+      "skip": 50
+    },
+    "timer_cancel_quoting_stale_fire": {
+      "cancel": 50,
+      "idle": 70,
+      "nudge": 20,
+      "schedule": 20,
+      "skip": 20
+    },
+    "timer_contention_backpressure": {
+      "cancel": 10,
+      "idle": 30,
+      "mark": 10,
+      "nudge": 30,
+      "schedule": 10
+    },
+    "timer_creation_normal_fire": {
+      "idle": 50,
+      "nudge": 130,
+      "schedule": 70
+    }
+  },
+  "features": [
+    "family",
+    "action_type",
+    "idle_reason",
+    "source_unit_id",
+    "timing_regime",
+    "floor_class",
+    "template_id",
+    "asset_ids",
+    "difficulty_tags",
+    "stream_length",
+    "rollover_status"
+  ],
+  "forbidden_features": [
+    "teacher_agreement",
+    "teacher_action",
+    "teacher_confidence",
+    "teacher_label",
+    "disagreement_category"
+  ],
+  "format_version": 2,
+  "idle_reason_quotas": {
+    "already_handled": 70,
+    "ambiguous": 50,
+    "awaiting_opening": 100,
+    "awaiting_tool": 100,
+    "instruction_not_direct": 100,
+    "no_trigger": 520,
+    "typing_active": 60
+  },
+  "objective": {
+    "direction": "lexicographic_minimum",
+    "terms": [
+      "maximum_decisions_from_one_source_unit",
+      "sum_squared_source_unit_counts",
+      "sum_squared_template_counts_within_family",
+      "sum_squared_timing_regime_counts_within_family",
+      "sum_squared_floor_class_counts_within_family_action",
+      "sum_squared_difficulty_tag_counts_within_family",
+      "sum_squared_stream_length_bucket_counts_within_family",
+      "candidate_order_rank_sum"
+    ]
+  },
+  "reserve": {
+    "maximum_decisions": 300,
+    "minimum_decisions": 200,
+    "target_decisions": 250,
+    "whole_streams_only": true
+  },
+  "seed": "phase2-selection-v1-2026-07-18",
+  "stream_length_buckets": [
+    {
+      "maximum": 10,
+      "minimum": 1,
+      "name": "short"
+    },
+    {
+      "maximum": 20,
+      "minimum": 11,
+      "name": "standard"
+    }
+  ],
+  "supersedes": {
+    "path": "spec/phase2-selection-v1.json",
+    "sha256": "sha256:c1b8b1345bf289f27ae156e91ef71c145546710ae3c7222cd3cfe302b4208d97"
+  },
+  "target_decisions": 2000,
+  "whole_streams_only": true
+}

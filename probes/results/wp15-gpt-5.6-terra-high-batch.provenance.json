@@ -1,0 +1,62 @@
+{
+  "artifact_hashes": {
+    "batch_stderr_log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "batch_stdout_log": "sha256:ec2f852a06bf75097d052d3784d65e50aadb07aec839dcd4072027546e77f0ce",
+    "raw_sqlite": "sha256:0a1808aeadfdbc38f81e3a1cfb8ea6fb3cc99e609c9010bdd4876776bd28062a",
+    "raw_summary": "sha256:06b85cd05a395e0e07358627b95026e9e17ea0b8c501cb025694b8a02596764f",
+    "report": "sha256:02d738a00ce9053b417835d36f71ddc803af47b82932a6488eaf0af6e2992adf"
+  },
+  "batch_jobs": [
+    {"batch_id":"batch_6a554ea8cd5c8190b05581182e9879d9","executed_requests":0,"input_sha256":"sha256:59b5d7b8e92b02a55825ea9c8f20cc59ba1f6a7e20e4d0f70e547014b2c8946f","request_count":72,"stage":"p0","status":"failed"},
+    {"batch_id":"batch_6a555151b0bc8190a0a56928b2e0e3c4","executed_requests":57,"input_sha256":"sha256:3eaed93bc6a99b58b1c8d74e2ecae0bf47abf38ef5953dd619056a097dd4824c","request_count":57,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a555247af108190a8203f941d180e80","executed_requests":57,"input_sha256":"sha256:f7f90449f3c660c5c1bc2e3cd1a43c66b9357fdf3c3933bbf14186ce51dd68b5","request_count":57,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5552a60344819087d7fca7c7670d28","executed_requests":57,"input_sha256":"sha256:db82d9006c5b1543104daf9a290e62d933ee7479d6894226c5778eee8d5c822e","request_count":57,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5554610368819098fd0067b6a1cd45","executed_requests":56,"input_sha256":"sha256:e36d2acbcf5611843abc337581af388c3eb770a2935be00a5d220a6896434f92","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5554be7c0881909502192e5a7afc75","executed_requests":56,"input_sha256":"sha256:7237d7e4a31cb58e33909a89f768b1539a35f688c293d28db7f5f13e3d76d599","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a556ca45ea081908c78f809692e6329","executed_requests":55,"input_sha256":"sha256:7cf2eaac20bae7777a549f2320b9db063b97804f4315a82c989e8eda659d2349","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a556d421bac8190b45814239dcffbba","executed_requests":56,"input_sha256":"sha256:8e924f24922ca3bb01ca073805ae519abaa2b8d74d9ef3c9dc4b994c10402fde","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a556e0acefc8190864c4d682d2e9a5a","executed_requests":56,"input_sha256":"sha256:976fa9ed76eb9a476a735f295233f7bc03db1a4bf204dab7dc0f9c51cb59adbf","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a556e86d07c8190b281e198e9e8740e","executed_requests":55,"input_sha256":"sha256:1930a44cf512fb8781a16dd54649288db48da7e90b81c2a522d8cbd2dc4df6ab","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5578a9f63881909c20ccddd0360064","executed_requests":57,"input_sha256":"sha256:036d12fe34e89e6fb2008dddb82cffd29365180c02d854e6f4b6e536f7219506","request_count":57,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5579389bfc81909fa82d23d0aa9193","executed_requests":56,"input_sha256":"sha256:ccdf001d96eabc4d493f45437c62065934ac7baa49c9b757358f98e538e0dd70","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a5579c4c4e48190b482ea34def1d6aa","executed_requests":55,"input_sha256":"sha256:c235ca6ae4bac11485c76dad8f7f71d43c23ba40446c81b68a85ef02eb6ba5cd","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557a1696f881908c8a38c982e7d9bf","executed_requests":55,"input_sha256":"sha256:65a683d424c12f65771cae47f2b51ee85e60f104266c061f7f4ac71113723194","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557a66fd8881908c9e7b51447cfbba","executed_requests":55,"input_sha256":"sha256:f52165a055b35ad0160d612aeec6c2355eb6af938889d2919cddebf31d7f95a7","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557cbb4e6c819089ff27dd8cd02418","executed_requests":56,"input_sha256":"sha256:8ddb0de08fa93b13396896679bdd5eb8d8427ea7f2ee547473c91cc2ff41a090","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557d2a4e308190bfb7fac3b7ba173f","executed_requests":56,"input_sha256":"sha256:8b82ceaa3c00d9cced828037efa09fbdb5696f1750bbbb2c3915893c0381fe26","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557d7846f08190b7d282ba8cf04e7b","executed_requests":56,"input_sha256":"sha256:3b436edf2694e904356801caab0961faac5a4bd0662969311dd01069651bbd70","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557df44bfc81909cfd7c8e034f8384","executed_requests":56,"input_sha256":"sha256:503ee664d630656846ee64649bdb31853e47a5ad7728d4150fc274cf853ae1e1","request_count":56,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557e439ff08190bbecaa4421499844","executed_requests":55,"input_sha256":"sha256:8cd711e402e8b3857067f7c73bd8a75224b9bf257d0da163f5bfaf83fe934d16","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557f0d001881908e11c298bd1e9416","executed_requests":55,"input_sha256":"sha256:5e79552ba807d5ac100a1333032b212790f23d4de5e8a45d9d2207fb95b85d36","request_count":55,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557f6b7e3c8190bdc078b564792964","executed_requests":35,"input_sha256":"sha256:50f58e14c5fcf54ee0cfe6057fd70835b5a537768aac004711ba4278e642a436","request_count":35,"stage":"p0","status":"completed"},
+    {"batch_id":"batch_6a557ff958b08190afe1a0de83f76342","executed_requests":22,"input_sha256":"sha256:7606aa438357ec82c46676a78d9635cbfba196271a427b50bb58c52b631126b1","request_count":22,"stage":"s0","status":"completed"}
+  ],
+  "format_version": 1,
+  "logical_results": {
+    "completed_requests": 1174,
+    "generation": 144,
+    "listwise": 144,
+    "pairwise": 864,
+    "semantic": 22
+  },
+  "model": "gpt-5.6-terra",
+  "provider": "openai-batch-responses",
+  "reasoning_effort": "high",
+  "recovery": {
+    "failed_job_count": 1,
+    "failed_request_count": 72,
+    "note": "The failed P0 job executed zero requests and produced no output or error artifact. Its 72 logical requests were resharded and later completed exactly once.",
+    "successful_job_count": 22
+  },
+  "repository_commit": "7f14dc2da09b9f05abc8b02573b6db9d2889175a",
+  "usage": {
+    "cache_write_tokens": 566665,
+    "cached_input_tokens": 13297001,
+    "estimated_batch_charge_usd": "4.5754491875",
+    "input_tokens": 14618436,
+    "output_tokens": 144593,
+    "reasoning_tokens": 122239
+  },
+  "wp14_manifest_sha256": "sha256:9430f7385f804d93f4b9f7c3f0750ce3735731fbea5dbc4a8bf444f80866900a",
+  "wp14_review_sha256": "sha256:290d06d6ff895da4489a3ad1277c3e53cf6a1206dd658c50817f39de4e9ca67e"
+}

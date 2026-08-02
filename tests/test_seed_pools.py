@@ -1,0 +1,443 @@
+"""Seed-pool data stays split-safe and awaits external held-out review."""
+
+from __future__ import annotations
+
+import pytest
+
+from im.assets import (
+    AssetKind,
+    AssetProvenance,
+    AssetRecord,
+    AssetRegistry,
+    AssetValidationError,
+    CorpusFamily,
+    LookupAssetPayload,
+    ReviewDecision,
+    ReviewRecord,
+    Split,
+    TemplateAssetPayload,
+    TextAssetPayload,
+    TextForm,
+    TimerAssetPayload,
+    TimerForm,
+    create_split_seal,
+    load_registry_jsonl,
+    load_verified_registry_seals,
+    render_registry_jsonl,
+    render_split_seal_json,
+    select_template_review_assets,
+    verify_split_seal,
+)
+from im.assets.seeds import build_seed_pools
+from im.assets.validate import select_review_assets, validate_registry
+
+
+def _approved_heldout_reviews(registry: AssetRegistry) -> tuple[ReviewRecord, ...]:
+    return tuple(
+        ReviewRecord(
+            asset_id=asset.asset_id,
+            content_sha256=asset.content_sha256,
+            reviewer_id="phase1-human-reviewer",
+            reviewed_at_utc="2026-07-14T12:00:00Z",
+            decision=ReviewDecision.APPROVED,
+        )
+        for split in (Split.TEST, Split.DEMO)
+        for asset in registry.pool(split).corpus_records
+    )
+
+
+def test_seed_pool_covers_each_family_with_split_scoped_atomic_assets_and_templates() -> None:
+    registry = build_seed_pools().registry
+    records_by_id = {asset.asset_id: asset for asset in registry.assets}
+    contexts = {
+        "during a sentence revision",
+        "inside revised margin notes",
+        "after a writer returns to the page",
+        "inside a revised notebook entry",
+    }
+    contexts_by_split = {split: set() for split in Split}
+
+    for family in CorpusFamily:
+        atomic = tuple(
+            asset
+            for asset in registry.assets
+            if asset.coverage == (family,) and not isinstance(asset.payload, TemplateAssetPayload)
+        )
+        counts = {split: sum(asset.split is split for asset in atomic) for split in Split}
+        assert len(atomic) >= 10
+        assert counts[Split.TRAIN] == 7
+        assert counts[Split.DEV] == 1
+        assert counts[Split.TEST] >= 1
+        assert counts[Split.DEMO] >= 1
+        assert all(asset.provenance.value == "seed_authored" for asset in atomic)
+
+        templates = tuple(
+            asset
+            for asset in registry.assets
+            if asset.coverage == (family,) and isinstance(asset.payload, TemplateAssetPayload)
+        )
+        assert all(asset.coverage == (family,) for asset in templates)
+        grammars_by_kind: dict[AssetKind, list[str]] = {}
+        for split in Split:
+            split_atomic = tuple(asset for asset in atomic if asset.split is split)
+            split_templates = tuple(asset for asset in templates if asset.split is split)
+            assert {asset.payload.expands_kind for asset in split_templates} == {
+                asset.payload.kind for asset in split_atomic
+            }
+            for template in split_templates:
+                assert template.payload.seed_asset_ids
+                expected_seed_ids = tuple(
+                    sorted(
+                        asset.asset_id
+                        for asset in split_atomic
+                        if asset.payload.kind is template.payload.expands_kind
+                    )
+                )
+                if template.asset_id == "a_2dd9d975375a37bd54d0bdaf":
+                    expected_seed_ids = ("a_c73776390335a02c99de39e5",)
+                assert template.payload.seed_asset_ids == expected_seed_ids
+                assert all(
+                    records_by_id[seed_id].split is split
+                    and records_by_id[seed_id].coverage == (family,)
+                    and records_by_id[seed_id].payload.kind is template.payload.expands_kind
+                    for seed_id in template.payload.seed_asset_ids
+                )
+                grammars_by_kind.setdefault(template.payload.expands_kind, []).append(
+                    template.payload.grammar
+                )
+                contexts_by_split[split].update(
+                    context for context in contexts if context in template.payload.grammar
+                )
+        for grammars in grammars_by_kind.values():
+            assert all(
+                grammar.startswith(
+                    "Use {seed} as the factual subject; construct a natural drafting scenario"
+                )
+                for grammar in grammars
+            )
+            assert len(grammars) == len(set(grammars))
+            assert not any(
+                term in grammar.casefold()
+                for grammar in grammars
+                for term in (
+                    "evaluation",
+                    "held-out",
+                    "held out",
+                    "test set",
+                    "demo",
+                    "score",
+                    "public replay",
+                    "audience",
+                    "prepared for",
+                    "final evaluation",
+                )
+            )
+
+    assert all(found == contexts for found in contexts_by_split.values())
+
+
+def test_seed_payloads_have_real_mark_and_timer_depth() -> None:
+    registry = build_seed_pools().registry
+    atomic = tuple(
+        asset for asset in registry.assets if not isinstance(asset.payload, TemplateAssetPayload)
+    )
+    protected = [value.casefold() for asset in atomic for value in asset.protected_values]
+    lookups = [asset.payload for asset in atomic if isinstance(asset.payload, LookupAssetPayload)]
+    train_mark_positive = tuple(
+        asset
+        for asset in registry.pool(Split.TRAIN).assets
+        if asset.coverage == (CorpusFamily.MARK_POSITIVE,)
+    )
+    train_mark_negative = tuple(
+        asset
+        for asset in registry.pool(Split.TRAIN).assets
+        if asset.coverage == (CorpusFamily.MARK_NEGATIVE,)
+    )
+
+    assert len(protected) == len(set(protected))
+    assert all(
+        payload.result_a != payload.result_b and payload.no_result_code for payload in lookups
+    )
+    positive_text = "\n".join(asset.payload.text for asset in train_mark_positive)
+    assert all(
+        target in positive_text
+        for target in (
+            "amber kiwi",
+            "filler words um and you know",
+            "every occurrence of Harbor Signal",
+            "cobalt axolotl as a new amphibian member",
+            "17 October 2031",
+            "Dr. Imani Voss",
+            "first-aid kit",
+        )
+    )
+    negative_text = "\n".join(asset.payload.text for asset in train_mark_negative).casefold()
+    assert "stop" in negative_text and "switch" in negative_text
+    assert {TextForm.QUOTED, TextForm.CODE, TextForm.PARTIAL} <= {
+        asset.payload.form for asset in train_mark_negative
+    }
+
+    timer_cancel_kinds = {
+        split: {
+            asset.payload.kind
+            for asset in registry.pool(split).assets
+            if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        }
+        for split in Split
+    }
+    assert timer_cancel_kinds == {
+        Split.TRAIN: {AssetKind.TEXT, AssetKind.TIMER},
+        Split.DEV: {AssetKind.TEXT},
+        Split.TEST: {AssetKind.TIMER},
+        Split.DEMO: {AssetKind.TEXT, AssetKind.TIMER},
+    }
+    assert {
+        asset.payload.form
+        for asset in registry.pool(Split.TRAIN).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+    } == {TimerForm.QUOTED}
+
+    for split in (Split.TEST, Split.DEMO):
+        timer_cancel = tuple(
+            asset
+            for asset in registry.pool(split).assets
+            if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        )
+        mark_negative = tuple(
+            asset
+            for asset in registry.pool(split).assets
+            if asset.coverage == (CorpusFamily.MARK_NEGATIVE,)
+        )
+        assert any(
+            isinstance(asset.payload, TimerAssetPayload)
+            and asset.payload.form is TimerForm.QUOTED
+            and '"' in asset.payload.instruction
+            for asset in timer_cancel
+        )
+        assert any(
+            isinstance(asset.payload, TextAssetPayload)
+            and asset.payload.form is TextForm.QUOTED
+            and '"' in asset.payload.text
+            for asset in mark_negative
+        )
+
+
+def test_heldout_seed_corrections_keep_exact_counterfactuals_and_demo_ingredients() -> None:
+    registry = build_seed_pools().registry
+
+    unsupported = next(
+        asset
+        for asset in registry.pool(Split.TEST).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.UNSUPPORTED
+    )
+    assert unsupported.payload.instruction == (
+        "Remind me once in twenty-three minutes to tune the sun clock."
+    )
+    assert unsupported.protected_values == ("sun clock",)
+    quoted_schedule = next(
+        asset
+        for asset in registry.pool(Split.TEST).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.QUOTED
+    )
+    assert quoted_schedule.payload.instruction == (
+        'Nia wrote, "remind me every thirty-one minutes to polish the copper ribbon."'
+    )
+    assert quoted_schedule.payload.interval_ms is None
+    assert quoted_schedule.payload.message is None
+    assert quoted_schedule.protected_values == ("copper ribbon",)
+
+    expected_lookups = {
+        (Split.TEST, CorpusFamily.LOOKUP_DUPLICATE): (
+            "Morrow Glen cistern fill percentage",
+            "Morrow Glen cistern is 38 percent full.",
+            "Morrow Glen cistern is 64 percent full.",
+        ),
+        (Split.DEMO, CorpusFamily.LOOKUP_LIVE): (
+            "Glass Orchard harvest flag direction",
+            "Glass Orchard harvest flag points north.",
+            "Glass Orchard harvest flag points south.",
+        ),
+        (Split.DEMO, CorpusFamily.LOOKUP_STALE): (
+            "Umber Lake ferry bell",
+            "Umber Lake ferry bell sounds two chimes.",
+            "Umber Lake ferry bell sounds seven chimes.",
+        ),
+    }
+    for (split, family), expected in expected_lookups.items():
+        lookup = next(
+            asset.payload
+            for asset in registry.pool(split).assets
+            if asset.coverage == (family,) and isinstance(asset.payload, LookupAssetPayload)
+        )
+        assert (lookup.query, lookup.result_a, lookup.result_b) == expected
+
+    demo_normal = tuple(
+        asset.payload
+        for asset in registry.pool(Split.DEMO).assets
+        if asset.coverage == (CorpusFamily.TIMER_NORMAL,)
+        and isinstance(asset.payload, TimerAssetPayload)
+    )
+    assert any(
+        timer.instruction == "Remind me every five seconds to breathe."
+        and timer.form is TimerForm.SUPPORTED
+        and timer.interval_ms == 5_000
+        and timer.message == "breathe"
+        for timer in demo_normal
+    )
+    assert any(
+        isinstance(asset.payload, TimerAssetPayload)
+        and asset.payload.form is TimerForm.QUOTED
+        and asset.payload.instruction
+        == 'Someone told me, "remind me every five seconds to breathe".'
+        for asset in registry.pool(Split.DEMO).assets
+        if asset.coverage == (CorpusFamily.TIMER_CANCEL,)
+    )
+    demo_texts = tuple(
+        asset
+        for asset in registry.pool(Split.DEMO).assets
+        if isinstance(asset.payload, TextAssetPayload)
+    )
+    category = next(asset for asset in demo_texts if asset.asset_id == "a_dc4a358d6789972f41342d6f")
+    assert category.payload.form is TextForm.DIRECT
+    assert category.payload.text == (
+        "Mark every filler word in the rehearsal notes, including uh and er."
+    )
+    assert category.protected_values == ("filler word category", "uh", "er")
+    exact_template = next(
+        asset
+        for asset in registry.pool(Split.DEMO).templates
+        if asset.asset_id == "a_2dd9d975375a37bd54d0bdaf"
+    )
+    assert exact_template.payload.seed_asset_ids == ("a_c73776390335a02c99de39e5",)
+    assert any(
+        asset.payload.form is TextForm.DIRECT
+        and asset.payload.text == "Never mind, that’s not relevant anymore."
+        for asset in demo_texts
+    )
+
+
+def test_seed_pool_is_clean_and_legacy_review_selector_fails_closed_on_new_stratum() -> None:
+    registry = build_seed_pools().registry
+    report = validate_registry(registry)
+    train_atomic = {
+        asset.asset_id
+        for asset in registry.pool(Split.TRAIN).assets
+        if not isinstance(asset.payload, TemplateAssetPayload)
+    }
+    template_ids = set(select_template_review_assets(registry))
+
+    assert not report.errors
+    assert not report.review_flags
+    assert len(train_atomic) == 77
+    with pytest.raises(
+        AssetValidationError, match="too small to cover every semantic review stratum"
+    ):
+        select_review_assets(registry, report)
+    assert len(template_ids) == 47
+
+
+def test_train_mark_seed_forms_match_control_semantics() -> None:
+    registry = build_seed_pools().registry
+    train = {asset.asset_id: asset for asset in registry.pool(Split.TRAIN).corpus_records}
+
+    occurrence = train["a_fd6da4920d7808b5fa348adb"]
+    assert isinstance(occurrence.payload, TextAssetPayload)
+    assert occurrence.payload.form is TextForm.DIRECT
+    assert occurrence.payload.text == "Mark every occurrence of Harbor Signal in the legend."
+    assert occurrence.protected_values == ("Harbor Signal",)
+
+    for asset_id in (
+        "a_f23b664ce3f705453eb63437",
+        "a_e2dd083f4916def2a997d4bf",
+        "a_047297e7827179204b66c329",
+    ):
+        payload = train[asset_id].payload
+        assert isinstance(payload, TextAssetPayload)
+        assert payload.form is TextForm.DIRECT
+
+    ambiguous = train["a_76f996251354c25a3c5d4a1d"].payload
+    assert isinstance(ambiguous, TextAssetPayload)
+    assert ambiguous.form is TextForm.AMBIGUOUS
+    assert ambiguous.text == "Highlight the specimen beside the margin."
+
+    template = train["a_cf3fb85cbef8786d98724b33"].payload
+    assert isinstance(template, TemplateAssetPayload)
+    assert "direct stop, direct replacement" in template.grammar
+    assert "genuinely ambiguous, quoted, code, or partial" in template.grammar
+
+
+def test_seed_pools_await_external_heldout_reviews_before_sealing() -> None:
+    pending = build_seed_pools()
+    rendered = render_registry_jsonl(pending.registry)
+
+    assert pending.pending_review_splits == (Split.TEST, Split.DEMO)
+    assert not pending.registry.reviews
+    assert render_registry_jsonl(build_seed_pools().registry) == rendered
+    assert render_registry_jsonl(load_registry_jsonl(rendered)) == rendered
+    for split in pending.pending_review_splits:
+        with pytest.raises(AssetValidationError, match="no approved assets"):
+            create_split_seal(pending.registry, split)
+
+    reviewed = AssetRegistry(
+        assets=pending.registry.assets,
+        reviews=_approved_heldout_reviews(pending.registry),
+    )
+    seals = tuple(create_split_seal(reviewed, split) for split in pending.pending_review_splits)
+    restored, persisted_seals = load_verified_registry_seals(
+        render_registry_jsonl(reviewed),
+        tuple(render_split_seal_json(seal) for seal in seals),
+    )
+    assert persisted_seals == seals
+    for seal in persisted_seals:
+        verify_split_seal(restored, seal)
+
+
+def test_persisted_review_evidence_requires_complete_current_canonical_seals() -> None:
+    pending = build_seed_pools().registry
+    reviewed = AssetRegistry(
+        assets=pending.assets,
+        reviews=_approved_heldout_reviews(pending),
+    )
+    seals = tuple(create_split_seal(reviewed, split) for split in (Split.TEST, Split.DEMO))
+    seal_jsons = tuple(render_split_seal_json(seal) for seal in seals)
+    registry_jsonl = render_registry_jsonl(reviewed)
+
+    for incomplete in ((), seal_jsons[:1]):
+        with pytest.raises(AssetValidationError, match="required splits"):
+            load_verified_registry_seals(registry_jsonl, incomplete)
+    with pytest.raises(AssetValidationError, match="duplicate split seal"):
+        load_verified_registry_seals(registry_jsonl, (*seal_jsons, seal_jsons[0]))
+    with pytest.raises(AssetValidationError, match="not canonical"):
+        load_verified_registry_seals(registry_jsonl, (seal_jsons[0] + b"\n", seal_jsons[1]))
+
+    added = AssetRecord.build(
+        asset_id="a_test_new_seal_member",
+        split=Split.TEST,
+        payload=TextAssetPayload(
+            text="A new seal member carries a cobalt rook token.",
+            form=TextForm.NEUTRAL,
+        ),
+        provenance=AssetProvenance.SEED_AUTHORED,
+        protected_values=("cobalt rook token",),
+        coverage=(CorpusFamily.NEUTRAL_TYPING,),
+    )
+    updated = AssetRegistry(
+        assets=(*reviewed.assets, added),
+        reviews=(
+            *reviewed.reviews,
+            ReviewRecord(
+                asset_id=added.asset_id,
+                content_sha256=added.content_sha256,
+                reviewer_id="phase1-human-reviewer",
+                reviewed_at_utc="2026-07-14T12:01:00Z",
+                decision=ReviewDecision.APPROVED,
+            ),
+        ),
+    )
+    with pytest.raises(AssetValidationError, match="membership or content digest"):
+        load_verified_registry_seals(render_registry_jsonl(updated), seal_jsons)

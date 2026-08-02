@@ -1,0 +1,156 @@
+{
+  "amendment": {
+    "changes": [
+      "idle_reason_quotas"
+    ],
+    "decision_path": "review/phase2/wp2-6-selection-v3-amendment/OWNER-DISPOSITION.md",
+    "decision_sha256": "sha256:4d61ad1a66c76c6c8eab833b16585bb920a2f3032268447e7197f39b4292f38e",
+    "rationale": "Exact whole-stream feasibility proved that v2's marginal idle-reason quotas conflict with the unchanged family/action quotas; v3 uses a feasible restraint-first curriculum without teacher-derived evidence or label changes.",
+    "teacher_derived_evidence_used": false
+  },
+  "candidate_order": {
+    "algorithm": "sha256",
+    "input": "phase2-selection-v1|<seed>|<stream_sha256>|<decision_policy_seq>"
+  },
+  "eligibility": [
+    "split_is_train",
+    "mechanical_validation_passed",
+    "leak_lint_passed",
+    "stream_coherence_approved",
+    "mandatory_reviews_complete",
+    "no_unresolved_contract_gap",
+    "whole_stream_accepted"
+  ],
+  "family_action_quotas": {
+    "live_lookup_lifecycle": {
+      "delegate": 80,
+      "idle": 100,
+      "integrate": 80,
+      "respond": 20
+    },
+    "lookup_latency_duplicate_pressure": {
+      "delegate": 50,
+      "idle": 130,
+      "integrate": 30,
+      "skip": 30
+    },
+    "mark_activation_positive": {
+      "idle": 120,
+      "mark": 150,
+      "respond": 10
+    },
+    "mark_lifecycle_negative": {
+      "idle": 150,
+      "mark": 60,
+      "respond": 10
+    },
+    "neutral_typing_revision_pause": {
+      "idle": 250,
+      "respond": 30
+    },
+    "reserved_annotation_unknown_kind": {
+      "idle": 10
+    },
+    "rollover_continuity": {
+      "cancel": 1,
+      "delegate": 1,
+      "idle": 40,
+      "integrate": 2,
+      "mark": 2,
+      "nudge": 2,
+      "skip": 2
+    },
+    "stale_result_opening_boundary": {
+      "idle": 50,
+      "respond": 20,
+      "skip": 50
+    },
+    "timer_cancel_quoting_stale_fire": {
+      "cancel": 50,
+      "idle": 70,
+      "nudge": 20,
+      "schedule": 20,
+      "skip": 20
+    },
+    "timer_contention_backpressure": {
+      "cancel": 10,
+      "idle": 30,
+      "mark": 10,
+      "nudge": 30,
+      "schedule": 10
+    },
+    "timer_creation_normal_fire": {
+      "idle": 50,
+      "nudge": 130,
+      "schedule": 70
+    }
+  },
+  "features": [
+    "family",
+    "action_type",
+    "idle_reason",
+    "source_unit_id",
+    "timing_regime",
+    "floor_class",
+    "template_id",
+    "asset_ids",
+    "difficulty_tags",
+    "stream_length",
+    "rollover_status"
+  ],
+  "forbidden_features": [
+    "teacher_agreement",
+    "teacher_action",
+    "teacher_confidence",
+    "teacher_label",
+    "disagreement_category"
+  ],
+  "format_version": 3,
+  "idle_reason_quotas": {
+    "already_handled": 52,
+    "ambiguous": 30,
+    "awaiting_opening": 88,
+    "awaiting_tool": 188,
+    "instruction_not_direct": 72,
+    "no_trigger": 540,
+    "typing_active": 30
+  },
+  "objective": {
+    "direction": "lexicographic_minimum",
+    "terms": [
+      "maximum_decisions_from_one_source_unit",
+      "sum_squared_source_unit_counts",
+      "sum_squared_template_counts_within_family",
+      "sum_squared_timing_regime_counts_within_family",
+      "sum_squared_floor_class_counts_within_family_action",
+      "sum_squared_difficulty_tag_counts_within_family",
+      "sum_squared_stream_length_bucket_counts_within_family",
+      "candidate_order_rank_sum"
+    ]
+  },
+  "reserve": {
+    "maximum_decisions": 300,
+    "minimum_decisions": 200,
+    "target_decisions": 250,
+    "whole_streams_only": true
+  },
+  "seed": "phase2-selection-v1-2026-07-18",
+  "stream_length_buckets": [
+    {
+      "maximum": 10,
+      "minimum": 1,
+      "name": "short"
+    },
+    {
+      "maximum": 20,
+      "minimum": 11,
+      "name": "standard"
+    }
+  ],
+  "supersedes": {
+    "path": "spec/phase2-selection-v2.json",
+    "sha256": "sha256:72e234e0767c5ea6e8a620e053746584cf7e9d546ba3d3dfeef929d209d85ea3"
+  },
+  "target_decisions": 2000,
+  "whole_streams_only": true
+}

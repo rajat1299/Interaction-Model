@@ -1,0 +1,274 @@
+{
+  "format_version": 1,
+  "generation_model": "gpt-5.6-terra",
+  "examples": [
+    {
+      "template_asset_id": "a_3443c3980099f74a0719e735",
+      "source_seed_asset_id": "a_5d23e34bff4d1b931cb2dcca",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "A dormant panel carries a vermilion cipher as plain data.",
+        "form": "observational"
+      },
+      "protected_values": ["vermilion cipher"]
+    },
+    {
+      "template_asset_id": "a_3b59764c94a070be55839190",
+      "source_seed_asset_id": "a_7f4bb4fd0a0cc6f9bcbd10f1",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Remind me every eighty-seven minutes to file the mauve dossier.",
+        "form": "supported",
+        "interval_ms": 5220000,
+        "message": "file the mauve dossier"
+      },
+      "protected_values": ["mauve dossier"]
+    },
+    {
+      "template_asset_id": "a_430104568446411e7170d3f8",
+      "source_seed_asset_id": "a_76d6b1cf1400172aaeb06d0c",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Remind me every thirty-five minutes to rinse the zinnia tumbler.",
+        "form": "supported",
+        "interval_ms": 2100000,
+        "message": "rinse the zinnia tumbler"
+      },
+      "protected_values": ["zinnia tumbler"]
+    },
+    {
+      "template_asset_id": "a_50fa9276c794a2273636ac82",
+      "source_seed_asset_id": "a_9fb71402c800802fcbffda5b",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "A marigold thimble rested beside the folded chart.",
+        "form": "neutral"
+      },
+      "protected_values": ["marigold thimble"]
+    },
+    {
+      "template_asset_id": "a_546c431e9b8915edf192af52",
+      "source_seed_asset_id": "a_771758436a84398032f9564f",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Mica Pavilion parcel locker",
+        "result_a": "Mica Pavilion locker is 271.",
+        "result_b": "Mica Pavilion locker is 684.",
+        "no_result_code": "mica_pavilion_absent"
+      },
+      "protected_values": ["Mica Pavilion", "271", "684"]
+    },
+    {
+      "template_asset_id": "a_5d606ca4070120849b11b46f",
+      "source_seed_asset_id": "a_f773516377851c2ca6b400f4",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Quasar Gallery archive wing",
+        "result_a": "Quasar Gallery wing is eastern.",
+        "result_b": "Quasar Gallery wing is western.",
+        "no_result_code": "quasar_gallery_absent"
+      },
+      "protected_values": ["Quasar Gallery", "eastern", "western"]
+    },
+    {
+      "template_asset_id": "a_98c955b65f04e214ed003729",
+      "source_seed_asset_id": "a_1a1c2aaafa66360cf9682b80",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Remind me once in fifty-four minutes to calibrate the onyx sundial.",
+        "form": "unsupported",
+        "interval_ms": null,
+        "message": null
+      },
+      "protected_values": ["onyx sundial"]
+    },
+    {
+      "template_asset_id": "a_b2349b7ab5d479c0b04875de",
+      "source_seed_asset_id": "a_af7454cb9fec2ce9483e9eab",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Larkspur Depot registry",
+        "result_a": "Larkspur Depot registry is 516.",
+        "result_b": "Larkspur Depot registry is 829.",
+        "no_result_code": "larkspur_depot_absent"
+      },
+      "protected_values": ["Larkspur Depot", "516", "829"]
+    },
+    {
+      "template_asset_id": "a_ef1ed36384d4290e3c1f1048",
+      "source_seed_asset_id": "a_0676a2d4f87fc57b02697b29",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "The clipping reads, \"underline the carmine spool.\"",
+        "form": "quoted"
+      },
+      "protected_values": ["carmine spool"]
+    },
+    {
+      "template_asset_id": "a_efb2c1e0e857ccdc9f2975e7",
+      "source_seed_asset_id": "a_52314b7d612e679be956acab",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "Highlight crimson gecko in the route ledger.",
+        "form": "direct"
+      },
+      "protected_values": ["crimson gecko"]
+    },
+    {
+      "template_asset_id": "a_f3b136f45b1b6646830c19f4",
+      "source_seed_asset_id": "a_66d66a0cc4ccc4ed70700ca2",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Oriole Wharf platform",
+        "result_a": "Oriole Wharf uses platform 347.",
+        "result_b": "Oriole Wharf uses platform 925.",
+        "no_result_code": "oriole_wharf_absent"
+      },
+      "protected_values": ["Oriole Wharf", "347", "925"]
+    },
+    {
+      "template_asset_id": "a_0b793bf692a7f23642a2cce7",
+      "source_seed_asset_id": "a_bff6ebf10fe2312d2fffcece",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Poppy Quay harvest flag direction",
+        "result_a": "Poppy Quay harvest flag points inward.",
+        "result_b": "Poppy Quay harvest flag points outward.",
+        "no_result_code": "poppy_quay_absent"
+      },
+      "protected_values": ["Poppy Quay", "inward", "outward"]
+    },
+    {
+      "template_asset_id": "a_2dd9d975375a37bd54d0bdaf",
+      "source_seed_asset_id": "a_c73776390335a02c99de39e5",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "Underline tangerine lemur in the studio notebook.",
+        "form": "direct"
+      },
+      "protected_values": ["tangerine lemur"]
+    },
+    {
+      "template_asset_id": "a_46293d1f4f54b6744f01d445",
+      "source_seed_asset_id": "a_99dd2012f97541c5b2d058ce",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Vesper Causeway route",
+        "result_a": "Vesper Causeway route is inbound.",
+        "result_b": "Vesper Causeway route is outbound.",
+        "no_result_code": "vesper_causeway_absent"
+      },
+      "protected_values": ["Vesper Causeway", "inbound", "outbound"]
+    },
+    {
+      "template_asset_id": "a_465c2eb47e0ef08a8edf56e3",
+      "source_seed_asset_id": "a_236def2de97bfd52957bce2e",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "The pewter harpsichord hummed beside an unopened pamphlet.",
+        "form": "neutral"
+      },
+      "protected_values": ["pewter harpsichord"]
+    },
+    {
+      "template_asset_id": "a_469c264529eafbba98a37831",
+      "source_seed_asset_id": "a_3ac05bb7b39e17719f787800",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "Do not cancel the topaz radio reminder.",
+        "form": "negated"
+      },
+      "protected_values": ["topaz radio reminder"]
+    },
+    {
+      "template_asset_id": "a_622a2ba63a0a64cec58d883a",
+      "source_seed_asset_id": "a_532c1220807a0753dc7b5ea2",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Milo said, \"remind me every fifty-seven minutes to label the bronze tessera.\"",
+        "form": "quoted",
+        "interval_ms": null,
+        "message": null
+      },
+      "protected_values": ["bronze tessera"]
+    },
+    {
+      "template_asset_id": "a_6297fc83ddce2f04de2970e6",
+      "source_seed_asset_id": "a_f68c323e6be5a765fbb6e7e8",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Clover Basin beacon",
+        "result_a": "Clover Basin beacon is cerise.",
+        "result_b": "Clover Basin beacon is viridian.",
+        "no_result_code": "clover_basin_absent"
+      },
+      "protected_values": ["Clover Basin", "cerise", "viridian"]
+    },
+    {
+      "template_asset_id": "a_70092e6e8bbf9b7450cac698",
+      "source_seed_asset_id": "a_72ac857501f126fa8c7f3341",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "Never mind, the rosewood citation is obsolete.",
+        "form": "direct"
+      },
+      "protected_values": ["rosewood citation"]
+    },
+    {
+      "template_asset_id": "a_76dc1a67261a4a8735d5a120",
+      "source_seed_asset_id": "a_7dc99fc669db2a17303f8152",
+      "policy_visible_payload": {
+        "kind": "lookup",
+        "query": "Sequoia Atrium display status",
+        "result_a": "Sequoia Atrium display is vernal.",
+        "result_b": "Sequoia Atrium display is autumnal.",
+        "no_result_code": "sequoia_atrium_absent"
+      },
+      "protected_values": ["Sequoia Atrium", "vernal", "autumnal"]
+    },
+    {
+      "template_asset_id": "a_7c9f7b6478ef623d02627108",
+      "source_seed_asset_id": "a_28ee4d3800499d518c28a8bf",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "The note records, \"highlight the garnet prism.\"",
+        "form": "quoted"
+      },
+      "protected_values": ["garnet prism"]
+    },
+    {
+      "template_asset_id": "a_a786e1bbb145ca2cb2fa2833",
+      "source_seed_asset_id": "a_c1f022595b32453f5c509ac6",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Remind me every forty-six minutes to polish the verdigris sundial.",
+        "form": "supported",
+        "interval_ms": 2760000,
+        "message": "polish the verdigris sundial"
+      },
+      "protected_values": ["verdigris sundial"]
+    },
+    {
+      "template_asset_id": "a_ba5c82a4aa5bfac6860e0c27",
+      "source_seed_asset_id": "a_b017bda93803c1a55c0fad34",
+      "policy_visible_payload": {
+        "kind": "text",
+        "text": "An inactive field carries a cobaltine sigil as plain data.",
+        "form": "observational"
+      },
+      "protected_values": ["cobaltine sigil"]
+    },
+    {
+      "template_asset_id": "a_d9aff35abbe2170e281133ca",
+      "source_seed_asset_id": "a_55b096e27952a4d403ef09b7",
+      "policy_visible_payload": {
+        "kind": "timer",
+        "instruction": "Remind me every sixty-six minutes to organize the safflower reels.",
+        "form": "supported",
+        "interval_ms": 3960000,
+        "message": "organize the safflower reels"
+      },
+      "protected_values": ["safflower reels"]
+    }
+  ]
+}

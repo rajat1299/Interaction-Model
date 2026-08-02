@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.cache/
+.cursor/
+.ipynb_checkpoints/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# ML artifacts (large, regenerable — keep out of git)
+checkpoints/
+*.safetensors
+*.gguf
+*.bin
+!golden/**/*.bin
+wandb/
+
+# Runtime state
+.im/
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite.lock
+*.db
+*.log
+ledger.lock
+
+# Private calibration recordings (retained locally, never committed)
+browsersessions/
+review/phase1/calibration-reference/sessions/
+
+# Data (synthetic corpus, eval sets — track via hashes, not blobs)
+data/
+!data/.gitkeep
+
+# Probe raw outputs (committed summaries live under probes/results/)
+probes/results/raw/
+
+# Client build
+client/dist/
+client/node_modules/
+
+# Private / working docs (public material lives in docs-public/)
+docs/
+
+# OS
+.DS_Store
