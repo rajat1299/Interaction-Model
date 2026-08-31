@@ -13,7 +13,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from im.canonical_json import canonicalize_tim_json
 from im.config import RuntimeConfig
-from im.policy.base import ScriptedPolicy
+from im.policy.base import ScriptedIntentPolicy, ScriptedPolicy
 from im.policy.latency_stub import LatencyStubPolicy
 from im.scheduler import ManualClock
 from im.schema.events import SessionStartEvent, SnapshotEvent, TimerFireEvent
@@ -50,6 +50,56 @@ async def wait_for_calls(policy: ScriptedPolicy, count: int) -> None:
             return
         await asyncio.sleep(0)
     raise AssertionError(f"policy reached {policy.call_count} calls, expected {count}")
+
+
+def test_trace_get_reads_existing_session_without_sampling_again(tmp_path: Path) -> None:
+    policy = ScriptedIntentPolicy(
+        [{"type": "idle", "reason": "typing_active", "related": None}]
+    )
+    app = create_app(
+        session_root=tmp_path,
+        policy_factory=lambda _session_id: policy,
+        clock_factory=lambda _session_id: ManualClock(),
+    )
+
+    with TestClient(app) as client:
+        session_id = client.post("/session").json()["session_id"]
+        with client.websocket_connect(f"/session/{session_id}") as websocket:
+            websocket.send_json(sampler_frame("typing"))
+            trace_frame = websocket.receive_json()
+            assert trace_frame["type"] == "decision_trace"
+
+        before = policy.call_count
+        response = client.get(f"/session/{session_id}/decision-traces")
+        assert response.status_code == 200
+        assert policy.call_count == before == 1
+        assert [event["type"] for event in response.json()["events"]] == [
+            "snapshot_projection",
+            "decision_trace",
+        ]
+
+
+def test_stopped_take_remains_replayable_in_originating_process(tmp_path: Path) -> None:
+    app = create_app(
+        session_root=tmp_path,
+        policy_factory=lambda _session_id: ScriptedPolicy([]),
+        clock_factory=lambda _session_id: ManualClock(),
+    )
+
+    with TestClient(app) as client:
+        session_id = client.post("/session").json()["session_id"]
+        session = app.state.session_registry.get(session_id)
+        assert session is not None
+
+        stopped = client.post(f"/session/{session_id}/stop")
+        assert stopped.status_code == 200
+        assert stopped.json() == {"stopped": True}
+        with pytest.raises(SessionUnavailableError, match="closed"):
+            session.accept_snapshot(canonicalize_tim_json(sampler_frame("late")))
+
+        replay = client.get(f"/session/{session_id}/decision-traces")
+        assert replay.status_code == 200
+        assert replay.json()["session_id"] == session_id
 
 
 class GatedScriptedPolicy(ScriptedPolicy):
@@ -680,8 +730,8 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 "fire",
                 1,
             )
-            fired = websocket.receive_json()
             client.portal.call(policy.release[4].set)
+            fired = websocket.receive_json()
             nudge = websocket.receive_json()
             assert fired["type"] == "timer_status"
             assert fired["fire_count"] == 1
@@ -709,7 +759,6 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 "fire",
                 2,
             )
-            second_fire = websocket.receive_json()
             for index in range(1, 5):
                 websocket.send_json(
                     sampler_frame("stop"[:index], client_ts=typed_snapshot_count + 2 + index)
@@ -722,6 +771,7 @@ def test_scripted_timer_nudge_cancel_race_and_silent_periods(tmp_path: Path) -> 
                 typed_snapshot_count + 6,
             )
             client.portal.call(policy.release[7].set)
+            second_fire = websocket.receive_json()
             canceled = websocket.receive_json()
             client.portal.call(wait_for_calls, policy, 10)
             assert second_fire["type"] == "timer_status"

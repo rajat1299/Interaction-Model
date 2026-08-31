@@ -3,7 +3,7 @@ name = "im"
 version = "0.1.0"
 description = "Event-sourced text interaction model runtime"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "==3.12.4"
 dependencies = [
     "pydantic>=2",
     "fastapi",
@@ -11,6 +11,11 @@ dependencies = [
     "websockets",
     "httpx",
     "python-dotenv",
+    "pyarrow==25.0.0",
+    "tinker==0.24.0",
+    "tinker-cookbook==0.5.3",
+    "tokenizers==0.22.1",
+    "transformers==5.5.4",
 ]
 
 [dependency-groups]
@@ -20,7 +25,6 @@ dev = [
     "hypothesis",
     "ruff",
     "jsonschema>=4.26.0",
-    "tokenizers>=0.23.1",
     "z3-solver>=5.0.0.0",
     "highspy>=1.15.1",
 ]

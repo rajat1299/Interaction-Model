@@ -17,6 +17,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: "index.html",
+        film: "film.html",
         review: "review.html",
       },
     },

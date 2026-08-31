@@ -395,6 +395,14 @@ def test_failed_result_is_not_integrable_but_can_warrant_one_failure_response() 
     )
 
 
+def test_integrate_is_blocked_while_user_owns_the_floor() -> None:
+    assert_blocked(
+        action_payload("integrate"),
+        view(floor_owned=True),
+        LicenseBlockCode.FLOOR_OWNED,
+    )
+
+
 def test_reserved_user_annotation_cannot_be_a_response_warrant() -> None:
     annotation = OtherEventView(
         event_id="e_000004",

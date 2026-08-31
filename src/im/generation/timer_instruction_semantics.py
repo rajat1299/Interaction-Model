@@ -10,6 +10,7 @@ __all__ = (
     "TimerInstructionSemanticsV1",
     "has_explicit_additional_timer_marker",
     "parse_timer_instruction_v1",
+    "parse_runtime_timer_instruction_v1",
     "render_timer_instruction_v1",
     "validate_timer_asset_semantics_v1",
 )
@@ -139,6 +140,32 @@ def parse_timer_instruction_v1(instruction: str) -> TimerInstructionSemanticsV1:
     ):
         raise ValueError("instruction is not canonical v1 timer text")
     return semantics
+
+
+def parse_runtime_timer_instruction_v1(instruction: str) -> TimerInstructionSemanticsV1:
+    """Parse canonical v1 text or the common natural reminder word order."""
+    try:
+        return parse_timer_instruction_v1(instruction)
+    except ValueError:
+        pass
+    match = fullmatch(
+        r"Remind me to (?P<message>\S(?:.*\S)?) every "
+        r"(?P<quantity>\d{1,2}|[a-z]+(?:-[a-z]+)?) "
+        r"(?P<unit>second|seconds|minute|minutes)\.?",
+        instruction,
+        IGNORECASE,
+    )
+    if match is None:
+        raise ValueError("instruction is outside the supported runtime timer grammar")
+    quantity_text = match["quantity"].lower()
+    quantity = int(quantity_text) if quantity_text.isdigit() else _parse_cardinal(quantity_text)
+    unit = match["unit"].lower()
+    if (quantity == 1) != (unit in {"second", "minute"}):
+        raise ValueError("timer unit plurality is invalid")
+    return _semantic_adapter(
+        quantity * (60_000 if unit.startswith("minute") else 1_000),
+        match["message"],
+    )
 
 
 def validate_timer_asset_semantics_v1(

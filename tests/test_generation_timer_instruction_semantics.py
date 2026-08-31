@@ -9,6 +9,7 @@ from im.generation.sidecar import BeatEvidence
 from im.generation.timer_instruction_semantics import (
     TIMER_INSTRUCTION_SEMANTICS_VERSION,
     has_explicit_additional_timer_marker,
+    parse_runtime_timer_instruction_v1,
     parse_timer_instruction_v1,
     render_timer_instruction_v1,
     validate_timer_asset_semantics_v1,
@@ -68,6 +69,15 @@ def test_v1_parser_round_trips_explicit_additional_timer_instruction() -> None:
         semantics.message,
         explicit_additional=semantics.explicit_additional,
     ) == instruction
+
+
+def test_runtime_parser_accepts_natural_numeric_reminder() -> None:
+    semantics = parse_runtime_timer_instruction_v1(
+        "Remind me to breathe every 10 seconds."
+    )
+
+    assert semantics.interval_ms == 10_000
+    assert semantics.message == "breathe"
 
 
 @pytest.mark.parametrize("explicit_additional", (False, True))

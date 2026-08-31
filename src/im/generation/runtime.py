@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from im.canonical_json import TimJsonLimits, canonicalize_tim_json, parse_tim_json
 from im.config import RuntimeConfig
 from im.license import LicenseView
+from im.policy.base import BaseLanguagePolicy, Policy, PolicyDecision
 from im.scheduler import ManualClock
 from im.server import (
     ArtifactPaths,
@@ -142,7 +143,74 @@ class TimedScriptedPolicy:
             )
         )
         self._active_deadline_ns = None
+        if getattr(self, "decision_format", None) == "policy_intent_v1":
+            from im.policy.base import ScriptedIntentPolicy
+
+            bound = await ScriptedIntentPolicy([decision.attempt]).decide(policy_bytes)
+            assert isinstance(bound, PolicyDecision)
+            return PolicyDecision(
+                attempt=decision.attempt,
+                output_bytes=bound.output_bytes,
+                output_bytes_sha256=bound.output_bytes_sha256,
+                parser_input_bytes=bound.parser_input_bytes,
+                parser_input_sha256=bound.parser_input_sha256,
+                parser_input_binding=bound.parser_input_binding,
+                latency_ms=self.timings[-1].service_ms,
+            )
         return decision.attempt
+
+
+class BoundedExternalPolicy:
+    """Count a fixed one-shot policy schedule without changing its decisions."""
+
+    decision_format = "policy_intent_v1"
+
+    def __init__(self, policy: Policy, decision_count: int) -> None:
+        if decision_count < 1:
+            raise ValueError("decision_count must be positive")
+        self.policy = policy
+        self.decision_count = decision_count
+        self.call_count = 0
+        self.completed_count = 0
+        self.active_deadline_ns = None
+        self.cancelled = False
+        self._completed = asyncio.Event()
+        self._completed.set()
+
+    @property
+    def remaining_count(self) -> int:
+        return self.decision_count - self.call_count
+
+    @property
+    def in_flight(self) -> bool:
+        return self.call_count > self.completed_count
+
+    async def wait_current(self) -> None:
+        await self._completed.wait()
+
+    async def decide(self, policy_bytes: bytes) -> object:
+        if self.call_count >= self.decision_count:
+            raise RuntimeError("bounded policy exceeded the frozen decision count")
+        self.call_count += 1
+        self._completed.clear()
+        try:
+            return await self.policy.decide(policy_bytes)
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+        finally:
+            self.completed_count += 1
+            self._completed.set()
+
+    async def realize_language(self, request: object, policy_bytes: bytes):
+        if not isinstance(self.policy, BaseLanguagePolicy):
+            return None, ()
+        return await self.policy.realize_language(request, policy_bytes)
+
+    async def aclose(self) -> None:
+        close = getattr(self.policy, "aclose", None)
+        if close is not None:
+            await close()
 
 
 class VirtualLatencyStubPolicy:
@@ -220,13 +288,18 @@ class RuntimeIngestionHarness:
         decision_boundary_observer: DecisionBoundaryObserver | None = None,
         calibration: bool = False,
         measurement_audits: bool = False,
+        semantic_intents: bool = False,
+        external_policy: Policy | None = None,
+        external_decision_count: int | None = None,
     ) -> None:
         if decision_boundary_observer is not None and not callable(decision_boundary_observer):
             raise TypeError("decision_boundary_observer must be callable or None")
-        if calibration and decisions is not None:
+        if calibration and (decisions is not None or external_policy is not None):
             raise ValueError("calibration runtime does not accept scripted decisions")
-        if not calibration and decisions is None:
-            raise TypeError("decisions is required outside calibration mode")
+        if not calibration and (decisions is None) == (external_policy is None):
+            raise TypeError("exactly one scripted or external policy is required")
+        if external_policy is not None and external_decision_count is None:
+            raise TypeError("external_decision_count is required for an external policy")
         self.config = config or RuntimeConfig()
         root = repository_root or Path(__file__).resolve().parents[3]
         session_artifacts = artifacts or load_session_artifacts(
@@ -237,7 +310,11 @@ class RuntimeIngestionHarness:
         self._calibration_replayed = False
         if calibration:
             self.policy = VirtualLatencyStubPolicy(self.clock, session_id)
+        elif external_policy is not None:
+            assert external_decision_count is not None
+            self.policy = BoundedExternalPolicy(external_policy, external_decision_count)
         else:
+            assert decisions is not None
             self.policy = TimedScriptedPolicy(
                 self.clock,
                 decisions,
@@ -253,6 +330,8 @@ class RuntimeIngestionHarness:
                     )
                 ),
             )
+            if semantic_intents:
+                self.policy.decision_format = "policy_intent_v1"
         self.session = RuntimeSession(
             session_id=session_id,
             directory=directory,
@@ -356,6 +435,8 @@ class RuntimeIngestionHarness:
         idle_observation: tuple[int, int, int] | None = None
         for _ in range(max_turns):
             self.session.assert_healthy()
+            if isinstance(self.policy, BoundedExternalPolicy) and self.policy.in_flight:
+                return
             now_ns = self.clock.monotonic_ns()
             deadline = self.policy.active_deadline_ns
             due_now = any(
@@ -411,8 +492,15 @@ class RuntimeIngestionHarness:
         """Advance through policy deadlines without skipping earlier due work."""
         for _ in range(max_turns):
             await self.progress_at_current_time()
+            if isinstance(self.policy, BoundedExternalPolicy) and self.policy.cancelled:
+                raise asyncio.CancelledError
             if complete():
                 return
+            if isinstance(self.policy, BoundedExternalPolicy) and self.policy.in_flight:
+                await self.policy.wait_current()
+                if self.policy.cancelled:
+                    raise asyncio.CancelledError
+                continue
             deadline = self.policy.active_deadline_ns
             if deadline is not None:
                 await self._advance_to_ns(deadline)
@@ -461,9 +549,7 @@ class RuntimeIngestionHarness:
             failure=lambda: RuntimeError("runtime ingestion harness did not become idle"),
         )
 
-    async def replay_calibration(
-        self, frames: Iterable[ScheduledSamplerFrame]
-    ) -> Path:
+    async def replay_calibration(self, frames: Iterable[ScheduledSamplerFrame]) -> Path:
         """Replay exact sampler frames and return the finalized SQLite artifact."""
         if not self._calibration:
             raise RuntimeError("calibration replay requires calibration mode")
