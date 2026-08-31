@@ -1,51 +1,9 @@
-# Interaction Model
+# Small Models for Live Text Interaction
 
-Behavioral replication of a text interaction model (held facts, marks, live
-lookups, recurring timers) fine-tuned on `Qwen/Qwen3.6-35B-A3B` (thinking
-disabled). Event-sourced runtime, nine-action policy, SFT + DPO.
+Training a compact language model to track what you're typing, fetch information when it matters, and otherwise stay out of the way.
 
-Full plan: [docs/build-plan.md](docs/build-plan.md).
+I fine-tuned Qwen3.6-35B-A3B into a text interaction model. It reads your typing as a stream of timestamped events and, at each moment, picks a single action: do nothing, highlight a phrase, request a lookup, fold in a previously fetched result, drop information that's no longer relevant, or reply. Most of the time, it does nothing.
 
-## WP13 dry run
+The project grew out of a concrete question raised by Thinking Machines' work on interaction models: what would that idea become in plain text — a setting where the model watches unfinished drafts but should intervene only rarely?
 
-The prompted policy is configured for OpenAI `gpt-5.6-terra` with high reasoning. This entrypoint
-makes paid live API calls. Before any live request, validate the local key and print
-expected/conservative costs:
-
-```bash
-uv run python scripts/wp13_dry_run.py
-```
-
-The command never calls OpenAI and never prints the key. A live browser run needs the API and Vite
-processes in separate terminals:
-
-```bash
-uv run uvicorn im.entrypoint:app --host 127.0.0.1 --port 8000
-cd client && npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-Open `http://127.0.0.1:5173/`; Vite proxies the session HTTP and WebSocket routes to the API. The
-first recorded live run is in
-[`probes/results/e2e/2026-07-12-terra-high.md`](probes/results/e2e/2026-07-12-terra-high.md).
-
-## Zero-network calibration recording
-
-Human calibration uses the frozen D1 latency envelope and always emits `idle(no_trigger)`. It does
-not load an API key or make model calls. Start this API instead of the WP13 entrypoint:
-
-```bash
-uv run uvicorn im.calibration_entrypoint:app --host 127.0.0.1 --port 8000
-cd client && npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-Open a named regime such as
-`http://127.0.0.1:5173/?calibration=natural-drafting`. The live WP13 entrypoint rejects calibration
-sessions, and the calibration entrypoint rejects ordinary sessions, so the two modes cannot be
-mixed accidentally.
-
-## Layout
-
-- `docs/` — canonical build plan and specs.
-
-Source layout is defined as Phase 0a lands; the plan deliberately fixes no
-structure ahead of the work.
+The finished model can highlight relevant phrases, kick off a lookup mid-sentence, hold onto the result, and apply it later if it still fits. It can also throw away information once the user has moved on. Getting these behaviors to work took surprisingly little training; the harder challenge was curbing the model's urge to share accurate information nobody asked for.
