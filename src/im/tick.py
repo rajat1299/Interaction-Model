@@ -7,12 +7,23 @@ import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from im.canonical_json import TimJsonError, TimJsonLimits, canonicalize_tim_json
 from im.coalesce import PendingEvent, coalesce
 from im.config import RuntimeConfig
+from im.decision_trace import (
+    DecisionTraceDraft,
+    DecisionTraceV1,
+    digest,
+    effect_payload,
+    emit_trace,
+    exact_bytes,
+    jsonable,
+    persist_trace,
+)
 from im.license import (
     AddressableEventView,
     Allowed,
@@ -31,12 +42,14 @@ from im.license import (
 )
 from im.mark_projection import project_ambiguous_mark_targets, project_span
 from im.policy.base import (
+    BaseLanguagePolicy,
     CalibrationPolicy,
     Policy,
     PolicyCallCancelled,
     PolicyCallError,
     PolicyCallTrace,
     PolicyDecision,
+    SemanticIntentPolicy,
 )
 from im.response_state import response_handled_snapshot_ids
 from im.scheduler import Clock, TimerScheduler
@@ -75,6 +88,9 @@ from im.schema.events import (
 from im.store import IdKind, PolicyEventDraft, PolicyRecord, Store
 from im.tools import ScriptedToolResult, ToolAdapter
 
+if TYPE_CHECKING:
+    from im.policy.phase3x_runtime import FrozenPhase3XBoundary
+
 
 class TickPhase(StrEnum):
     IDLE = "idle"
@@ -98,8 +114,9 @@ class RenderCommand:
 
 
 type RenderSink = Callable[[RenderCommand], Awaitable[None] | None]
+type TraceSink = Callable[[DecisionTraceV1], Awaitable[None] | None]
+type CommittedIngressSink = Callable[[PolicyEventDraft], None]
 type ToolScript = Callable[[DelegateAction], ScriptedToolResult | None]
-MAX_MARK_QUIESCENCE_BLOCKS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +131,16 @@ class TickResult:
 
 def _event_kind(record: PolicyRecord) -> LicenseEventKind:
     return LicenseEventKind(f"{record.event.source}.{record.event.kind}")
+
+
+def _project_mark_action(store: Store, action: object) -> object:
+    if not isinstance(action, MarkAction):
+        return action
+    snapshots = tuple(
+        record.event for record in store.policy_records() if isinstance(record.event, SnapshotEvent)
+    )
+    target = project_span(action.target, snapshots)
+    return action if target is None else action.model_copy(update={"target": target})
 
 
 def build_license_view(
@@ -433,6 +460,8 @@ class TickRuntime:
         clock: Clock,
         config: RuntimeConfig | None = None,
         render_sink: RenderSink | None = None,
+        trace_sink: TraceSink | None = None,
+        committed_ingress_sink: CommittedIngressSink | None = None,
         tool_script: ToolScript | None = None,
         measurement_audits: bool = False,
     ) -> None:
@@ -443,6 +472,8 @@ class TickRuntime:
         self.clock = clock
         self.config = config or RuntimeConfig()
         self.render_sink = render_sink
+        self.trace_sink = trace_sink
+        self.committed_ingress_sink = committed_ingress_sink
         self.tool_script = tool_script
         self._measurement_audits = measurement_audits
         self.phase = TickPhase.IDLE
@@ -497,19 +528,10 @@ class TickRuntime:
         """Drain pending work and exact continuation ticks under one actor lock."""
         async with self._drain_lock:
             continue_tick = False
-            blocked_quiescence_attempts = 0
             while self._pending or continue_tick:
                 result = await self._run_tick()
                 if result.mark_quiescent is not None:
                     self._mark_quiescent = result.mark_quiescent
-                if result.blocked_code is not None and not self._mark_quiescent:
-                    blocked_quiescence_attempts += 1
-                    if blocked_quiescence_attempts >= MAX_MARK_QUIESCENCE_BLOCKS:
-                        raise RuntimeError(
-                            "mark-quiescence continuation exceeded blocked-attempt limit"
-                        )
-                else:
-                    blocked_quiescence_attempts = 0
                 continue_tick = result.force_continuation or result.fresh_ingress_committed or (
                     result.changed_state and self._has_open_actionable_event()
                 )
@@ -522,8 +544,22 @@ class TickRuntime:
         decision_id = f"d_{self._decision_count:06d}"
         records = self.store.policy_records()
         observed_seq = records[-1].seq if records else None
-        if self._measurement_audits:
+        semantic = isinstance(self.policy, SemanticIntentPolicy)
+        boundary = None
+        if semantic:
+            # Lazy import avoids the policy.intent -> generation -> server -> tick cycle.
+            from im.policy.phase3x_runtime import freeze_phase3x_boundary
+
             policy_bytes = self.store.policy_bytes()
+            frozen_view = build_license_view(self.store, self.config)
+            boundary = freeze_phase3x_boundary(
+                policy_bytes,
+                frozen_view,
+                license_view_bytes=canonicalize_tim_json(jsonable(frozen_view)),
+            )
+        elif self._measurement_audits:
+            policy_bytes = self.store.policy_bytes()
+        if self._measurement_audits:
             self.store.audit(
                 "decision_started",
                 {
@@ -535,11 +571,20 @@ class TickRuntime:
             )
             self._arrivals = []
         try:
+            started_mono_ns = self._now_mono_ns() if boundary is not None else None
+            policy_cancelled: PolicyCallCancelled | None = None
             try:
+                policy_input = (
+                    boundary.prompt_bytes
+                    if boundary is not None
+                    else policy_bytes
+                    if self._measurement_audits
+                    else self.store.policy_bytes()
+                )
                 if self._measurement_audits:
                     self._policy_call_active = True
                     try:
-                        policy_result = await self.policy.decide(policy_bytes)
+                        policy_result = await self.policy.decide(policy_input)
                     finally:
                         self._policy_call_active = False
                         self.store.audit(
@@ -550,30 +595,306 @@ class TickRuntime:
                             },
                         )
                 else:
-                    policy_result = await self.policy.decide(self.store.policy_bytes())
-            except (PolicyCallError, PolicyCallCancelled) as error:
+                    policy_result = await self.policy.decide(policy_input)
+            except PolicyCallCancelled as error:
                 self._record_policy_call_traces(decision_id, error.calls)
-                raise
+                if boundary is None:
+                    raise
+                policy_cancelled = error
+                policy_result = PolicyDecision(
+                    attempt=None,
+                    output_bytes=b"",
+                    output_bytes_sha256=digest(b""),
+                    latency_ms=sum(call.latency_ms for call in error.calls),
+                )
+            except PolicyCallError as error:
+                self._record_policy_call_traces(decision_id, error.calls)
+                if boundary is None:
+                    raise
+                policy_result = PolicyDecision(
+                    attempt=None,
+                    output_bytes=b"",
+                    output_bytes_sha256=digest(b""),
+                    latency_ms=sum(call.latency_ms for call in error.calls),
+                )
+            except Exception as error:
+                if boundary is None:
+                    raise
+                self.store.audit(
+                    "policy_failed_closed",
+                    {"decision_id": decision_id, "error_type": type(error).__name__},
+                )
+                policy_result = PolicyDecision(
+                    attempt=None,
+                    output_bytes=b"",
+                    output_bytes_sha256=digest(b""),
+                    latency_ms=0,
+                )
             if isinstance(policy_result, PolicyDecision):
                 self._record_policy_call_traces(decision_id, policy_result.calls)
                 raw_attempt = policy_result.attempt
             else:
                 raw_attempt = policy_result
             self._audit_attempt(raw_attempt, decision_id, observed_seq)
-            decision = self._check_attempt(raw_attempt)
-            if isinstance(decision, Blocked):
-                self._audit_block(decision.code, decision_id, observed_seq)
-                return TickResult(
-                    False,
-                    blocked_code=decision.code,
-                    mark_quiescent=False if self._pending else None,
-                    force_continuation=not self._mark_quiescent,
-                )
-            if isinstance(decision.action, IdleAction):
-                return TickResult(False, mark_quiescent=not self._pending)
-            return await self._execute(decision.action, decision_id, observed_seq)
+            if boundary is None:
+                decision = self._check_attempt(raw_attempt)
+                if isinstance(decision, Blocked):
+                    self._audit_block(decision.code, decision_id, observed_seq)
+                    return TickResult(
+                        False,
+                        blocked_code=decision.code,
+                        mark_quiescent=False if self._pending else None,
+                        force_continuation=bool(self._pending),
+                    )
+                if isinstance(decision.action, IdleAction):
+                    return TickResult(
+                        False,
+                        mark_quiescent=not self._pending,
+                        force_continuation=bool(self._pending),
+                    )
+                return await self._execute(decision.action, decision_id, observed_seq, None)
+
+            output = (
+                policy_result.output_bytes
+                if isinstance(policy_result, PolicyDecision)
+                and policy_result.output_bytes is not None
+                else b""
+            )
+            latency_ms = (
+                policy_result.latency_ms
+                if isinstance(policy_result, PolicyDecision)
+                else None
+            )
+            if latency_ms is None:
+                assert started_mono_ns is not None
+                latency_ms = max(0, (self._now_mono_ns() - started_mono_ns) // 1_000_000)
+            parser_input = (
+                policy_result.parser_input_bytes
+                if isinstance(policy_result, PolicyDecision)
+                else None
+            )
+            (
+                parsed_intent,
+                resolution_payload,
+                resolved_attempt,
+                binding_ok,
+                policy_cancelled,
+            ) = await self._resolve_semantic_attempt(
+                policy_result,
+                output,
+                parser_input,
+                boundary,
+                decision_id,
+                policy_cancelled,
+            )
+            return await self._finish_semantic_attempt(
+                resolved_attempt,
+                parsed_intent,
+                resolution_payload,
+                binding_ok,
+                output,
+                parser_input,
+                latency_ms,
+                boundary,
+                frozen_view,
+                decision_id,
+                observed_seq,
+                policy_cancelled,
+            )
         finally:
             self.phase = TickPhase.IDLE
+
+    async def _finish_semantic_attempt(
+        self,
+        resolved_attempt: object | None,
+        parsed_intent: object | None,
+        resolution_payload: dict[str, object],
+        binding_ok: bool,
+        output: bytes,
+        parser_input: bytes | None,
+        latency_ms: int,
+        boundary: FrozenPhase3XBoundary,
+        frozen_view: LicenseView,
+        decision_id: str,
+        observed_seq: int | None,
+        policy_cancelled: PolicyCallCancelled | None,
+    ) -> TickResult:
+        """Commit the terminal trace and dispatch an already-resolved semantic attempt."""
+        if resolved_attempt is None:
+            trace = DecisionTraceDraft(
+                decision_id=decision_id,
+                observed_through_policy_seq=observed_seq,
+                raw_provider_output=exact_bytes(output),
+                raw_provider_output_sha256=digest(output),
+                parser_input=(exact_bytes(parser_input) if parser_input is not None else None),
+                parser_input_sha256=(digest(parser_input) if parser_input is not None else None),
+                parser_input_binding=(
+                    "authenticated_terminal_framing" if binding_ok else "failed_closed"
+                ),
+                parsed_raw_intent=parsed_intent,
+                frozen_policy_sha256=boundary.policy_sha256,
+                frozen_license_view_sha256=boundary.license_view_sha256,
+                frozen_registry_sha256=boundary.registry_sha256,
+                resolution=resolution_payload,
+                initial_license={"status": "not_checked"},
+                pending_license={"status": "not_checked"},
+                latency_ms=latency_ms,
+            ).finish(
+                final_policy_seq=observed_seq,
+                fresh_license={"status": "not_checked"},
+                executed_event=None,
+                effect=None,
+            )
+            persist_trace(self.store, trace)
+            await emit_trace(self.store, self.trace_sink, trace)
+            if policy_cancelled is not None:
+                raise policy_cancelled
+            return TickResult(
+                False,
+                mark_quiescent=not self._pending,
+                force_continuation=bool(self._pending),
+            )
+
+        initial = check(_project_mark_action(self.store, resolved_attempt), frozen_view)
+        pending = (
+            initial
+            if isinstance(initial, Blocked)
+            else check(
+                _project_mark_action(self.store, initial.action),
+                build_license_view(
+                    self.store,
+                    self.config,
+                    payload_within_limits=self._payload_within_limits(initial.action),
+                    newer_pending_snapshot=self._has_pending_snapshot(),
+                ),
+            )
+        )
+        assert parser_input is not None
+        draft = DecisionTraceDraft(
+            decision_id=decision_id,
+            observed_through_policy_seq=observed_seq,
+            raw_provider_output=exact_bytes(output),
+            raw_provider_output_sha256=digest(output),
+            parser_input=exact_bytes(parser_input),
+            parser_input_sha256=digest(parser_input),
+            parser_input_binding="authenticated_terminal_framing",
+            parsed_raw_intent=parsed_intent,
+            frozen_policy_sha256=boundary.policy_sha256,
+            frozen_license_view_sha256=boundary.license_view_sha256,
+            frozen_registry_sha256=boundary.registry_sha256,
+            resolution=resolution_payload,
+            initial_license=self._license_result(initial),
+            pending_license=(
+                {"status": "not_checked"}
+                if isinstance(initial, Blocked)
+                else self._license_result(pending)
+            ),
+            latency_ms=latency_ms,
+        )
+        if isinstance(pending, Blocked):
+            self._audit_block(pending.code, decision_id, observed_seq)
+            trace = draft.finish(
+                final_policy_seq=observed_seq,
+                fresh_license={"status": "not_checked"},
+                executed_event=None,
+                effect=None,
+            )
+            persist_trace(self.store, trace)
+            await emit_trace(self.store, self.trace_sink, trace)
+            return TickResult(
+                False,
+                blocked_code=pending.code,
+                mark_quiescent=False if self._pending else None,
+                force_continuation=bool(self._pending),
+            )
+        if isinstance(pending.action, IdleAction):
+            trace = draft.finish(
+                final_policy_seq=observed_seq,
+                fresh_license={"status": "not_checked"},
+                executed_event=None,
+                effect=None,
+            )
+            persist_trace(self.store, trace)
+            await emit_trace(self.store, self.trace_sink, trace)
+            return TickResult(
+                False,
+                mark_quiescent=not self._pending,
+                force_continuation=bool(self._pending),
+            )
+        return await self._execute(pending.action, decision_id, observed_seq, draft)
+
+    async def _resolve_semantic_attempt(
+        self,
+        policy_result: object,
+        output: bytes,
+        parser_input: bytes | None,
+        boundary: FrozenPhase3XBoundary,
+        decision_id: str,
+        policy_cancelled: PolicyCallCancelled | None,
+    ) -> tuple[object | None, dict[str, object], object | None, bool, PolicyCallCancelled | None]:
+        """Resolve only authenticated parser bytes and complete any required prose route."""
+        binding_ok = (
+            isinstance(policy_result, PolicyDecision)
+            and policy_result.parser_input_binding == "authenticated_terminal_framing"
+            and policy_result.output_bytes_sha256 == digest(output)
+            and parser_input is not None
+            and policy_result.parser_input_sha256 == digest(parser_input)
+        )
+        if not binding_ok:
+            return (
+                None,
+                {
+                    "status": "failed_closed",
+                    "reason": "missing_or_mismatched_authenticated_parser_input",
+                    "action": None,
+                },
+                None,
+                False,
+                policy_cancelled,
+            )
+        from im.policy.phase3x_runtime import resolve_phase3x_output
+
+        parsed_intent, resolution = resolve_phase3x_output(parser_input, boundary.registry)
+        from im.policy.intent import (
+            LanguageRealizationRequest,
+            complete_language_realization,
+        )
+
+        if isinstance(resolution.value, LanguageRealizationRequest):
+            request = resolution.value
+            prose = None
+            if request.type == "respond" and isinstance(self.policy, BaseLanguagePolicy):
+                try:
+                    prose, calls = await self.policy.realize_language(
+                        request, boundary.policy_bytes
+                    )
+                except PolicyCallCancelled as error:
+                    self._record_policy_call_traces(decision_id, error.calls)
+                    policy_cancelled = error
+                except PolicyCallError as error:
+                    self._record_policy_call_traces(decision_id, error.calls)
+                except Exception as error:
+                    self.store.audit(
+                        "language_realization_failed_closed",
+                        {
+                            "decision_id": decision_id,
+                            "error_type": type(error).__name__,
+                        },
+                    )
+                else:
+                    self._record_policy_call_traces(decision_id, calls)
+            resolution = complete_language_realization(request, prose)
+        return (
+            parsed_intent,
+            {
+                "status": resolution.status.value,
+                "reason": resolution.reason,
+                "action": jsonable(resolution.value),
+            },
+            resolution.value,
+            True,
+            policy_cancelled,
+        )
 
     def _commit_pending(self) -> None:
         if not self._pending:
@@ -581,21 +902,31 @@ class TickRuntime:
         batch = self._take_pending()
         try:
             with self.store.transaction():
-                self._commit_batch(batch)
+                committed = self._commit_batch(batch)
         except BaseException:
             self._pending = batch + self._pending
             raise
+        self._project_committed_ingress(committed)
 
     def _take_pending(self) -> list[PendingEvent]:
         batch, self._pending = self._pending, []
         return batch
 
-    def _commit_batch(self, batch: list[PendingEvent]) -> None:
+    def _commit_batch(self, batch: list[PendingEvent]) -> tuple[PolicyEventDraft, ...]:
+        committed: list[PolicyEventDraft] = []
         for draft in batch:
             draft = self._supersede_committed_fire(draft)
             self.store.commit_policy(draft)
             if (draft.source, draft.kind) in {("timer", "fire"), ("tool", "result")}:
                 self.store.set_disposition(draft.id, Disposition.OPEN)
+            committed.append(draft)
+        return tuple(committed)
+
+    def _project_committed_ingress(self, committed: tuple[PolicyEventDraft, ...]) -> None:
+        if self.committed_ingress_sink is None:
+            return
+        for draft in committed:
+            self.committed_ingress_sink(draft)
 
     def _supersede_committed_fire(self, draft: PendingEvent) -> PendingEvent:
         if draft.source != "timer" or draft.kind != "fire":
@@ -632,11 +963,14 @@ class TickRuntime:
         return draft
 
     def _check_attempt(self, raw_attempt: object) -> Allowed | Blocked:
-        initial = check(raw_attempt, build_license_view(self.store, self.config))
+        initial = check(
+            _project_mark_action(self.store, raw_attempt),
+            build_license_view(self.store, self.config),
+        )
         if isinstance(initial, Blocked):
             return initial
         return check(
-            initial.action,
+            _project_mark_action(self.store, initial.action),
             build_license_view(
                 self.store,
                 self.config,
@@ -650,16 +984,18 @@ class TickRuntime:
         action: NonIdleAction,
         decision_id: str,
         observed_seq: int | None,
+        trace_draft: DecisionTraceDraft | None,
     ) -> TickResult:
         effects: list[RenderCommand] = []
+        terminal_trace: DecisionTraceV1 | None = None
         fresh_batch = self._take_pending()
         try:
             with self.store.transaction():
                 # Arrivals captured during inference precede the action in real occurrence time.
                 # Commit them first, then re-check the sampled action against that fresher state.
-                self._commit_batch(fresh_batch)
+                committed_fresh = self._commit_batch(fresh_batch)
                 rechecked = check(
-                    action,
+                    _project_mark_action(self.store, action),
                     build_license_view(
                         self.store,
                         self.config,
@@ -674,11 +1010,21 @@ class TickRuntime:
                     )
                     blocked = rechecked.code
                     action_event_id = None
+                    if trace_draft is not None:
+                        final_records = self.store.policy_records()
+                        terminal_trace = trace_draft.finish(
+                            final_policy_seq=final_records[-1].seq if final_records else None,
+                            fresh_license=self._license_result(rechecked),
+                            executed_event=None,
+                            effect=None,
+                        )
+                        persist_trace(self.store, terminal_trace)
                 else:
                     blocked = None
+                    action = rechecked.action
                     action_event_id = self.store.allocate_id(IdKind.EVENT)
                     action_mono_ns = self._now_mono_ns()
-                    self.store.commit_policy(
+                    action_seq, _rendered = self.store.commit_policy(
                         PolicyEventDraft(
                             id=action_event_id,
                             source="model",
@@ -688,20 +1034,46 @@ class TickRuntime:
                         )
                     )
                     effects.extend(self._apply_action(action, action_event_id))
+                    if trace_draft is not None:
+                        final_records = self.store.policy_records()
+                        executed = next(
+                            record.event
+                            for record in reversed(final_records)
+                            if record.event_id == action_event_id
+                        )
+                        terminal_trace = trace_draft.finish(
+                            final_policy_seq=final_records[-1].seq,
+                            fresh_license=self._license_result(rechecked),
+                            executed_event=jsonable(executed),
+                            effect=effect_payload(
+                                self.store,
+                                action_event_id,
+                                action_seq,
+                                final_records,
+                                effects,
+                            ),
+                        )
+                        persist_trace(self.store, terminal_trace)
         except BaseException:
             self._pending = fresh_batch + self._pending
             raise
 
+        self._project_committed_ingress(committed_fresh)
+
         if blocked is not None:
+            if terminal_trace is not None:
+                await emit_trace(self.store, self.trace_sink, terminal_trace)
             return TickResult(
                 False,
                 blocked_code=blocked,
                 fresh_ingress_committed=bool(fresh_batch),
                 mark_quiescent=False if fresh_batch else None,
-                force_continuation=not self._mark_quiescent,
+                force_continuation=bool(self._pending),
             )
         if action_event_id is None:  # pragma: no cover - narrowed by the branch above.
             raise RuntimeError("allowed action execution lost its event id")
+        if terminal_trace is not None:
+            await emit_trace(self.store, self.trace_sink, terminal_trace)
         await self._emit(effects)
         requires_mark_continuation = isinstance(
             action,
@@ -988,6 +1360,12 @@ class TickRuntime:
         except (TimJsonError, TypeError, ValueError):
             return repr(raw)
         return raw
+
+    @staticmethod
+    def _license_result(result: Allowed | Blocked) -> dict[str, object]:
+        if isinstance(result, Blocked):
+            return {"status": "blocked", "code": result.code.value}
+        return {"status": "allowed", "action": result.action.model_dump(mode="json")}
 
     async def _emit(self, effects: list[RenderCommand]) -> None:
         if self.render_sink is None:

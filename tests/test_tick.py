@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from im.canonical_json import canonicalize_tim_json, parse_tim_json
-from im.policy.base import ScriptedPolicy
+from im.license import Allowed, Blocked
+from im.policy.base import ScriptedIntentPolicy, ScriptedPolicy
 from im.scheduler import ManualClock, TimerScheduler
 from im.schema.actions import (
     CancelAction,
@@ -25,7 +26,7 @@ from im.schema.actions import (
     Span,
 )
 from im.schema.common import Disposition, LicenseBlockCode, ToolResultStatus
-from im.schema.events import ActionExecutedEvent, TimerFireEvent
+from im.schema.events import ActionExecutedEvent, TimerFireEvent, ToolResultEvent
 from im.store import PolicyEventDraft, Store
 from im.tick import RenderKind, TickPhase, TickRuntime, build_license_view
 from im.tools import ScriptedToolResult, ToolAdapter
@@ -120,13 +121,68 @@ async def test_idle_audits_attempt_without_committing_action_or_continuing(tmp_p
         assert runtime.phase is TickPhase.IDLE
         assert runtime.tick_count == policy.call_count == 1
         assert action_types(store) == []
-        assert store._connection.execute("SELECT rowid, kind, payload FROM audit").fetchall() == [
+        assert store._connection.execute(
+            "SELECT rowid, kind, payload FROM audit"
+        ).fetchall() == [
             (
                 1,
                 "action_attempt",
                 b'{"decision_id":"d_000001","observed_through_policy_seq":0,"raw":{"reason":"no_trigger","related_event_id":null,"type":"idle"}}',
             )
         ]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_unsupported_legacy_attempt_reaches_fail_closed_license_boundary(
+    tmp_path: Path,
+) -> None:
+    store, clock, _scheduler, _tools, _policy, runtime = make_runtime(tmp_path, [object()])
+    try:
+        runtime.enqueue_committed_ingress(snapshot_draft(store, clock, "typing"))
+        await runtime.run_until_idle()
+
+        assert action_types(store) == []
+        blocked = store.audit_records("action_blocked")
+        assert len(blocked) == 1
+        assert blocked[0].payload["code"] == "malformed_action"
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_executed_action_rolls_back_if_terminal_trace_cannot_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, clock, _scheduler, _tools, _policy, runtime = make_runtime(tmp_path, [])
+    draft = snapshot_draft(store, clock, "lookup quokka", activity="paused")
+    policy = ScriptedIntentPolicy(
+        [{
+            "type": "delegate",
+            "source": "u0",
+            "query": "quokka",
+            "occurrence": 0,
+        }]
+    )
+    runtime.policy = policy
+    original_audit = store.audit
+
+    def reject_terminal_trace(kind: str, payload: object, **kwargs: object) -> int:
+        if kind == "decision_trace_v1":
+            raise RuntimeError("trace write failed")
+        return original_audit(kind, payload, **kwargs)
+
+    monkeypatch.setattr(store, "audit", reject_terminal_trace)
+    try:
+        runtime.enqueue_committed_ingress(draft)
+        with pytest.raises(RuntimeError, match="trace write failed"):
+            await runtime.run_until_idle()
+
+        assert action_types(store) == []
+        assert store.pending_tool_requests() == ()
+        assert all(record.event.kind != "tool_requested" for record in store.policy_records())
+        assert store.audit_records("decision_trace_v1") == ()
     finally:
         store.close()
 
@@ -218,6 +274,91 @@ async def test_mark_and_respond_emit_only_after_committed_action(tmp_path: Path)
         assert action_types(store) == ["mark", "respond"]
         assert [effect.kind for effect in effects] == [RenderKind.MARK, RenderKind.RESPOND]
         assert build_license_view(store, runtime.config).applied_marks == ()
+    finally:
+        store.close()
+
+
+def test_mark_target_projects_through_an_identical_snapshot(tmp_path: Path) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    first = snapshot_draft(store, clock, "mark cat", activity="paused")
+    second = snapshot_draft(store, clock, "mark cat", activity="paused")
+    store.commit_policy(first)
+    store.commit_policy(second)
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy([]),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    action = MarkAction(
+        type="mark",
+        instruction=span(first, "mark"),
+        target=span(first, "cat", 5),
+    )
+    try:
+        decision = runtime._check_attempt(action)
+        assert isinstance(decision, Allowed)
+        assert decision.action.target == span(second, "cat", 5)
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(("start", "text"), [(0, "cat"), (5, "dog")])
+def test_invalid_mark_occurrence_or_span_still_fails_closed(
+    tmp_path: Path, start: int, text: str
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    first = snapshot_draft(store, clock, "mark cat", activity="paused")
+    second = snapshot_draft(store, clock, "mark cat", activity="paused")
+    store.commit_policy(first)
+    store.commit_policy(second)
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy([]),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    action = MarkAction(
+        type="mark",
+        instruction=span(first, "mark"),
+        target=span(first, text, start),
+    )
+    try:
+        assert runtime._check_attempt(action) == Blocked(LicenseBlockCode.SPAN_MISMATCH)
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_projected_mark_duplicate_is_detected_on_latest_snapshot(tmp_path: Path) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    first = snapshot_draft(store, clock, "mark cat", activity="paused")
+    action = MarkAction(
+        type="mark",
+        instruction=span(first, "mark"),
+        target=span(first, "cat", 5),
+    )
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy(
+            [action, IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None)]
+        ),
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    try:
+        runtime.enqueue_committed_ingress(first)
+        await runtime.run_until_idle()
+        second = snapshot_draft(store, clock, "mark cat", activity="paused")
+        store.commit_policy(second)
+
+        assert runtime._check_attempt(action) == Blocked(LicenseBlockCode.TARGET_ALREADY_HANDLED)
     finally:
         store.close()
 
@@ -317,6 +458,57 @@ class BlockingSchedulePolicy:
             await self.release.wait()
             return self.schedule
         return IdleAction(type="idle", reason=IdleReason.NO_TRIGGER, related_event_id=None)
+
+
+class BlockingIntentPolicy(ScriptedIntentPolicy):
+    def __init__(self) -> None:
+        super().__init__(
+            [
+                {"type": "idle", "reason": "typing_active", "related": None},
+                {"type": "idle", "reason": "no_trigger", "related": None},
+            ]
+        )
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def decide(self, policy_bytes: bytes) -> object:
+        if self.call_count == 0:
+            self.started.set()
+            await self.release.wait()
+        return await super().decide(policy_bytes)
+
+
+@pytest.mark.asyncio
+async def test_semantic_idle_drains_snapshot_that_arrived_during_inference(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    policy = BlockingIntentPolicy()
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=ToolAdapter(store, clock),
+        clock=clock,
+    )
+    try:
+        runtime.enqueue_committed_ingress(
+            snapshot_draft(store, clock, "Highlight cities", activity="active")
+        )
+        task = asyncio.create_task(runtime.run_until_idle())
+        await policy.started.wait()
+        runtime.enqueue_committed_ingress(
+            snapshot_draft(store, clock, "Highlight cities Paris", activity="paused")
+        )
+        policy.release.set()
+        await task
+
+        assert policy.call_count == runtime.tick_count == 2
+        assert runtime.pending == ()
+        assert store.policy_records()[-1].event.activity == "paused"
+    finally:
+        store.close()
 
 
 @pytest.mark.asyncio
@@ -429,12 +621,19 @@ async def test_mid_inference_ingress_commits_before_permitted_action_and_forces_
             message="breathe",
         )
     )
+    projected: list[str] = []
+
+    def project_committed(draft: PolicyEventDraft) -> None:
+        assert any(record.event_id == draft.id for record in store.policy_records())
+        projected.append(draft.id)
+
     runtime = TickRuntime(
         store=store,
         policy=policy,
         scheduler=TimerScheduler(store, clock),
         tools=ToolAdapter(store, clock),
         clock=clock,
+        committed_ingress_sink=project_committed,
         measurement_audits=True,
     )
     try:
@@ -457,6 +656,7 @@ async def test_mid_inference_ingress_commits_before_permitted_action_and_forces_
             and record.event.payload.action.type == "schedule"
         )
         assert fresh_seq < action_seq
+        assert projected.count(fresh.id) == 1
         assert policy.call_count == runtime.tick_count == 2
         assert action_types(store) == ["schedule"]
         assert len(store.active_timers()) == 1
@@ -615,12 +815,22 @@ async def test_delegate_result_integrate_lifecycle(tmp_path: Path) -> None:
     )
     policy = ScriptedPolicy([delegate])
     tools = ToolAdapter(store, clock)
+    committed_results: list[str] = []
+
+    def project_committed(draft: PolicyEventDraft) -> None:
+        if (draft.source, draft.kind) != ("tool", "result"):
+            return
+        record = next(record for record in store.policy_records() if record.event_id == draft.id)
+        assert isinstance(record.event, ToolResultEvent)
+        committed_results.append(draft.id)
+
     runtime = TickRuntime(
         store=store,
         policy=policy,
         scheduler=TimerScheduler(store, clock),
         tools=tools,
         clock=clock,
+        committed_ingress_sink=project_committed,
         tool_script=lambda _action: ScriptedToolResult(latency_ms=10, data={"answer": "n-42"}),
     )
     try:
@@ -642,7 +852,204 @@ async def test_delegate_result_integrate_lifecycle(tmp_path: Path) -> None:
         await runtime.run_until_idle()
 
         assert action_types(store) == ["delegate", "integrate"]
+        assert committed_results == [delivery.event_id]
         assert store.get_disposition(delivery.event_id).state is Disposition.HANDLED  # type: ignore[union-attr]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_blocked_active_floor_integration_waits_for_paused_snapshot(tmp_path: Path) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    fact = snapshot_draft(store, clock, "lookup nonce", activity="paused")
+    delegate = DelegateAction(
+        type="delegate",
+        fact=span(fact, "nonce", 7),
+        tool="lookup",
+        args={"query": "nonce"},
+    )
+    tools = ToolAdapter(store, clock)
+    policy = ScriptedPolicy([delegate])
+    runtime = TickRuntime(
+        store=store,
+        policy=policy,
+        scheduler=TimerScheduler(store, clock),
+        tools=tools,
+        clock=clock,
+        tool_script=lambda _action: ScriptedToolResult(latency_ms=0, data={"answer": "n-42"}),
+    )
+    try:
+        runtime.enqueue_committed_ingress(fact)
+        await runtime.run_until_idle()
+
+        (delivery,) = tools.deliver_due()
+        integrate = IntegrateAction(
+            type="integrate",
+            result_event_id=delivery.event_id,
+            text="The answer is n-42.",
+        )
+
+        class ActiveFloorPolicy:
+            def __init__(self) -> None:
+                self.call_count = 0
+                self.started = {index: asyncio.Event() for index in range(1, 5)}
+                self.release = {index: asyncio.Event() for index in range(1, 5)}
+
+            async def decide(self, _policy_bytes: bytes) -> object:
+                self.call_count += 1
+                if self.call_count <= 4:
+                    self.started[self.call_count].set()
+                    await self.release[self.call_count].wait()
+                return integrate
+
+        policy = ActiveFloorPolicy()
+        runtime.policy = policy
+        active_snapshots = tuple(
+            snapshot_draft(store, clock, f"lookup nonce {index}", activity="active")
+            for index in range(4)
+        )
+        runtime.enqueue_committed_ingress(active_snapshots[0])
+        runtime.enqueue_committed_ingress(delivery.as_policy_draft())
+        task = asyncio.create_task(runtime.run_until_idle())
+        for call, active in zip(range(1, 4), active_snapshots[1:]):
+            await policy.started[call].wait()
+            runtime.enqueue_committed_ingress(active)
+            policy.release[call].set()
+        await policy.started[4].wait()
+        policy.release[4].set()
+        await task
+
+        assert runtime.phase is TickPhase.IDLE
+        assert runtime.pending == ()
+        assert action_types(store) == ["delegate"]
+        assert store.get_disposition(delivery.event_id).state is Disposition.OPEN  # type: ignore[union-attr]
+        blocked = store.audit_records("action_blocked")
+        assert len(blocked) == 4
+        assert all(
+            record.payload["code"] == LicenseBlockCode.FLOOR_OWNED.value
+            for record in blocked
+        )
+
+        paused = snapshot_draft(store, clock, "lookup nonce", activity="paused")
+        runtime.enqueue_committed_ingress(paused)
+        await runtime.run_until_idle()
+
+        assert runtime.phase is TickPhase.IDLE
+        assert runtime.pending == ()
+        assert action_types(store) == ["delegate", "integrate"]
+        assert store.get_disposition(delivery.event_id).state is Disposition.HANDLED  # type: ignore[union-attr]
+        assert policy.call_count == 5
+        assert runtime.tick_count == 6
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_tool_result_arriving_during_inference_projects_only_after_fresh_commit(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    fact = snapshot_draft(store, clock, "lookup nonce", activity="paused")
+    tools = ToolAdapter(store, clock)
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy(
+            [
+                DelegateAction(
+                    type="delegate",
+                    fact=span(fact, "nonce", 7),
+                    tool="lookup",
+                    args={"query": "nonce"},
+                )
+            ]
+        ),
+        scheduler=TimerScheduler(store, clock),
+        tools=tools,
+        clock=clock,
+        tool_script=lambda _action: ScriptedToolResult(
+            latency_ms=0, data="Velin Quay 41"
+        ),
+    )
+    try:
+        runtime.enqueue_committed_ingress(fact)
+        await runtime.run_until_idle()
+        instruction = snapshot_draft(store, clock, "breathe", activity="paused")
+        policy = BlockingSchedulePolicy(
+            ScheduleAction(
+                type="schedule",
+                instruction=span(instruction, "breathe"),
+                interval_ms=1_000,
+                message="breathe",
+            )
+        )
+        runtime.policy = policy
+        projected: list[str] = []
+
+        def project_committed(draft: PolicyEventDraft) -> None:
+            assert any(record.event_id == draft.id for record in store.policy_records())
+            projected.append(draft.id)
+
+        runtime.committed_ingress_sink = project_committed
+        runtime.enqueue_committed_ingress(instruction)
+        task = asyncio.create_task(runtime.run_until_idle())
+        await policy.started.wait()
+        (delivery,) = tools.deliver_due()
+        await runtime.submit_committed_ingress(delivery.as_policy_draft())
+        assert delivery.event_id not in projected
+        policy.release.set()
+        await task
+
+        assert projected.count(delivery.event_id) == 1
+        assert any(record.event_id == delivery.event_id for record in store.policy_records())
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_tool_result_policy_commit_never_projects_held_ingress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = Store(tmp_path / "session.sqlite3")
+    clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
+    fact = snapshot_draft(store, clock, "lookup nonce", activity="paused")
+    delegate = DelegateAction(
+        type="delegate",
+        fact=span(fact, "nonce", 7),
+        tool="lookup",
+        args={"query": "nonce"},
+    )
+    tools = ToolAdapter(store, clock)
+    projected: list[str] = []
+    runtime = TickRuntime(
+        store=store,
+        policy=ScriptedPolicy([delegate]),
+        scheduler=TimerScheduler(store, clock),
+        tools=tools,
+        clock=clock,
+        committed_ingress_sink=lambda draft: projected.append(draft.id),
+        tool_script=lambda _action: ScriptedToolResult(latency_ms=0, data="Velin Quay 41"),
+    )
+    try:
+        runtime.enqueue_committed_ingress(fact)
+        await runtime.run_until_idle()
+        projected.clear()
+        (delivery,) = tools.deliver_due()
+        original = store.commit_policy
+
+        def fail_result(draft: PolicyEventDraft):
+            if draft.id == delivery.event_id:
+                raise RuntimeError("forced policy commit failure")
+            return original(draft)
+
+        monkeypatch.setattr(store, "commit_policy", fail_result)
+        runtime.enqueue_committed_ingress(delivery.as_policy_draft())
+        with pytest.raises(RuntimeError, match="forced policy commit failure"):
+            runtime._commit_pending()
+
+        assert projected == []
+        assert not any(record.event_id == delivery.event_id for record in store.policy_records())
     finally:
         store.close()
 
@@ -846,14 +1253,14 @@ async def test_high_priority_action_drains_marks_before_rollover_can_observe_bas
         await runtime.run_until_idle()
 
         assert action_types(store) == ["nudge", "mark"]
-        assert policy.call_count == runtime.tick_count == 4
-        assert runtime.mark_quiescent
+        assert policy.call_count == runtime.tick_count == 3
+        assert not runtime.mark_quiescent
     finally:
         store.close()
 
 
 @pytest.mark.asyncio
-async def test_repeated_blocked_mark_continuation_fails_explicitly(tmp_path: Path) -> None:
+async def test_blocked_mark_continuation_waits_for_new_ingress(tmp_path: Path) -> None:
     store = Store(tmp_path / "session.sqlite3")
     clock = ManualClock(wall_utc=datetime(2026, 7, 12, 12, tzinfo=UTC))
     snapshot = snapshot_draft(store, clock, "mark cat", activity="paused")
@@ -875,12 +1282,11 @@ async def test_repeated_blocked_mark_continuation_fails_explicitly(tmp_path: Pat
     try:
         runtime.enqueue_committed_ingress(snapshot)
 
-        with pytest.raises(RuntimeError, match="mark-quiescence"):
-            await runtime.run_until_idle()
+        await runtime.run_until_idle()
 
         assert not runtime.mark_quiescent
         assert action_types(store) == ["mark"]
-        assert policy.call_count == runtime.tick_count == 4
+        assert policy.call_count == runtime.tick_count == 2
     finally:
         store.close()
 

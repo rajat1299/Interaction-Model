@@ -98,6 +98,16 @@ class PolicyCallRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class AuditRecord:
+    """One canonical audit row in durable insertion order."""
+
+    row_id: int
+    ts_utc: str
+    kind: str
+    payload: TimJsonValue
+
+
+@dataclass(frozen=True, slots=True)
 class TimerLedgerRecord:
     """The durable timer state needed by the scheduler and checkpoint projection.
 
@@ -914,6 +924,29 @@ class Store:
             )
             row_id = int(cursor.lastrowid)
         return row_id
+
+    def audit_records(self, kind: str | None = None) -> tuple[AuditRecord, ...]:
+        """Read canonical audit rows without exposing the SQLite connection."""
+        if kind is None:
+            rows = self._connection.execute(
+                "SELECT rowid, ts_utc, kind, payload FROM audit ORDER BY rowid"
+            ).fetchall()
+        else:
+            if not kind:
+                raise ValueError("audit kind must not be empty")
+            rows = self._connection.execute(
+                "SELECT rowid, ts_utc, kind, payload FROM audit WHERE kind = ? ORDER BY rowid",
+                (kind,),
+            ).fetchall()
+        return tuple(
+            AuditRecord(
+                row_id=int(row[0]),
+                ts_utc=str(row[1]),
+                kind=str(row[2]),
+                payload=parse_tim_json(bytes(row[3])),
+            )
+            for row in rows
+        )
 
     def record_policy_call(
         self,

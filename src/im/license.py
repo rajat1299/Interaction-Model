@@ -593,8 +593,8 @@ def _check_duplicate_tool_request(action: Action, view: LicenseView) -> Blocked 
 
 
 def _check_floor_owned(action: Action, view: LicenseView) -> Blocked | None:
-    """Block only the mechanically supplied hard-floor case for responses."""
-    if isinstance(action, RespondAction) and view.floor_owned:
+    """Block responses and integrations while the user owns the floor."""
+    if isinstance(action, RespondAction | IntegrateAction) and view.floor_owned:
         return Blocked(LicenseBlockCode.FLOOR_OWNED)
     return None
 

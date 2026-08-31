@@ -1,9 +1,11 @@
 """Policy boundary and deterministic scripted test policy."""
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
+
+from im.canonical_json import canonicalize_tim_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +37,12 @@ class PolicyDecision:
 
     attempt: object
     calls: tuple[PolicyCallTrace, ...] = ()
+    output_bytes: bytes | None = None
+    output_bytes_sha256: str | None = None
+    parser_input_bytes: bytes | None = None
+    parser_input_sha256: str | None = None
+    parser_input_binding: Literal["authenticated_terminal_framing"] | None = None
+    latency_ms: int | None = None
 
 
 class PolicyCallError(RuntimeError):
@@ -58,6 +66,22 @@ class Policy(Protocol):
 
     async def decide(self, policy_bytes: bytes) -> object:
         """Return one raw action attempt for schema validation and audit."""
+
+
+@runtime_checkable
+class SemanticIntentPolicy(Policy, Protocol):
+    """A policy that consumes the Phase3X prompt and emits policy_intent_v1."""
+
+    decision_format: Literal["policy_intent_v1"]
+
+
+@runtime_checkable
+class BaseLanguagePolicy(Protocol):
+    """Optional LoRA-disabled prose route for semantic respond requests."""
+
+    async def realize_language(
+        self, request: object, policy_bytes: bytes
+    ) -> tuple[str | None, tuple[PolicyCallTrace, ...]]: ...
 
 
 @runtime_checkable
@@ -101,3 +125,44 @@ class ScriptedPolicy:
         self.call_count += 1
         self.observed_policy_bytes.append(policy_bytes)
         return self._actions.pop(0)
+
+
+class ScriptedIntentPolicy(ScriptedPolicy):
+    """Finite offline policy whose attempts are strict Phase3X semantic intents."""
+
+    decision_format: Literal["policy_intent_v1"] = "policy_intent_v1"
+
+    async def decide(self, policy_bytes: bytes) -> object:
+        attempt = await super().decide(policy_bytes)
+        parser_input = canonicalize_tim_json(attempt)
+        from im.training.phase3_framing import (
+            TERMINAL_MARKER,
+            TERMINAL_TOKEN_ID,
+            project_terminal_output,
+        )
+
+        output = parser_input + TERMINAL_MARKER.encode("utf-8")
+        projection = project_terminal_output(
+            finish_reason="stop",
+            output_token_ids=(1, TERMINAL_TOKEN_ID),
+            decoded_bytes=output,
+            tokenizer=_ScriptedDecoder(parser_input),
+        )
+        return PolicyDecision(
+            attempt=attempt,
+            output_bytes=output,
+            output_bytes_sha256=projection.raw_output_sha256,
+            parser_input_bytes=projection.parser_input,
+            parser_input_sha256=projection.parser_input_sha256,
+            parser_input_binding="authenticated_terminal_framing",
+        )
+
+
+class _ScriptedDecoder:
+    def __init__(self, parser_input: bytes) -> None:
+        self.parser_input = parser_input
+
+    def decode(self, token_ids: Sequence[int], *, skip_special_tokens: bool) -> str:
+        if skip_special_tokens or list(token_ids) != [1]:
+            raise ValueError("unexpected scripted terminal projection")
+        return self.parser_input.decode("utf-8")

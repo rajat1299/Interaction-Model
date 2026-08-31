@@ -33,6 +33,12 @@ from im.canonical_json import (
 )
 from im.coalesce import SnapshotState, derive_edit_kind
 from im.config import MAX_SAFE_INTEGER, RuntimeConfig, estimate_tokens
+from im.decision_trace import (
+    DecisionTraceV1,
+    film_replay,
+    timer_fire_status_frame,
+    tool_result_text,
+)
 from im.policy.base import AsyncClosablePolicy, CalibrationPolicy, Policy
 from im.rollover import rollover, should_rollover
 from im.scheduler import AsyncioClock, Clock, DueTimerFire, TimerScheduler
@@ -45,7 +51,7 @@ from im.schema.common import (
     PositiveInt,
     TimerId,
 )
-from im.schema.events import AnnotationPayload, SnapshotEvent
+from im.schema.events import AnnotationPayload, SnapshotEvent, TimerFireEvent, ToolResultEvent
 from im.serialize import RENDERER_ID
 from im.store import IdKind, PolicyEventDraft, Store, TimerLedgerRecord
 from im.tick import RenderCommand, RenderKind, TickPhase, TickRuntime, ToolScript
@@ -141,12 +147,27 @@ class CheckpointNoticeFrame(_WireModel):
     covers_through_policy_seq: NonNegativeInt
 
 
+class HeldContextFrame(_WireModel):
+    type: Literal["held_context"]
+    result_event_id: EventId
+    text: StrictStr
+    query: StrictStr
+    source: Literal["tool"]
+
+
+class DecisionTraceFrame(_WireModel):
+    type: Literal["decision_trace"]
+    trace: DecisionTraceV1
+
+
 ServerRenderFrame = Annotated[
     NudgeAnnotationFrame
     | MarkRenderFrame
     | RespondTextFrame
     | TimerStatusFrame
-    | CheckpointNoticeFrame,
+    | CheckpointNoticeFrame
+    | HeldContextFrame
+    | DecisionTraceFrame,
     Field(discriminator="type"),
 ]
 SERVER_FRAME_ADAPTER = TypeAdapter(ServerRenderFrame)
@@ -163,6 +184,10 @@ class CalibrationCompleteRequest(_WireModel):
 
 class CalibrationCompleted(_WireModel):
     completed: Literal[True]
+
+
+class SessionStopped(_WireModel):
+    stopped: Literal[True]
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,6 +302,7 @@ class RuntimeSession:
             asyncio.Queue()
         )
         self._closed = False
+        self._store_closed = False
         self._measurement_audits = measurement_audits
         self._latest_client_ts: int | None = None
         self._accepted_snapshot_count = 0
@@ -292,6 +318,8 @@ class RuntimeSession:
             clock=clock,
             config=config,
             render_sink=self._on_render_command,
+            trace_sink=self._on_decision_trace,
+            committed_ingress_sink=self._on_committed_ingress,
             tool_script=tool_script,
             measurement_audits=measurement_audits,
         )
@@ -615,10 +643,6 @@ class RuntimeSession:
         )
 
     async def _on_timer_fire(self, fire: DueTimerFire) -> None:
-        timer = self.store.get_timer(fire.payload.timer_id)
-        if timer is None:
-            raise RuntimeError("claimed timer disappeared before transport projection")
-        self._enqueue_frame(self._timer_status_frame(timer))
         self._tick_quiescent.clear()
         self.tick.enqueue_committed_ingress(fire.draft)
         self._tick_wake.set()
@@ -628,11 +652,51 @@ class RuntimeSession:
         self.tick.enqueue_committed_ingress(delivery.as_policy_draft())
         self._tick_wake.set()
 
+    def _on_committed_ingress(self, draft: PolicyEventDraft) -> None:
+        if (draft.source, draft.kind) == ("timer", "fire"):
+            record = next(
+                (record for record in self.store.policy_records() if record.event_id == draft.id),
+                None,
+            )
+            if record is None or not isinstance(record.event, TimerFireEvent):
+                raise RuntimeError("timer projection requires its committed policy event")
+            timer = self.store.get_timer(record.event.payload.timer_id)
+            if timer is None:
+                raise RuntimeError("committed timer fire lost its timer ledger row")
+            self._enqueue_frame(timer_fire_status_frame(timer, record.event))
+            return
+        if (draft.source, draft.kind) != ("tool", "result"):
+            return
+        record = next(
+            (record for record in self.store.policy_records() if record.event_id == draft.id),
+            None,
+        )
+        if record is None or not isinstance(record.event, ToolResultEvent):
+            raise RuntimeError("held result projection requires its committed policy event")
+        event = record.event
+        if event.payload.status.value != "succeeded":
+            return
+        request = self.store.get_tool_request(event.payload.request_id)
+        if request is None:
+            raise RuntimeError("committed tool result lost its request ledger row")
+        self._enqueue_frame(
+            {
+                "type": "held_context",
+                "result_event_id": event.id,
+                "text": tool_result_text(event.payload.data),
+                "query": str(request.args.get("query", "lookup result")),
+                "source": "tool",
+            }
+        )
+
     def _on_render_command(self, command: RenderCommand) -> None:
         payload = {"type": command.kind.value, **command.payload}
         if command.kind is not RenderKind.TIMER_STATUS:
             payload["action_event_id"] = command.action_event_id
         self._enqueue_frame(payload)
+
+    def _on_decision_trace(self, trace: DecisionTraceV1) -> None:
+        self._enqueue_frame({"type": "decision_trace", "trace": trace.model_dump(mode="json")})
 
     def _timer_status_frame(self, timer: TimerLedgerRecord) -> dict[str, object]:
         if timer.status.value == "active":
@@ -701,7 +765,8 @@ class RuntimeSession:
             raise ValueError("clock.wall_utc() must be timezone-aware")
         return value.astimezone(UTC).isoformat(timespec="microseconds")
 
-    async def close(self) -> None:
+    async def stop_runtime(self) -> None:
+        """Stop sandbox work while retaining its SQLite evidence for same-process replay."""
         if self._closed:
             return
         self._closed = True
@@ -730,7 +795,17 @@ class RuntimeSession:
         except BaseException as error:
             if cleanup_error is None:
                 cleanup_error = error
-        finally:
+        if cleanup_error is not None:
+            raise cleanup_error
+
+    async def close(self) -> None:
+        cleanup_error: BaseException | None = None
+        try:
+            await self.stop_runtime()
+        except BaseException as error:
+            cleanup_error = error
+        if not self._store_closed:
+            self._store_closed = True
             try:
                 self.store.close()
             except BaseException as error:
@@ -865,6 +940,24 @@ def create_app(
         except SessionUnavailableError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return CalibrationCompleted(completed=True)
+
+    @application.get("/session/{session_id}/decision-traces")
+    async def decision_traces(session_id: str) -> dict[str, object]:
+        session = registry.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="unknown session")
+        return film_replay(session.store, session_id)
+
+    @application.post("/session/{session_id}/stop", response_model=SessionStopped)
+    async def stop_session(session_id: str) -> SessionStopped:
+        session = registry.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="unknown session")
+        try:
+            await session.stop_runtime()
+        except BaseException as error:
+            raise HTTPException(status_code=500, detail=str(error)) from error
+        return SessionStopped(stopped=True)
 
     @application.websocket("/session/{session_id}")
     async def session_socket(websocket: WebSocket, session_id: str) -> None:
